@@ -286,9 +286,9 @@ public class PlaytimeAndHashTests
     }
 
     [Fact]
-    public void Every_path_this_milestone_constructs_is_relative_and_inside_the_tree()
+    public void Every_save_sync_path_is_relative_and_inside_the_tree()
     {
-        // A static check over the paths M6 introduces, in the shape of the rule they exist
+        // A static check over the paths save sync constructs, in the shape of the rule they exist
         // under: no absolute path is ever persisted, and each one lands where it says.
         RelativePath[] paths =
         [

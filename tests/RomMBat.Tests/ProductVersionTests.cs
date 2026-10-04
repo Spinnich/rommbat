@@ -12,7 +12,7 @@ namespace RomMBat.Tests;
 /// </summary>
 /// <remarks>
 /// Neither side sends a bare semantic version. RetroBat's <c>system/version.info</c> reads
-/// <c>8.2.0-stable-win64</c>, and the RomM instance M0 measured against reported
+/// <c>8.2.0-stable-win64</c>, and a RomM prerelease reports a version such as
 /// <c>5.1.1-beta.1</c>. A three-numeric-component parse throws on both.
 /// </remarks>
 public class ProductVersionTests
@@ -82,7 +82,7 @@ public class ProductVersionTests
     [Fact]
     public void A_prerelease_suffix_on_a_supported_version_is_not_a_downgrade()
     {
-        // The shape M0's instance reported. The suffix, not the number, used to be the trap.
+        // The shape a prerelease instance reports. The suffix, not the number, is the trap.
         var check = RomMServerVersion.Check("5.3.1-beta.1");
 
         Assert.Equal(CompatibilityVerdict.Supported, check.Verdict);

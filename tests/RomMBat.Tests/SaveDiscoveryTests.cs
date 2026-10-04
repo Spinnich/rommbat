@@ -393,7 +393,7 @@ public class SaveDiscoveryTests
     [Fact]
     public void The_xbox_disk_image_is_reported_by_name_and_never_opened()
     {
-        // 39 MB of the 43 MB stage 1's whole loose-file workload reads, and it is a container
+        // 39 MB of the 43 MB the whole loose-file workload reads, and it is a container
         // shared by every game. Held open with FileShare.None so that anything reading it fails
         // the test rather than merely being slow: the scan must work from names and existence.
         using var fixture = SaveTree.Create();
@@ -454,10 +454,10 @@ public class SaveDiscoveryTests
     [Fact]
     public void The_converted_card_is_named_from_the_rom_stem_not_from_its_full_filename()
     {
-        // The asymmetry that makes this work, and the one a reader will doubt. The
-        // es_settings.cfg key must carry the extension or it is ignored silently (M0 cases E
-        // and F); the card PCSX2 writes replaces it. So a card named after the full filename is
-        // NOT what the emulator produces, and must not resolve.
+        // The asymmetry that makes this work, and the one a reader will doubt. The es_settings.cfg
+        // key must carry the extension or it is ignored silently (RB-358, cases E and F); the card
+        // PCSX2 writes replaces it. So a card named after the full filename is NOT what the
+        // emulator produces, and must not resolve.
         using var fixture = SaveTree.Create();
 
         fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
@@ -847,7 +847,7 @@ public class SaveDiscoveryTests
     [Fact]
     public void An_unattributed_directory_save_is_named_by_its_unit_and_not_its_shared_container()
     {
-        // Measured on the live install in stage 2 of #195: the #152 report printed
+        // Measured on the live install (#195): a report naming containers printed
         // "Files: saves/mame/nvram, saves/mame/nvram, ..." because every unit shares a container.
         using var fixture = SaveTree.Create();
         fixture.AddSave("psp", "SAVEDATA/ULES01513SYSDATA/DATA.BIN", "one game");
@@ -863,7 +863,7 @@ public class SaveDiscoveryTests
     [Fact]
     public void Directory_saves_and_states_are_reported_once_per_system_with_a_real_count()
     {
-        // Stage 1 ships neither, and the alternative to reporting them is a user whose PS3
+        // Where a build carries neither, the alternative to reporting them is a user whose PS3
         // saves never go up with nothing saying so. Counted, because a row saying "1" would
         // understate the gap it exists to show.
         using var fixture = SaveTree.Create();
@@ -1182,9 +1182,8 @@ public class SaveDiscoveryTests
     [Fact]
     public void Eviction_refuses_a_rom_with_an_un_uploaded_save_on_disk()
     {
-        // The M3 seam closing. Before this, a save produced while nothing was watching was
-        // invisible to the guard and the gap was covered by never touching a file RomMBat did
-        // not download.
+        // A save produced while nothing was watching is visible to the guard through local_save,
+        // not only covered by never touching a file RomMBat did not download.
         using var fixture = SaveTree.Create();
 
         fixture.AddRom(42, "snes", "ActRaiser (USA).zip");

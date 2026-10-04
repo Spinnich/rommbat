@@ -90,8 +90,8 @@ public class StateDiscoveryTests
     [Fact]
     public void A_state_whose_own_folder_holds_no_rom_of_that_name_stays_unattributed()
     {
-        // The fail-closed direction, and the same rule M6 stage 1's review forced onto battery
-        // saves: guessing across systems is what this key exists to prevent.
+        // The fail-closed direction, and the same rule battery saves follow: guessing across
+        // systems is what this key exists to prevent.
         using var tree = StateTree.Create();
         tree.AddRom(1, "nes", "Contra (USA).zip");
         tree.AddState("snes/libretro.snes9x", "Contra (USA).state1", "bytes");
@@ -390,9 +390,8 @@ public class StateDiscoveryTests
     public void A_directory_save_beside_a_state_directory_is_carried_and_reported_on_its_own_terms()
     {
         // psp holds both shapes at once: ppsspp/ is where states are mirrored and SAVEDATA/ is
-        // a class C unit. Stage 2a could carry neither and reported SAVEDATA as not in this
-        // version; this stage carries it, so the report changes from "not supported" to the
-        // narrower and truer "nothing could say which game it is".
+        // a class C unit. SAVEDATA is carried, so an unattributed one is reported as the narrow
+        // "nothing could say which game it is" and not as "not supported".
         using var tree = StateTree.Create();
         tree.AddRom(1, "psp", "Patapon (Europe).cso");
         tree.AddState("psp/ppsspp", "Patapon (Europe)_0.ppst", "a state");

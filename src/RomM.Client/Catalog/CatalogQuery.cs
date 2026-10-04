@@ -404,7 +404,8 @@ public sealed record CatalogQuery
             // deserialisation rather than degrading.
             new("with_total", "true"),
 
-            // Opt-in and left off. Per-file detail is M3's problem, and it multiplies the body.
+            // Opt-in and left off. Per-file detail is the content sync's to ask for, and it
+            // multiplies the body.
             new("with_files", "false"),
             new("limit", limit.ToString(CultureInfo.InvariantCulture)),
             new("offset", offset.ToString(CultureInfo.InvariantCulture)),

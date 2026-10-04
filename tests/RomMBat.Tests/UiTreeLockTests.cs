@@ -15,7 +15,7 @@ namespace RomMBat.Tests;
 /// What the interface does while a background pass holds the tree lock.
 /// </summary>
 /// <remarks>
-/// <b>In this stage it never takes the lock, and that is a decision rather than an omission.</b>
+/// <b>The UI never takes the lock, and that is a decision rather than an omission.</b>
 /// The obvious thing to build is a status row saying whether a pass is running, found by trying
 /// to take the lock and seeing whether it comes. That is actively harmful here:
 /// the agent's <c>flush</c> treats a failed acquire as <i>success</i> and exits having done
@@ -26,15 +26,14 @@ namespace RomMBat.Tests;
 /// why.
 /// <para>
 /// <b>Reading needs no lock.</b> The store is SQLite in WAL mode, so a reader and a writer
-/// coexist, and everything 7b-1 shows is a read. The lock exists to serialise <i>writers</i>,
-/// and this stage has none.
+/// coexist, and everything the UI shows is a read. The lock exists to serialise <i>writers</i>,
+/// and the UI itself is none.
 /// </para>
 /// <para>
 /// <b>When a write does happen it is a Core service that takes the lock, never the UI.</b> That
 /// is what keeps the structural assertion true rather than deleting it, and it puts the
 /// decision where the rest of the decisions are. <c>PartialSweep.Apply</c>
-/// already works this way and already returns the sentence for it, so stage 7b-2 invented
-/// nothing here: it surfaced what was in the tree.
+/// works this way and returns the sentence for it, and the UI surfaces what is in the tree.
 /// </para>
 /// <para>
 /// <b>Defining a sync set takes no lock at all, and that is a decision rather than an
@@ -87,7 +86,7 @@ public class UiTreeLockTests
         // #100. Without this, renaming or deleting TreeLock makes every assertion in this
         // class pass for the wrong reason: the UI would not reference a type that no longer
         // exists, and the boundary would be disarmed with nothing saying so. The es_settings
-        // boundary has carried this companion since 7b-1 and this one did not.
+        // boundary carries the same companion.
         using var stream = File.OpenRead(typeof(TreeLock).Assembly.Location);
         using var reader = new PEReader(stream);
         var metadata = reader.GetMetadataReader();

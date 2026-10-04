@@ -121,9 +121,9 @@ internal sealed record StubPlatform(int Id, string Slug, string FsSlug, string N
 /// One firmware record, shaped like the live server's.
 /// </summary>
 /// <remarks>
-/// <see cref="FileName"/> defaults to something RetroBat does not use and
-/// <see cref="IsVerified"/> to false, because those are the two traps M5 exists to survive: a
-/// join on either would throw away files the emulator needs.
+/// <see cref="FileName"/> defaults to something RetroBat does not use and <see cref="IsVerified"/>
+/// to false, because those are the two traps the BIOS join exists to survive: a join on either
+/// would throw away files the emulator needs.
 /// </remarks>
 internal sealed record StubFirmware(int Id, string FileName, byte[] Bytes)
 {

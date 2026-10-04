@@ -11,9 +11,8 @@ namespace RomMBat.UI.Screens;
 /// The settings RomMBat is holding until EmulationStation closes.
 /// </summary>
 /// <remarks>
-/// <b>Stage 7b-1 could read this queue and could not touch it, and that was the gap.</b> A user
-/// who queued a change from the console had a row on the status screen saying it was waiting and
-/// no way to change their mind about it from the couch. Cancelling is the whole of the write
+/// <b>A user who queued a change from the console can change their mind from the couch.</b> The
+/// status screen says a change is waiting; this cancels it. Cancelling is the whole of the write
 /// half here, because the only other thing that can happen to a queued row is being applied, and
 /// that cannot happen while this interface is on screen.
 /// <para>

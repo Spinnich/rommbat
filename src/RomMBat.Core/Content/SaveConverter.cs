@@ -73,11 +73,11 @@ public enum ConversionMode
     /// you do instead, so it does not consult that check at all.
     /// <para>
     /// A caller that intends to queue therefore has to ask this rather than <c>Preview</c>, or
-    /// it gets a refusal about a thing it was never going to do. The M7 interface asked the
-    /// wrong one and the consequence was total: RomMBat is launched from the ES menu, so ES is
-    /// running every single time it runs, so the per-game memory card verb never appeared on
-    /// any game on any install. Found by a hands-on pass; no unit test could see it, because
-    /// the check reads the real process list and a test host has no EmulationStation.
+    /// it gets a refusal about a thing it was never going to do. The consequence of asking the
+    /// wrong one is total: the UI is launched from the ES menu, so ES is running every single
+    /// time it runs, and the per-game memory card verb would appear on no game on any install.
+    /// Only a hands-on pass sees this unless the check is injected, because the real one reads
+    /// the process list and a test host has no EmulationStation.
     /// </para>
     /// </remarks>
     QueuePreview,
@@ -114,8 +114,8 @@ public sealed class SaveConverter
 
     /// <param name="emulationStation">
     /// Whether EmulationStation is up. Injectable because the real one reads the machine's
-    /// process list, so every branch that depends on it was untestable, and one of them was
-    /// wrong for the entire life of the M7 interface without a single test being able to say so.
+    /// process list, so without this every branch that depends on it is untestable, and a wrong
+    /// one ships with no test able to say so.
     /// </param>
     public SaveConverter(
         RetroBatInstall install,

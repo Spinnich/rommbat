@@ -271,9 +271,9 @@ public class SaveUnitTests
     [Fact]
     public void Eviction_refuses_a_rom_with_an_un_uploaded_directory_save_on_disk()
     {
-        // The seam M3 shipped with a mitigation instead of an answer, now closed for class C.
-        // The guard needed no new question: a unit is a local_save row like any other, so the
-        // query that already asks "is there a save on disk that never went up" counts it.
+        // The eviction guard sees class C too, and needs no new question for it: a unit is a
+        // local_save row like any other, so the query that already asks "is there a save on disk
+        // that never went up" counts it.
         using var tree = TempRetroBatTree.Create();
         var install = tree.Install();
         using var store = LocalStore.Open(install);

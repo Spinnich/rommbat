@@ -6,9 +6,9 @@ namespace RomMBat.Core;
 /// Byte counts as a person reads them.
 /// </summary>
 /// <remarks>
-/// One implementation, because M3 would otherwise have three: a set resolution, a content plan
-/// and a filesystem refusal all report sizes, and two of them would end up disagreeing about
-/// rounding in the same console output.
+/// One implementation, because the content sync would otherwise have three: a set resolution, a
+/// content plan and a filesystem refusal all report sizes, and two of them would end up disagreeing
+/// about rounding in the same console output.
 /// <para>
 /// Binary units under decimal names, which is what a ROM library uses: a "4 GB" FAT32 ceiling
 /// is 4,294,967,296 bytes, not 4,000,000,000, and reporting it any other way would make the

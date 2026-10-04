@@ -15,7 +15,7 @@ namespace RomMBat.Tests;
 /// answer with the server switched off.
 /// </summary>
 /// <remarks>
-/// The milestone's done-when is "my SNES favourites, max 40 games, 8 GB" resolving to an
+/// The point of a set is "my SNES favourites, max 40 games, 8 GB" resolving to an
 /// exact list without the client ever holding the library, so that is the shape of most of
 /// these.
 /// </remarks>
@@ -394,7 +394,7 @@ public class SyncSetTests : IDisposable
             Now.AddMinutes(1),
             cancellationToken: TestContext.Current.CancellationToken);
 
-        // The no-op re-sync check, one milestone early: a second resolve over a library that
+        // The no-op re-sync check, at the resolve: a second resolve over a library that
         // did not move must not depart anyone or double-count what it skipped.
         var members = _store.SyncSets.Members(set.Id);
         Assert.Equal(4, members.Count);

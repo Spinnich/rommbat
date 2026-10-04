@@ -6,7 +6,7 @@ using RomM.Client.Content;
 
 namespace RomM.Client;
 
-/// <summary>The content reads M3 needs: downloading a ROM, and identifying one already on disk.</summary>
+/// <summary>The content reads: downloading a ROM, and identifying one already on disk.</summary>
 public sealed partial class RomMConnection
 {
     /// <summary>How much is read at a time. Large enough to keep a fast link busy, small enough to stay off the LOH.</summary>

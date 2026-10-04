@@ -11,7 +11,7 @@ using Xunit;
 namespace RomMBat.Tests;
 
 /// <summary>
-/// The Platform Mapping screen M2 called for and nothing had built.
+/// The Platform Mapping screen.
 /// </summary>
 /// <remarks>
 /// <b>The repair being install-wide is the point.</b> Before this, an unmapped platform was found
@@ -120,8 +120,7 @@ public class PlatformScreenTests : IDisposable
         var guessed = Assert.IsType<ListScreen>(
             PlatformScreens.Detail(_session, _session.Store.PlatformMap.Find("arcade")!));
 
-        // Nothing to drop, so nothing offers it: a press that does nothing is the defect three
-        // screens got three different ways in 7b-2c.
+        // Nothing to drop, so nothing offers it: a press that does nothing is a defect.
         Assert.DoesNotContain(guessed.Hints, hint => hint.Action == NavAction.Alternate);
 
         _session.Store.PlatformMap.SetOverride("arcade", "fbneo", DateTimeOffset.UtcNow);

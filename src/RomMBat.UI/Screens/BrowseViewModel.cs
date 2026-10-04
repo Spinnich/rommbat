@@ -16,13 +16,12 @@ namespace RomMBat.UI.Screens;
 /// this surface has all its rows the moment it opens, and <c>ListScreen</c>'s loader fills a
 /// list in rather than moving through one.
 /// <para>
-/// <b>Nothing here holds more than one page.</b> M2's rule is that the catalog is never mirrored
-/// wholesale, and <c>RomRow</c> and <c>RomPager</c> both restate it: a 96k library is about 384
-/// pages and the longest description in a 5,000-row sample is 11,719 characters. Moving past the
-/// bottom fetches the next offset and <b>replaces</b> what is held; moving past the top fetches
-/// the previous one. A test asserts the row count never exceeds the page size across several
-/// pages, because this is the rule most likely to be broken here and it breaks silently and
-/// only at scale.
+/// <b>Nothing here holds more than one page.</b> The catalog is never mirrored wholesale, and
+/// <c>RomRow</c> and <c>RomPager</c> both restate it: a 96k library is about 384 pages and the
+/// longest description in a 5,000-row sample is 11,719 characters. Moving past the bottom fetches
+/// the next offset and <b>replaces</b> what is held; moving past the top fetches the previous one.
+/// A test asserts the row count never exceeds the page size across several pages, because this is
+/// the rule most likely to be broken here and it breaks silently and only at scale.
 /// </para>
 /// <para>
 /// <b>It degrades rather than refusing, and it says which of the two it is showing.</b> With a
@@ -173,10 +172,9 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     /// in it, and drawing fifty one-liners that way costs 44px a row for nothing.
     /// <para>
     /// It also has to be said here rather than in <c>ScreenView</c>, because the count of rows
-    /// and the height of one are the same decision. Told separately, this screen computed a
-    /// window of eight and was drawn at the reading height, which overflows the display by
-    /// exactly the margin <see cref="ListWindow.ReadingCapacity"/> exists to avoid. That is
-    /// 7b-2b's round-four defect, reintroduced on the screen beside it.
+    /// and the height of one are the same decision. Told separately, this screen computes a
+    /// window of eight and is drawn at the reading height, which overflows the display by
+    /// exactly the margin <see cref="ListWindow.ReadingCapacity"/> exists to avoid.
     /// </para>
     /// </remarks>
     public bool Reading => false;
@@ -359,9 +357,8 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     /// The on-screen keyboard, which is EmulationStation's own and needed no third layer.
     /// </summary>
     /// <remarks>
-    /// 7b-2a transcribed all four faces of all three ES layouts from upstream's source, so the
-    /// "third layer" the 7b-2 brief left for this stage does not exist. It is reused unchanged,
-    /// typing in whatever language ES is set to.
+    /// All four faces of all three ES layouts are transcribed from upstream's source, so no
+    /// third layer is needed. It is reused unchanged, typing in whatever language ES is set to.
     /// </remarks>
     private OnScreenKeyboard SearchKeyboard() =>
         new OnScreenKeyboard(

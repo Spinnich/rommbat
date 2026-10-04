@@ -292,8 +292,8 @@ public sealed class CatalogScopeService
     /// <b>The sidecar this repository turns off everywhere else, used for the one job it is
     /// for.</b> <c>with_filter_values</c> costs a flat 379 KB and is refused on every page of a
     /// walk; here it is a single request at <c>limit=1</c> when the filter editor opens, which
-    /// is what <see cref="RomMConnection.GetFilterValuesAsync"/> was built for and what its
-    /// comment has said since M2.
+    /// is what <see cref="RomMConnection.GetFilterValuesAsync"/> is for, as its own comment
+    /// says.
     /// <para>
     /// <b>Eleven facets, which is RomM's whole multi-select surface rather than a subset of
     /// it.</b> Nine come from the sidecar. <c>statuses</c> and <c>metadata_providers</c> are
@@ -302,9 +302,8 @@ public sealed class CatalogScopeService
     /// dropped. RB-237.
     /// </para>
     /// <para>
-    /// This returned six until the last commit of stage 7b-2a, on the reasoning that they were
-    /// the ones that survive being stored and roamed through <c>Device.sync_config</c>. They
-    /// all survive, because a filter is one JSON column, so that was a constraint on nothing.
+    /// All eleven survive being stored and roamed through <c>Device.sync_config</c>, because a
+    /// filter is one JSON column, so roaming is no reason to offer fewer.
     /// </para>
     /// </remarks>
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> ListFilterValuesAsync(

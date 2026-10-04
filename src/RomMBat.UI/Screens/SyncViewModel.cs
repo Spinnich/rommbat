@@ -151,11 +151,11 @@ public sealed record SyncSnapshot(
     /// What the budget cost this run, or null when it cost nothing.
     /// </summary>
     /// <remarks>
-    /// <b>Stated, and nothing is offered.</b> 7b-2b took eviction off the interface, and one of
-    /// the two entry points it removed was the offer this screen used to make in its own footer,
-    /// at the moment the user found out the budget had cut the run short. Removing the offer must
-    /// not remove the fact: freeing space is theirs to do, by raising the budget or dropping a
-    /// set, and they cannot decide either without being told a run ended early.
+    /// <b>Stated, and nothing is offered.</b> Eviction is not on the interface, so this screen's
+    /// footer offers no way to free space at the moment the user finds out the budget cut the run
+    /// short. Not offering it must not hide the fact: freeing space is theirs to do, by raising the
+    /// budget or dropping a set, and they cannot decide either without being told a run ended
+    /// early.
     /// <para>
     /// The reason arrives separately as a problem line, from <c>ContentPlanner</c>, which names
     /// the cap. This is the count, which no problem line carries.
@@ -295,8 +295,8 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     /// every one of those reading "unless this is an install", where the only thing that
     /// actually differs is which Core method the run calls.
     /// <para>
-    /// <b>No flush.</b> 7b-2b put it first in a whole-library run for eviction's benefit, and
-    /// nothing here evicts. <see cref="LibrarySyncService.InstallAsync"/> owns which passes run
+    /// <b>No flush.</b> A whole-library run puts it first for eviction's benefit, and nothing
+    /// here evicts. <see cref="LibrarySyncService.InstallAsync"/> owns which passes run
     /// and says why for each of the six it leaves out.
     /// </para>
     /// </remarks>
@@ -407,7 +407,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     /// </summary>
     /// <remarks>
     /// <b>A <c>ListScreen</c> rather than a longer panel</b>, because it already windows and
-    /// already carries 7b-2a's fix for the window that was shared across instances, and because
+    /// is already tested, and because
     /// a run that fails four hundred games cannot be a wall of text either way. Rows are
     /// unavailable: there is nothing to choose, and marking them so keeps Accept from promising
     /// a press that does nothing. <see cref="ListScreen.Reading"/> is what then lets the cursor

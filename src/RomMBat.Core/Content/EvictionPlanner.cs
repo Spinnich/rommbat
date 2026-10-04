@@ -136,12 +136,12 @@ public sealed record EvictionPlan
 /// own ordering values least.
 /// </para>
 /// <para>
-/// <b>The <c>keep_favourites</c> policy is inert in this milestone and deliberately not
-/// pretended otherwise.</b> RomM has no <c>is_favorite</c> property on a ROM: favourites are
-/// membership of a collection, which cannot be answered offline and is not carried on the
-/// membership row. The same is true of "keep the last N played", which needs the play sessions
-/// M6 owns. Both need a field this schema does not yet hold, and a planner that silently
-/// ignored a policy the user set would be worse than one that says so.
+/// <b>The <c>keep_favourites</c> policy is inert and deliberately not pretended otherwise.</b>
+/// RomM has no <c>is_favorite</c> property on a ROM: favourites are membership of a collection,
+/// which cannot be answered offline and is not carried on the membership row. "Keep the last N
+/// played" is inert too, though its input exists: the <c>journal</c> table keeps every
+/// <c>game-start</c> with its <c>recorded_at_utc</c>, and this planner does not read it. A
+/// planner that silently ignored a policy the user set would be worse than one that says so.
 /// </para>
 /// </remarks>
 public sealed class EvictionPlanner

@@ -81,7 +81,7 @@ public sealed record BiosSyncProgress(BiosStep Step, int Index, int Total);
 /// wants it.
 /// </summary>
 /// <remarks>
-/// <b>Write, verify, rename, exactly as M3 does.</b> The transfer goes to
+/// <b>Write, verify, rename, exactly as a ROM download does.</b> The transfer goes to
 /// <c>emulators/rommbat/partial/</c>, is checked against the md5 RetroBat requires rather than
 /// the one RomM reports, and is moved into <c>bios/</c> only once it passes. A file that
 /// arrives wrong is deleted rather than kept: firmware that fails to verify is worse than

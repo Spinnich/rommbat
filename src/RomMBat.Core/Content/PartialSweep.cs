@@ -66,7 +66,8 @@ public sealed record PartialSweepOutcome
 }
 
 /// <summary>
-/// Reclaims <c>emulators/rommbat/partial/</c>, which neither of M3's two bounds can see.
+/// Reclaims <c>emulators/rommbat/partial/</c>, which neither the disk budget nor the free-space
+/// floor can see.
 /// </summary>
 /// <remarks>
 /// <b>The bytes are invisible to everything else, which is why they need their own pass.</b> The

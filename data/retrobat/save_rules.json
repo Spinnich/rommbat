@@ -360,9 +360,9 @@
   },
   "not_a_save_extensions": {
     ".ldci": "RetroArch's record of which disc is in the drive; holds an absolute path (RB-311)",
-    ".txt": "RetroBat's name-mapping sidecar; belongs with a state, which is stage 2",
-    ".png": "a save-state screenshot, which is stage 2",
-    ".jpg": "a save-state screenshot, which is stage 2"
+    ".txt": "RetroBat's name-mapping sidecar; belongs with a state, which state sync carries",
+    ".png": "a save-state screenshot, which state sync carries",
+    ".jpg": "a save-state screenshot, which state sync carries"
   },
   "shared_containers": {
     "megacd": {

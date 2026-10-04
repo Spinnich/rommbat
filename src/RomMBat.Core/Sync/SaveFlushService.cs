@@ -75,8 +75,8 @@ public sealed record FlushReport
     /// </summary>
     /// <remarks>
     /// Read from the store rather than from this pass's outcome, so a conflict found by an
-    /// earlier flush and never resolved is still reported. Stage 1 printed the in-memory list
-    /// once and a user who looked away lost the only record of it.
+    /// earlier flush and never resolved is still reported. A list printed once from memory would
+    /// leave a user who looked away with no record of it.
     /// </remarks>
     public IReadOnlyList<SaveConflictRecord> Conflicts { get; init; } = [];
 
@@ -268,7 +268,7 @@ public sealed class SaveFlushService
         }
         catch (RomMUnreachableException ex)
         {
-            // Offline is a working state and the headline feature of M6. Everything stays
+            // Offline is a working state, not a failure. Everything stays
             // queued and the next flush picks it up.
             return local with
             {

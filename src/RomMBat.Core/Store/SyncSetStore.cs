@@ -106,9 +106,8 @@ public sealed record SyncSetDefinition
     /// <b>Recently updated by default, not by name.</b> The ordering only does anything once a
     /// cap bites, and at that moment "by name" means a set of forty keeps everything beginning
     /// with A, which is nobody's intention and reads as a bug the first time somebody sees it.
-    /// Newest-in-RomM is what a person means by "give me some of this platform". Changed on a
-    /// hands-on finding in stage 7b-2a; the ordering is still explicit on every set the console
-    /// creates with <c>--order</c>.
+    /// Newest-in-RomM is what a person means by "give me some of this platform". The ordering is
+    /// still explicit on every set the console creates with <c>--order</c>.
     /// </remarks>
     public SetOrdering Ordering { get; init; } = SyncSetStore.DefaultOrdering;
 

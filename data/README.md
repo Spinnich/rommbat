@@ -4,12 +4,12 @@ Tables RomMBat ships and reads at runtime. Not to be confused with
 [reference/](../reference/), which vendors upstream files purely so the numbers in
 [reference/README.md](../reference/README.md) can be re-derived offline.
 
-| File                             | Shape                                                        | Derived from                                                                | Arrives in |
-| -------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------- | ---------- |
-| `retrobat/platforms.json`        | RomM slug to an **ordered list** of RetroBat folders         | `systems_names.lst`, resolved by RomM's `backend/utils/platform_aliases.py` | M2         |
-| `retrobat/save_directories.json` | **RetroBat system** to save subdirectories, in Grout's shape | M0 probe 2, generated from a real install                                   | M6         |
-| `retrobat/save_shapes.json`      | RetroBat system to save class A/B/C/D                        | M0 probe 2, generated from a real install                                   | M6         |
-| `retrobat/bios.json`             | RetroBat system to the firmware it requires                  | `reference/batocera-systems.json`, thinned by a generator                   | M5         |
+| File                             | Shape                                                        | Derived from                                                                |
+| -------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `retrobat/platforms.json`        | RomM slug to an **ordered list** of RetroBat folders         | `systems_names.lst`, resolved by RomM's `backend/utils/platform_aliases.py` |
+| `retrobat/save_directories.json` | **RetroBat system** to save subdirectories, in Grout's shape | `tools/m0-probes/probe2-emit-data.py`, run against a real install           |
+| `retrobat/save_shapes.json`      | RetroBat system to save class A/B/C/D                        | `tools/m0-probes/probe2-emit-data.py`, run against a real install           |
+| `retrobat/bios.json`             | RetroBat system to the firmware it requires                  | `reference/batocera-systems.json`, thinned by a generator                   |
 
 `certification.json` is the exception: nothing reads it at runtime. It holds each certified
 or driven `(system, emulator, core)` row, and the guide's platform table is generated from
@@ -65,9 +65,9 @@ segment deep. Both differ here, and the emitted files say so in their own `_comm
 - **Keyed by RetroBat system folder, not RomM slug.** This file describes RetroBat's disk
   layout. Joining a slug to a system folder is what `platforms.json` above is for, and
   duplicating that mapping into a second file would let the two drift.
-- **Paths are two segments deep**, because M0 found the real tree is
-  `saves/<system>/<emulator>/` rather than `saves/<system>/`, with some emulator-named
-  folders sitting at the top level beside the system ones.
+- **Paths are two segments deep**, because the real tree is `saves/<system>/<emulator>/`
+  rather than `saves/<system>/`, with some emulator-named folders sitting at the top level
+  beside the system ones (RB-361, RB-119).
 
 Both files carry a `_provenance` field per entry. `observed` means it was seen on a real
 install; `declared` means it comes from `es_savestates.cfg` or `es_features.cfg` and has
@@ -125,4 +125,4 @@ resolves to a folder that exists in `systems_names.lst`, that multi-folder slugs
 deterministically against a fixture `es_systems.cfg`, that `arcade` never resolves on its
 own, and that two platforms sharing one slug stay two platforms. The gamelist half of that
 last case, two platforms in one folder producing one merged gamelist rather than two
-competing writes, arrives with M4. Load the `platform-mapping` skill first.
+competing writes, is `GamelistTests`'. Load the `platform-mapping` skill first.

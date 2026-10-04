@@ -12,10 +12,8 @@ namespace RomMBat.Tests;
 /// A conflict outliving the flush that found it, and a person deciding it.
 /// </summary>
 /// <remarks>
-/// <b>This is the half of the milestone's "done when" that stage 1 could not carry.</b> The plan
-/// ends on "the newer save comes back down as a conflict <i>the user resolves</i>", and until
-/// this existed the conflict lived on an in-memory list that <c>flush</c> printed once. Issue
-/// #31.
+/// <b>A newer save comes back down as a conflict <i>the user resolves</i>.</b> These assert that
+/// the conflict is persisted rather than printed once from memory (#31).
 /// </remarks>
 public class SaveConflictTests
 {
@@ -46,8 +44,8 @@ public class SaveConflictTests
     [Fact]
     public async Task Conflicting_again_does_not_write_a_second_copy_aside()
     {
-        // Stage 1 copied on every pass, so a slot that conflicted and was never resolved gained
-        // one dated file under replaced/ per flush and nothing pruned them.
+        // Copying on every pass would give a slot that conflicts and is never resolved one dated
+        // file under replaced/ per flush, and nothing prunes them.
         using var fixture = ConflictFixture.Create();
 
         await fixture.ConflictAsync(TestContext.Current.CancellationToken);

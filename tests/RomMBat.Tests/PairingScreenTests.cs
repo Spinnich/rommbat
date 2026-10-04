@@ -14,7 +14,7 @@ namespace RomMBat.Tests;
 /// </summary>
 /// <remarks>
 /// <b>Offline is a working state, not an error screen.</b> The reachability probe uses the
-/// short interactive connect timeout from M0 experiment 6, and it runs off the poll loop, so an
+/// short interactive connect timeout (RB-224), and it runs off the poll loop, so an
 /// unreachable LAN host neither hangs the interface nor traps the user on a screen they cannot
 /// leave. Both halves are asserted here: that it gives up quickly, and that the screen stays
 /// navigable the whole time.

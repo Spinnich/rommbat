@@ -19,8 +19,8 @@ namespace RomMBat.UI.Screens;
 /// <para>
 /// <b>There is no default side and there is no "resolve all".</b> Either default silently
 /// discards somebody's progress, and the whole reason a conflict exists is that RomMBat cannot
-/// tell which side matters. The console has refused to guess since M6 stage 1 and the couch
-/// refuses for the same reason: a button that resolved twelve conflicts at once would be that
+/// tell which side matters. The console refuses to guess and the couch refuses for the same
+/// reason: a button that resolved twelve conflicts at once would be that
 /// guess made twelve times.
 /// </para>
 /// <para>
@@ -47,7 +47,7 @@ public static class ConflictScreens
         var service = new ConflictResolutionService(session.Install, session.Store);
 
         // Re-read rather than captured, because resolving one above this screen leaves it
-        // showing the list from before. Same shape as the sets list in 7b-2a.
+        // showing the list from before. Same shape as the sets list.
         IReadOnlyList<OpenConflict> open = service.Open();
 
         IReadOnlyList<ListRow> Rows()
@@ -72,9 +72,9 @@ public static class ConflictScreens
     /// <summary>One conflict as the list shows it.</summary>
     /// <remarks>
     /// <b>The game's name is the label, and the file name goes under it.</b> Both, for the
-    /// reason browse measured in 7b-2c: a title alone cannot be matched against what is on disk
-    /// and a file name alone is a romset code on some platforms. The first version of this
-    /// screen showed neither and drew "Game 295079".
+    /// reason browse measured: a title alone cannot be matched against what is on disk and a
+    /// file name alone is a romset code on some platforms. With neither, a row reads
+    /// "Game 295079".
     /// <para>
     /// The slot is on the row too, because a game with four save slots produces four rows that
     /// are otherwise identical.

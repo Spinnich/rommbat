@@ -71,7 +71,7 @@ public class ConflictScreenTests : IDisposable
         // hands-on pass called close to meaningless from the couch.
         Assert.Equal("Chrono Trigger", row.Label);
 
-        // And the file name under it, for the reason browse measured in 7b-2c: a title alone
+        // And the file name under it, for the reason browse measured: a title alone
         // cannot be matched against what is on disk. The slot is there too, because four slots
         // on one game make four otherwise identical rows.
         Assert.Contains("Chrono Trigger (USA).sfc", row.Detail!, StringComparison.Ordinal);

@@ -7,7 +7,7 @@ using Xunit;
 namespace RomMBat.Tests;
 
 /// <summary>
-/// The BIOS join against a real RomM, which is where M5's measurements came from.
+/// The BIOS join against a real RomM, which is where its measurements come from.
 /// </summary>
 /// <remarks>
 /// Skipped unless <c>ROMMBAT_TEST_SERVER</c> and <c>ROMMBAT_TEST_APPROVER_TOKEN</c> are set, so
@@ -36,8 +36,8 @@ public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveC
 
         Assert.SkipWhen(records.Count == 0, "This instance holds no firmware.");
 
-        // The claim M5's whole shape rests on: one request, not one per platform. Complete
-        // rather than a preview, and every record carries the only field the join reads.
+        // The claim the BIOS sync's whole shape rests on: one request, not one per platform.
+        // Complete rather than a preview, and every record carries the only field the join reads.
         Assert.All(platforms, platform => Assert.Equal(platform.FirmwareCount, platform.Firmware.Count));
         Assert.All(records, record => Assert.False(string.IsNullOrWhiteSpace(record.Md5Hash)));
         Assert.All(records, record => Assert.True(record.SizeBytes >= 0));

@@ -12,7 +12,7 @@ namespace RomMBat.Tests;
 /// <remarks>
 /// Driven against <c>fixtures/emulatorLauncher.log</c>, which is twelve lines cut verbatim
 /// from a real install's five months of history with only the user profile path replaced.
-/// Every trap the M6 probe found has one line in it, so a parser regression fails here rather
+/// Every trap RB-112 to RB-118 record has one line in it, so a parser regression fails here rather
 /// than on someone's handheld.
 /// </remarks>
 public sealed class LaunchLogTests : IDisposable

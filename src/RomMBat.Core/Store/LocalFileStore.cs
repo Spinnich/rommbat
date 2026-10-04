@@ -37,7 +37,7 @@ public enum HashScope
 /// </remarks>
 public enum LocalFileKind
 {
-    /// <summary>The game itself. What every row was before M4.</summary>
+    /// <summary>The game itself.</summary>
     /// <remarks>
     /// For a multi-file game this is the playlist, which is what EmulationStation launches and so
     /// what every reader meaning "the game" wants. Its discs are <see cref="RomPart"/>.
@@ -279,10 +279,10 @@ public sealed class LocalFileStore
     /// Every file recorded for a ROM, the game and its media alike.
     /// </summary>
     /// <remarks>
-    /// Since M4 this is normally several rows, so a caller that means the game itself has to
-    /// say so with <paramref name="kind"/>. More than one row of the same kind means the same
-    /// ROM in two folders. Stale rows name another server's game under this id and are left out
-    /// unless <paramref name="includeStale"/> says the caller is after ownership, not identity.
+    /// This is normally several rows, a ROM and its media, so a caller that means the game itself
+    /// has to say so with <paramref name="kind"/>. More than one row of the same kind means the
+    /// same ROM in two folders. Stale rows name another server's game under this id and are left
+    /// out unless <paramref name="includeStale"/> says the caller is after ownership, not identity.
     /// </remarks>
     public IReadOnlyList<LocalFile> ForRom(int romId, LocalFileKind? kind = null, bool includeStale = false)
     {
@@ -535,7 +535,7 @@ public sealed class LocalFileStore
     /// </summary>
     /// <remarks>
     /// <b>What browse falls back to with no server, and it is not a lesser view of the same
-    /// thing.</b> M2's rule is that the catalog is never mirrored wholesale, so the offline
+    /// thing.</b> The catalog is never mirrored wholesale, so the offline
     /// browsable set is the locally present subset, which is what EmulationStation shows anyway.
     /// <para>
     /// Keyed on the Rom-kind rows rather than on membership, because the question is what is on

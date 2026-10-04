@@ -10,7 +10,7 @@ namespace RomMBat.Agent.Commands;
 /// <c>platforms</c>: the mapping surface, without a UI.
 /// </summary>
 /// <remarks>
-/// This is the data M7's Platform Mapping screen renders. Everything it shows is here:
+/// This is the data the Platform Mapping screen renders. Everything it shows is here:
 /// each platform, the folder it resolved to, which layer of the chain answered, and the
 /// alternatives. <c>list</c> works with the server switched off, reading the last
 /// resolution back out of the store.

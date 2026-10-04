@@ -45,13 +45,12 @@ public enum ResolveStage
 /// </list>
 /// <para>
 /// <b>Same pattern as pairing.</b> Work starts on entry, the screen owns its cancellation, and
-/// it is disposed when it is left. <see cref="ILiveScreen"/> stops being an interface with one
-/// implementer here, which is what 7b-1's ledger flagged it as.
+/// it is disposed when it is left, so <see cref="ILiveScreen"/> has more than one implementer.
 /// </para>
 /// <para>
 /// <b>The source is cancelled and never disposed.</b> A run still unwinding can register on
 /// that token and would take an <see cref="ObjectDisposedException"/> on a background thread
-/// where nobody sees it. Finding from round 8 of stage 7b-1.
+/// where nobody sees it.
 /// </para>
 /// </remarks>
 public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
@@ -109,7 +108,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     /// What the screen is called and what it is doing, in the tense it is doing it in.
     /// </summary>
     /// <remarks>
-    /// "Resolving" is the word the design has used since M2 and it means nothing to a person: a
+    /// "Resolving" is the design's word and it means nothing to a person: a
     /// hands-on pass reported that resolving and syncing read as the same thing. The type keeps
     /// the name, because that is what the operation is called everywhere else in the codebase
     /// and renaming it would cost more than it buys; what a person sees says what it does.

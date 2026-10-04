@@ -172,7 +172,8 @@ Steps 1, 2 and 3 need no emulator running, so they can be batched for a whole wa
 time: the mapping layer, the `<extension>` list and the library's multi-file shapes, and
 `rommbat-agent bios <system>` for all four BIOS states. That stages the record files with six
 of nine steps open, and it means the wave's BIOS gaps are known before a controller is picked
-up. Steps 4 through 9 cannot be staged, because each needs a game running.
+up. Steps 4 through 8 cannot be staged, because each needs a game running, and step 9 is a
+re-sync over what they leave behind.
 
 ### What the bundled data already answers, and what it does not
 

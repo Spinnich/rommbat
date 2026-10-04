@@ -11,7 +11,7 @@ namespace RomMBat.Tests;
 /// The UI cannot write <c>es_settings.cfg</c>, asserted structurally.
 /// </summary>
 /// <remarks>
-/// <b>This is the most important test in stage 7b, and it is deliberately not a test of
+/// <b>This is the most important UI test, and it is deliberately not a test of
 /// behaviour.</b> A test that drove a screen and checked the file was untouched would pass for
 /// a UI that simply had not been asked to write one yet. What has to hold is stronger: there is
 /// no code path from the UI to that writer at all.

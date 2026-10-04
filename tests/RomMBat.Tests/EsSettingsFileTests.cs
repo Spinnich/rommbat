@@ -65,8 +65,8 @@ public class EsSettingsFileTests
     [Fact]
     public void Es_own_quote_escaping_round_trips_through_the_per_game_form()
     {
-        // ES writes the per-game key as ports[&quot;2048.libretro&quot;].smooth, measured in
-        // M0. The key in memory carries bare quotes and the file carries the entities, and a
+        // ES writes the per-game key as ports[&quot;2048.libretro&quot;].smooth (RB-358). The
+        // key in memory carries bare quotes and the file carries the entities, and a
         // writer that got that backwards would produce a key emulatorlauncher cannot match.
         var file = EsSettingsFile.Load(Fixture);
         var key = EsSettingsFile.PerGameKey("ps2", "Ape Escape 2 (USA).chd", "pcsx2_slot1_memory");
@@ -95,7 +95,7 @@ public class EsSettingsFileTests
     [Fact]
     public void A_per_game_key_built_from_a_stem_is_refused_rather_than_written()
     {
-        // M0 case E against case F: ports["gong"].smooth was ignored and
+        // RB-358, case E against case F: ports["gong"].smooth was ignored and
         // ports["gong.libretro"].smooth took effect, differing in nothing but the extension.
         // The failure is silent, so it has to be caught here rather than on the install.
         var thrown = Assert.Throws<ArgumentException>(
@@ -117,7 +117,7 @@ public class EsSettingsFileTests
     [Fact]
     public void An_override_written_for_one_rom_does_not_reach_another()
     {
-        // M0 case D. The scoping is emulatorlauncher's and this only asserts the key shape,
+        // RB-358, case D. The scoping is emulatorlauncher's and this only asserts the key shape,
         // but a writer that built one key for two roms would break the property the measurement
         // established, and nothing downstream would notice.
         var file = EsSettingsFile.Load(Fixture);

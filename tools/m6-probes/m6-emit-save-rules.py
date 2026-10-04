@@ -1,7 +1,7 @@
 """Derives data/retrobat/save_rules.json from a real install plus the measured findings.
 
 save_shapes.json says what class a system is. It does not say which files under saves/ are
-that class, and stage 1 cannot guess: megacd's shared 4Mbit_cart.brm sits beside per-game
+that class, and the class alone cannot say: megacd's shared 4Mbit_cart.brm sits beside per-game
 .brm files at the same level and only the name separates them, and xbox's two class-D files
 are loose under the system folder where class A normally lives.
 
@@ -717,9 +717,9 @@ OTHER_BATTERY_RULES = [
 # letter, so relaying it through RomM restores a dangling pointer on any other install.
 NOT_A_SAVE = {
     ".ldci": "RetroArch's record of which disc is in the drive; holds an absolute path (RB-311)",
-    ".txt": "RetroBat's name-mapping sidecar; belongs with a state, which is stage 2",
-    ".png": "a save-state screenshot, which is stage 2",
-    ".jpg": "a save-state screenshot, which is stage 2",
+    ".txt": "RetroBat's name-mapping sidecar; belongs with a state, which state sync carries",
+    ".png": "a save-state screenshot, which state sync carries",
+    ".jpg": "a save-state screenshot, which state sync carries",
 }
 
 # An empty file of these extensions, loose under these systems, holds nothing and is not a save.

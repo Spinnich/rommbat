@@ -51,7 +51,7 @@ internal static class ExitCode
     /// </summary>
     public const int ServerError = 8;
 
-    /// <summary>Not implemented in this milestone. EX_SOFTWARE.</summary>
+    /// <summary>A subcommand this build does not have. EX_SOFTWARE.</summary>
     public const int NotImplemented = 70;
 
     /// <summary>

@@ -40,7 +40,7 @@ public sealed record SaveScanOutcome
 /// Finds battery saves on disk, works out which ROM each belongs to, and reports the rest.
 /// </summary>
 /// <remarks>
-/// <b>Discovery is not positional, in either direction.</b> M6 re-inventoried a real tree and
+/// <b>Discovery is not positional, in either direction.</b> On a real tree (RB-119, RB-120)
 /// neither level of <c>saves/&lt;system&gt;/&lt;emulator&gt;/</c> can be read by position: nine
 /// top-level directories are not declared systems (<c>dolphin</c>, <c>mesen</c>,
 /// <c>gameandwatch</c>, <c>windows</c> and five more), and twelve second-level ones name no
@@ -269,8 +269,8 @@ public sealed class SaveScanner
             }
 
             // Class C, before the subdirectory report, because the report has to know which
-            // files this pass is carrying. Stage 2a shipped exactly this bug for save states:
-            // the report counted them as unsyncable in the same pass that uploaded them.
+            // files this pass is carrying. Otherwise the report counts them as unsyncable in the
+            // same pass that uploads them.
             var carried = ScanUnits(system, attributor, report, seenUnits, now, ref units, ref unitsAttributed, ref bytes);
 
             // An emulator's own battery saves, before the subdirectory report for the same reason.
@@ -278,7 +278,7 @@ public sealed class SaveScanner
 
             // A converted class D container, before both reports, for the reason the class C
             // pass runs first: a file this pass carries must not also be counted as one nothing
-            // carries. Stage 2a shipped exactly that bug for save states.
+            // carries.
             var converted = ScanConverted(system, shape, romsByStem, report, seen, now, ref found, ref attributed, ref bytes);
 
             // Shared containers below the loose level, also before the subdirectory report, so

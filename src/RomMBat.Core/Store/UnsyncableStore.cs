@@ -5,7 +5,7 @@ namespace RomMBat.Core.Store;
 /// <summary>Why something under <c>saves/</c> is not going up.</summary>
 public enum UnsyncableReason
 {
-    /// <summary>The shape is understood and this build does not carry it. Stage 2's list.</summary>
+    /// <summary>The shape is understood and this build does not carry it.</summary>
     NotInThisVersion,
 
     /// <summary>No shape definition claims this path, so nothing may be assumed about it.</summary>

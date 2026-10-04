@@ -89,11 +89,10 @@ public sealed record BrowsePage(
 /// Reading the library a page at a time, and falling back to this device when there is no server.
 /// </summary>
 /// <remarks>
-/// <b>One page in memory, ever.</b> M2's rule is that the catalog is never mirrored wholesale
-/// and <c>RomRow</c> and <c>RomPager</c> both say the same thing again: a 96k library is about
-/// 384 pages and one description in a real library runs to 11,719 characters. Nothing here
-/// accumulates, and a test asserts the row count never exceeds the page size across several
-/// pages.
+/// <b>One page in memory, ever.</b> The catalog is never mirrored wholesale, and <c>RomRow</c> and
+/// <c>RomPager</c> both say the same thing again: a 96k library is about 384 pages and one
+/// description in a real library runs to 11,719 characters. Nothing here accumulates, and a test
+/// asserts the row count never exceeds the page size across several pages.
 /// <para>
 /// <b>It degrades rather than refusing, and it says which of the two it is showing.</b> With a
 /// server it pages <c>GET /api/roms</c>; without one it lists what this device holds, which is
@@ -107,12 +106,10 @@ public sealed record BrowsePage(
 /// of scrolling per fetch against six.
 /// </para>
 /// <para>
-/// <b>Measured on the live 96,060-rom instance rather than reasoned from M0.</b> Unscoped, warm:
+/// <b>Measured on the live 96,060-rom instance.</b> Unscoped, warm:
 /// <b>50 rows in 280 ms, 250 rows in 611 ms</b> (cold, 439 ms and 629 ms). So 250 is cheaper per
 /// row and more than twice the wait for the page a person is actually looking at, which is the
-/// one that decides whether the screen feels instant. The estimate this was first written from,
-/// "about half a second at ~10 ms per ROM", was pessimistic; the real figure is better and the
-/// choice is unchanged.
+/// one that decides whether the screen feels instant.
 /// </para>
 /// <para>
 /// Marking a page costs almost nothing on top: the whole <see cref="PageAsync"/> call measured

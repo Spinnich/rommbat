@@ -8,9 +8,9 @@ namespace RomMBat.Core.RetroBat;
 /// One entry to merge into a gamelist: which game, and the elements the caller owns.
 /// </summary>
 /// <remarks>
-/// Deliberately a bag of strings rather than a typed game. This is the seam M7 reuses for
-/// <c>system/es_menu/gamelist.xml</c>, whose entry is an application rather than a ROM, so
-/// nothing here knows what a ROM is.
+/// Deliberately a bag of strings rather than a typed game. This is the seam the ES menu entry
+/// reuses for <c>system/es_menu/gamelist.xml</c>, whose entry is an application rather than a ROM,
+/// so nothing here knows what a ROM is.
 /// </remarks>
 /// <param name="Path">The <c>&lt;path&gt;</c> text, which is the key. Always <c>./name</c>.</param>
 /// <param name="Fields">

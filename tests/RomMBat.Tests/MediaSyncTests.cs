@@ -17,8 +17,8 @@ namespace RomMBat.Tests;
 /// Resolving a set, fetching its media, writing its gamelist, and doing it all again.
 /// </summary>
 /// <remarks>
-/// The end-to-end shape of M4, driven against the stub so the interesting cases (an unreachable
-/// server, a full budget, a moved install) are reachable at all.
+/// The end-to-end shape of the media sync, driven against the stub so the interesting cases (an
+/// unreachable server, a full budget, a moved install) are reachable at all.
 /// </remarks>
 public sealed class MediaSyncTests : IDisposable
 {
@@ -49,7 +49,7 @@ public sealed class MediaSyncTests : IDisposable
 
         var resolution = await ResolveAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
-        // The claim this milestone's whole shape rests on. GET /api/roms/{id} would be one
+        // The claim the media sync's whole shape rests on. GET /api/roms/{id} would be one
         // request per game, 0.15 s each; the paged read already carries every field.
         Assert.Equal(1, stub.RomPagesServed);
         Assert.DoesNotContain(stub.RequestLog, path => path.Contains("/api/roms/1", StringComparison.Ordinal));

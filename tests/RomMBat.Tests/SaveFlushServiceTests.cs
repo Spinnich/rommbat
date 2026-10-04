@@ -56,7 +56,7 @@ public sealed class SaveFlushServiceTests
     [Fact]
     public async Task The_local_half_runs_with_the_server_unreachable_and_nothing_it_found_is_lost()
     {
-        // Offline is a working state and the headline feature of M6. Draining, correlating and
+        // Offline is a working state, not a failure. Draining, correlating and
         // both scans answer from the tree, so an unreachable server costs the sending only.
         using var fixture = FlushTree.Create();
         fixture.Pair();

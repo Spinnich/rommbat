@@ -196,8 +196,8 @@ public sealed record StateRestoreOutcome
 /// names is two rows.
 /// </para>
 /// <para>
-/// Sent straight from <c>local_state</c> rather than through the outbox, which is what stage 1
-/// does with saves. A state is one file with no sibling to tie it to, so it has nothing for
+/// Sent straight from <c>local_state</c> rather than through the outbox, which is also how class A
+/// saves are sent. A state is one file with no sibling to tie it to, so it has nothing for
 /// <c>batch_key</c> to do.
 /// </para>
 /// </remarks>

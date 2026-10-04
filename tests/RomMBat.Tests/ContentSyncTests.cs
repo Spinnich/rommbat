@@ -245,7 +245,7 @@ public sealed class ContentSyncTests : IDisposable
     public async Task A_7z_is_verified_by_size_because_nothing_here_can_look_inside_it()
     {
         // RomM's hashes describe the content inside an archive, and reaching inside a .7z needs
-        // a dependency this milestone does not take. Comparing the archive's own bytes against a
+        // a dependency RomMBat does not take. Comparing the archive's own bytes against a
         // content hash refuses a correct download, and refuses it again on every later run.
         var content = Encoding.UTF8.GetBytes(new string('7', 4096));
         var inside = Encoding.UTF8.GetBytes(new string('R', 16400));
@@ -864,9 +864,9 @@ public sealed class ContentSyncTests : IDisposable
 
         await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
-        // M6 owns saves and nothing writes one yet, so the guard answers from the seams that do
-        // exist. An unsent outbox entry is the one that matters most: evicting the ROM would
-        // take its save's only attribution with it.
+        // No save file is on disk here, so this seeds the outbox instead. An unsent outbox entry is
+        // the one that matters most: evicting the ROM would take its save's only attribution with
+        // it.
         store.Outbox.Enqueue(
             OutboxKind.Save,
             DateTimeOffset.UtcNow,

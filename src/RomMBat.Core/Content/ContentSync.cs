@@ -43,7 +43,7 @@ public sealed record ContentSyncOutcome
     /// the first rejection would send the same token and be refused identically, turning one
     /// expired or revoked pairing into a run that fails every game in the set and reports forty
     /// identical problems. The caller stops instead and offers to pair again, which is what
-    /// <see cref="RomMResponseStatus.Unauthorized"/>'s own remarks have said since M1.
+    /// <see cref="RomMResponseStatus.Unauthorized"/>'s own remarks say.
     /// <para>
     /// 403 is deliberately not this. A missing scope is a fact about what this pairing may do,
     /// and it is per call rather than per identity: the run carries on and reports the game.

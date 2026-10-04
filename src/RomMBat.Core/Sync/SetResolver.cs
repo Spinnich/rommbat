@@ -564,7 +564,7 @@ public sealed class SetResolver
     /// second device, where the ids arrive through <c>Device.sync_config</c> with no rows
     /// behind them.
     /// <para>
-    /// <b>About 0.15 s per ROM, measured in M4</b>, which is seconds at the tens of games this
+    /// <b>About 0.15 s per ROM, measured</b>, which is seconds at the tens of games this
     /// scope is for and minutes at a thousand. That cost is the reason the picked scope is not
     /// offered as a way to build a large set, and it is why the caps are still applied: an id
     /// list that grew past them is still bounded by them.

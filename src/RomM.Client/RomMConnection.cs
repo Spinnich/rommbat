@@ -184,9 +184,8 @@ public sealed partial class RomMConnection : IDisposable
     /// Lists the devices registered to the token's owner. Needs <c>devices.read</c>.
     /// </summary>
     /// <remarks>
-    /// This is the only authenticated call in M1, and it exists to answer two questions
-    /// pairing has to answer: does the stored token still work, and does this install appear
-    /// as one device rather than two.
+    /// It exists to answer two questions pairing has to answer: does the stored token still work,
+    /// and does this install appear as one device rather than two.
     /// </remarks>
     public Task<RomMResponse<ICollection<DeviceSchema>>> ListDevicesAsync(
         CancellationToken cancellationToken = default) =>

@@ -60,8 +60,8 @@ public sealed record EsHookOutcome(IReadOnlyList<EsHookStep> Steps)
 /// <c>.exe</c> took a full No-Intro name as three intact arguments on every host.
 /// <para>
 /// <b>Added beside whatever is already there, never replacing it.</b> ES runs every file in an
-/// event folder, in name order, and M0 watched RetroBat's own <c>updatestores.bat</c> and a
-/// probe hook both run 63 ms apart. The <c>zz-</c> prefix keeps RomMBat last, so a shipped
+/// event folder, in name order: RetroBat's own <c>updatestores.bat</c> and a probe hook both
+/// ran, 63 ms apart (RB-350). The <c>zz-</c> prefix keeps RomMBat last, so a shipped
 /// script that a user depends on runs first.
 /// </para>
 /// <para>

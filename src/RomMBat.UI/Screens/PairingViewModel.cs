@@ -30,8 +30,8 @@ public enum PairingStage
 /// Pairing, from a typed address to a stored token.
 /// </summary>
 /// <remarks>
-/// <b>Every decision here belongs to <see cref="PairingService"/>, which the console has used
-/// since M1.</b> This owns the shape of the wait: what is on screen while polling, what the
+/// <b>Every decision here belongs to <see cref="PairingService"/>, which the console uses
+/// too.</b> This owns the shape of the wait: what is on screen while polling, what the
 /// countdown says, and which button starts again. It generates no code, writes no token and
 /// decides nothing about scopes.
 /// <para>

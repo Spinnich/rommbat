@@ -7,8 +7,7 @@ namespace RomMBat.Agent;
 /// Draws a QR code in a console window.
 /// </summary>
 /// <remarks>
-/// The UI framework is not chosen until M7, so the M1 pairing surface is this console and
-/// the QR has to scan from it.
+/// <c>rommbat-agent pair</c> pairs from this console, so the QR has to scan from it.
 /// <para>
 /// Two module rows go into one character cell using the upper-half block, with the
 /// foreground painting the top module and the background the bottom one. A console cell is

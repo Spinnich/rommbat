@@ -173,8 +173,8 @@ public sealed class BiosManifestTests
     [Fact]
     public void Every_destination_the_manifest_names_is_a_storable_relative_path()
     {
-        // Paths built from a ROM name were covered by M3 and M4. These are built from the
-        // manifest instead, and they go six segments deep, so they get the same check.
+        // Paths built from a ROM name are covered by the content and media tests. These are built
+        // from the manifest instead, and they go six segments deep, so they get the same check.
         var manifest = Fixtures.LoadBiosManifest();
         var limits = FilesystemLimits.For("NTFS", availableFreeBytes: long.MaxValue);
 
