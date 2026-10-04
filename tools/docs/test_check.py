@@ -164,6 +164,15 @@ class BareDollarTest(unittest.TestCase):
     def test_escaped_dollar_passes(self) -> None:
         self.assertEqual(self.errors("NO\\$GBA answers, and `NO$GBA.INI` numbers them\n"), [])
 
+    def test_backslash_escape_under_wiki_fails(self) -> None:
+        self.assertEqual(
+            self.errors("Avoid NO\\$GBA\n", "wiki/x.md"),
+            ["wiki/x.md:1: \\$, which MkDocs prints with its backslash; write &#36;"],
+        )
+
+    def test_entity_under_wiki_passes(self) -> None:
+        self.assertEqual(self.errors("Avoid NO&#36;GBA\n", "wiki/x.md"), [])
+
     def test_dollar_in_a_fence_passes(self) -> None:
         self.assertEqual(self.errors("```bash\n$ echo $?\n```\n"), [])
 

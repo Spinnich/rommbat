@@ -84,6 +84,7 @@ GENERIC_DRY_RUN = re.compile(r"(?<![-`\w])dry-run(?!`)")
 # Prettier pairs a prose $ with the next one, even one inside a later code span, as inline math
 # and strips the spaces around the code spans between them. NO$GBA is the usual source.
 BARE_DOLLAR = re.compile(r"(?<!\\)\$")
+# Python-Markdown does not unescape \$, so the guide under wiki/ writes &#36; instead.
 # Claude Code substitutes $1 and $ARGUMENTS in a slash command's text.
 DOLLAR_EXEMPT = ".claude/commands/"
 
@@ -284,6 +285,10 @@ def check_file(rel: str, text: str, findings: Findings, defined_facts: set[str] 
         if not rel.startswith(DOLLAR_EXEMPT) and BARE_DOLLAR.search(line):
             findings.errors.append(
                 f"{rel}:{number}: bare $, which prettier reads as inline math; write \\$, or &#36; under wiki/"
+            )
+        if rel.startswith("wiki/") and "\\$" in line:
+            findings.errors.append(
+                f"{rel}:{number}: \\$, which MkDocs prints with its backslash; write &#36;"
             )
         legacy += len(LEGACY_CITATION.findall(line))
         # A quoted "dry-run" is a mention of the word, as in the rule's own statement.
