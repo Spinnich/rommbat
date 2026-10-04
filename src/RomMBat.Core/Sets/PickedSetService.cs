@@ -1,5 +1,6 @@
 using RomM.Client.Catalog;
 using RomMBat.Core.Content;
+using RomMBat.Core.Metadata;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
@@ -106,10 +107,11 @@ public sealed class PickedSetService
     /// Puts one game into the picked set, creating the set on the first pick.
     /// </summary>
     /// <remarks>
-    /// <b>The pick and the member row are written together</b>, because they are one fact said
-    /// twice: <c>scope_value</c> is the definition and <c>sync_set_member</c> is what a sync
-    /// reads. A pick that wrote one without the other would be a set whose membership disagreed
-    /// with its own scope, which no resolve on this device would ever correct.
+    /// <b>The pick, the member row and the game's metadata are written together.</b> The first
+    /// two are one fact said twice: <c>scope_value</c> is the definition and
+    /// <c>sync_set_member</c> is what a sync reads. A pick that wrote one without the other would
+    /// be a set whose membership disagreed with its own scope, which no resolve on this device
+    /// would ever correct. The metadata is what a resolve would have written from the same row.
     /// </remarks>
     public PickOutcome Pick(RomRow row, DateTimeOffset now)
     {
@@ -160,6 +162,12 @@ public sealed class PickedSetService
         }
 
         _session.Store.SyncSets.UpsertMember(set.Id, member.Member, now);
+
+        // The row in hand is also what a resolve would have written the gamelist metadata from,
+        // so it is written here too. Without it MediaSync finds no metadata and skips the game,
+        // and every one-game install landed with no artwork and a bare gamelist entry while RomM
+        // held a cover for it.
+        _session.Store.Metadata.Record(GameMetadata.From(row, member.Member.Folder!, now));
 
         return new PickOutcome(
             _session.Store.SyncSets.Find(set.Name) ?? set,

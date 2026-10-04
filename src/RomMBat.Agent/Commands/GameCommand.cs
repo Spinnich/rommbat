@@ -272,7 +272,9 @@ internal static class GameCommand
             Console.WriteLine("  on device:    no");
         }
 
-        Console.WriteLine($"  wanted by:    {(game.Sets.Count == 0 ? "no sync set, so the next eviction may take it" : string.Join(", ", game.Sets))}");
+        // Eviction is only a risk to a game that is here to be taken.
+        var unwanted = placement.IsHere ? "no sync set, so the next eviction may take it" : "no sync set";
+        Console.WriteLine($"  wanted by:    {(game.Sets.Count == 0 ? unwanted : string.Join(", ", game.Sets))}");
 
         if (game.Row is { } row)
         {

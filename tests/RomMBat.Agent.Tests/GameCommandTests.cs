@@ -65,6 +65,26 @@ public sealed class GameCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task Install_brings_the_artwork_and_description_RomM_holds()
+    {
+        // A pick wrote the member row and no metadata, so MediaSync found nothing to work from
+        // and skipped the game: found on a live install, where a one-game install of Balloon
+        // Fight landed with no cover while RomM held one.
+        _stub.Library[0] = _stub.Library[0] with { Metadata = new StubRomMetadata() };
+        _stub.Media[$"/assets/romm/resources/roms/1/{Chrono}/cover/big.png"] = new byte[64];
+        Pair();
+
+        var run = await AgentRunner.RunAgainstAsync(_tree, _stub, "game", "install", "7");
+
+        Assert.True(run.ExitCode == ExitCode.Ok, run.Error);
+        Assert.Contains(_stub.AssetRequests, path => path.Contains("/cover/", StringComparison.Ordinal));
+        Assert.Contains(
+            "A game the stub library holds.",
+            File.ReadAllText(Absolute("roms/snes/gamelist.xml")),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_second_install_of_a_game_already_here_fetches_nothing_and_says_so()
     {
         Pair();
