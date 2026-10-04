@@ -133,6 +133,12 @@ class HistoryPhrasingTest(unittest.TestCase):
             ["wiki/x.md:3: history phrasing; state what is true now"],
         )
 
+    def test_settled_question_fails(self) -> None:
+        self.assertEqual(
+            self.errors("## True\n\nThe claim being checked: (not addressed) whether it is\n"),
+            ["wiki/x.md:3: history phrasing; state what is true now"],
+        )
+
 
 class FactIdTest(unittest.TestCase):
     def test_letter_suffix_is_one_id(self) -> None:

@@ -13,11 +13,9 @@ Plan says: PPSSPP's two populated state directories mean the declared template i
 
 Measurement says: **Neither is stale.** RetroBat mirrors native to ES-facing about 120 ms after each save, live. The declared template is correct and `saves/psp/ppsspp/` is authoritative
 
-## RB-37. How a downloaded state reaches the emulator
+## RB-37. A downloaded PPSSPP state reaches the emulator through the ES-facing path
 
-Plan says: (not addressed) how a downloaded state reaches the emulator
-
-Measurement says: ES passes `-state_slot` and `-state_file` naming the **ES-facing** path, and the launcher hands it to PPSSPP as `--state=`. Writing there is sufficient; the native copy is rebuilt from it
+ES passes `-state_slot` and `-state_file` naming the **ES-facing** path, and the launcher hands it to PPSSPP as `--state=`. Writing there is sufficient; the native copy is rebuilt from it
 
 ## RB-154. Confirmed on a second, independently produced sample
 
