@@ -126,6 +126,6 @@ Every pair is correlated in the journal, every `quit` pass exited 0, and **every
 server**: `status` lists the ten newest sessions under `recent:`, a line this pass added because it
 printed only the newest, and the seven appear there at these times, rom 233631, alongside the
 `nosgba` session at 12:58:48Z and the refused mednafen attempt at 12:30:51Z. One more, 13:32:28Z to
-13:32:53Z, is the maintainer launching NO$GBA from RetroBat's own emulator menu to look for its
+13:32:53Z, is the maintainer launching NO\$GBA from RetroBat's own emulator menu to look for its
 state key; that menu writes `gba.emulator` into `es_settings.cfg`, which is why a `nosgba` key
 reappeared there after the file was put back.

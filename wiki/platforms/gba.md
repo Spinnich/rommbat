@@ -9,7 +9,7 @@
 
 ## Which emulator to use
 
-Leave RetroBat on its default, RetroArch with the mGBA core. Avoid NO$GBA, the one emulator
+Leave RetroBat on its default, RetroArch with the mGBA core. Avoid NO&#36;GBA, the one emulator
 RetroBat offers that did not pass: it cannot open a zipped game, and it keeps its saves inside its
 own program folder, where RomMBat does not look.
 
