@@ -71,6 +71,7 @@ HISTORY_PATTERNS = (
     re.compile(r"\bPreviously:"),
     # A ledger question since settled. The heading states the answer instead.
     re.compile(r"\(not addressed\)"),
+    re.compile(r"^Question:"),
 )
 
 EM_DASH = "\u2014"

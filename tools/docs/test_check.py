@@ -139,6 +139,15 @@ class HistoryPhrasingTest(unittest.TestCase):
             ["wiki/x.md:3: history phrasing; state what is true now"],
         )
 
+    def test_question_label_fails(self) -> None:
+        self.assertEqual(
+            self.errors("## True\n\nQuestion: whether it is\n"),
+            ["wiki/x.md:3: history phrasing; state what is true now"],
+        )
+
+    def test_question_mid_line_passes(self) -> None:
+        self.assertEqual(self.errors("The open Question: is not a label here.\n"), [])
+
 
 class FactIdTest(unittest.TestCase):
     def test_letter_suffix_is_one_id(self) -> None:
