@@ -70,7 +70,7 @@ the tree.
 | Size budget: 500 lines a file, 300 for a `SKILL.md`, 200 for the root `CLAUDE.md`, 60 for a nested one | Fails       |
 | Always-loaded context (every `CLAUDE.md`, `AGENTS.md`, the local `MEMORY.md`) under its ceiling        | Reported    |
 | `summary:` and `read-when:` frontmatter on every file under `docs/`                                    | Reported    |
-| History phrasing, such as `The move to` or `Superseded`                                                | Reported    |
+| History phrasing, such as `The move to` or `Superseded`                                                | Fails       |
 | Generic `dry-run`                                                                                      | Reported    |
 
 A reported rule becomes a failing one once the tree meets it. The context ceiling stays reported,

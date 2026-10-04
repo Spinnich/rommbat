@@ -13,15 +13,9 @@ Plan says: GameCube GCI folder gives "individual `.gci` files" per game (L832)
 
 Measurement says: True, but with a region subdirectory, several files per game, and `.gci.deleted` litter to exclude
 
-## RB-9c. `dolphin_sync_saves` has RetroBat copying saves between the dolphin and libretro-dolphin folders on its own
+## RB-189. `dolphin_sync_saves` is GameCube only, runs once per launch, and reconciles a region folder with its own `Card A/`
 
-Plan says: (not addressed)
-
-Measurement says: `dolphin_sync_saves` has RetroBat copying saves between the dolphin and libretro-dolphin folders on its own; it must be detected before trusting either. **Superseded by RB-189**: GameCube only, once per launch, and between one region folder and its own `Card A/`
-
-## RB-189. Wrong in all three parts, and the code was going to be built against it
-
-The claim being checked: `dolphin_sync_saves` is RetroBat copying save files between the dolphin and libretro-dolphin folders **on its own schedule**, and must be detected before either location is trusted (**RB-9c and RB-123, [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/366b5f6bf/docs/PLAN.md), the `retrobat-layout` skill**)
+The claim being checked: `dolphin_sync_saves` is RetroBat copying save files between the dolphin and libretro-dolphin folders **on its own schedule**, and must be detected before either location is trusted (**RB-123, [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/366b5f6bf/docs/PLAN.md), the `retrobat-layout` skill**)
 
 What was measured: **Wrong in all three parts, and the code was going to be built against it.** Read from `emulatorlauncher`, `Dolphin.Generator.cs`: it is **GameCube only** (declared twice in `es_features.cfg`, both under `gamecube`, and the `wii` branch never calls `SyncGCSaves`), it runs **once per launch inside emulatorlauncher before Dolphin starts** rather than on any schedule, and the two locations are **`GC/<REGION>/` and its own `Card A/` subdirectory**, not two emulator folders. Nothing moves while RomMBat is running, which is what makes it detectable at all
 

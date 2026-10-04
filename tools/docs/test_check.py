@@ -112,12 +112,28 @@ class SizeBudgetTest(unittest.TestCase):
         self.assertEqual(self.errors("CLAUDE.md", 200), [])
 
 
+class HistoryPhrasingTest(unittest.TestCase):
+    def errors(self, text: str) -> list[str]:
+        findings = check.Findings()
+        check.check_file("wiki/x.md", text, findings, None)
+        return findings.errors
+
+    def test_history_phrasing_fails_on_its_line(self) -> None:
+        self.assertEqual(
+            self.errors("Present.\n\n**Superseded**: now true\n"),
+            ["wiki/x.md:3: history phrasing; state what is true now"],
+        )
+
+    def test_quoted_in_a_code_span_passes(self) -> None:
+        self.assertEqual(self.errors("Phrasing such as `Superseded` is reported.\n"), [])
+
+
 class FactIdTest(unittest.TestCase):
     def test_letter_suffix_is_one_id(self) -> None:
         self.assertEqual(check.FACT_ID.findall("RB-9b and RB-92b, not RB-9"), [
             ("RB", "9b"), ("RB", "92b"), ("RB", "9")
         ])
-        self.assertEqual(check.FACT_HEADING.match("## RB-9c. Title").group(1), "RB-9c")
+        self.assertEqual(check.FACT_HEADING.match("## RB-92b. Title").group(1), "RB-92b")
 
 
 FLOOR = {"RetroBat": ("8.2.1", check.version_key("8.2.1", None)),
