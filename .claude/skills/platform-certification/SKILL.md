@@ -31,7 +31,8 @@ the [wave table](waves.md#wave-order) rather than one.
 
 ## Map
 
-This file holds the unit, when to certify, the checklist and what a floor move owes. The rest is
+This file holds the unit, when to certify, choosing test games, the checklist and what a floor
+move owes. The rest is
 in topic files beside it:
 
 | Section                                                                                  | File                   |
@@ -52,6 +53,36 @@ touches, driven through EmulationStation and back on every emulator the system o
 save option that writes it (`pre-pr-verification`). That is not a certification and must not be recorded as one, but "the tests pass" and
 "an emulator wrote this and RomMBat handled it" are different claims and only the second one
 is evidence.
+
+## Choosing test games
+
+**The agent recommends the test set. It never asks the maintainer which game to use.** A set is
+chosen to cover the system's edge cases, so each game in it has to cover a case that no other game
+in the set covers. Weigh the candidates in this order:
+
+1. **In the library, unpinned, in English.** Page `GET /api/roms?platform_ids=<id>` with the owner
+   token in `.env`, check `gamelist.xml` for an `<emulator>` pin, and take USA or English releases,
+   since the maintainer has to navigate them. A better game the library lacks can still be named
+   as an addition, as Pokemon Silver was for `gb`, as long as it is marked missing.
+2. **A fast save at a known point.** The first battery save should land within a minute or two of
+   boot. Zelda writes one as soon as a name is registered. Avoid a game that commits once and then
+   rewrites a working copy (RB-326), and one whose first save is deep in play (SotN, Metal Gear
+   Solid). Say where the save happens and how long reaching it takes.
+3. **Automatable.** Few inputs before the save, no timing-critical play, and menus the keys in
+   [waves.md](waves.md) can drive, so the agent can do the work itself from screenshots and
+   `keybd_event`. Name what still needs the maintainer's hands.
+4. **The system's edge cases.** One game per save medium the system has (SRAM, EEPROM, flash,
+   memory card, Controller Pak, VMU), plus whichever of these apply: a real-time clock, which adds
+   a second save file (RB-291, RB-300); a coprocessor or firmware-gated cartridge for step 3
+   (RB-317); a multi-disc set held as one rom, as `.chd` with an `.m3u` and as `.bin`/`.cue`, for
+   step 2; a game with update or DLC files; and a second game saving to a shared card for step 6.
+5. **What the server already holds.** A save another client has uploaded for the pick makes the
+   first flush a conflict, so say so up front.
+
+Confirm each game's save medium, clock, chip, disc count and save point from the library and from
+the web (GameFAQs, wikis, No-Intro and Redump notes) rather than from memory. Present the set as a
+coverage table, one row per edge case naming the game that covers it, or "none in library" with a
+suggested addition. Then ask one `AskUserQuestion` with the recommended set first.
 
 ## Checklist
 
@@ -177,8 +208,8 @@ across emulators with a note (step 2 not where emulators disagree about a playli
 
    **Check the game's `<emulator>` in `gamelist.xml` before driving a row on it.** A per-game pin
    overrides `<system>.emulator` and leaves no trace in `es_settings.cfg`, and on the `nes` install
-   eight games are pinned to other rows. Pick an unpinned game whose battery
-   save is quick to make: Zelda writes one the moment a name is registered.
+   eight games are pinned to other rows. [Choosing test games](#choosing-test-games) covers the
+   rest of the pick.
 
 6. Where class D applies, the per-game memory card option is verified via `es_settings.cfg`.
 7. A game launches from EmulationStation after sync, with art and metadata present.
