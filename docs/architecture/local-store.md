@@ -106,7 +106,9 @@ look like it had a broken clock.
 
 ## Why the journal is separate from the outbox
 
-The journal is what the hooks write, on the game-launch path, under a hard time budget.
-It is append-only and dumb. The outbox is what the flush reads, and entries land there
-after correlation and hashing, which are too slow to do inside a launch. Keeping them
-apart is what lets the hook stay honest about its budget.
+The journal is the raw record of the hook events, one row each, append-only and dumb. The
+hook never writes it: on the game-launch path, under a hard time budget, it writes one spool
+file and touches no database, and the flush's first step turns each file into a journal row.
+The outbox is what the flush reads, and entries land there after correlation and hashing,
+which are too slow to do inside a launch. Keeping all three apart is what lets the hook stay
+honest about its budget: its whole job is a file write and a rename.

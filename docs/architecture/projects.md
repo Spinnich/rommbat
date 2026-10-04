@@ -1,5 +1,5 @@
 ---
-summary: What RomM.Client, Core, the agent, the UI and the two test projects hold, their subcommands or screens, and the rules each keeps.
+summary: What RomM.Client, Core, the agent, the hook, the UI and the two test projects hold, their subcommands or screens, and the rules each keeps.
 read-when: Before adding a class, a subcommand, a screen or a test project, to find where it belongs.
 ---
 
@@ -76,8 +76,11 @@ task.
 | `background` | yes           | `start` or `quit`: the pass those two hooks spawn. Not a command anyone types                          |
 | `status`     | only if asked | Report local state; probes the server unless `--offline`. For support and for scripts                  |
 
-All of these are implemented. Two subcommands need both the network and a decision from a
-person: `saves resolve <rom> <slot> --keep-local | --keep-server`, and `saves restore --apply`,
+All of these are implemented. `game-start` and `game-end` are the hook's two launch-path
+events reachable by hand, for a test; EmulationStation runs `rommbat-hook.exe` instead, and these
+write the journal directly because the agent already has the store open.
+
+Two subcommands need both the network and a decision from a person: `saves resolve <rom> <slot> --keep-local | --keep-server`, and `saves restore --apply`,
 which puts back a save or save state the server holds and this device does not. Neither has a
 default side and neither is ever reached from a flush. `saves resolve` and the UI's conflict
 screens both run Core's `SaveConflictResolver`, the only caller of `overwrite=true` anywhere in
@@ -88,16 +91,9 @@ one by hand.
 **The `start` and `quit` hooks invoke a pass, as do `sync` and a person typing `flush`**, so an
 install nobody opens a terminal on still drains its journal. Spawning the agent costs the launch
 contention, not latency: ES spawns hooks fire-and-forget and starts emulatorlauncher without waiting, and the
-75.9 MB agent reaches `Main` in 34 ms against the 11 MB hook's 60 ms, since trimming without
-`PublishReadyToRun` throws the framework's precompiled code away (RB-195, RB-197).
-
-CLAUDE.md rule 4 forbids a hook touching the network **because** hooks run in the
-game-launch path, and only `game-start` and `game-end` do. `start` fires when EmulationStation
-starts and `quit` when it exits, so each of those two spawns
-`emulators/rommbat/rommbat-agent.exe background <event>` detached, with `UseShellExecute=false`
-and `CreateNoWindow=true`, and does not wait. The set lives on `SpoolRecord.BackgroundEvents`,
-which the hook compiles rather than references, so the hook and the agent cannot disagree about
-it and a test asserts the boundary instead of a comment claiming it.
+75.9 MB agent reaches `Main` in 34 ms, against 49 ms for a whole invocation of the trimmed,
+ReadyToRun hook (RB-195, RB-197).
+Which hooks may spawn it is the hook's to decide; see [`src/RomMBat.Hook`](#srcrommbathook).
 
 `background quit` waits for the ES process to exit before applying queued configuration, and
 gives up rather than hanging. Measured: ES is gone 48 to 68 ms after the quit hook stamps
@@ -110,26 +106,6 @@ ES's launch write to `es_settings.cfg` lands 1.6 to 4.9 s **before** the `start`
 
 The pass writes what it did to `emulators/rommbat/logs/background.log`. It runs with no window,
 so nothing it prints reaches a person otherwise.
-
-`game-start` and `game-end` run inside the game launch path. They spawn nothing, must not open a
-socket and must not wait on a lock. ES spawns them **fire-and-forget**, so they do not
-delay the launch (30 ms from hook to launcher, against an 8 s hook, RB-346), but they **do run
-concurrently**, with each other and across events.
-
-**The hooks ship as an executable, because only an `.exe` survives a real game name.**
-ES fires every event and logs `executing:` for every script in the folder, whatever the name
-holds, and a hook that does not run fails **per interpreter**, not per event (RB-396). A `.bat` never starts once any argument is quoted,
-because the `batfile` association is `cmd /c "%1" %*`; a `.ps1` never starts once the name
-contains a parenthesis, because ES builds `powershell <script> <args>` with no `-File`. An
-`.exe` received all three arguments intact on a real No-Intro name, and on the second host
-in RB-398 an `.exe` was the **only** form that ran at all.
-
-So the hooks are the agent executable, and `game-start` is usable. Two things follow.
-An ES-menu launch fires both events (RB-221), but a launch that fails fires `game-end` with
-**no** preceding `game-start` (RB-349), so an orphan `game-end` is normal rather than a fault. And the
-hook is never told the system, emulator or core, so
-**`emulationstation/emulatorLauncher.log` remains the source for the launch facts**. See
-RB-346 to RB-352 and RB-394 to RB-400.
 
 Concurrent invocations are safe: the flush takes a lock file in the tree and a second
 process exits rather than queueing. The lock is mandatory, not defensive, because concurrent
@@ -145,6 +121,61 @@ next pass.
 lock: a running emulator holds the file whichever process is about to write it, so a guard on
 the flush alone leaves the two routes a person reaches by hand writing under it. Each reports the
 deferral and neither counts it as a failure, since nothing was written and nothing was lost.
+
+## `src/RomMBat.Hook`
+
+Console executable, published as `rommbat-hook.exe`: what EmulationStation runs for each of its
+four events. `hooks install` copies it into each event folder as `zz-rommbat-hook.exe`, and the
+name of the folder it runs from is the event, because ES passes the game's arguments
+positionally and never says which event it is serving. It writes one file into
+`emulators/rommbat/spool/` and exits. `SpoolDrain`, at the start of every flush, turns those
+files into journal rows.
+
+**It references no project, not even Core.** It compiles three of Core's source files
+instead: `Paths/RootMarkers.cs`, to find the root by walking up from its own folder;
+`Sync/SpoolRecord.cs`, the record and the events that spawn a pass; and `Sync/Spool.cs`, which
+writes a file under a name no other process will pick and renames it into place. Four copies are
+installed, so a reference would put the store and the API client into each of them, and the
+`.csproj` holds what that measured. Compiling the files rather than copying them keeps the writer
+and Core's reader on one definition. It is trimmed, single-file and ReadyToRun, for start time
+on a USB stick; the measurements are in the `.csproj` too.
+
+It opens no socket, touches no database and takes no lock. One file per event is what makes
+that safe: three `game-end` hooks have been caught in flight at once (RB-347), and none of them
+shares anything with another.
+
+`game-start` and `game-end` run inside the game launch path. They spawn nothing, must not open a
+socket and must not wait on a lock. ES spawns them **fire-and-forget**, so they do not
+delay the launch (30 ms from hook to launcher, against an 8 s hook, RB-346), but they **do run
+concurrently**, with each other and across events.
+
+CLAUDE.md rule 4 forbids a hook touching the network because hooks run in the
+game-launch path, and only `game-start` and `game-end` do. `start` fires when EmulationStation
+starts and `quit` when it exits, so for each of those two the hook spawns
+`emulators/rommbat/rommbat-agent.exe background <event>` detached, with `UseShellExecute=false`
+and `CreateNoWindow=true`, and does not wait. The set lives on `SpoolRecord.BackgroundEvents`,
+which the hook compiles rather than references, so the hook and the agent cannot disagree about
+it, and `HookSpawnTests` asserts the boundary instead of a comment claiming it.
+
+The record is written before anything is spawned, so a spawn that fails, or an install with
+hooks and no agent, costs nothing: the next `start`, `quit` or `sync` drains it. An I/O failure
+exits non-zero, and ES ignores the exit code, because failing a launch over a missed play
+session is the wrong trade.
+
+**The hooks ship as an executable, because only an `.exe` survives a real game name.**
+ES fires every event and logs `executing:` for every script in the folder, whatever the name
+holds, and a hook that does not run fails **per interpreter**, not per event (RB-396). A `.bat` never starts once any argument is quoted,
+because the `batfile` association is `cmd /c "%1" %*`; a `.ps1` never starts once the name
+contains a parenthesis, because ES builds `powershell <script> <args>` with no `-File`. An
+`.exe` received all three arguments intact on a real No-Intro name, and on the second host
+in RB-398 an `.exe` was the **only** form that ran at all.
+
+So the hook is an executable, and `game-start` is usable. Two things follow.
+An ES-menu launch fires both events (RB-221), but a launch that fails fires `game-end` with
+**no** preceding `game-start` (RB-349), so an orphan `game-end` is normal rather than a fault. And the
+hook is never told the system, emulator or core, so
+**`emulationstation/emulatorLauncher.log` remains the source for the launch facts**. See
+RB-346 to RB-352 and RB-394 to RB-400.
 
 ## `src/RomMBat.UI`
 
