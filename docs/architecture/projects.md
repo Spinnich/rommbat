@@ -77,10 +77,11 @@ task.
 | `status`     | only if asked | Report local state; probes the server unless `--offline`. For support and for scripts                  |
 
 All of these are implemented. Two subcommands need both the network and a decision from a
-person: `saves resolve <rom> <slot> --keep-local | --keep-server`, which is also the only caller
-of `overwrite=true` anywhere in the codebase, and `saves restore --apply`, which puts back a save or
-save state the server holds and this device does not. Neither has a default side and neither is ever reached
-from a flush. `saves bind <system> <game id> <rom id>`, and
+person: `saves resolve <rom> <slot> --keep-local | --keep-server`, and `saves restore --apply`,
+which puts back a save or save state the server holds and this device does not. Neither has a
+default side and neither is ever reached from a flush. `saves resolve` and the UI's conflict
+screens both run Core's `SaveConflictResolver`, the only caller of `overwrite=true` anywhere in
+the codebase. `saves bind <system> <game id> <rom id>`, and
 `--forget`, are the local-only pair that settle or clear a Game-ID binding; nothing else writes
 one by hand.
 

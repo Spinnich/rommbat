@@ -151,9 +151,10 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
 
 - **A conflict is persisted, not printed.** It goes in `save_conflict` and outlives the flush
   that found it, the local file is copied aside **once per conflict rather than once per
-  flush**, and `saves resolve <rom> <slot> --keep-local | --keep-server` ends it. There is no
-  default side, because either default silently discards somebody's progress. `--keep-local` is
-  the only caller of `overwrite=true` in the codebase; a 409 that survives it means the slot
+  flush**, and `saves resolve <rom> <slot> --keep-local | --keep-server` or the UI's conflict
+  screens end it, both through Core's `SaveConflictResolver`. There is no default side, because
+  either default silently discards somebody's progress. Keeping the local side is the only caller
+  of `overwrite=true` in the codebase; a 409 that survives it means the slot
   moved again between the report and the decision, so it is reported rather than forced.
   `--keep-local` prunes the copy aside, since the server keeps its side one row down.
   `--keep-server` keeps it, and first takes a fresh copy when a file save moved since the
