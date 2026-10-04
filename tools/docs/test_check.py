@@ -127,6 +127,12 @@ class HistoryPhrasingTest(unittest.TestCase):
     def test_quoted_in_a_code_span_passes(self) -> None:
         self.assertEqual(self.errors("Phrasing such as `Superseded` is reported.\n"), [])
 
+    def test_previously_label_fails(self) -> None:
+        self.assertEqual(
+            self.errors("## True\n\nPreviously: a replaced claim\n"),
+            ["wiki/x.md:3: history phrasing; state what is true now"],
+        )
+
 
 class FactIdTest(unittest.TestCase):
     def test_letter_suffix_is_one_id(self) -> None:
