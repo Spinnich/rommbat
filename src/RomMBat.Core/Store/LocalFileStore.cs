@@ -544,13 +544,20 @@ public sealed class LocalFileStore
     /// is a left join.
     /// </para>
     /// </remarks>
+    /// <param name="romId">One game rather than a page, for a lookup by id with no server.</param>
     public (int Total, IReadOnlyList<InstalledGame> Games) InstalledGames(
         string? folder,
         string? search,
         int limit,
-        int offset)
+        int offset,
+        int? romId = null)
     {
         var clauses = new List<string> { "f.kind = 'rom'", "f.rom_id IS NOT NULL", "f.stale = 0" };
+
+        if (romId is not null)
+        {
+            clauses.Add("f.rom_id = $rom");
+        }
 
         if (!string.IsNullOrWhiteSpace(folder))
         {
@@ -605,6 +612,11 @@ public sealed class LocalFileStore
 
         void Bind(SqliteCommand command)
         {
+            if (romId is { } rom)
+            {
+                command.With("$rom", rom);
+            }
+
             if (!string.IsNullOrWhiteSpace(folder))
             {
                 command.With("$folder", folder);

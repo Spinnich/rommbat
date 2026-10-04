@@ -142,7 +142,7 @@ internal static class SyncCommand
     /// to come from statement order in one long method now comes from the order the service
     /// reports in, which is what makes a swapped pass observable.
     /// </remarks>
-    private static class Printer
+    internal static class Printer
     {
         public static void Show(SyncEvent report)
         {

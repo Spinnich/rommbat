@@ -30,6 +30,7 @@ internal static class Program
         "sets",       // define what this device syncs, and resolve it
         "platforms",  // the mapping surface: list, map, unmap
         "browse",     // one page of the catalog, to show the pager working
+        "game",       // one game by id: show, install, remove
         "budget",     // how much of this drive RomMBat may use
         "evict",      // free space, dry run unless --apply
         "bios",       // what RetroBat requires under bios/, and what is missing
@@ -100,6 +101,7 @@ internal static class Program
                 "sets" => await SetsCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "platforms" => await PlatformsCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "browse" => await BrowseCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "game" => await GameCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "sync" => await SyncCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "budget" => await BudgetCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "evict" => await EvictCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
@@ -153,6 +155,7 @@ internal static class Program
         Console.Error.WriteLine("  sets        list | add | show | remove | resolve sync sets");
         Console.Error.WriteLine("  platforms   list | map | unmap the RomM to RetroBat folder mapping");
         Console.Error.WriteLine("  browse      Print one page of the catalog");
+        Console.Error.WriteLine("  game        show | install | remove <rom-id>: one game, by the id browse prints");
         Console.Error.WriteLine("  sync        Resolve a set and pull its ROMs into the tree");
         Console.Error.WriteLine("  budget      Show or set how much of this drive RomMBat may use");
         Console.Error.WriteLine("  evict       Show what would be removed to get back inside the budget");
@@ -164,6 +167,7 @@ internal static class Program
         Console.Error.WriteLine("  saves       What is on disk, what went up, and what is waiting on you");
         Console.Error.WriteLine("              saves resolve <rom> <slot> --keep-local | --keep-server");
         Console.Error.WriteLine("              saves restore [<rom> [<slot>]]: put back a save or state the server has");
+        Console.Error.WriteLine("              saves convert <rom> [--revert]: give a game its own memory card, or take it back");
         Console.Error.WriteLine("  game-start  Record a launch. Journal only, no network");
         Console.Error.WriteLine("  game-end    Close a launch. Journal only, no network");
         Console.Error.WriteLine("  flush       One pass over everything waiting, then exit");
@@ -177,13 +181,15 @@ internal static class Program
         Console.Error.WriteLine("  --name <label>    How this device appears in the RomM device list");
         Console.Error.WriteLine("  --protect         Encrypt the stored token with a passphrase you type");
         Console.Error.WriteLine("  --passphrase <s>  Unlock a token stored with --protect, for any command that calls out");
-        Console.Error.WriteLine("  --offline         status, sync, bios, saves: work from local state without the server");
+        Console.Error.WriteLine("  --offline         status, sync, bios, saves, game show: work from local state without the server");
         Console.Error.WriteLine("  --dry-run         sync: say what would happen and write nothing");
-        Console.Error.WriteLine("  --apply           evict, uninstall: actually remove. bios: actually fetch. saves restore:");
-        Console.Error.WriteLine("                    actually write. outbox drop: actually delete. Without it, none of the five writes");
+        Console.Error.WriteLine("  --apply           evict, uninstall, game remove: actually remove. bios: actually fetch. saves");
+        Console.Error.WriteLine("                    restore, saves convert: actually write. outbox drop: actually delete. Without it,");
+        Console.Error.WriteLine("                    none of these writes");
         Console.Error.WriteLine("  --all-failed      outbox drop: every entry the server refused, instead of one id");
         Console.Error.WriteLine("  --all-pending     outbox drop: every unsent entry, when the server it names is gone");
         Console.Error.WriteLine("  --at-quit         saves convert: make the change when EmulationStation next closes");
+        Console.Error.WriteLine("  --revert          saves convert: take a game's own memory card back to the shared one");
         Console.Error.WriteLine("  --all             bios: every system RetroBat knows, not just the ones with games");
         Console.Error.WriteLine("  --max <size>      budget: the cap, as 64GB, 500MB or none");
         Console.Error.WriteLine("  --media <kinds>   gamelist: which artwork to fetch, e.g. image,thumbnail,video");
