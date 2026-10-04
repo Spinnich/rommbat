@@ -239,7 +239,16 @@ public static class QueuedChangeScreens
                                 + "then nothing is written, and Queued changes can cancel it.",
                             false)
                         : new ListRow("Not queued", null, done.Detail, false)
-                    : new ListRow("What changes", null, preview.Detail, false),
+                    : new ListRow(
+                        "What changes",
+                        null,
+                        // A ready preview's detail is the console's line, naming the raw key;
+                        // a refusal's is the reason, which is worth showing as it is.
+                        preview.Status == ConversionStatus.Ready
+                            ? "This game gets a memory card of its own, which RomMBat syncs like "
+                                + "any other save."
+                            : preview.Detail,
+                        false),
 
                 // Core's warning stops short of how to undo it, because the console's answer is
                 // a flag; once the change is applied, undoing it is the console's alone.

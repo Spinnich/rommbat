@@ -186,7 +186,11 @@ public class QueuedChangeScreenTests : IDisposable
 
         Assert.EndsWith("?", convert.Title, StringComparison.Ordinal);
         Assert.Contains(convert.Rows, row => row.Label == "Worth knowing");
-        Assert.All(Text(convert), text => Assert.DoesNotContain("--", text, StringComparison.Ordinal));
+        Assert.All(Text(convert), text =>
+        {
+            Assert.DoesNotContain("--", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("pcsx2_slot1_memory", text, StringComparison.Ordinal);
+        });
 
         var navigator = new Navigator(convert);
         navigator.Handle(NavAction.Accept);
