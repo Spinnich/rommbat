@@ -227,8 +227,9 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
                 ? "RomM's library"
                 : "the games on this device";
 
+            // Not "could not be reached": a page RomM answered and refused falls back too.
             return page.Problem is { } problem
-                ? $"Showing {source}, {counted}. RomM could not be reached: {problem}"
+                ? $"Showing {source}, {counted}. RomM's library could not be read: {problem}"
                 : $"Showing {source}, {counted}.";
         }
     }

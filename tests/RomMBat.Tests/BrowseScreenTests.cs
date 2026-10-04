@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using RomM.Client;
 using RomM.Client.Catalog;
 using RomMBat.Core;
@@ -398,10 +399,39 @@ public sealed class BrowseScreenTests : IDisposable
 
         Assert.Equal(BrowseSource.ThisDevice, browse.State.Page!.Source);
         Assert.NotNull(browse.State.Page.Problem);
-        Assert.Contains("could not be reached", browse.Note, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(browse.State.Page.Problem, browse.Note, StringComparison.Ordinal);
         Assert.Single(browse.State.Page.Games);
 
         Assert.True(clock.ElapsedMilliseconds < 2_000, $"browse took {clock.ElapsedMilliseconds} ms unreachable");
+    }
+
+    /// <summary>
+    /// A page RomM answered and refused falls back the same way, and neither screen calls RomM
+    /// unreachable when it was reached.
+    /// </summary>
+    [Fact]
+    public async Task A_refused_page_falls_back_without_saying_RomM_was_unreachable()
+    {
+        Installed(1, "snes", "Chrono Trigger.sfc", 2_048);
+
+        using var stub = new StubRomMServer { NextRomsStatus = HttpStatusCode.InternalServerError };
+        Pair();
+
+        using var browse = new BrowseViewModel(_session, Connect(stub));
+        await Settled(browse);
+
+        Assert.Equal(BrowseSource.ThisDevice, browse.State.Page!.Source);
+        Assert.NotNull(browse.State.Page.Problem);
+        Assert.Contains("could not be read", browse.Note, StringComparison.Ordinal);
+        Assert.DoesNotContain("reach", browse.Note, StringComparison.OrdinalIgnoreCase);
+
+        var game = Assert.Single(browse.State.Page.Games);
+        Assert.Null(game.Row);
+
+        var detail = Assert.IsType<ListScreen>(BrowseScreens.Detail(_session, game));
+        var note = detail.Note!();
+        Assert.Contains("cannot be installed again from here", note, StringComparison.Ordinal);
+        Assert.DoesNotContain("reach", note, StringComparison.OrdinalIgnoreCase);
     }
 
     // ------------------------------------------------------------------ what a row says
