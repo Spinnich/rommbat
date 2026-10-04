@@ -202,6 +202,33 @@ public sealed class PickedSetTests : IDisposable
     }
 
     [Fact]
+    public void A_multi_file_game_on_a_system_with_a_settled_layout_is_picked_as_a_resolve_would_take_it()
+    {
+        // psx has a bundled layout, so a resolve takes a multi-disc game held as one RomM game
+        // and lands it as a folder with an .m3u. The pick refused every multi-file game, which
+        // left the well-organised shape of a multi-disc title the one a single press could not
+        // install. Its size is the total of files that land apart, so the one-file limit does
+        // not apply to it either.
+        Map(2, "psx");
+
+        var outcome = new PickedSetService(_session).Pick(
+            Row(11, "Metal Gear Solid (USA)") with
+            {
+                PlatformId = 2,
+                PlatformSlug = "psx",
+                PlatformFsSlug = "psx",
+                FsName = "Metal Gear Solid (USA)",
+                FsExtension = string.Empty,
+                HasMultipleFiles = true,
+            },
+            Now);
+
+        Assert.False(outcome.IsRefused, outcome.Problem);
+        Assert.True(outcome.Member!.IsMultiFile);
+        Assert.Equal("psx", outcome.Member.Folder);
+    }
+
+    [Fact]
     public void A_folder_holding_one_file_is_refused_as_a_folder_and_not_as_multi_file()
     {
         // The shape measured on 5.3.0-alpha.2 by moving a lone file into a subfolder: the folder

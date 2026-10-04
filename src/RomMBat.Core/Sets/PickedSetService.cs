@@ -238,17 +238,22 @@ public sealed class PickedSetService
                     + "physical copy never had one, and a missing one has to be restored on the server.");
         }
 
-        if (row.HasMultipleFiles)
+        // The resolver's rule, not a stricter one: a system whose certification settled the
+        // layout takes a multi-file game, which is how a multi-disc game held as one RomM game
+        // lands as a folder and an .m3u. Refusing every multi-file game here left exactly that
+        // shape installable through a set and never with one press.
+        if (row.HasMultipleFiles && MultiFileLayouts.Bundled.For(folder) is null)
         {
             return new PickOutcome(
                 set,
                 null,
-                "RomM holds this game as several files, which this version cannot sync yet.");
+                "RomM holds this game as several files, which this version cannot sync yet "
+                    + "for this system.");
         }
 
         // A ROM held as a folder, of one file or several, arrives with no extension and has_multiple_files false,
         // so it is refused here rather than above, and named for what it is rather than as a bare dot.
-        if (string.IsNullOrWhiteSpace(row.FsExtension))
+        if (!row.HasMultipleFiles && string.IsNullOrWhiteSpace(row.FsExtension))
         {
             return new PickOutcome(
                 set,
@@ -258,7 +263,8 @@ public sealed class PickedSetService
 
         var limits = FilesystemLimits.Inspect(_session.Install.RootPath);
 
-        if (!limits.CanHold(row.SizeBytes))
+        // One file's limit. A multi-file game's size is the total of files that land separately.
+        if (!row.HasMultipleFiles && !limits.CanHold(row.SizeBytes))
         {
             return new PickOutcome(
                 set,
