@@ -257,7 +257,7 @@ public static class BrowseScreens
             new("Platform", game.PlatformSlug, null, false),
             new(
                 "Size in RomM",
-                game.Row is null ? "not known offline" : ByteSize.Format(game.SizeBytes),
+                game.Row is null ? "not known" : ByteSize.Format(game.SizeBytes),
                 null,
                 false),
         };

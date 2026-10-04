@@ -255,7 +255,7 @@ internal static class GameCommand
         Console.WriteLine(game.DisplayName);
         Console.WriteLine($"  release:      {game.Release}");
         Console.WriteLine($"  platform:     {game.PlatformSlug}");
-        Console.WriteLine($"  size in RomM: {(game.Row is null ? "not known offline" : ByteSize.Format(game.SizeBytes))}");
+        Console.WriteLine($"  size in RomM: {(game.Row is null ? "not known" : ByteSize.Format(game.SizeBytes))}");
 
         if (placement.IsHere)
         {
