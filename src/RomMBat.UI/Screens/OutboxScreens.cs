@@ -153,9 +153,8 @@ public static class OutboxScreens
         Func<int, string> after)
     {
         int? dropped = null;
-        ListScreen? screen = null;
 
-        screen = new ListScreen(
+        return new ListScreen(
             title,
             () =>
             [
@@ -181,15 +180,9 @@ public static class OutboxScreens
                 }
 
                 dropped = drop();
-
-                // A verb's Stay does not re-read the rows the way a chosen row's does, and the
-                // pane would go on describing what is no longer there.
-                screen!.Returned();
                 return ScreenCommand.Stay;
             },
         };
-
-        return screen;
     }
 
     private static string Title(OutboxEntry entry, IReadOnlyDictionary<int, GameMetadata> titles) =>

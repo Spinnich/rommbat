@@ -489,6 +489,14 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
 
         if (Verbs?.Invoke(action, state.Cursor) is { } answered)
         {
+            // Re-read for the same reason a chosen row's Stay does below: a verb that acts in
+            // place has changed a flag the row factory reads, and the pane would otherwise go
+            // on describing what it just cancelled, dropped or queued.
+            if (answered.Kind == ScreenCommandKind.Stay)
+            {
+                Returned();
+            }
+
             return answered;
         }
 

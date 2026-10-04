@@ -403,6 +403,44 @@ public sealed class SetsScreenTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// A verb that answers Stay re-reads the rows, as a chosen row that answers Stay does.
+    /// </summary>
+    /// <remarks>
+    /// Every confirmation that acts in place is a verb over a flag its row factory reads. While
+    /// only a chosen row re-read, the footer moved to Done and the pane went on describing the
+    /// thing that had just been cancelled, dropped or queued.
+    /// </remarks>
+    [Fact]
+    public void A_verb_that_stays_put_re_reads_the_rows()
+    {
+        var done = false;
+
+        var screen = new ListScreen(
+            "Do it?",
+            () => [new ListRow(done ? "Done" : "Not yet", null, "a fact", false)],
+            _ => ScreenCommand.Stay)
+        {
+            Reading = true,
+            Verbs = (action, _) =>
+            {
+                if (action != NavAction.Accept)
+                {
+                    return null;
+                }
+
+                done = true;
+                return ScreenCommand.Stay;
+            },
+        };
+
+        Assert.Equal("Not yet", Assert.Single(screen.Rows).Label);
+
+        Assert.Equal(ScreenCommandKind.Stay, screen.Handle(NavAction.Accept).Kind);
+
+        Assert.Equal("Done", Assert.Single(screen.Rows).Label);
+    }
+
     /// <summary>An empty set can be deleted, which a hands-on pass said it could not.</summary>
     [Fact]
     public async Task An_empty_set_can_be_deleted()

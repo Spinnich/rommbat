@@ -145,6 +145,9 @@ public class PlatformScreenTests : IDisposable
         // Answered once. The confirmation stops offering it rather than letting a second press
         // run a change that has already happened.
         Assert.DoesNotContain(confirm.Hints, hint => hint.Action == NavAction.Accept);
+
+        // And the pane says it happened, rather than still describing the drop it offered.
+        Assert.Equal("Done", Assert.Single(confirm.Rows).Label);
     }
 
     [Fact]
