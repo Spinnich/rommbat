@@ -47,6 +47,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
 {
     private readonly Func<IReadOnlyList<ListRow>> _rows;
     private readonly Func<int, ScreenCommand> _choose;
+    private readonly string _title;
     private readonly string _acceptLabel;
     private readonly string _backLabel;
     private readonly FooterHint[] _extra;
@@ -95,7 +96,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
         ArgumentNullException.ThrowIfNull(rows);
         ArgumentNullException.ThrowIfNull(choose);
 
-        Title = title;
+        _title = title;
         _backLabel = backLabel;
         _rows = rows;
         _choose = choose;
@@ -108,7 +109,20 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
         _state = new ListState(initial, FirstAvailable(initial, 0, 1));
     }
 
-    public string Title { get; }
+    /// <summary>
+    /// The heading, read on every draw for the reason <see cref="BackLabel"/> is.
+    /// </summary>
+    public string Title => TitleWhen is { } when ? when() : _title;
+
+    /// <summary>
+    /// The heading's words, when they change with what the screen has already done.
+    /// </summary>
+    /// <remarks>
+    /// A confirmation that acts in place kept its question as the heading after it was
+    /// answered, so "Cancel this change?" sat over a row reading "Cancelled". A finished screen
+    /// says so in its title as well as its rows and footer.
+    /// </remarks>
+    public Func<string>? TitleWhen { get; init; }
 
     public IReadOnlyList<ListRow> Rows => _state.Rows;
 

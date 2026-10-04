@@ -134,6 +134,7 @@ public class PlatformScreenTests : IDisposable
         navigator.Handle(NavAction.Alternate);
 
         var confirm = Assert.IsType<ListScreen>(navigator.Current);
+        Assert.EndsWith("?", confirm.Title, StringComparison.Ordinal);
         navigator.Handle(NavAction.Accept);
 
         var row = _session.Store.PlatformMap.Find("arcade");
@@ -148,6 +149,10 @@ public class PlatformScreenTests : IDisposable
 
         // And the pane says it happened, rather than still describing the drop it offered.
         Assert.Equal("Done", Assert.Single(confirm.Rows).Label);
+
+        // As do the title and the footer, rather than an offer over its own answer (#448).
+        Assert.Equal("Stopped choosing for Arcade", confirm.Title);
+        Assert.Equal("Done", Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Back).Label);
     }
 
     [Fact]

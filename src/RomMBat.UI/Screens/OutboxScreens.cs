@@ -101,6 +101,7 @@ public static class OutboxScreens
     private static ListScreen DropOne(InstallSession session, OutboxEntry entry, string title) =>
         Confirm(
             $"Drop this {Kind(entry.Kind)}?",
+            $"{Capitalised(Kind(entry.Kind))} dropped",
             new ListRow(
                 title,
                 Moment(entry.RecordedAtUtc),
@@ -114,6 +115,7 @@ public static class OutboxScreens
     private static ListScreen DropRefused(InstallSession session) =>
         Confirm(
             "Drop every refused entry?",
+            "Refused entries dropped",
             new ListRow(
                 "Refused",
                 $"{session.Store.Outbox.FailedCount()} entries",
@@ -132,6 +134,7 @@ public static class OutboxScreens
     private static ListScreen DropPending(InstallSession session) =>
         Confirm(
             "Drop everything not sent yet?",
+            "Unsent entries dropped",
             new ListRow(
                 "Not sent yet",
                 $"{session.Store.Outbox.PendingCount()} waiting",
@@ -145,9 +148,11 @@ public static class OutboxScreens
     /// <summary>
     /// A pane of facts with one verb, in <c>QueuedChangeScreens.CancelConfirm</c>'s shape.
     /// </summary>
+    /// <param name="done">The title once something was dropped.</param>
     /// <param name="after">What happened, given how many the store deleted, when that is any.</param>
     private static ListScreen Confirm(
         string title,
+        string done,
         ListRow before,
         Func<int> drop,
         Func<int, string> after)
@@ -169,6 +174,12 @@ public static class OutboxScreens
             backLabel: "Keep")
         {
             Reading = true,
+            TitleWhen = () => dropped switch
+            {
+                null => title,
+                0 => "Nothing dropped",
+                _ => done,
+            },
             OfferAcceptWhen = () => dropped is null,
             BackLabelWhen = () => dropped is null ? "Keep" : "Done",
 
@@ -197,6 +208,9 @@ public static class OutboxScreens
         OutboxKind.PlaySession => "play session",
         _ => "entry",
     };
+
+    private static string Capitalised(string text) =>
+        text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
 
     private static string Entries(int count) =>
         count == 1 ? "1 entry" : $"{count.ToString(CultureInfo.CurrentCulture)} entries";

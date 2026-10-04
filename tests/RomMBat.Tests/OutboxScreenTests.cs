@@ -81,6 +81,7 @@ public class OutboxScreenTests : IDisposable
         // Answered once, and Back now finishes rather than declining.
         Assert.DoesNotContain(confirm.Hints, hint => hint.Action == NavAction.Accept);
         Assert.Equal("Done", Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Back).Label);
+        Assert.Equal("Save dropped", confirm.Title);
     }
 
     [Fact]

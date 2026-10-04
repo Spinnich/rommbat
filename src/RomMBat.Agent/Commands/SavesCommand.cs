@@ -651,7 +651,8 @@ internal static class SavesCommand
 
         if (result.Warning is { } warning)
         {
-            Console.WriteLine(warning);
+            // Core's warning names no way back, because the gamepad's is not a flag.
+            Console.WriteLine(revert ? warning : $"{warning} Undo with --revert.");
             Console.WriteLine();
         }
 

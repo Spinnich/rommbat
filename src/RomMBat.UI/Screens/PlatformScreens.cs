@@ -291,7 +291,11 @@ public static class PlatformScreens
             backLabel: "Back")
         {
             Reading = true,
+            TitleWhen = () => cleared
+                ? $"Stopped choosing for {platform.Label}"
+                : $"Stop choosing for {platform.Label}?",
             OfferAcceptWhen = () => !cleared,
+            BackLabelWhen = () => cleared ? "Done" : "Back",
 
             Verbs = (action, _) =>
             {
