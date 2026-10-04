@@ -3,9 +3,9 @@
 
 Two classes of check. An error fails the run: a relative link or anchor that does not
 resolve, an em-dash, a fact ID (`RB-<n>` for RetroBat, `RM-<n>` for RomM) cited but defined
-nowhere, or a Markdown file over its line budget. A report is printed and does not fail: the
-always-loaded context ceiling, missing frontmatter, history phrasing, legacy "finding N"
-citations, and generic use of `dry-run`. Reports exist for rules the tree does not meet yet, or,
+nowhere, history phrasing, or a Markdown file over its line budget. A report is printed and does
+not fail: the always-loaded context ceiling, missing frontmatter, legacy "finding N" citations,
+and generic use of `dry-run`. Reports exist for rules the tree does not meet yet, or,
 for the context ceiling, a rule that counts the maintainer's local MEMORY.md, which CI never sees.
 
 Usage:
@@ -267,9 +267,10 @@ def check_file(rel: str, text: str, findings: Findings, defined_facts: set[str] 
         if missing:
             findings.report("frontmatter", f"{rel}: missing {', '.join(missing)}")
 
-    history = legacy = dry_run = 0
+    legacy = dry_run = 0
     for number, line in prose_lines(text):
-        history += sum(1 for p in HISTORY_PATTERNS if p.search(line))
+        if any(p.search(line) for p in HISTORY_PATTERNS):
+            findings.errors.append(f"{rel}:{number}: history phrasing; state what is true now")
         legacy += len(LEGACY_CITATION.findall(line))
         # A quoted "dry-run" is a mention of the word, as in the rule's own statement.
         if GENERIC_DRY_RUN.search(re.sub(r"\"[^\"]*\"", "", line)):
@@ -279,8 +280,6 @@ def check_file(rel: str, text: str, findings: Findings, defined_facts: set[str] 
             for prefix, digits in FACT_ID.findall(line):
                 if f"{prefix}-{digits}" not in defined_facts:
                     findings.errors.append(f"{rel}:{number}: {prefix}-{digits} is defined nowhere")
-    if history:
-        findings.report("history", f"{rel}: {history} line(s) of history phrasing")
     if legacy:
         findings.report("legacy citations", f"{rel}: {legacy} bare 'finding N' citation(s)")
 
