@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import io
+import json
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import check
@@ -164,6 +167,34 @@ class StaleTest(unittest.TestCase):
     def test_floor_is_read_from_code(self) -> None:
         floor = check.floors()
         self.assertEqual(set(floor), {"RetroBat", "RomM"})
+
+
+class HookTest(unittest.TestCase):
+    def run_hook(self, file_path: str) -> int:
+        stdin = io.StringIO(json.dumps({"tool_input": {"file_path": file_path}}))
+        with mock.patch("sys.stdin", stdin):
+            return check.run_hook()
+
+    def test_worktree_file_goes_to_the_worktrees_own_checker(self) -> None:
+        worktree = check.ROOT / ".claude" / "worktrees" / "issue-1-x"
+        edited = worktree / ".claude" / "commands" / "start-issue.md"
+        own_checker = worktree / "tools" / "docs" / "check.py"
+        real_is_file = Path.is_file
+        with (
+            mock.patch.object(
+                Path, "is_file", lambda p: p == own_checker or real_is_file(p)
+            ),
+            mock.patch("check.delegate_hook", return_value=2) as delegate,
+        ):
+            self.assertEqual(self.run_hook(str(edited)), 2)
+        checker, call = delegate.call_args.args
+        self.assertEqual(checker, own_checker)
+        self.assertEqual(call["tool_input"]["file_path"], str(edited))
+
+    def test_main_checkout_file_is_checked_here(self) -> None:
+        with mock.patch("check.delegate_hook") as delegate:
+            self.assertEqual(self.run_hook(str(check.ROOT / "README.md")), 0)
+        delegate.assert_not_called()
 
 
 if __name__ == "__main__":
