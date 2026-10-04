@@ -53,8 +53,9 @@ public sealed class BrowseScreenTests : IDisposable
     /// The row count never exceeds one page, across several pages.
     /// </summary>
     /// <remarks>
-    /// M2's rule stated as an assertion. A screen that concatenated pages would pass every other
-    /// test in this file and hold an 83,000-row library by the time somebody reached the end.
+    /// The never-mirror-the-catalog rule stated as an assertion. A screen that concatenated pages
+    /// would pass every other test in this file and hold an 83,000-row library by the time somebody
+    /// reached the end.
     /// </remarks>
     [Fact]
     public async Task Browse_never_holds_more_than_one_page()

@@ -11,21 +11,20 @@ namespace RomMBat.UI.Screens;
 /// Where each RomM platform's games land in RetroBat, and how to change it.
 /// </summary>
 /// <remarks>
-/// <b>M2 calls for this as core UI and it was the last piece of M2 with no face.</b> Until stage
-/// 7b-3 an unmapped platform was found out by a resolve stopping partway through a collection
-/// that happened to hold one of its games, and the only repair reachable from the couch was a
-/// per-set folder override. That is the wrong shape: the mapping is install-wide,
-/// <c>platform_map</c> already holds it install-wide, and a per-set override fixes one set while
-/// leaving every other set and every future set with the same hole. 7b-2c made it worse by
-/// showing unmapped platforms in a second place, on a browse row saying the games cannot be
-/// installed, still with no repair.
+/// <b>The mapping is install-wide, so its repair is too.</b> Without this screen an unmapped
+/// platform is found out by a resolve stopping partway through a collection that happens to
+/// hold one of its games, and the only repair reachable from the couch is a per-set folder
+/// override. That is the wrong shape: <c>platform_map</c> holds the mapping install-wide, and a
+/// per-set override fixes one set while leaving every other set and every future set with the
+/// same hole. Browse shows an unmapped platform too, on a row saying the games cannot be
+/// installed, and this is where that row's repair is.
 /// <para>
 /// <b>Reached from the root before a sync is attempted, not discovered after one fails.</b> The
 /// root menu carries the unmapped count on its own row for that reason.
 /// </para>
 /// <para>
 /// <b>Unmapped is a normal state, not an error.</b> A RomM platform with no RetroBat folder is
-/// one of M2's two first-class unmapped states, and arcade reaches it by design because which of
+/// one of the two first-class unmapped states, and arcade reaches it by design because which of
 /// the seven folders is right depends on the romset the files came from. So a row with no folder
 /// is shown plainly with what to do about it, not as a fault.
 /// </para>
@@ -109,8 +108,7 @@ public static class PlatformScreens
 
     /// <summary>Where a folder came from, as a person would say it.</summary>
     /// <remarks>
-    /// The enum's own names reach the screen as identifiers rather than English, which is the
-    /// same defect the controller availability row had in 7b-1.
+    /// Without it the enum's own names reach the screen as identifiers rather than English.
     /// </remarks>
     private static string Describe(MappingSource source) => source switch
     {
@@ -143,8 +141,7 @@ public static class PlatformScreens
 
             // Both verbs here, because ExtraHints replaces the constructor's hints rather than
             // adding to them: a Start hint passed there and an ExtraHints that answered only
-            // Alternate left the first verb working with nothing in the footer naming it, which
-            // is the same defect three screens got three different ways in 7b-2c.
+            // Alternate would leave the first verb working with nothing in the footer naming it.
             //
             // The second verb only exists for a row somebody chose. Offering "use the automatic
             // one" on a row that is already the automatic one is a press that does nothing.

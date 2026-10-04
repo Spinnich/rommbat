@@ -404,7 +404,7 @@ public sealed class SyncSetServiceTests : IDisposable
     {
         // #78 was the agent accepting --value on a filter scope, never reading it and never
         // complaining, which produced the widest possible scope from a command naming three
-        // games. Fixed there, in stage 7b-3, by refusing it.
+        // games. The agent refuses it.
         //
         // This behaviour is unchanged and is correct: a filter is built from fields, so a
         // draft carrying a value has nothing to do with it, and a front end assembling one has
@@ -463,8 +463,8 @@ public sealed class SyncSetServiceTests : IDisposable
         PairWith("roms.read");
         SeedPlatform(4, "snes");
 
-        // A sweep rather than a check of one site. Round 8 of stage 7b-1 found a rule that was
-        // enforced structurally in one place and broken in the field next to it, and the thing
+        // A sweep rather than a check of one site. A rule can be enforced structurally in one
+        // place and broken in the field next to it, and the thing
         // that catches a moved mistake is a test that looks everywhere.
         var sentences = new List<string?>
         {

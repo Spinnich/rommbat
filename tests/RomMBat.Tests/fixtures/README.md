@@ -1,6 +1,6 @@
 # Test fixtures
 
-Byte-exact captures from a real RetroBat install, plus recorded RomM API responses.
+Byte-exact captures from a real RetroBat install, and files linked in from elsewhere in the tree.
 
 **Do not hand-edit or reformat anything here.** Trunk is configured to skip this
 directory, because a fixture that has been tidied no longer proves what it was captured
@@ -27,7 +27,7 @@ else.
 the install's `es_systems.cfg` needs a real one to read.
 
 `es_systems.live.json` is a real capture, checked in here: 244 systems from a live 8.2.0
-install, recorded by M0 probe 4. It carries system names, paths and extensions only, no
+install, recorded by `tools/m0-probes/probe2_static.py`. It carries system names, paths and extensions only, no
 library contents. **It is deliberately not re-captured when the supported version moves.**
 What it is for is the shape of a live file against the shipped template, and 8.2.1's
 `<extension>` additions (`.decomp`, `.zar`) change data the shipped code reads live and never
@@ -36,7 +36,7 @@ compares to this. Re-capture it when a parser trap moves, not when a version doe
 `emulatorLauncher.log` is twelve lines cut verbatim out of a real install's five months and
 424 launches, with only the Windows user profile path replaced. It is assembled by trap
 rather than chronologically, so it is not a slice of the file, and each line is one of the
-things the M6 probe found (RB-112 to RB-118):
+traps RB-112 to RB-118 record:
 
 | Line     | What it is                                                                              |
 | -------- | --------------------------------------------------------------------------------------- |
@@ -92,17 +92,14 @@ them; that difference is asserted in `EsInputMapTests` against a real runtime GU
 supported RetroBat version because it is linked from `reference/` rather than copied. It is
 enough because it carries every parser trap a live file does: five systems whose `<name>`
 differs from their folder, one `<name>` used twice, four entries pointing outside `roms/`,
-one with no path, and two systems inside XML comments. M0's live capture agrees with it on
-all 240 folders. Shipped code still reads the live file; this is a fixture, not a substitute.
+one with no path, and two systems inside XML comments. `es_systems.live.json` agrees with it
+on all 240 folders. Shipped code still reads the live file; this is a fixture, not a substitute.
 
-Expected contents, arriving with the milestones that need them:
-
-| Fixture             | From                                                        | Used by                                     |
-| ------------------- | ----------------------------------------------------------- | ------------------------------------------- |
-| `es_systems.cfg`    | A live RetroBat tree                                        | Folder and `<extension>` resolution         |
-| `es_savestates.cfg` | A live RetroBat tree                                        | Save-state directory and filename templates |
-| `gamelist.xml`      | A system with user edits (favourite, playcount, lastplayed) | Asserting user fields survive a sync        |
-| `openapi.json`      | A pinned RomM version                                       | DTO generation drift                        |
+`gamegear-gamelist.xml` is four entries lifted verbatim from a real scraped install, two of
+them carrying `playcount` and `lastplayed`, so a test can assert user fields survive a sync.
+`es_menu-gamelist.xml` is RetroBat's stock `system/es_menu/gamelist.xml`, the one gamelist
+that carries a BOM and CRLF endings. `romm-pinned-openapi.json` is linked from
+`src/RomM.Client/openapi/` under a fixed name, so the version-floor test reads the pin.
 
 Redact before checking anything in: no server hostname, no token, no personal library
 contents beyond what the test needs.

@@ -156,7 +156,7 @@ public sealed partial class RomMConnection
     /// <para>
     /// So the two travel together: this passes <c>optimistic=false</c>, and
     /// <see cref="AcknowledgeSaveAsync"/> is called only after the bytes are written and
-    /// verified. Same discipline as M3's <c>.part</c> rename.
+    /// verified. Same discipline as a ROM download's <c>.part</c> rename.
     /// </para>
     /// </remarks>
     public async Task<RomMResponse<long>> DownloadSaveAsync(

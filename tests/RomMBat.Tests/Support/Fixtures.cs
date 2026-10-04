@@ -19,11 +19,14 @@ internal static class Fixtures
     /// </remarks>
     public static string EsSystemsTemplate => Path("es_systems.template.cfg");
 
-    /// <summary>A live 8.2.0 install's parsed <c>es_systems.cfg</c>, from M0 probe 4.</summary>
+    /// <summary>
+    /// A live 8.2.0 install's parsed <c>es_systems.cfg</c>, from
+    /// <c>tools/m0-probes/probe2_static.py</c>.
+    /// </summary>
     public static string LiveEsSystems => Path("es_systems.live.json");
 
     /// <summary>
-    /// RetroBat 8.2.1's shipped <c>es_savestates.cfg</c>, byte-identical to 8.2.0's and, M0
+    /// RetroBat 8.2.1's shipped <c>es_savestates.cfg</c>, byte-identical to 8.2.0's and, as
     /// measured, to the live copy.
     /// </summary>
     /// <remarks>

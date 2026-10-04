@@ -43,8 +43,8 @@ internal static class ScreenView
         SyncViewModel sync => Sync(sync),
 
         // The same body a ListScreen draws, given the same things. Browse is a list with a pager
-        // behind it rather than a different picture, and a second copy of this would be the file
-        // 7b-1 already named as the one most likely to grow worst.
+        // behind it rather than a different picture, and a second copy of this in the file most
+        // likely to grow worst is not worth having.
         BrowseViewModel browse => List(
             browse,
             note: browse.Note,
@@ -641,7 +641,7 @@ internal static class ScreenView
                 // On a list of choices the detail is a subtitle under a choice and stays on one
                 // line, trimmed: left to wrap it decides the row's height, and rows of differing
                 // height inside a fixed window make the block grow and shrink while it is being
-                // scrolled, which hands-on rounds 3 and 13 of stage 7b-2a both found.
+                // scrolled, which two hands-on rounds found.
                 TextWrapping = TextWrapping.NoWrap,
                 TextTrimming = TextTrimming.CharacterEllipsis,
             });

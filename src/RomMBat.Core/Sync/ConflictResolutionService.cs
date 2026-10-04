@@ -109,8 +109,8 @@ public enum ConflictOutcomeState
 /// </para>
 /// <para>
 /// <b>The same body serves both front ends.</b> <c>saves resolve</c> is a shell over this and
-/// holds no rule of its own, which is the shape <see cref="SaveFlushService"/> took in stage
-/// 7b-2b and for the same reason: a sentence that differs between the console and the couch is
+/// holds no rule of its own, which is the shape <see cref="SaveFlushService"/> has, for the
+/// same reason: a sentence that differs between the console and the couch is
 /// two answers to one question.
 /// </para>
 /// </remarks>

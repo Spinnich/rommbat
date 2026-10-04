@@ -92,7 +92,7 @@ public sealed record DolphinSyncState(
 /// "GameCube saves have been synced."
 /// </para>
 /// <para>
-/// <b>Nothing here writes.</b> Ruling 5 of stage 2c is detect and report: RomMBat does not read
+/// <b>Nothing here writes.</b> The rule is detect and report: RomMBat does not read
 /// <c>Card A</c>, does not upload it, and does not delete it. Two writers reconciling one
 /// directory by different rules is how saves get lost, and the user is told instead.
 /// </para>

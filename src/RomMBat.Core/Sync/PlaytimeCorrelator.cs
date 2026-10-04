@@ -52,8 +52,8 @@ public sealed record CorrelationOutcome(
 /// <b>An orphan <c>game-end</c> is discarded, not attributed to whatever ran last.</b> ES-menu
 /// launches produce one, launches that fail outright produce one, and <b>RomMBat's own exit
 /// produces one</b>, since it is launched from that menu. Attributing any of those to the last
-/// real game is how a user gets a play session for a game they did not play. M6 measured that
-/// the menu case is identifiable rather than merely suspected: 27 launches on a real install
+/// real game is how a user gets a play session for a game they did not play. The menu case is
+/// identifiable rather than merely suspected (RB-118): 27 launches on a real install
 /// carry <c>-system retrobat</c> with a rom under <c>system\es_menu\</c>.
 /// </para>
 /// <para>

@@ -11,8 +11,8 @@ namespace RomMBat.UI.Screens;
 /// <remarks>
 /// <b>Two settings, and they are a precondition for syncing rather than a preference.</b>
 /// Without a budget, <c>evict</c> has nothing to be over and reports that nothing is over it,
-/// so the whole eviction half of M3 is inert. 7b-2b puts a sync on screen and a sync that can
-/// fill a handheld's drive with no ceiling is not something to ship.
+/// so eviction is inert. The UI puts a sync on screen, and a sync that can fill a handheld's
+/// drive with no ceiling is not something to ship.
 /// <para>
 /// <b>Stepped, not typed.</b> Both values are sizes, and a size is exactly the thing that is
 /// miserable to enter on a grid of letters. Left and Right move through a ladder; Accept never

@@ -9,7 +9,7 @@ using Xunit;
 namespace RomMBat.Tests;
 
 /// <summary>
-/// The queued-config surface, which stage 7b-1 could read and could not touch.
+/// The queued-config surface, where a queued change can be cancelled from the couch.
 /// </summary>
 /// <remarks>
 /// <b>Queueing is not a convenience here, it is the only mechanism.</b> EmulationStation loads

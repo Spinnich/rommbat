@@ -257,8 +257,8 @@ identical)`. M5 and M6, added at `5.3.0` and answering the same at `5.3.1`, are 
     The restore find is untouched: it reaches the download only with no local save.
 - **Negotiate returns a download for every save the device has no sync record for**, including
   slots the client did not submit. An **empty** `saves` array came back with 13 downloads across
-  two ROMs, one never named by the client, and acking one dropped the next answer to 12. An
-  earlier reading of this was backwards: a device that is already current for everything gets no
+  two ROMs, one never named by the client, and acking one dropped the next answer to 12. A
+  device that is already current for everything gets no
   operations, which is not the same as nothing being volunteered. **So negotiating with an empty
   array is the fresh-device inventory pass**, and no separate one over `GET /api/saves` is
   needed. A restore onto a device that never held the slot is an ordinary case, not a dead one,

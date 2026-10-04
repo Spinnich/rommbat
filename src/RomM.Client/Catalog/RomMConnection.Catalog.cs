@@ -6,7 +6,7 @@ using RomM.Client.Generated;
 
 namespace RomM.Client;
 
-/// <summary>The catalog reads M2 needs: platforms, collections, and paged ROMs.</summary>
+/// <summary>The catalog reads: platforms, collections, and paged ROMs.</summary>
 public sealed partial class RomMConnection
 {
     /// <summary>
@@ -87,7 +87,7 @@ public sealed partial class RomMConnection
     /// <b>The one read that exists because a scope cannot be paged.</b>
     /// <c>GET /api/roms</c> takes no id-list parameter, so a picked set arriving on a second
     /// device has ids and no rows behind them, and this is the only way to turn one into the
-    /// other. M4 measured it at about 0.15 s per ROM, which is why <c>RomRow</c>'s own remarks
+    /// other. It costs about 0.15 s per ROM, which is why <c>RomRow</c>'s own remarks
     /// rule it out for metadata on a resolved set and why the picked scope is meant for tens of
     /// games rather than thousands.
     /// <para>

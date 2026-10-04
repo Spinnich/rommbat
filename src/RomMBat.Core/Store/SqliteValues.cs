@@ -73,12 +73,11 @@ internal static class SqliteValues
     /// </summary>
     /// <remarks>
     /// <b>One <see cref="SqliteConnection"/> is shared by every store, and it is not
-    /// thread-safe.</b> Nothing serialised it, and the failure is not a clean exception: two
+    /// thread-safe.</b> Unserialised, the failure is not a clean exception: two
     /// threads mutating one connection's prepared-statement list threw "Collection was modified"
     /// out of <c>SqliteCommand.Dispose</c> in a full test run.
     /// <para>
-    /// <b>M7 stage 7b-2b is what made it reachable.</b> Before it, the only background work
-    /// touching the store was a resolve. A sync writes from a background thread for minutes,
+    /// <b>A UI sync is what makes it reachable.</b> It writes from a background thread for minutes,
     /// once per ROM, once per artwork file and once per rollback, while the drawing thread reads
     /// the same connection on every redraw to build the screen underneath.
     /// </para>

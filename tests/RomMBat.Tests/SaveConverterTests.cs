@@ -483,7 +483,7 @@ public class SaveConverterTests
     [Fact]
     public void Queueing_writes_nothing_and_records_what_to_write_later()
     {
-        // The form the M7 UI uses, and the only one available to it: the UI is launched from
+        // The form the UI uses, and the only one available to it: the UI is launched from
         // the ES menu, so it runs under a live ES and can never write es_settings.cfg itself.
         using var fixture = ConvertTree.Create();
         fixture.AddRom(42, "ps2", "Armored Core 3 (USA).chd");
@@ -688,10 +688,9 @@ public class SaveConverterTests
     [Fact]
     public void Preview_refuses_while_EmulationStation_is_running()
     {
-        // The check reads the machine's process list, so until it could be handed in, every
-        // branch behind it was untestable and one of them was wrong for the whole life of the
-        // M7 interface. This is the half that is correct: Preview describes writing the setting
-        // now, and a write made now is discarded by ES's next write.
+        // The check reads the machine's process list, so it is handed in here to make the branches
+        // behind it testable. This is the half where refusing is correct: Preview describes writing
+        // the setting now, and a write made now is discarded by ES's next write.
         using var fixture = ConverterFixture.Create(running: true);
 
         var result = fixture.Converter.Preview(fixture.RomId);

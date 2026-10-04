@@ -96,13 +96,12 @@ public static class ListWindow
     /// How tall one row of a pane of facts is drawn.
     /// </summary>
     /// <remarks>
-    /// <b>Natural, not uniform, which is a reversal.</b> A pane used to reserve three wrapped
-    /// lines under every row whether or not it had one, so a screen of four short facts drew
-    /// them 122px apart and a hands-on pass twice called the result too spread out. The uniform
-    /// height was there to stop the block growing and shrinking as it scrolled; that is now the
-    /// job of the budget in <see cref="ScrolledByHeight"/>, which bounds the whole block instead
-    /// of every row in it. The status pane has worked this way since 7b-1 and is the screen the
-    /// same pass held up as showing data correctly.
+    /// <b>Natural, not uniform.</b> Reserving three wrapped lines under every row whether or not
+    /// it has one draws a screen of four short facts 122px apart, which a hands-on pass twice
+    /// called too spread out. What stops the block growing and shrinking as it scrolls is the
+    /// budget in <see cref="ScrolledByHeight"/>, which bounds the whole block instead of every
+    /// row in it. The status pane works this way, and the same pass held it up as showing data
+    /// correctly.
     /// </remarks>
     public static double FactHeight(string? detail)
     {
@@ -146,10 +145,9 @@ public static class ListWindow
     /// </summary>
     /// <remarks>
     /// <b>A flat capacity has to assume every line is the tallest kind, and on the status pane
-    /// most of them are not.</b> Stage 7b-3 first fixed that screen's overflow with a count of
-    /// twelve, computed from the tallest line it can draw. A hands-on pass then reported the
-    /// obvious consequence: a pane whose lines are mostly a label and a value left half the
-    /// display empty and scrolled anyway, so the scrolling felt gratuitous. A title is 36px, a
+    /// most of them are not.</b> A count of twelve, computed from the tallest line it can draw,
+    /// leaves a pane whose lines are mostly a label and a value half empty and scrolling anyway,
+    /// which a hands-on pass called gratuitous. A title is 36px, a
     /// bare row 32 and a row with a sentence under it 58, and pretending they are all 58 throws
     /// away a third of the screen.
     /// <para>

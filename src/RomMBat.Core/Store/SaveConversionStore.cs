@@ -45,8 +45,8 @@ public sealed record SaveConversion
 /// </summary>
 /// <remarks>
 /// <b>This table is the only thing that knows what the file used to look like.</b> Reading
-/// <c>es_settings.cfg</c> later cannot recover it, and M6 stage 2c measured why in both
-/// directions: ES prunes a setting equal to its own default, so absence is not evidence of a
+/// <c>es_settings.cfg</c> later cannot recover it, for a measured reason in each direction
+/// (RB-170): ES prunes a setting equal to its own default, so absence is not evidence of a
 /// revert, and ES also adds keys on its own, so presence is not evidence of the user's intent.
 /// See RB-170.
 /// </remarks>

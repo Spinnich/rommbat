@@ -12,7 +12,7 @@ namespace RomMBat.Core.Content;
 /// <para>
 /// A file whose own folder holds no ROM of that name is left unattributed rather than falling
 /// back to a match in some other system. Guessing across systems is the failure this key exists
-/// to prevent, and it was a review finding on M6 stage 1 rather than a hypothetical.
+/// to prevent, and it was a review finding rather than a hypothetical.
 /// </para>
 /// <para>
 /// Shared by battery-save discovery and save-state discovery because both attribute the same

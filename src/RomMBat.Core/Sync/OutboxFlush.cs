@@ -159,7 +159,7 @@ public sealed class OutboxFlush
     /// <b>Because ingesting a session sets <c>now_playing</c> and nothing else clears it.</b>
     /// Every session in this batch carries an <c>end_time</c>: it is over by construction, and
     /// leaving the flag set makes the user's library claim they are playing every game they have
-    /// ever launched. Measured on the live instance during M7 stage 7b-3's hands-on pass: ten
+    /// ever launched. Measured on the live instance during a hands-on pass: ten
     /// roms all reading <c>now_playing=true</c>, one of them played two days earlier, against a
     /// rom RomMBat had never reported reading false.
     /// <para>

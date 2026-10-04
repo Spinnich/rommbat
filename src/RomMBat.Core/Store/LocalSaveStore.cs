@@ -75,10 +75,9 @@ public sealed record LocalSave
 /// What is under <c>saves/</c>, and whether it has ever gone up.
 /// </summary>
 /// <remarks>
-/// The table that closes the seam M3 left open. Eviction could previously only ask the outbox
-/// and the journal, so a save produced while nothing was watching was invisible to it and the
-/// gap was covered by never touching a file RomMBat did not download. That mitigation stays,
-/// but it is no longer the answer.
+/// What lets eviction see a save produced while nothing was watching, which the outbox and the
+/// journal alone cannot show it. Never touching a file RomMBat did not download still holds as
+/// well, but it is a second line rather than the answer.
 /// </remarks>
 public sealed class LocalSaveStore
 {

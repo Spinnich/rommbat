@@ -221,7 +221,7 @@ public sealed class SetEditorViewModel : IScreen
     /// the first frame and <c>Handle</c> divided by <c>rows.Count</c> on the first press. The
     /// only thing stopping that was <c>SetsScreens.Detail</c> computing the same predicate
     /// before it would push the screen, which is a guard living three files from the thing it
-    /// guards. 7b-2b and 7b-2c both add screens that reach this surface.
+    /// guards, and more than one screen reaches this surface.
     /// </remarks>
     public IReadOnlyList<EditorRow> Rows
     {

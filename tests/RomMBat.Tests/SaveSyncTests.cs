@@ -1807,9 +1807,8 @@ public class SaveSyncTests
     [Fact]
     public async Task A_409_on_upload_becomes_a_conflict_the_user_can_resolve()
     {
-        // Stage 1 reported a 409 as a failure with a message. Driven on real hardware in the
-        // 2b hands-on pass, that turned out to be the only outcome a genuine two-sided
-        // divergence produces: a PSP save changed on both sides negotiated as `upload`, because
+        // Driven on real hardware, a 409 is the only outcome a genuine two-sided divergence
+        // produces: a PSP save changed on both sides negotiated as `upload`, because
         // negotiate decides from the hashes it was handed and the client's mtime was newer, and
         // the server then refused with 409 because this device's sync record was stale, which is
         // the part negotiate could not see.
@@ -1837,7 +1836,7 @@ public class SaveSyncTests
         Assert.Equal("libretro:battery", conflict.Slot);
 
         // The local file is untouched and still unsent, and the copy aside was taken before
-        // anything else. The safety property from stage 1 is unchanged: a 409 is never retried
+        // anything else. The safety property holds: a 409 is never retried
         // with overwrite, because that would discard whatever moved on the other side.
         Assert.True(Assert.Single(fixture.Store.Saves.List()).IsUnsent);
         Assert.NotNull(conflict.LocalCopyPath);
@@ -2599,7 +2598,7 @@ public class SaveSyncTests
     {
         // Ingesting a session sets now_playing and nothing else clears it, so a client that
         // never says otherwise leaves a library claiming the user is playing everything they
-        // have ever launched. Measured on the live instance during M7 stage 7b-3's hands-on
+        // have ever launched. Measured on the live instance during a hands-on
         // pass: ten roms all true, one played two days earlier, against a rom RomMBat had never
         // reported reading false.
         using var fixture = SyncFixture.Create();

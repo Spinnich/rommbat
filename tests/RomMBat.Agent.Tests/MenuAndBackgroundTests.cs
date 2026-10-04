@@ -9,7 +9,7 @@ using Xunit;
 namespace RomMBat.Agent.Tests;
 
 /// <summary>
-/// The two subcommands M7 stage 7a adds, driven through the same dispatch a user gets.
+/// <c>menu</c> and <c>background</c>, driven through the same dispatch a user gets.
 /// </summary>
 /// <remarks>
 /// <c>background</c> is the one subcommand nobody is expected to type. It is exercised here

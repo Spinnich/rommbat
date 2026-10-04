@@ -46,11 +46,10 @@ public sealed record SaveConflictRecord(
 /// Conflicts that outlive the flush that found them.
 /// </summary>
 /// <remarks>
-/// <b>Without this table a conflict has nowhere to live.</b> Stage 1 detected one, copied the
-/// local file aside and returned it on an in-memory list that <c>flush</c> printed once, so the
-/// same slot conflicted again on every flush, another dated copy landed under
-/// <c>emulators/rommbat/replaced/</c> each time, and once the console output scrolled away the
-/// only evidence was a file. That is issue #31.
+/// <b>Without this table a conflict has nowhere to live.</b> An in-memory list printed once by
+/// <c>flush</c> would have the same slot conflict again on every flush, land another dated copy
+/// under <c>emulators/rommbat/replaced/</c> each time, and leave a file as the only evidence
+/// once the console output scrolled away (#31).
 /// <para>
 /// <b>Resolved rows are kept rather than deleted.</b> <c>saves</c> reads them back to say what was
 /// decided, and <see cref="Record"/> reads them to tell a slot conflicting again over an unmoved

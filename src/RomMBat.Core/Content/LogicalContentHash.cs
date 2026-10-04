@@ -26,9 +26,9 @@ namespace RomMBat.Core.Content;
 /// it feeds is "did this change", and the server does the same.
 /// </para>
 /// <para>
-/// <b>Scope the unit before hashing it.</b> M6 measured a full hash of
-/// <c>saves/ps3/rpcs3</c> at 426 s over 52.87 GB, and the savedata subtree a save really is at
-/// 0.06 s over 16.3 MB. The 32,451-file figure the plan calls a performance problem is the
+/// <b>Scope the unit before hashing it.</b> A full hash of
+/// <c>saves/ps3/rpcs3</c> takes 426 s over 52.87 GB, and the savedata subtree a save really is at
+/// 0.06 s over 16.3 MB (RB-142). The 32,451-file figure the plan calls a performance problem is the
 /// emulator's whole data root; the cost is a symptom of hashing the wrong thing.
 /// </para>
 /// </remarks>

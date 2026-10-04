@@ -17,7 +17,7 @@ using Xunit;
 namespace RomMBat.Tests;
 
 /// <summary>
-/// The download path against a real RomM, which is where M3's measurements came from.
+/// The download path against a real RomM, which is where its measurements come from.
 /// </summary>
 /// <remarks>
 /// Skipped unless <c>ROMMBAT_TEST_SERVER</c> and <c>ROMMBAT_TEST_APPROVER_TOKEN</c> are set, so
@@ -28,7 +28,7 @@ namespace RomMBat.Tests;
 /// of the contract. Everything is a read.
 /// </para>
 /// <para>
-/// These are the findings that reshaped the milestone, kept as tests rather than as prose so a
+/// These are the findings the download path is built on, kept as tests rather than as prose so a
 /// server that changes its mind is noticed here instead of in the field.
 /// </para>
 /// </remarks>
@@ -101,7 +101,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         await using var partial = new MemoryStream();
         partial.Write(whole.ToArray().AsSpan(0, (int)(whole.Length / 2)));
 
-        // The worst thing this milestone could produce is a silent splice onto bytes that no
+        // The worst thing a download could produce is a silent splice onto bytes that no
         // longer describe anything. The server's answer is a full 200, and the client turns
         // that into a restart rather than a hybrid file.
         var response = await connection.DownloadRomContentAsync(
@@ -271,7 +271,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         Assert.Contains(page.Value.Items, row => !string.IsNullOrWhiteSpace(row.Md5Hash));
 
         // Measured at 105 of 105 both ways: the flag and the empty extension travel together,
-        // which is why M2's extension filter already excludes every multi-file ROM.
+        // so a multi-file row never carries an extension to read.
         Assert.All(
             page.Value.Items.Where(row => row.HasMultipleFiles),
             row => Assert.True(string.IsNullOrWhiteSpace(row.FsExtension)));
@@ -300,7 +300,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         Assert.SkipWhen(candidate is null, "No platform on this instance both has ROMs and maps to a folder.");
 
         // Two games, smallest first. This runs against someone's real library, so the set is
-        // deliberately the smallest thing that can still prove the milestone's done-when.
+        // deliberately the smallest thing that can still prove a no-op re-sync.
         var set = session.Store.SyncSets.Add(
             new SyncSetDefinition
             {
@@ -354,7 +354,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
                 file.VerifiedBy is VerifiedBy.Md5 or VerifiedBy.Sha1,
                 $"{file.FileName} was only verified by {file.VerifiedBy}."));
 
-        // The milestone's done-when: a second run writes nothing and says so.
+        // The point of the test: a second run writes nothing and says so.
         var second = planner.Plan(set, session.Store.SyncSets.Members(set.Id));
 
         Assert.True(second.IsNoOp);

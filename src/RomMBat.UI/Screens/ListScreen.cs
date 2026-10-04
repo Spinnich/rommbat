@@ -32,8 +32,7 @@ public sealed record LoadProgress(int Done, int Total)
 /// <remarks>
 /// <b>One screen kind for four screens.</b> The sets list, the scope picker, the platform
 /// picker and the folder picker are the same shape, and giving each its own view model and its
-/// own arm in <c>ScreenView</c> would have quadrupled the file 7b-1's ledger already named as
-/// the one that would grow worst.
+/// own arm in <c>ScreenView</c> would quadruple the file most likely to grow worst.
 /// <para>
 /// <b>Accept opens, it never adjusts.</b> A list of choices answers Accept by acting on the
 /// row, not by stepping through the list, which is what <see cref="NavAction.Left"/> and
@@ -79,11 +78,10 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// <param name="rows">
     /// Re-read whenever this screen becomes current again.
     /// <para>
-    /// <b>A fixed list goes stale the moment anything above it writes.</b> Creating a set left
-    /// the list underneath still showing the sets from before, and it only corrected itself
-    /// when the whole screen was rebuilt by leaving and coming back. Same shape as the bug that
-    /// made <c>Status</c> stop being a snapshot in stage 7b-1: a screen that captured state
-    /// once and kept showing it.
+    /// <b>A fixed list goes stale the moment anything above it writes.</b> Creating a set would
+    /// leave the list underneath showing the sets from before until the whole screen was rebuilt
+    /// by leaving and coming back. <c>Status</c> is not a snapshot for the same reason: a screen
+    /// that captures state once keeps showing it.
     /// </para>
     /// </param>
     public ListScreen(
@@ -219,8 +217,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// <para>
     /// Both halves are one rule: <b>offer it exactly when it works</b>. A footer promising an
     /// action that does nothing and a footer silent about one that does are the same defect
-    /// pointed two ways, and round 8 of stage 7b-1 found the first while
-    /// <see cref="AlwaysOfferAccept"/> exists for the second.
+    /// pointed two ways, and <see cref="AlwaysOfferAccept"/> exists for the second.
     /// </para>
     /// </remarks>
     public Func<IReadOnlyList<FooterHint>>? ExtraHints { get; init; }
@@ -336,8 +333,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// <b>Because a sentence that does not change is a hung screen.</b> The file check and its
     /// repair are one filesystem check per row and a live install measured 5,932 of them off a
     /// USB stick, so both sat on a fixed line for seconds with nothing to say they were still
-    /// going. Found on a hands-on pass, and it is the same finding stage 7b-2b recorded about a
-    /// resolve that showed no movement.
+    /// going. Found on a hands-on pass, and a resolve that shows no movement reads the same way.
     /// <para>
     /// Null while a load has nothing countable to report, which is most of them: a request to a
     /// server has one step and a bar over it would be a fiction.

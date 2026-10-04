@@ -14,7 +14,7 @@ namespace RomMBat.Core.Sync;
 /// <para>
 /// <b>The handle is the lock, not the file's existence.</b> A lock built on "does the file
 /// exist" goes stale the moment a process is killed, and an emulator being killed from Task
-/// Manager is a case M0 measured. Windows releases an open handle when the owning process
+/// Manager is a measured case (RB-351). Windows releases an open handle when the owning process
 /// dies however it dies, so a crashed flush leaves the next one able to start immediately and
 /// there is no timeout to tune and no stale lock to break.
 /// </para>

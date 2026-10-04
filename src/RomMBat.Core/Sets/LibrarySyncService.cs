@@ -126,12 +126,11 @@ public enum SyncState
     /// The disk budget stopped it. Nothing failed and nothing more will fit.
     /// </summary>
     /// <remarks>
-    /// <b>A fourth state rather than reusing <see cref="Incomplete"/>, and it wants
-    /// justifying because this enum grew twice in 7b-2b.</b> A blocked ROM is not a failed one:
-    /// <c>ContentSyncOutcome</c> counts it separately and nothing about it would be different
-    /// next time, so a run the cap stopped dead was returning <see cref="Done"/> and a screen
-    /// rendered that as "Everything in these sync sets is on this device" over 386 games left
-    /// out. Met on a live install.
+    /// <b>A fourth state rather than reusing <see cref="Incomplete"/>.</b> A blocked ROM is not a
+    /// failed one: <c>ContentSyncOutcome</c> counts it separately and nothing about it would be
+    /// different next time, so without this state a run the cap stopped dead returns
+    /// <see cref="Done"/>, and a screen renders that as "Everything in these sync sets is on this
+    /// device" over the games left out. Met on a live install, with 386 of them.
     /// <para>
     /// <b>Reusing <see cref="Incomplete"/> would be a different lie.</b> That is a failure,
     /// which <c>SyncCommand</c> exits as <c>Offline</c> or <c>ServerError</c>, and a full disk
@@ -460,7 +459,7 @@ public sealed class LibrarySyncService
     /// plan touched a folder and Budget when a cap is set. Hooks and Menu are first-run installs
     /// a whole sync has already done; Resolve does not run because there is nothing to resolve,
     /// the member row having been written from the browse row that was in hand; Flush does not
-    /// run because 7b-2b put it first for eviction's benefit and nothing here evicts.
+    /// run because a whole sync runs it first for eviction's benefit and nothing here evicts.
     /// <para>
     /// <b>It takes a member rather than a <c>PlannedGame</c>, and that is a change from the
     /// brief.</b> <c>PlannedGame</c> is <see cref="GameSync"/>'s grouping type, so a caller
@@ -563,7 +562,7 @@ public sealed class LibrarySyncService
 
             // Not on the run's token, exactly as the whole-library run does it: a stop that
             // skipped this would leave a finished game on disk and invisible to EmulationStation,
-            // which is worse than not having fetched it. Found by a hands-on pass in 7b-2b.
+            // which is worse than not having fetched it. Found by a hands-on pass.
             progress.Report(new GamelistsWritten(await new GamelistSync(_session.Install, _session.Store)
                 .ApplyAsync(folders, emulationStation, CancellationToken.None)
                 .ConfigureAwait(false)));

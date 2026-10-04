@@ -45,9 +45,8 @@ public class NavigationTests
     /// </summary>
     /// <remarks>
     /// By label rather than by a count of presses, so the assertion still means something when
-    /// the rows are reordered. Stage 7b-3 turned four button-verbs into eight rows and a test
-    /// that pressed down a fixed number of times would have gone on passing while opening the
-    /// wrong screen.
+    /// the rows are reordered. A test that pressed down a fixed number of times would go on
+    /// passing while opening the wrong screen.
     /// </remarks>
     private static void OpenRow(Navigator navigator, string label, ref DateTimeOffset clock)
     {

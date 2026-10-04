@@ -28,16 +28,14 @@ public sealed record ConflictResolutionOutcome(bool Resolved, string Message)
 /// Carries out the choice a user made about a conflicted slot.
 /// </summary>
 /// <remarks>
-/// <b>This is the half of the milestone's "done when" that stage 1 could not carry.</b> The plan
-/// ends on "the newer save comes back down as a conflict <i>the user resolves</i>", and stage 1
-/// detected the conflict, copied the local file aside and had nowhere to put the decision. See
-/// issue #31.
+/// <b>A conflict comes back down as one <i>the user resolves</i>.</b> Detection copies the local
+/// file aside and records the conflict; this is where the decision lands (#31).
 /// <para>
 /// <b><c>overwrite=true</c> is used here and nowhere else.</b> A conflict means this device's
 /// sync record is stale for the slot, so an ordinary upload is refused with a 409. Retrying with
 /// overwrite is what gets past that refusal, and it is correct only once a person has chosen
-/// which side to keep. That is exactly why stage 1 declined to do it automatically: uploading
-/// unasked would have made the local side newest and told every other device to take it,
+/// which side to keep. That is exactly why the flush never does it automatically: uploading
+/// unasked would make the local side newest and tell every other device to take it,
 /// resolving the conflict silently in favour of whoever synced last.
 /// </para>
 /// <para>

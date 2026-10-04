@@ -783,8 +783,7 @@ public sealed class SaveSync
     /// a second caller, is wrong about that: a class C unit is one (container, key) pair and
     /// bundles to one archive, one slot and one upload, so it never supplies a second row to
     /// tie. Class B's siblings are the only real batch, and <c>SaveSync</c> already holds them
-    /// all in one map, so grouping here needs no queue and does not disturb the upload path
-    /// stage 1 proved.
+    /// all in one map, so grouping here needs no queue and does not disturb the upload path.
     /// </para>
     /// <para>
     /// Only partial batches are named. A batch that landed whole is the ordinary case and a
@@ -2229,9 +2228,9 @@ public sealed class SaveSync
     /// Persists a conflict, and copies the local file aside the first time only.
     /// </summary>
     /// <remarks>
-    /// <b>The copy is taken once per conflict, not once per flush.</b> Stage 1 copied on every
-    /// pass, so a slot that conflicts and is never resolved gained one dated file under
-    /// <c>replaced/</c> each time and nothing pruned them. The row read back after recording
+    /// <b>The copy is taken once per conflict, not once per flush.</b> Copying on every pass
+    /// would give a slot that conflicts and is never resolved one dated file under
+    /// <c>replaced/</c> each time, and nothing prunes them. The row read back after recording
     /// answers both halves of that: a standing conflict already points at its copy, and a slot
     /// the user settled whose server side has not moved is not open at all.
     /// <para>

@@ -134,9 +134,8 @@ public class EsSystemsFileTests
             .Select(path => path.Replace('\\', '/').Split('/')[^1])
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // They agree exactly, all 240. M0 recorded the live install as carrying four systems
-        // upstream does not; that compared 244 <system> elements against 240 folder names.
-        // Both files have 244 active systems, four of which own no folder under roms/.
+        // They agree exactly, all 240. Both files have 244 active systems, four of which own no
+        // folder under roms/, so a count of <system> elements against folder names is off by four.
         Assert.DoesNotContain(template.Folders, folder => !live.Contains(folder));
         Assert.DoesNotContain(live, folder => !template.HasFolder(folder));
         Assert.Equal(240, template.Folders.Count);

@@ -46,10 +46,8 @@ public class StatusScreenTests
         Assert.Equal("no", paired.Value);
 
         // No primary flow may require a mouse, so the way forward has to be on screen, named in
-        // words rather than by a letter. This assertion used to require "Press A" and so
-        // recorded the wrong rule as correct behaviour; it then named this screen's own Accept
-        // hint, which stage 7b-3 moved onto a row of the root menu. The rule is unchanged and
-        // the thing it points at is now that row, so the row is what it checks.
+        // words rather than by a letter. The way forward is a row of the root menu, so the row is
+        // what this checks.
         using var pairless = InstallSession.Open(tree.Root).Session!;
         var root = Assert.IsType<ListScreen>(
             RootScreens.Menu(pairless, () => NoPad, new RootScreens.RootRoutes()));
@@ -171,8 +169,7 @@ public class StatusScreenTests
                 StartPairing = () => { opened++; return Stub(); },
             }));
 
-        // The verb moved from Accept on the status screen to a row of its own in stage 7b-3.
-        // What it promises has not moved, and this is the assertion that says so.
+        // The verb is a row of its own, and this asserts what it promises.
         var navigator = new Navigator(root);
 
         Assert.True(new StatusViewModel(session, NoPad).NeedsPairing);
@@ -190,9 +187,8 @@ public class StatusScreenTests
 
         Assert.False(new StatusViewModel(session, NoPad).NeedsPairing);
 
-        // And the case that was missing: once paired, accept used to do nothing at all, so there
-        // was no way to move to another server or to recover a token the server had stopped
-        // accepting. M1 makes re-pairing cheap on purpose; a screen that hides it strands you.
+        // And once paired: re-pairing is how a user moves to another server or recovers a token the
+        // server has stopped accepting. It is cheap on purpose; a screen that hides it strands you.
         Assert.Equal("paired", root.Rows.Single(row => row.Label == "Pair again").Value);
 
         RootMenuDriver.Open(navigator, "Pair again");
@@ -228,7 +224,7 @@ public class StatusScreenTests
         Assert.Contains("kept", row.Detail, StringComparison.Ordinal);
     }
 
-    /// <summary>Writes a pairing straight into the store, as the M1 suite does.</summary>
+    /// <summary>Writes a pairing straight into the store, as the pairing tests do.</summary>
     private static void Pair(InstallSession session, DateTimeOffset expiresAt)
     {
         session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(session.Install));

@@ -10,9 +10,8 @@ namespace RomMBat.UI.Screens;
 /// The first screen, and the way to everything else.
 /// </summary>
 /// <remarks>
-/// <b>Every verb is a row, because the buttons ran out.</b> Until stage 7b-3 the root put one
-/// action on each of Accept, Start, Extra and Alternate and had nothing left: this stage adds
-/// conflicts, platforms and queued changes, which is three more than there are buttons. A list
+/// <b>Every verb is a row, because there are more verbs than buttons.</b> Accept, Start, Extra
+/// and Alternate hold four, and conflicts, platforms and queued changes are three more. A list
 /// grows by a row where a footer cannot grow by a button, and a row can say what it is for in
 /// words rather than in a glyph a person has to have learned.
 /// <para>
@@ -67,8 +66,7 @@ public static class RootScreens
 
         // Re-read on every draw rather than captured. The counts are what make these rows worth
         // showing, and a set synced or a conflict resolved above this screen would otherwise
-        // leave it stating the numbers from before, which is the bug that made the sets list
-        // stale in 7b-2a and the status screen stop being a snapshot in 7b-1.
+        // leave it stating the numbers from before, as the sets list and the status screen would.
         List<Func<IScreen>?> destinations = [];
 
         IReadOnlyList<ListRow> Rows()

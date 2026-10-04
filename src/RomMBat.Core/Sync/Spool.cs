@@ -11,7 +11,7 @@ namespace RomMBat.Core.Sync;
 /// the bytes are down, so a reader never sees a partial record and there is no lock to wait on
 /// inside the game-launch path.
 /// <para>
-/// The rename is the commit, the same discipline M3 landed for ROM downloads. A power loss
+/// The rename is the commit, the same discipline as a ROM download. A power loss
 /// leaves a <c>.tmp</c>, which the drain ignores and cleans up.
 /// </para>
 /// <para>

@@ -18,11 +18,10 @@ public sealed record StatusSection(string Title, IReadOnlyList<StatusRow> Rows);
 /// What this device is, what it is paired to, and what is waiting to happen.
 /// </summary>
 /// <remarks>
-/// <b>A pane of facts, and as of stage 7b-3 not the root.</b> It was both until the buttons ran
-/// out: the root carried four verbs on four buttons and this stage adds three more entry points
-/// than there are buttons, so the verbs became rows on <see cref="RootScreens"/> and the facts
-/// stayed here, one press behind the row that names them. Nothing here answers Accept, Start,
-/// Alternate or Extra any more, and the counts a person has to act on (conflicts, unmapped
+/// <b>A pane of facts, and not the root.</b> There are more verbs than buttons, so the verbs
+/// are rows on <see cref="RootScreens"/> and the facts are here, one press behind the row that
+/// names them. Nothing here answers Accept, Start,
+/// Alternate or Extra, and the counts a person has to act on (conflicts, unmapped
 /// platforms, queued changes) are on the menu's own rows rather than only in here.
 /// <para>
 /// <b>Read-only, and it computes nothing.</b> Every value here already exists behind a Core
@@ -87,12 +86,10 @@ public sealed class StatusViewModel : IScreen
     /// Which slice of the sections is on screen.
     /// </summary>
     /// <remarks>
-    /// <b>This screen drew every row it had until stage 7b-3, which is the defect the folder
-    /// picker had and the reason <see cref="ListWindow"/> exists.</b> It went unnoticed while
-    /// this was the root, where the shortest form is four sections and fits; a paired install
-    /// with two degraded features, a suspicious clock and three queued changes is nine rows
-    /// longer, and every one of those was drawn off the bottom of a 720p display with nothing
-    /// to scroll it.
+    /// <b>Windowed, because drawing every row overflows, which is the reason
+    /// <see cref="ListWindow"/> exists.</b> The shortest form is four sections and fits; a paired
+    /// install with two degraded features, a suspicious clock and three queued changes is nine
+    /// rows longer, and unwindowed every one of those is drawn off the bottom of a 720p display.
     /// <para>
     /// A pane of facts scrolls by an offset rather than by a cursor, so <see cref="Offset"/> is
     /// what the pad moves. The window counts drawn lines, section titles included, because that

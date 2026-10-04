@@ -88,7 +88,7 @@ internal sealed class App : Application
     /// <remarks>
     /// <b>The rule and its words are Core's.</b> <see cref="InstallSession.ResolveOrigin"/>
     /// already decides what counts as a server address and says why when it does not, and the
-    /// console has used the same answer since M1. Re-deciding it here would be the exact shape
+    /// console uses the same answer. Re-deciding it here would be the exact shape
     /// of logic leaking into presentation.
     /// <para>
     /// Remembered before it is used, and whether or not pairing then succeeds, so a failed

@@ -12,8 +12,8 @@ namespace RomMBat.Agent.Commands;
 /// nothing about how a game runs, so the same ceremony is not warranted; what is warranted is
 /// saying plainly what was added and where, and being able to take it back out.
 /// <para>
-/// Without hooks there is no playtime and no launch window at all, so leaving the milestone's
-/// headline feature off by default would be the worse failure.
+/// Without hooks there is no playtime and no launch window at all, so leaving them off by
+/// default would be the worse failure.
 /// </para>
 /// </remarks>
 internal static class HooksCommand

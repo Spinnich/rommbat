@@ -53,7 +53,7 @@ public sealed record GameIdBinding(
 /// The cache that means an odd case is only worked out once.
 /// </summary>
 /// <remarks>
-/// <b>A wrong binding is the worst outcome in this milestone</b>, because it uploads one game's
+/// <b>A wrong binding is the worst outcome in save sync</b>, because it uploads one game's
 /// save under another game's name and the cache then makes the mistake permanent. So every path
 /// that writes here fails closed: a key two routes disagree about is stored with a null
 /// <c>rom_id</c> and reported, never guessed at, and <c>saves bind</c> is what a person uses to

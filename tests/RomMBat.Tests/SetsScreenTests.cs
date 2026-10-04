@@ -297,9 +297,8 @@ public sealed class SetsScreenTests : IDisposable
     /// <remarks>
     /// Found on a hands-on pass. The set is gone by the time this screen is reached, so the
     /// preview, the confirmation and the set's own detail all describe something that no longer
-    /// exists, and leaving them on the stack was four presses through three of them to get to
-    /// the list. 7b-2a fixed exactly this on the keep-the-games path and adding two screens
-    /// above it brought it back.
+    /// exists, and leaving them on the stack is four presses through three of them to get to
+    /// the list. The keep-the-games path is held to the same rule.
     /// </remarks>
     [Fact]
     public async Task Removing_a_sets_games_lands_back_on_the_sets_list()
@@ -448,8 +447,8 @@ public sealed class SetsScreenTests : IDisposable
     {
         Seed("swept");
 
-        // A sweep, not a check of one site. Round 8 of stage 7b-1 found "Press A" one field
-        // over from where naming a button was structurally impossible, and on a Switch Pro the
+        // A sweep, not a check of one site. "Press A" can turn up one field over from where
+        // naming a button is structurally impossible, and on a Switch Pro the
         // button printed A is es_input.cfg's b, which closes RomMBat. What catches a mistake
         // that moved is a test that looks at every string a screen produces.
         foreach (var text in EverythingShown())
@@ -597,7 +596,7 @@ public sealed class SetsScreenTests : IDisposable
 
         // Two rows that looked alike were doing different jobs. Platform is the scope's own
         // value; Folder is a RomM-to-RetroBat mapping override that belongs in platform_map and
-        // gets a screen of its own in 7b-3. Offering it on every set made a global setting look
+        // has a screen of its own. Offering it on every set makes a global setting look
         // like a per-set one, and it is meaningless on a filter, which can span platforms.
         Assert.DoesNotContain(editor.Rows, row => row.Label == "Folder");
         Assert.False(editor.NeedsFolderChoice);
@@ -838,10 +837,10 @@ public sealed class SetsScreenTests : IDisposable
         // Doing them one at a time is the hassle a person notices first, and the service
         // already walks a list.
         //
-        // Moved from Alternate to Extra in 7b-2b, deliberately: syncing is what a set is for
-        // and it took the first-tier verb. Resolving alone stays offered because it is how a
-        // person finds out what a set holds without spending disk on it, and a sync re-resolves
-        // on the way past anyway, so the two are not a choice anybody has to make.
+        // On Extra, deliberately: syncing is what a set is for and it takes the first-tier verb.
+        // Resolving alone stays offered because it is how a person finds out what a set holds
+        // without spending disk on it, and a sync re-resolves on the way past anyway, so the two
+        // are not a choice anybody has to make.
         var command = navigator.Current.Handle(NavAction.Extra);
         using var resolve = Assert.IsType<ResolveViewModel>(command.Screen);
 
@@ -1364,8 +1363,8 @@ public sealed class SetsScreenTests : IDisposable
         Seed("offline");
 
         // Nothing in this install has an origin or a token. Listing, opening, editing and the
-        // budget are all local, and the 2 s budget is the same one stage 7b-1 measured an
-        // unreachable server against.
+        // budget are all local, and the 2 s budget is the one an unreachable server is measured
+        // against (RB-224).
         using var built = AllScreens();
 
         foreach (var screen in built)
@@ -1401,10 +1400,10 @@ public sealed class SetsScreenTests : IDisposable
     public async Task Resolving_from_the_interface_mirrors_the_definitions_the_way_the_agent_does()
     {
         // Both `sets add` and `sets resolve` push Device.sync_config, and the interface pushed
-        // nothing at all: a set defined from the couch stayed on the device that defined it,
-        // while the identical set defined at a prompt followed its user to the next one. Same
-        // action, two front ends, different persistence. Roaming is the mechanism M2 gave set
-        // definitions, so the front end that has no prompt is the one that needs it most.
+        // nothing at all: a set defined from the couch stayed on the device that defined it, while
+        // the identical set defined at a prompt followed its user to the next one. Same action, two
+        // front ends, different persistence. Roaming is how set definitions travel, so the front
+        // end that has no prompt is the one that needs it most.
         var set = Seed("roaming");
 
         using var stub = new StubRomMServer();
@@ -1605,12 +1604,12 @@ public sealed class SetsScreenTests : IDisposable
             SetEditorViewModel.ForExisting(_session, set),
             new BudgetViewModel(_session),
 
-            // The screens 7b-2c added, listed here rather than left to their own file's tests,
-            // because the sweeps this list feeds are the whole-surface ones: no face button
+            // The inventory and browse screens, listed here rather than left to their own file's
+            // tests, because the sweeps this list feeds are the whole-surface ones: no face button
             // named, no unbound action promised, no verb offered that does nothing, and nothing
-            // slower than two seconds with the server off. A hands-on pass found three verb
-            // defects across these in one sitting, and every one of them was on a screen no
-            // sweep looked at.
+            // slower than two seconds with the server off. A hands-on pass found three verb defects
+            // across these in one sitting, and every one of them was on a screen no sweep looked
+            // at.
             InventoryScreens.Check(_session),
             BrowseScreens.Detail(_session, browsed),
 

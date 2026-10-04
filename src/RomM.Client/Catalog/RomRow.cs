@@ -9,11 +9,11 @@ namespace RomM.Client.Catalog;
 /// <remarks>
 /// Deliberately not <c>SimpleRomSchema</c>, for two reasons that both bite at scale.
 /// <para>
-/// <b>Size overflows.</b> The pinned schema declares <c>fs_size_bytes</c> as a bare
-/// <c>integer</c>, so the generated DTO carries it as an <see cref="int"/> and any ROM at or
-/// above 2 GiB fails to deserialize, taking the whole page with it. PS2, GameCube and Wii
-/// images routinely cross that line, and M3 compares the same field against the FAT32 4 GB
-/// ceiling. Here it is a <see cref="long"/>.
+/// <b>Size overflows.</b> The pinned schema declares <c>fs_size_bytes</c> as a bare <c>integer</c>,
+/// so the generated DTO carries it as an <see cref="int"/> and any ROM at or above 2 GiB fails to
+/// deserialize, taking the whole page with it. PS2, GameCube and Wii images routinely cross that
+/// line, and the content sync compares the same field against the FAT32 4 GB ceiling. Here it is a
+/// <see cref="long"/>.
 /// </para>
 /// <para>
 /// <b>Cost.</b> A full walk of a 96k library is about 384 pages of 250, and the generated schema
@@ -21,7 +21,7 @@ namespace RomM.Client.Catalog;
 /// is still skipped here.
 /// </para>
 /// <para>
-/// <b>M4 widened this rather than adding a request.</b> The gamelist fields are already in
+/// <b>Widened rather than adding a request.</b> The gamelist fields are already in
 /// the page: <c>metadatum</c>, <c>summary</c>, the media paths, <c>regions</c> and
 /// <c>languages</c> account for 15.7% of a 250-row page that the walk fetches anyway.
 /// <c>GET /api/roms/{id}</c> would add 0.15 s per ROM, 150 s for a thousand-game set, and

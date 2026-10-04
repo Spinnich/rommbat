@@ -85,13 +85,12 @@ public class PlatformMappingTests
     /// Arcade still refuses to guess, but only when there is something to guess about.
     /// </summary>
     /// <remarks>
-    /// <b>This assertion was inverted in M7 stage 7b-2a, on a hands-on finding, and the reason
-    /// is worth reading before inverting it back.</b> It used to pass <c>fs_slug: "mame"</c>
-    /// and require a refusal, which put the arcade check ahead of the fs_slug match. But
-    /// the platform-mapping skill orders the chain the other way, fs_slug before any table,
-    /// and the arcade rule comes from that table.
+    /// <b>Read this before inverting the assertion.</b> Passing <c>fs_slug: "mame"</c> and
+    /// requiring a refusal would put the arcade check ahead of the fs_slug match. The
+    /// platform-mapping skill orders the chain the other way, fs_slug before any table, and the
+    /// arcade rule comes from that table.
     /// <para>
-    /// What it cost on a live install: RomM's "Arcade (FinalBurn Neo)" carries
+    /// What the other order costs on a live install: RomM's "Arcade (FinalBurn Neo)" carries
     /// <c>slug: arcade</c> and <c>fs_slug: fbneo</c>, RetroBat has an <c>fbneo</c> system and a
     /// <c>roms/fbneo</c> directory, and resolving a collection that merely contained one arcade
     /// game stopped halfway to demand a per-set folder choice that the library had already

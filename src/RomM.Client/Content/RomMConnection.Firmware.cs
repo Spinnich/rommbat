@@ -5,7 +5,7 @@ using RomM.Client.Content;
 
 namespace RomM.Client;
 
-/// <summary>The firmware reads M5 needs: listing one platform's records, and fetching one file.</summary>
+/// <summary>The firmware reads: listing one platform's records, and fetching one file.</summary>
 public sealed partial class RomMConnection
 {
     /// <summary>
@@ -33,7 +33,7 @@ public sealed partial class RomMConnection
     /// point past the end with 416, exactly as the ROM route does. It is not used because the
     /// largest firmware a real library serves is 4 MiB and the median is 64 KiB, so a failed
     /// transfer starts again, as media does. The measurement is recorded because it means a
-    /// larger file could adopt M3's machinery without a server-side surprise.
+    /// larger file could adopt the ROM download's resume without a server-side surprise.
     /// <para>
     /// <b>The file name in the URL is not read by the server.</b> The right id under any name
     /// serves the bytes. It is still sent, escaped, because that is the documented route and

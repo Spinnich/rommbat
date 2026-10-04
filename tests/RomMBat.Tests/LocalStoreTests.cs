@@ -12,7 +12,7 @@ namespace RomMBat.Tests;
 /// </summary>
 public class LocalStoreTests
 {
-    /// <summary>Every table the schema is required to stand up now, later milestones included.</summary>
+    /// <summary>Every table the schema is required to stand up.</summary>
     private static readonly string[] RequiredTables =
     [
         "device",
@@ -116,7 +116,7 @@ public class LocalStoreTests
     }
 
     [Fact]
-    public void Every_table_later_milestones_need_exists_now()
+    public void Every_required_table_exists()
     {
         using var tree = TempRetroBatTree.Create();
         using var store = LocalStore.Open(tree.Install());
@@ -1274,7 +1274,7 @@ public class LocalStoreTests
             ("unsyncable", "system") =>
                 """
                 INSERT INTO unsyncable (system, emulator, reason_kind, detail, observed_at_utc)
-                VALUES ($name, 'rpcs3', 'not_in_this_version', 'directory saves land in stage 2',
+                VALUES ($name, 'rpcs3', 'not_in_this_version', 'directory saves are not carried',
                         '2026-01-01T00:00:00Z');
                 """,
             ("local_state", "system") =>
@@ -1380,7 +1380,7 @@ public class LocalStoreTests
     public async Task A_second_thread_cannot_use_the_connection_while_a_command_is_open()
     {
         // One SqliteConnection is shared by every store class and it is not thread-safe.
-        // Nothing serialised it until M7 stage 7b-2b, and the failure is not a clean exception:
+        // Unserialised, the failure is not a clean exception:
         // two threads mutating one connection's prepared-statement list threw "Collection was
         // modified" out of SqliteCommand.Dispose during a full test run.
         //

@@ -46,8 +46,8 @@ public sealed record EsSetting(string Name, EsSettingGroup Group, string Value);
 /// <item><b>Never write while EmulationStation is running, because the write is discarded.</b>
 /// ES loads this file at startup and serialises that model on every write, so a key present at
 /// load survives, ones ES cannot understand included, and a key that appears afterwards does
-/// not. Merging and atomicity do not help: both were done and the write still vanished. M0's
-/// nonsense key survived because it predated the load. RB-178 and RB-179.</item>
+/// not. Merging and atomicity do not help: both were done and the write still vanished. A key
+/// that predates the load survives, nonsense or not. RB-178 and RB-179.</item>
 /// <item>ES writes <b>twice a session</b>, during launch as well as on exit, so the safe window
 /// is strictly while ES is not running. <see cref="EmulationStationProcess"/> is what decides
 /// that, and a caller re-reads afterwards rather than trusting the rename.</item>
@@ -123,8 +123,8 @@ public sealed class EsSettingsFile
     /// Builds the per-game override key, and refuses a name that would be ignored.
     /// </summary>
     /// <remarks>
-    /// <b>The rom filename must carry its extension.</b> M0 drove both forms against a real
-    /// launch: <c>ports["gong"].smooth</c> was ignored and <c>ports["gong.libretro"].smooth</c>
+    /// <b>The rom filename must carry its extension.</b> Both forms, driven against a real
+    /// launch (RB-358): <c>ports["gong"].smooth</c> was ignored and <c>ports["gong.libretro"].smooth</c>
     /// took effect, differing in nothing else. Getting this wrong fails <b>silently</b>, with
     /// the emulator launching normally and carrying on writing to the shared container, so a
     /// stem is refused here rather than written and left to be discovered by a lost save.

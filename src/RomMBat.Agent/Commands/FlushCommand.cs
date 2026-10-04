@@ -167,7 +167,7 @@ internal static class FlushCommand
                 return authExitCode;
 
             case FlushState.Unreachable:
-                // Offline is a working state and the headline feature of this milestone.
+                // Offline is a working state, not a failure.
                 Console.WriteLine(report.Problem);
                 ReportQueued(report, quiet: false);
                 return ExitCode.Ok;
@@ -242,8 +242,8 @@ internal static class FlushCommand
     /// everything shown here comes from the negotiate operation and the local row instead.
     /// <para>
     /// The rows are every open conflict rather than this pass's, so one found by an earlier
-    /// flush and never resolved is still reported. Stage 1 printed the in-memory list once and
-    /// a user who looked away lost the only record of it.
+    /// flush and never resolved is still reported. A list printed once from memory would leave a
+    /// user who looked away with no record of it.
     /// </para>
     /// </remarks>
     private static void ReportConflicts(IReadOnlyList<SaveConflictRecord> conflicts)

@@ -17,7 +17,7 @@ public enum SaveShapeClass
     /// <summary>Several files per game. One slot per file.</summary>
     B,
 
-    /// <summary>A directory per game, keyed by an internal game ID. Stage 2.</summary>
+    /// <summary>A directory per game, keyed by an internal game ID.</summary>
     C,
 
     /// <summary>One container shared by many games, so it has no rom to belong to.</summary>
@@ -484,9 +484,9 @@ public sealed record SaveShape(
 /// The bundled description of where saves live and which files are which.
 /// </summary>
 /// <remarks>
-/// <b>Bundled, and the reasoning is not M5's even though the outcome matches.</b> M5 bundled
-/// the BIOS manifest because a real install contains no readable copy of it. Here there is no
-/// live file at all describing battery-save shapes: <c>es_savestates.cfg</c> covers states and
+/// <b>Bundled, and the reasoning is not the BIOS manifest's even though the outcome matches.</b>
+/// That manifest is bundled because a real install contains no readable copy of it. Here there is
+/// no live file at all describing battery-save shapes: <c>es_savestates.cfg</c> covers states and
 /// nothing covers the rest. So the shapes are shipped.
 /// <para>
 /// <b>But the tree they describe belongs to the user's emulators, not to RomMBat</b>, so a
@@ -496,7 +496,7 @@ public sealed record SaveShape(
 /// </para>
 /// <para>
 /// <b>Two files, because they answer different questions.</b> <c>save_shapes.json</c> says
-/// what class a system is, generated during M0 from a real install. <c>save_rules.json</c>
+/// what class a system is, generated from a real install. <c>save_rules.json</c>
 /// says which files under <c>saves/</c> are that class, which the class alone cannot: megacd's
 /// shared <c>4Mbit_cart.brm</c> sits beside per-game <c>.brm</c> files at the same level and
 /// only the name separates them, and xbox's two class-D files are loose under the system
@@ -556,7 +556,7 @@ public sealed class SaveShapes
     public string LooseEmulator { get; }
 
     /// <summary>
-    /// Systems M0 could not classify, tracked so the number cannot silently grow.
+    /// Systems the generator could not classify, tracked so the number cannot silently grow.
     /// </summary>
     /// <remarks>
     /// 21 of them, and all 21 hold content on the measured install, so this is a real gap in

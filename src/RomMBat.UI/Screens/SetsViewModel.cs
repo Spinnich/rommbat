@@ -27,8 +27,8 @@ namespace RomMBat.UI.Screens;
 /// </para>
 /// <para>
 /// <b>Nothing here names a button.</b> Every footer label is what the action does, and the
-/// renderer draws the position. Round 8 of stage 7b-1 found "Press A" in a status row, which on
-/// a Switch Pro is <c>es_input.cfg</c>'s <c>b</c>, which closes RomMBat.
+/// renderer draws the position. "Press A" in a status row would be wrong on a Switch Pro,
+/// where it is <c>es_input.cfg</c>'s <c>b</c>, which closes RomMBat.
 /// </para>
 /// </remarks>
 public static class SetsScreens
@@ -235,16 +235,13 @@ public static class SetsScreens
     /// want.</b> Removing is a choice here rather than an automatic consequence, which is #110's
     /// own rule.
     /// <para>
-    /// <b>This row used to say "Nothing on disk is touched and no game is removed", and that
-    /// stopped being true in this branch.</b> It was the right answer while eviction was the
-    /// thing that removed content; 7b-2b took eviction off the interface on the ruling that
-    /// freeing space belongs to the user, and dropping a set is the user saying which games they
-    /// no longer want.
+    /// <b>Dropping a set can remove games.</b> Eviction is not on the interface, on the ruling
+    /// that freeing space belongs to the user, and dropping a set is the user saying which games
+    /// they no longer want.
     /// </para>
     /// <para>
     /// The sentence matters more than the confirmation, and it belongs before the press. A
-    /// person on a sofa has no other way to find out what they are about to lose, and moving it
-    /// after the press was a defect fixed in 7b-2a.
+    /// person on a sofa has no other way to find out what they are about to lose.
     /// </para>
     /// </remarks>
     public static IScreen ConfirmDelete(
@@ -407,9 +404,8 @@ public static class SetsScreens
 
             // Back lands on the sets list, closing this screen, the preview, the confirmation
             // and the set's own detail. The set is gone, so all four describe something that no
-            // longer exists, and leaving them on the stack meant four presses through three
-            // stale screens to reach the list. That is the same defect 7b-2a fixed on the
-            // keep-the-games path and this one reintroduced by adding two screens above it.
+            // longer exists, and leaving them on the stack would mean four presses through three
+            // stale screens to reach the list. The keep-the-games path pops for the same reason.
             OnBack = () => ScreenCommand.PopMany(4),
         }.Started();
     }

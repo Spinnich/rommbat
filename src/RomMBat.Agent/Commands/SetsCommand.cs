@@ -10,7 +10,7 @@ namespace RomMBat.Agent.Commands;
 /// <c>sets</c>: define what this device syncs, and see what a definition resolves to.
 /// </summary>
 /// <remarks>
-/// The milestone's demonstration surface. "My SNES favourites, max 40 games, 8 GB" is
+/// The console's curation surface. "My SNES favourites, max 40 games, 8 GB" is
 /// <c>sets add</c> plus <c>sets resolve</c>, and everything except <c>resolve</c> works with
 /// the server switched off.
 /// <para>

@@ -12,14 +12,13 @@ using Xunit;
 namespace RomMBat.Tests;
 
 /// <summary>
-/// The root menu, which stage 7b-3 made a list because the buttons ran out.
+/// The root menu, which is a list because there are more verbs than buttons.
 /// </summary>
 /// <remarks>
-/// <b>The claim these assert is that no verb is unreachable.</b> Until this stage the root put
-/// one action on each of Accept, Start, Extra and Alternate, which is every button a screen has,
-/// and 7b-3 needs three more entry points than that. A row can be added where a button cannot,
-/// so the failure mode moved: instead of a verb with nowhere to go, the risk is a row that goes
-/// nowhere, and that is what the first test here refuses to let happen.
+/// <b>The claim these assert is that no verb is unreachable.</b> Accept, Start, Extra and
+/// Alternate are every button a screen has, and the root needs three more entry points than
+/// that. A row can be added where a button cannot, so the risk is not a verb with nowhere to go
+/// but a row that goes nowhere, and that is what the first test here refuses to let happen.
 /// </remarks>
 public class RootMenuTests
 {
@@ -145,9 +144,8 @@ public class RootMenuTests
             Height(status) > ListWindow.ContentBudget,
             "this fixture no longer produces a status too tall for the display");
 
-        // Never taller than the budget, whatever it holds. Before stage 7b-3 this screen drew
-        // every line it had and everything past the display was drawn off it with nothing able
-        // to scroll.
+        // Never taller than the budget, whatever it holds. Unwindowed, everything past the
+        // display would be drawn off it with nothing able to scroll.
         Assert.True(Drawn(status) <= ListWindow.ContentBudget);
         Assert.Equal(0, status.Window.Above);
         Assert.True(status.Window.Below > 0);

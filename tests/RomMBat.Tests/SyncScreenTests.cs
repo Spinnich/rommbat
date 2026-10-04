@@ -21,9 +21,8 @@ namespace RomMBat.Tests;
 /// The sync and eviction screens, driven with the gamepad map alone and no window.
 /// </summary>
 /// <remarks>
-/// <b>A whole sync, end to end, against a stub.</b> Nobody had seen one when 7b-2a closed, and
-/// its ledger named that as the next stage's whole subject. #105 is what makes the flow
-/// drivable this way: the connection factory now reaches the screens that start network work,
+/// <b>A whole sync, end to end, against a stub.</b> #105 is what makes the flow drivable this
+/// way: the connection factory reaches the screens that start network work,
 /// so these run against <see cref="StubRomMServer"/> rather than stopping at "not paired".
 /// <para>
 /// <b>Screens carry no Avalonia types</b>, which is what makes "no primary flow requires a
@@ -381,8 +380,7 @@ public sealed class SyncScreenTests : IDisposable
         // es_input.cfg's `x` is the button printed Y and its `y` is the one printed X, so a
         // screen free to write a letter writes the wrong one on two of the three pads the live
         // install has configured. Swept over every string rather than checked at one site,
-        // because 7b-1 round 8 found "Press A" in a status row after the footer rule was
-        // already in place.
+        // because "Press A" can turn up in a status row with the footer rule already in place.
         using var stub = Library(1);
         Pair();
         Seed("games", 1);
@@ -809,8 +807,8 @@ public sealed class SyncScreenTests : IDisposable
     public void No_screen_offers_to_free_space_on_the_users_behalf()
     {
         // Ruled with Spinnich: RomMBat guessing which games matter least is a bad policy even
-        // when a person starts it, and freeing space belongs to them, by dropping a sync set or
-        // (once 7b-2c lands) a single game. EvictionService stays in Core and `rommbat-agent
+        // when a person starts it, and freeing space belongs to them, by dropping a sync set or a
+        // single game. EvictionService stays in Core and `rommbat-agent
         // evict` stays, both behind a preview; what went is the screen.
         //
         // Asserted rather than trusted to the delete, because the entry points were two: the

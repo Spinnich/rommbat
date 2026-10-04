@@ -137,8 +137,8 @@ still one.
 
 **A by-product worth recording.** Getting a Dreamcast game onto the install meant pulling
 `dc_boot.bin` and `dc_flash.bin` out of RomM's firmware endpoint, and both arrived with md5s
-matching `data/retrobat/bios.json` exactly (`e10c53c2…`, `0a93f7940…`). That is the M5
-md5-only join working end to end on real data, on a system whose third manifest entry
+matching `data/retrobat/bios.json` exactly (`e10c53c2…`, `0a93f7940…`). That is the
+md5-only BIOS join working end to end on real data, on a system whose third manifest entry
 (`bios/dc/dc.zip`) carries no hash at all.
 
 ## RB-344. #1337: will not be fixed, and it costs RomMBat nothing

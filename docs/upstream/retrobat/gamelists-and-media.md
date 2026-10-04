@@ -47,7 +47,7 @@ left by an eviction stays until RomMBat removes it.
 
 ## RB-111. ES lists a rom file with no gamelist entry, so dropping entries hides no game
 
-Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-11. How: counted ES's games against rom files and gamelist entries in probe 3 and again in M4.
+Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-11. How: counted ES's games against rom files and gamelist entries, on two separate days.
 A capped gamelist only strips art and descriptions. `ParseGamelistOnly`, beside `IgnoreGamelist`
 and backing `--gamelist-only`, would make the gamelist authoritative, but it is global and would
 change every system, including ones RomMBat does not manage. RomMBat does not set it, and the

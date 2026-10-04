@@ -42,8 +42,8 @@ public sealed record ContentFingerprint
 /// re-download an entire adopted collection and then fail to verify what it downloaded.
 /// <para>
 /// <b>Only <c>.zip</c> can be looked inside.</b> It is the one archive format the base class
-/// library reads, and adding a dependency to reach <c>.7z</c> is not this milestone's
-/// business. A <c>.7z</c> is hashed as a file, which will not match the server, so verification
+/// library reads, and adding a dependency to reach <c>.7z</c> is not worth it
+/// here. A <c>.7z</c> is hashed as a file, which will not match the server, so verification
 /// of one degrades to size and says so. RetroBat accepts both formats for many systems, so
 /// this is a real and stated limitation rather than an oversight.
 /// </para>

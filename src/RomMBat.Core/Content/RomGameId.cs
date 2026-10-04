@@ -26,12 +26,12 @@ public sealed record RomGameIdResult(string? GameId, string? Reason)
 /// <para>
 /// <b>So this route serves GameCube and Wii and nothing else</b>, which happens to be where it
 /// is irreplaceable: their save key <i>is</i> the game code, and a Wii NAND directory name
-/// decodes to exactly what sits at <c>0x58</c>. The system this milestone's "done when" names is
-/// PSP, which this route cannot touch at all; the journal and sidecar routes carry that.
+/// decodes to exactly what sits at <c>0x58</c>. PSP, which this route cannot touch at all, is
+/// carried by the journal and sidecar routes.
 /// </para>
 /// <para>
-/// <b>256 bytes, from the local file.</b> M3 established that a single-file ROM accepts a
-/// bounded <c>Range</c>, so the same read works against the server for a ROM this device does
+/// <b>256 bytes, from the local file.</b> A single-file ROM accepts a bounded <c>Range</c>
+/// (RB-79), so the same read works against the server for a ROM this device does
 /// not hold, but nothing here downloads: a ROM that is not on disk is one whose saves are not
 /// being attributed for eviction anyway.
 /// </para>

@@ -581,7 +581,7 @@ internal static class SavesCommand
     /// <para>
     /// <b><c>--at-quit</c> records the change instead of writing it</b>, and
     /// <c>background quit</c> makes it once EmulationStation is confirmed gone. That is the
-    /// form the M7 UI uses and the only one available to it, because the UI is launched from
+    /// form the UI uses and the only one available to it, because the UI is launched from
     /// the ES menu and so always runs under a live ES.
     /// </para>
     /// <para>
@@ -713,7 +713,7 @@ internal static class SavesCommand
     /// <para>
     /// <b>A shell over <see cref="ConflictResolutionService"/>, which holds every rule.</b> The
     /// lock, the refusal to treat a failed acquire as done, and the words of every outcome are
-    /// all Core's, because the M7 interface drives the same decision and a sentence that differs
+    /// all Core's, because the UI drives the same decision and a sentence that differs
     /// between the console and the couch is two answers to one question. What is left here is
     /// the argument parsing and the mapping onto an exit code.
     /// </para>
