@@ -69,6 +69,8 @@ HISTORY_PATTERNS = (
     re.compile(r"\bMeasured during M\d"),
     # The findings ledgers' label for a replaced claim. A claim a fact tests is "The claim being checked:".
     re.compile(r"\bPreviously:"),
+    # A ledger question since settled. The heading states the answer instead.
+    re.compile(r"\(not addressed\)"),
 )
 
 EM_DASH = "\u2014"

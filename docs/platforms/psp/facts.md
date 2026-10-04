@@ -13,11 +13,9 @@ Plan says: PPSSPP's two populated state directories mean the declared template i
 
 Measurement says: **Neither is stale.** RetroBat mirrors native to ES-facing about 120 ms after each save, live. The declared template is correct and `saves/psp/ppsspp/` is authoritative
 
-## RB-37. How a downloaded state reaches the emulator
+## RB-37. A downloaded PPSSPP state reaches the emulator through the ES-facing path
 
-Plan says: (not addressed) how a downloaded state reaches the emulator
-
-Measurement says: ES passes `-state_slot` and `-state_file` naming the **ES-facing** path, and the launcher hands it to PPSSPP as `--state=`. Writing there is sufficient; the native copy is rebuilt from it
+ES passes `-state_slot` and `-state_file` naming the **ES-facing** path, and the launcher hands it to PPSSPP as `--state=`. Writing there is sufficient; the native copy is rebuilt from it
 
 ## RB-154. Confirmed on a second, independently produced sample
 
@@ -35,29 +33,21 @@ The pass says: **True, and it works.** No `.cso` header and no state sidecar exi
 
 The staged restore (not atomic, #38) put the server's four files into `SAVEDATA/ULUS100570000/` and Bust-A-Move loaded the save. With the fold proving the bytes identical, a real save round-trips the same way
 
-## RB-304. Where `libretro`/`ppsspp` keeps its memory stick on RetroBat
+## RB-304. `libretro`/`ppsspp` keeps its memory stick in the standalone's, so both rows write one container
 
-Question: Where `libretro`/`ppsspp` keeps its memory stick on RetroBat
+The core's `ms0:/PSP/SAVEDATA/ULUS10202003` is `saves/psp/SAVEDATA/ULUS10202003`, beside the standalone's `ULUS10202001`, so both rows write one container and one unit. The game offered three in-game slots as `ULUS10202001` to `003`, one folder each, all under the `ULUS10202` prefix. Its save states go to `saves/psp/libretro.ppsspp/`.
 
-Measured: **In the standalone's.** The core's `ms0:/PSP/SAVEDATA/ULUS10202003` is `saves/psp/SAVEDATA/ULUS10202003`, beside the standalone's `ULUS10202001`, so both rows write one container and one unit. The game offered three in-game slots as `ULUS10202001` to `003`, one folder each, all under the `ULUS10202` prefix. Its save states go to `saves/psp/libretro.ppsspp/`.
+## RB-305. The class C unit's hash is the server's on every transfer, end to end
 
-## RB-305. Whether the class C unit's hash is the server's, end to end
+The `quit` hook's pass uploaded the unit as save 437 with `content_hash` `3f2685c3...`, the local fold and a hand computation of RomM's rule alike; three folders later went up as 439 at `1e1e98ae...`, the same three ways. A peer row staged with no device, 440 holding `001` and `003`, came down at `ab160d10...`, passed the check against the offered hash after extraction, and swapped in with `002` moved to `replaced/`. The next flush was 0 up, 0 down.
 
-Question: Whether the class C unit's hash is the server's, end to end
+## RB-306. `libretro`/`ppsspp` freezes on each in-game save, though the folders it leaves are whole
 
-Measured: **Yes, on every transfer.** The `quit` hook's pass uploaded the unit as save 437 with `content_hash` `3f2685c3...`, the local fold and a hand computation of RomM's rule alike; three folders later went up as 439 at `1e1e98ae...`, the same three ways. A peer row staged with no device, 440 holding `001` and `003`, came down at `ab160d10...`, passed the check against the offered hash after extraction, and swapped in with `002` moved to `replaced/`. The next flush was 0 up, 0 down.
+Each in-game save froze the game, and `es_launch_stdout.log` shows the core writing `ULUS10202003/00000000.000` 1,674 times with `[Rewind] Buffer capacity insufficient` between writes. The folders it left are whole: 42,528 B each, `PARAM.SFO` parsing with the player's own id. Recorded against the core, not the save shape.
 
-## RB-306. Whether `libretro`/`ppsspp` saves this game cleanly
+## RB-307. RomM's `save_target` for a rehashed PSP game is the unit key, layout `folder-prefix`
 
-Question: Whether `libretro`/`ppsspp` saves this game cleanly
-
-Measured: **No.** Each in-game save froze the game, and `es_launch_stdout.log` shows the core writing `ULUS10202003/00000000.000` 1,674 times with `[Rewind] Buffer capacity insufficient` between writes. The folders it left are whole: 42,528 B each, `PARAM.SFO` parsing with the player's own id. Recorded against the core, not the save shape.
-
-## RB-307. What RomM's `save_target` says for the game once rehashed
-
-Question: What RomM's `save_target` says for the game once rehashed
-
-Measured: `title_id` and `save_target` `ULUS10202`, layout `folder-prefix`: the key and match rule `save_shapes.json` declares for `psp`, and the binding the launch journal taught. Portable Ops Plus (USA), not rehashed, carries none.
+`title_id` and `save_target` `ULUS10202`, layout `folder-prefix`: the key and match rule `save_shapes.json` declares for `psp`, and the binding the launch journal taught. Portable Ops Plus (USA), not rehashed, carries none.
 
 ## RB-366. PPSSPP writes states to two places, and RetroBat mirrors between them (resolved)
 
