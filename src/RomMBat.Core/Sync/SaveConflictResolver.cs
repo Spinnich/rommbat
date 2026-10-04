@@ -35,7 +35,7 @@ public sealed record ConflictResolutionOutcome(bool Resolved, string Message)
 /// sync record is stale for the slot, so an ordinary upload is refused with a 409. Retrying with
 /// overwrite is what gets past that refusal, and it is correct only once a person has chosen
 /// which side to keep. That is exactly why the flush never does it automatically: uploading
-/// unasked would make the local side newest and told every other device to take it,
+/// unasked would make the local side newest and tell every other device to take it,
 /// resolving the conflict silently in favour of whoever synced last.
 /// </para>
 /// <para>

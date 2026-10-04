@@ -271,7 +271,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         Assert.Contains(page.Value.Items, row => !string.IsNullOrWhiteSpace(row.Md5Hash));
 
         // Measured at 105 of 105 both ways: the flag and the empty extension travel together,
-        // which is why the resolver's extension filter already excludes every multi-file ROM.
+        // so a multi-file row never carries an extension to read.
         Assert.All(
             page.Value.Items.Where(row => row.HasMultipleFiles),
             row => Assert.True(string.IsNullOrWhiteSpace(row.FsExtension)));

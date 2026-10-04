@@ -84,7 +84,7 @@ internal static class Program
     internal static async Task<int> DispatchAsync(CommandLine command, CancellationToken cancellationToken)
     {
         // Anywhere on the line, and before any handler runs, so asking how a command works never
-        // runs it: `saves restore --help` used to scan the tree and print a full preview.
+        // runs it: otherwise `saves restore --help` would scan the tree and print a full preview.
         if (command.Has("help") || command.Positional.Contains("-h"))
         {
             WriteUsage();
