@@ -13,7 +13,8 @@ which `ContentPlanner` and `EvictionPlanner` already enforce. `sets add` keeps `
 no cap values at all rather than the cleared ones a hidden row would have produced.
 
 **Eviction is not on the interface either.** Freeing space belongs to the user, who does it by
-raising the budget or by dropping a set, which is them saying which games they no longer want.
+raising the budget, or by dropping a set or taking one game off this device, which is them
+saying which games they no longer want.
 A sync the budget cut short says so and offers nothing. `evict --apply`, and its sweep of dead
 transfers under `partial/`, stay on the console.
 

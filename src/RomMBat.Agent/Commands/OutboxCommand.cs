@@ -4,7 +4,7 @@ using RomMBat.Core.Store;
 namespace RomMBat.Agent.Commands;
 
 /// <summary>
-/// <c>outbox</c>: the entries the server refused, and the one way to clear them.
+/// <c>outbox</c>: the entries the server refused, and the console's way to clear them.
 /// </summary>
 /// <remarks>
 /// <b>Only a failed entry can be dropped, and only with <c>--apply</c>.</b> A pending one is waiting for the network and a

@@ -8,7 +8,7 @@ using RomMBat.UI.Shell;
 namespace RomMBat.UI.Screens;
 
 /// <summary>
-/// What has not reached the server, and the one way to clear it.
+/// What has not reached the server, and the interface's way to clear it.
 /// </summary>
 /// <remarks>
 /// <b>The same two drops as <c>rommbat-agent outbox</c>, and no others.</b> A refused entry can be
