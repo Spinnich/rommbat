@@ -16,7 +16,7 @@ namespace RomMBat.Tests;
 /// </summary>
 /// <remarks>
 /// <b>The claim these assert is that no verb is unreachable.</b> Accept, Start, Extra and
-/// Alternate are every button a screen has, and the root needs three more entry points than
+/// Alternate are every button a screen has, and the root needs four more entry points than
 /// that. A row can be added where a button cannot, so the risk is not a verb with nowhere to go
 /// but a row that goes nowhere, and that is what the first test here refuses to let happen.
 /// </remarks>
@@ -51,6 +51,7 @@ public class RootMenuTests
                 OpenConflicts = Stub,
                 OpenPlatforms = Stub,
                 OpenQueued = Stub,
+                OpenOutbox = Stub,
             }));
 
         var navigator = new Navigator(menu);

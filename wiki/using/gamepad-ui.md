@@ -34,6 +34,7 @@ Each row says what it is for, and the ones that need attention carry a count.
 | Conflicts      | Saves that changed here and on another device. See [Conflicts](../saves/conflicts.md)                                |
 | Platforms      | Where each RomM platform's games land in RetroBat. See [Sync sets](sync-sets.md#when-games-land-in-the-wrong-folder) |
 | Queued changes | Settings waiting for you to quit EmulationStation. See [Memory cards](../saves/memory-cards.md)                      |
+| Outbox         | Saves, states and play sessions not yet sent to RomM, and any the server refused. Drop them here                     |
 | Disk space     | How much room RomMBat may use. See [Disk space](disk-budget.md)                                                      |
 | Pair with RomM | Sign in to your server, or sign in again. See [Pairing](../getting-started/pairing.md)                               |
 | This device    | Your RetroBat version, the server, what is waiting to be sent, and the controller                                    |

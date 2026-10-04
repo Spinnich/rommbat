@@ -9,7 +9,7 @@ namespace RomMBat.Tests;
 /// Driving the root menu the way a controller does.
 /// </summary>
 /// <remarks>
-/// <b>By row label, never by index.</b> The root's verbs are eight rows, and a test that
+/// <b>By row label, never by index.</b> The root's verbs are nine rows, and a test that
 /// pressed Down four times would keep passing when the rows were
 /// reordered or when one of them was mislabelled, which is exactly what the tests using this are
 /// there to catch. Naming the row means the assertion fails when the row a person would look for

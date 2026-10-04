@@ -48,7 +48,7 @@ downloaded again, because its rows are matched by rom id; a game the new server 
 stale. The next sync re-derives the rest from the new server. Typing the address
 (`RememberServer`) changes nothing for a paired install, so a typo costs no slots, but it is
 refused while the outbox holds unsent entries, which name the old server's rom ids and are never
-dropped silently; `outbox drop --all-pending --apply` is the way out. A re-pair against the same
+dropped silently; `outbox drop --all-pending --apply`, or the UI's Outbox screen, is the way out. A re-pair against the same
 origin changes nothing. `outbox` is not cleared: the change is refused while it holds unsent work.
 
 Sync-set definitions persist to the free-form `Device.sync_config` dict via
