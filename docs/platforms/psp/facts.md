@@ -21,21 +21,19 @@ Measurement says: ES passes `-state_slot` and `-state_file` naming the **ES-faci
 
 ## RB-154. Confirmed on a second, independently produced sample
 
-Previously: The PSP unit key is a prefix of the directory name (141, measured on `E:`)
+The claim being checked: The PSP unit key is a prefix of the directory name (141, measured on `E:`)
 
 The pass says: **Confirmed on a second, independently produced sample.** PPSSPP wrote `SAVEDATA/ULUS100570000/`, four files and 91,607 B, and the key extracted as `ULUS10057`. Matching the whole segment would have found nothing
 
 ## RB-155. True, and it works
 
-Previously: Route 1 is the only route that can attribute a PSP save (143, 144, 145)
+The claim being checked: Route 1 is the only route that can attribute a PSP save (143, 144, 145)
 
 The pass says: **True, and it works.** No `.cso` header and no state sidecar existed, and the launch window bound it: `Bust-A-Move - Deluxe (USA).cso was running when ULUS10057 was last written`. The hook fired all four events and the launch log carried `-system psp -emulator ppsspp`
 
-## RB-159. Whether an emulator loads a unit RomMBat restored
+## RB-159. PPSSPP loads a save unit RomMBat restored
 
-Previously: (not addressed) whether an emulator loads a unit RomMBat restored
-
-The pass says: **PPSSPP does.** The staged restore (not atomic, #38) put the server's four files into `SAVEDATA/ULUS100570000/` and Bust-A-Move loaded the save. With the fold proving the bytes identical, a real save round-trips the same way
+The staged restore (not atomic, #38) put the server's four files into `SAVEDATA/ULUS100570000/` and Bust-A-Move loaded the save. With the fold proving the bytes identical, a real save round-trips the same way
 
 ## RB-304. Where `libretro`/`ppsspp` keeps its memory stick on RetroBat
 
