@@ -73,8 +73,8 @@ Part of the [offline-and-portable](SKILL.md) skill. How threads share the SQLite
   and it starts mattering the moment a second path closes the connection, or disposes a command,
   without holding the gate.
 
-  **This orders threads inside one process and nothing else.** The database is WAL and the hooks
-  write to it from their own processes; `TreeLock` and the busy timeout are what order those.
+  **This orders threads inside one process and nothing else.** The database is WAL and the agent's
+  passes and the UI write to it from their own processes; `TreeLock` and the busy timeout are what order those.
 
 - **Never take `TreeLock` to find out whether it is held.** Failing to acquire is a _success_
   for a flush: it concludes another pass is draining the queue and exits, reporting `Ok`

@@ -68,9 +68,9 @@ public sealed record JournalEntry(
 /// <para>
 /// <b>Concurrency is the normal case.</b> RB-347 caught three <c>game-end</c> hooks in flight
 /// at once, which is why each one spools to its own file rather than sharing anything. On this
-/// side a drain and a hand-driven subcommand can still run in separate processes. <see cref="LocalStore"/> opens with WAL
-/// and a five-second busy timeout, so an append waits for the writer ahead of it and commits
-/// whole.
+/// side a drain and a hand-driven subcommand can still run in separate processes.
+/// <see cref="LocalStore"/> opens with WAL and a five-second busy timeout, so an append waits
+/// for the writer ahead of it and commits whole.
 /// </para>
 /// </remarks>
 public sealed class JournalStore
