@@ -169,10 +169,6 @@ class StaleTest(unittest.TestCase):
         self.assertEqual(set(floor), {"RetroBat", "RomM"})
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class HookTest(unittest.TestCase):
     def run_hook(self, file_path: str) -> int:
         stdin = io.StringIO(json.dumps({"tool_input": {"file_path": file_path}}))
@@ -199,3 +195,7 @@ class HookTest(unittest.TestCase):
         with mock.patch("check.delegate_hook") as delegate:
             self.assertEqual(self.run_hook(str(check.ROOT / "README.md")), 0)
         delegate.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()
