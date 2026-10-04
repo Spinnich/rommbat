@@ -191,8 +191,23 @@ public sealed class GameCommandTests : IDisposable
 
         Assert.Equal(ExitCode.Ok, run.ExitCode);
         Assert.True(run.Wrote("Chrono Trigger"), run.Out);
-        Assert.True(run.Wrote("not known offline"), run.Out);
+        Assert.True(run.Wrote("size in RomM: not known"), run.Out);
         Assert.True(run.Wrote("Picked on"), run.Out);
+    }
+
+    [Fact]
+    public async Task Show_of_a_game_RomM_no_longer_has_does_not_call_it_offline()
+    {
+        // RomM answered, with a 404, so the fallback to this device's copy is not an offline one.
+        Pair();
+        await AgentRunner.RunAgainstAsync(_tree, _stub, "game", "install", "7");
+        _stub.Library.RemoveAt(0);
+
+        var run = await AgentRunner.RunAgainstAsync(_tree, _stub, "game", "show", "7");
+
+        Assert.Equal(ExitCode.Ok, run.ExitCode);
+        Assert.True(run.Wrote("size in RomM: not known"), run.Out);
+        Assert.False(run.Wrote("offline"), run.Out);
     }
 
     [Fact]
