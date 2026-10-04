@@ -73,8 +73,8 @@ flush then records a conflict rather than overwrite, and which side wins is the 
 on 2026-09-24, in one day, on Golden Axe Warrior, and both Kega Fusion rows at `5.3.1` on
 2026-10-01 once a rule read their `.ssm` from Kega's folder (#381), with
 `docs/platforms/mastersystem/` the record. FBNeo is recorded as not certifiable for `megadrive`'s
-reason. **Pick a
-test game whose save point you know.** Golden Axe Warrior commits its save once, at the first
+reason. **Pick a test game whose save point you know**
+([Choosing test games](SKILL.md#choosing-test-games)). Golden Axe Warrior commits its save once, at the first
 character, and after that rewrites only a working copy, so every later row's file changed without
 new progress (RB-326); diff the SRAM against the boot write before trusting "a save was made".
 **Mesen rewrites its save only when the SRAM changes**, so an unchanged file after a session means
@@ -104,7 +104,8 @@ so attribution and a restore both have to know the set's discs (332).
 **`n64` is second in wave 2: eight of nine rows certified at `5.3.1` on 2026-09-27**, in one
 morning, and gopher64 on 2026-09-29 once #239 read its folder, with `docs/platforms/n64/` the
 record. **A Mario Kart 64 ghost reaches the pak only when the game saves it**: a lap writes the
-EEPROM, and gopher64 rewrites the `.mpk` with the same bytes on every access, so check the hash. **Pick one game per save medium**: Ocarina of Time
+EEPROM, and gopher64 rewrites the `.mpk` with the same bytes on every access, so check the hash. **Pick one game per save medium**
+([Choosing test games](SKILL.md#choosing-test-games)): Ocarina of Time
 covers SRAM, and Mario Kart 64 covers EEPROM plus a Controller Pak ghost, which is step 6. **Boot
 every row once before playing and list what it writes where**: four of the nine name their files
 with something other than the ROM (an emulator's title, a header name and an md5, a directory per

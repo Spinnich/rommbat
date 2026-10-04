@@ -50,9 +50,9 @@ Nothing here needs an emulator running or a person present.
 2. Check `emulators/` holds an executable for each. One that does not is installed by ES on the
    first launch, and accepting that is the maintainer's call.
 3. Run steps 1 and 3, and the inventory half of step 2, for the whole system now.
-4. Pick test games: one per save medium, one that saves early at a known point, plus a
-   coprocessor or multi-disc game where the system has them. Check none is pinned to a row in
-   `gamelist.xml`.
+4. Recommend the test games by `platform-certification`'s "Choosing test games". Research the
+   library and the web, build the coverage table, and put the set to the maintainer as one
+   `AskUserQuestion` with the recommendation first. Never ask an open "which game?".
 5. Boot every row once, with the family's firmware out, and list what each writes where. That
    list decides whether the pass needs code first (a battery rule, a supplement entry), and code
    needed first is its own `/start-issue`, not part of this pass.
@@ -60,8 +60,8 @@ Nothing here needs an emulator running or a person present.
 ## 2. The play sheet
 
 Write `probe-output/<SYSTEM>-play-sheet.md`: every row in order, and for each, what the
-maintainer does with the pad (only what needs real play: a battery save, name entry) and what you
-do around it (launch, state slots, keys, seeding the next row from this one's save). Batch
+maintainer does with the pad (only what needs real play: a battery save, name entry), where each
+game's save happens, and what you do around it (launch, state slots, keys, seeding the next row from this one's save). Batch
 everything needing hands into one sitting. Show the sheet, then ask one question: start now, or
 later.
 
