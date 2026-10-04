@@ -123,10 +123,11 @@ Three rules that are not obvious:
   upload, is kept unless its bytes equal what is offered. #211.
 
 **A conflict is never resolved automatically.** Both sides are kept, the local file is copied
-once into `emulators/rommbat/replaced/`, and the slot waits in `save_conflict` until
-`saves resolve` picks a side. A conflict is keyed on the server row and not only on its digest,
-because a slot returning to contents it once held is a different row carrying a decided hash.
-`--keep-local` is the only thing that sends `overwrite=true`, which gets past the 409 and
+once into `emulators/rommbat/replaced/`, and the slot waits in `save_conflict` until a person
+picks a side, with `saves resolve` or the UI's conflict screens. A conflict is keyed on the
+server row and not only on its digest, because a slot returning to contents it once held is a
+different row carrying a decided hash. Keeping the local side is the only thing that sends
+`overwrite=true`, which gets past the 409 and
 **appends** rather than replacing: row identity is the server's own datetime-tagged filename at
 one-second resolution, so no decision a person takes lands on the row it is overwriting. The
 server's copy stays one row down, where negotiate no longer looks, since it pairs on the newest

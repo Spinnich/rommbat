@@ -62,7 +62,8 @@ the source of truth; the network is optional, probed with a short-timeout
   always copy aside first. Keeping both means keeping the local side **local**: uploading it
   would make it the newest row in the slot and tell every other device to take it, which is an
   unresolved conflict resolving itself in favour of whoever synced last. The conflict is
-  persisted and waits for `saves resolve` to pick a side.
+  persisted and waits for a person to pick a side, with `saves resolve` or the UI's conflict
+  screens.
 - **Exit `Offline` (5) means unreachable and nothing else.** It is the one code that tells a
   script waiting will fix it. A 401 or 403 exits `NotPaired` (4). Any other server answer, or a
   result that could not be verified or written here, exits `ServerError` (8), so a locked
