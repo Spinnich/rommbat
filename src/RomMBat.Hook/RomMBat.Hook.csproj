@@ -46,7 +46,7 @@
     Linked source rather than a project reference, because a reference to RomMBat.Core would
     bring the store and the API client with it. The spool format's canonical home is Core,
     which is the end that has to keep reading files an older hook wrote; this project compiles
-    the same two files so the writer and the reader cannot drift.
+    the same three files so the writer and the reader cannot drift.
   -->
   <ItemGroup>
     <Compile Include="..\RomMBat.Core\Paths\RootMarkers.cs" Link="Shared\RootMarkers.cs" />

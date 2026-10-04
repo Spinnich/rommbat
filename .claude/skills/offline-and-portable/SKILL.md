@@ -77,10 +77,10 @@ the source of truth; the network is optional, probed with a short-timeout
   **What invokes it: the `start` and `quit` hooks, `sync`, and a person typing `flush`.**
   The hook spawn is what makes an install nobody administers from a terminal work: without
   it, an install that is never synced spools events forever. The spawn costs the launch
-  nothing (RB-195 and RB-197): ES does not wait for a hook, and the 75.9 MB agent starts
-  faster than the 11 MB hook because trimming without `PublishReadyToRun` discards the
-  framework's precompiled code. **What limits the spawn is rule 4**, which allows it only from
-  the two events outside the launch path.
+  nothing (RB-195 and RB-197): ES does not wait for a hook, and the 75.9 MB agent reaches
+  `Main` in 34 ms, against 49 ms for a whole invocation of the trimmed, ReadyToRun hook.
+  **What limits the spawn is rule 4**, which allows it only from the two events outside the
+  launch path.
 
   **`background quit` waits for the ES process to be gone before it writes any config**, and
   gives up rather than hanging. Measured: ES exits 48 to 68 ms after the quit hook stamps
