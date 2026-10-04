@@ -71,9 +71,11 @@ public static class BrowseScreens
                     ? new[] { new FooterHint(NavAction.Extra, "Give it its own memory card") }
                     : [],
             ],
+            // No row means the page fell back, which an unreachable RomM and a refused page
+            // both do, so the note says what holds for either.
             Note = () => game.Row is null
-                ? "This game is on the device. RomM is not reachable, so it cannot be installed "
-                    + "again from here."
+                ? "This game is on the device. RomM's library could not be read, so it cannot be "
+                    + "installed again from here."
                 : "Installing puts it on the device now. Taking it off never removes a save.",
             Verbs = (action, _) => action switch
             {
