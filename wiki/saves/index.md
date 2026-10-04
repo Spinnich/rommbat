@@ -27,7 +27,7 @@ comes down the next time you open it
 ## Away from the server
 
 **Playing offline loses nothing.** Saves and playtime wait on this device and go up the next time
-it can reach RomM. The main menu's This device row counts what is still waiting.
+it can reach RomM. The main menu's Outbox row counts what is still waiting.
 
 ## When both sides changed
 
