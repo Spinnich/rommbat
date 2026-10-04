@@ -133,8 +133,10 @@ public static class QueuedChangeScreens
                     : new ListRow(
                         change.FsName,
                         change.System,
-                        $"{change.Reason} Nothing has been written yet, so cancelling leaves the "
-                            + "setting exactly as it is now.",
+                        // The stored reason is a phrase, not a sentence, because the list
+                        // row prints it after the system's name.
+                        $"Queued: {change.Reason.TrimEnd('.')}. Nothing has been written yet, so "
+                            + "cancelling leaves the setting exactly as it is now.",
                         false),
             ],
             _ => ScreenCommand.Stay,
@@ -142,6 +144,7 @@ public static class QueuedChangeScreens
             backLabel: "Keep it queued")
         {
             Reading = true,
+            TitleWhen = () => cancelled ? "Change cancelled" : "Cancel this change?",
             OfferAcceptWhen = () => !cancelled,
 
             // Once it is cancelled there is nothing left to keep, and Back is the only way out.
@@ -226,13 +229,20 @@ public static class QueuedChangeScreens
             () =>
             [
                 queued is { } done
-                    ? new ListRow(
-                        done.Ok ? "Queued" : "Not queued",
-                        null,
-                        done.Detail,
-                        false)
+                    ? done.Ok
+                        // Not done.Detail, which is the console's line and names the raw
+                        // es_settings.cfg key.
+                        ? new ListRow(
+                            "Queued",
+                            null,
+                            "RomMBat makes the change when you next quit EmulationStation. Until "
+                                + "then nothing is written, and Queued changes can cancel it.",
+                            false)
+                        : new ListRow("Not queued", null, done.Detail, false)
                     : new ListRow("What changes", null, preview.Detail, false),
 
+                // Core's warning stops short of how to undo it, because the console's answer is
+                // a flag; once the change is applied, undoing it is the console's alone.
                 .. (queued is null && preview.Warning is { } warning)
                     ? new[] { new ListRow("Worth knowing", null, warning, false) }
                     : [],
@@ -254,6 +264,13 @@ public static class QueuedChangeScreens
             backLabel: "Leave it alone")
         {
             Reading = true,
+
+            TitleWhen = () => queued switch
+            {
+                null => $"Give '{title}' its own memory card?",
+                { Ok: true } => $"Memory card change queued for '{title}'",
+                _ => $"Nothing queued for '{title}'",
+            },
 
             // The offer is gone once the change is queued, so leaving is finishing rather than
             // declining.

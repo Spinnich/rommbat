@@ -60,7 +60,9 @@ public class SaveConverterTests
         // container is deliberately out of scope, so the stranded save is the cost of saying yes.
         Assert.NotNull(result.Warning);
         Assert.Contains("empty memory card", result.Warning, StringComparison.Ordinal);
-        Assert.Contains("--revert", result.Warning, StringComparison.Ordinal);
+        // And names no console flag, because the gamepad shows the same warning (#448). The
+        // console adds its own way back.
+        Assert.DoesNotContain("--", result.Warning, StringComparison.Ordinal);
     }
 
     [Fact]

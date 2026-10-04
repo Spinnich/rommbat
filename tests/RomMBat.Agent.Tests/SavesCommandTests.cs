@@ -277,4 +277,36 @@ public sealed class SavesCommandTests
             Assert.False(run.Complained("A flush is running"), run.Error);
         }
     }
+
+    [Fact]
+    public async Task Converting_from_the_console_names_the_flag_that_undoes_it()
+    {
+        // Core's warning names no way back, because the gamepad shows it too and a flag is no
+        // use there (#448). The console still owes its reader the flag, so it says it here.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+
+        Write(install, "roms/ps2/Armored Core 3 (USA).chd", "rom bytes");
+
+        using (var store = LocalStore.Open(install))
+        {
+            store.Files.Record(new LocalFile
+            {
+                Path = RelativePath.Create("roms/ps2/Armored Core 3 (USA).chd"),
+                Folder = "ps2",
+                RomId = 42,
+                Kind = LocalFileKind.Rom,
+                FileName = "Armored Core 3 (USA).chd",
+                SizeBytes = 9,
+            });
+        }
+
+        // Queued, because a preview refuses while EmulationStation runs and that depends on
+        // the machine running the tests.
+        var run = await AgentRunner.RunAsync(tree, "saves", "convert", "42", "--at-quit");
+
+        Assert.Equal(ExitCode.Ok, run.ExitCode);
+        Assert.Contains("empty memory card", run.Out, StringComparison.Ordinal);
+        Assert.Contains("Undo with --revert.", run.Out, StringComparison.Ordinal);
+    }
 }

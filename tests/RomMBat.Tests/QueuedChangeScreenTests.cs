@@ -1,4 +1,5 @@
 using RomMBat.Core;
+using RomMBat.Core.Paths;
 using RomMBat.Core.Store;
 using RomMBat.Tests.Support;
 using RomMBat.UI.Input;
@@ -69,6 +70,14 @@ public class QueuedChangeScreenTests : IDisposable
 
         Assert.True(confirm.Reading);
         Assert.Contains(confirm.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Equal("Cancel this change?", confirm.Title);
+
+        // The stored reason is a phrase, so it is made a sentence of its own rather than run
+        // into the next one (#448).
+        Assert.StartsWith(
+            "Queued: a per-game memory card for 'Armored Core 3 (USA).iso'. Nothing",
+            Assert.Single(confirm.Rows).Detail,
+            StringComparison.Ordinal);
 
         navigator.Handle(NavAction.Accept);
 
@@ -88,6 +97,9 @@ public class QueuedChangeScreenTests : IDisposable
 
         // And the pane follows it, rather than still describing the change it just cancelled.
         Assert.Equal("Cancelled", Assert.Single(confirm.Rows).Label);
+
+        // And so does the title, which otherwise stays a question over its own answer (#448).
+        Assert.Equal("Change cancelled", confirm.Title);
 
         navigator.Handle(NavAction.Back);
         Assert.Empty(Assert.IsType<ListScreen>(navigator.Current).Rows);
@@ -163,6 +175,36 @@ public class QueuedChangeScreenTests : IDisposable
     }
 
     [Fact]
+    public void Queueing_a_card_says_it_is_done_in_the_gamepad_own_words()
+    {
+        // #448: once queued, the title stayed an offer over "Queued", the row's detail was the
+        // console's line with the raw es_settings.cfg key, and the warning ended on a flag.
+        AddRom(4242, "ps2", "Armored Core 3 (USA).chd");
+
+        var convert = Assert.IsType<ListScreen>(
+            QueuedChangeScreens.Convert(_session, 4242, "Armored Core 3"));
+
+        Assert.EndsWith("?", convert.Title, StringComparison.Ordinal);
+        Assert.Contains(convert.Rows, row => row.Label == "Worth knowing");
+        Assert.All(Text(convert), text => Assert.DoesNotContain("--", text, StringComparison.Ordinal));
+
+        var navigator = new Navigator(convert);
+        navigator.Handle(NavAction.Accept);
+
+        Assert.Single(_session.Store.PendingConfig.ListOutstanding());
+        Assert.Equal("Memory card change queued for 'Armored Core 3'", convert.Title);
+        Assert.Equal("Queued", Assert.Single(convert.Rows).Label);
+        Assert.Equal("Done", Assert.Single(convert.Hints, hint => hint.Action == NavAction.Back).Label);
+
+        Assert.All(Text(convert), text =>
+        {
+            Assert.DoesNotContain("--", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("queued:", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("pcsx2_slot1_memory", text, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
     public void The_queued_screens_name_no_face_button()
     {
         _session.Store.PendingConfig.Queue(Request());
@@ -195,6 +237,33 @@ public class QueuedChangeScreenTests : IDisposable
         }
     }
 
+    /// <summary>Every string the screen draws.</summary>
+    private static IEnumerable<string> Text(ListScreen screen) =>
+        screen.Rows
+            .SelectMany(row => new[] { row.Label, row.Value, row.Detail })
+            .Concat(screen.Hints.Select(hint => hint.Label))
+            .Append(screen.Title)
+            .OfType<string>();
+
+    private void AddRom(int romId, string folder, string fileName)
+    {
+        var path = RelativePath.Create($"roms/{folder}/{fileName}");
+        var absolute = _session.Install.Resolve(path);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+        File.WriteAllText(absolute, "rom bytes");
+
+        _session.Store.Files.Record(new LocalFile
+        {
+            Path = path,
+            Folder = folder,
+            RomId = romId,
+            Kind = LocalFileKind.Rom,
+            FileName = fileName,
+            SizeBytes = 9,
+        });
+    }
+
     private static PendingConfigRequest Request() => new()
     {
         RomId = 4242,
@@ -203,7 +272,8 @@ public class QueuedChangeScreenTests : IDisposable
         SettingKey = "pcsx2_slot1_memory",
         DesiredState = DesiredSettingState.Set,
         DesiredValue = "game",
-        Reason = "So its saves can be told apart from every other game sharing the card.",
+        // What SaveConverter stores: a phrase, lower-case and with no full stop.
+        Reason = "a per-game memory card for 'Armored Core 3 (USA).iso'",
         QueuedAtUtc = DateTimeOffset.UtcNow,
     };
 }

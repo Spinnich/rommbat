@@ -464,6 +464,10 @@ public sealed class SaveConverter
     /// <remarks>
     /// Two costs, both measured rather than asserted. The stranded save is the one a user hits
     /// first and the cross-game read is the one they hit later and never connect to this.
+    /// <para>
+    /// It names no way to undo the change, because the console's is a flag and the gamepad
+    /// cannot offer one: each caller says its own.
+    /// </para>
     /// </remarks>
     private string Warn(LocatedRom rom, PerGameConversion conversion)
     {
@@ -492,7 +496,7 @@ public sealed class SaveConverter
 
         return $"{start}. Whatever it has already saved stays "
             + $"in {where}, where this game will no longer look for it, and RomMBat does not move it: "
-            + "reading a memory card's format is work this release does not do. Undo with --revert. "
+            + "reading a memory card's format is work this release does not do. "
             + "Per-game cards also break games that deliberately read a prequel's save from the same card.";
     }
 
