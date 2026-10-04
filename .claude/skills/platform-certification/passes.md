@@ -30,7 +30,7 @@ the game, so the file measured is still that emulator's. A seed an emulator refu
 not a failed pass: mednafen refused mGBA's 131,088 B file (RB-289). **Put an override's
 `gba.emulator` in `es_settings.cfg` only with ES closed**, and restore the file from a copy taken
 first. **A clock file is a second save file**, class B, and changes on every launch (RB-291).
-**An emulator can delete what you place in `roms/`**: NO$GBA took a bare `.gba` put beside its zip
+**An emulator can delete what you place in `roms/`**: NO\$GBA took a bare `.gba` put beside its zip
 for its own unzip output and deleted it (RB-286), so check a hand-placed file is still there
 before each launch. Blame `emulatorLauncher` only once the emulator run by hand keeps the file.
 
