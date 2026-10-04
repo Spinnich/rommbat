@@ -5,8 +5,8 @@ read-when: Planning certification work, or designing the row fingerprint, pass f
 
 # Platform rollout
 
-Once the framework exists (M1 through M6 working end to end on a single platform), stop
-building horizontally and start certifying platforms one by one. Two reasons this beats a
+The framework works end to end on a single platform, so platforms are certified one by one
+rather than built out horizontally. Two reasons this beats a
 big-bang approach: the most-used platforms get correct first, and each platform surfaces
 its own edge cases in isolation instead of as a pile of intermixed bugs late on.
 

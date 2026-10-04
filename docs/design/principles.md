@@ -52,8 +52,8 @@ support on 10 November 2026.
 
 ## Core principles
 
-These four constraints cut across every milestone. They are not a late-stage polish
-pass; they decide the data model, so build to them from M1.
+These four constraints cut across every feature. They are not a late-stage polish
+pass; they decide the data model, so build to them from the start.
 
 ### 1. Offline-first, network-optional
 
@@ -124,16 +124,16 @@ Guardrails that follow from this:
   rows, **except `/api/roms/identifiers`**. It answers quickly, but it takes no parameters, so
   it returns the whole library's ids and cannot be scoped to a set. Deletion of content is
   reconciled through set re-resolution instead, whose walk already yields each set's ids; see
-  M3 and RB-81.
+  RB-81.
 - `gamelist.xml` only ever contains locally present ROMs. **Not because ES cannot take a
-  large one**: M0 loaded a 100,000-entry gamelist in 2.07 s for 419 MB. A gamelist is a
+  large one**: ES loads a 100,000-entry gamelist in 2.07 s for 419 MB (RB-356). A gamelist is a
   mirror of what is on disk, and that is the whole of the rule.
 
-  **The per-system cap this bullet used to name is withdrawn, because it cannot do the job
-  it was given.** ES lists ROM files it has no gamelist entry for, so dropping entries hides
+  **There is no per-system cap, because a cap cannot bound what a person scrolls
+  past.** ES lists ROM files it has no gamelist entry for, so dropping entries hides
   no games and only strips their art and description: the user still scrolls past exactly as
   many tiles, now blank. What bounds navigability is the sync set's own `max_games`, which
-  is principle 3's argument and already exists. M4 reports a folder that grows past a
+  is principle 3's argument and already exists. A sync reports a folder that grows past a
   threshold rather than truncating it. `ParseGamelistOnly` would make the gamelist
   authoritative and give a cap teeth, but it is a global ES setting affecting systems
   RomMBat does not manage, so RomMBat does not touch it. See RB-111.
@@ -179,7 +179,7 @@ a drive-letter change and a move to a different PC.**
   Everything lands under **`RetroBat/emulators/rommbat/`**, including the SQLite database,
   logs, and the outbox.
 
-  **M0 settled this location, and it is not a free choice.** A `system/es_menu/*.menu`
+  **This location is not a free choice.** A `system/es_menu/*.menu`
   entry resolves its executable path under `emulators\`, and `emulatorLauncher` refuses
   `..\` escapes outright (`[Generator] Failed. path is null`, exit 204). An app installed
   anywhere else cannot be launched from the ES menu at all. See
@@ -223,12 +223,12 @@ a drive-letter change and a move to a different PC.**
   - **FAT32 cannot hold a file larger than 4 GB.** Plenty of PS2, GameCube and Wii images
     exceed that. Detect the filesystem, and when it is FAT32 either skip oversized ROMs
     with a clear explanation or refuse the sync set outright rather than failing mid-write.
-    M0 measured the failure: `IOException`, Win32 112 `ERROR_DISK_FULL`, message **"There is
-    not enough space on the disk"**, raised on a volume with 14.6 GB free. **Never surface
+    The failure is an `IOException`, Win32 112 `ERROR_DISK_FULL`, message **"There is
+    not enough space on the disk"**, raised on a volume with 14.6 GB free (RB-48). **Never surface
     that message**; it sends the user to delete files that are not the problem. Compare
     `fs_size_bytes` against the target filesystem before the download starts.
-  - **FAT and exFAT store coarser modification timestamps than NTFS**, and M0 measured
-    **exFAT to be no better than FAT32: 2 seconds on both**, even though exFAT's format
+  - **FAT and exFAT store coarser modification timestamps than NTFS**, and
+    **exFAT is no better than FAT32: 2 seconds on both** (RB-393), even though exFAT's format
     allows 10 ms. Any conflict logic that leans on mtime equality will produce both false
     matches and spurious conflicts. Treat `content_hash` as the primary comparison and mtime
     only as an ordering tiebreak, and never assume a round-tripped mtime comes back

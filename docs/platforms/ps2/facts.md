@@ -23,7 +23,7 @@ What was measured: **Both reproduced on PS2, having been measured on PS1.** `Mcd
 
 The claim being checked: A `.txt` sidecar holds the emulator's native basename, and DuckStation's holds a bare serial (**145, 168**)
 
-What was measured: **PCSX2's is a third format: the serial plus a CRC.** `saves/ps2/pcsx2/Armored Core 3 (USA).txt` holds `SLUS-20435 (FDB4D261)`, and the two others on the install match its shape. So it is neither the bare serial DuckStation writes nor the underscore-joined form PPSSPP writes, and `GameIdAttributor.FromSidecar`'s first-underscore split leaves it whole rather than parsing it. Relevant to **#37**, and not on stage 2c's path, because a converted PS2 card is rom-named and attributes by filename
+What was measured: **PCSX2's is a third format: the serial plus a CRC.** `saves/ps2/pcsx2/Armored Core 3 (USA).txt` holds `SLUS-20435 (FDB4D261)`, and the two others on the install match its shape. So it is neither the bare serial DuckStation writes nor the underscore-joined form PPSSPP writes, and `GameIdAttributor.FromSidecar`'s first-underscore split leaves it whole rather than parsing it. Relevant to **#37**, and not on the per-game memory card's path, because a converted PS2 card is rom-named and attributes by filename
 
 ## RB-177. Whether the `K:` test stick can stand in for the real install on PS2
 
@@ -35,7 +35,7 @@ What was measured: **It cannot, today.** `K:\RetroBat` holds **no PS2 ROM, no PC
 
 The claim being checked: (not addressed) what a converted PCSX2 memory card is called
 
-What was measured: **`<rom stem>.ps2`, so the extension is replaced and not appended.** Driven end to end: `ps2["Armored Core 3 (USA).chd"].pcsx2_slot1_memory=game` produced `saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2`, 8,650,752 B. **Two naming rules are in play at once and confusing them is the whole trap**: the `es_settings.cfg` key must carry `.chd` or it is ignored silently (M0 cases E and F), while the card PCSX2 writes drops it. The consequence is the good one: the stem `Armored Core 3 (USA)` is exactly the `(folder, stem)` key class A attribution already uses, so a converted card resolves through the existing `RomIndex` with no new route, which is the claim the whole PS2 story rested on. It lands **three levels deep**, under `saves/ps2/pcsx2/memcards/`, where class A discovery only reads files loose directly under `saves/<system>/`
+What was measured: **`<rom stem>.ps2`, so the extension is replaced and not appended.** Driven end to end: `ps2["Armored Core 3 (USA).chd"].pcsx2_slot1_memory=game` produced `saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2`, 8,650,752 B. **Two naming rules are in play at once and confusing them is the whole trap**: the `es_settings.cfg` key must carry `.chd` or it is ignored silently (RB-358), while the card PCSX2 writes drops it. The consequence is the good one: the stem `Armored Core 3 (USA)` is exactly the `(folder, stem)` key class A attribution already uses, so a converted card resolves through the existing `RomIndex` with no new route, which is the claim the whole PS2 story rested on. It lands **three levels deep**, under `saves/ps2/pcsx2/memcards/`, where class A discovery only reads files loose directly under `saves/<system>/`
 
 ## RB-183. True while the game is using them, and a converted game leaves the shared card completely alone
 
@@ -59,7 +59,7 @@ What was measured: **It does, driven on hardware under real budget pressure, and
 
 The claim being checked: (not addressed) whether reverting a conversion really restores the file
 
-What was measured: **It does, and the only thing that moves afterwards is ES's own bookkeeping.** Against a byte copy taken before the conversion: **57 settings before, 57 after the revert, nothing added, nothing dropped, no `pcsx2_slot1_memory` and no RomMBat key left**. The file's md5 differs, and the whole difference is `LastSystem`, which ES rewrites to record where the user was in the UI. So a byte comparison is the wrong assertion for this file and a **setting-set comparison is the right one**, which is the same lesson M4 learned about `gamelist.xml`: compare what the writer owns, not the bytes a second writer also touches. The `absent` prior state was honoured, the key being removed rather than written at a stock value
+What was measured: **It does, and the only thing that moves afterwards is ES's own bookkeeping.** Against a byte copy taken before the conversion: **57 settings before, 57 after the revert, nothing added, nothing dropped, no `pcsx2_slot1_memory` and no RomMBat key left**. The file's md5 differs, and the whole difference is `LastSystem`, which ES rewrites to record where the user was in the UI. So a byte comparison is the wrong assertion for this file and a **setting-set comparison is the right one**, which is the same lesson `gamelist.xml` teaches: compare what the writer owns, not the bytes a second writer also touches. The `absent` prior state was honoured, the key being removed rather than written at a stock value
 
 ## RB-188. It stays on disk, keeps its `local_save` row, and goes on syncing, which is the decision rather than an
 

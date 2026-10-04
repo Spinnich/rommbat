@@ -25,7 +25,7 @@ libretro `corename` that front ends reading `retroarch.cfg` produce. `es_savesta
 source, and it is the stronger one because `retroarch.cfg` is regenerated per launch and
 describes only the last game run. RB-216 and RB-217.
 
-**Trust `<file>`, verify `<directory>`.** Across the twelve emulators M0 drove, every `<file>`
+**Trust `<file>`, verify `<directory>`.** Across the twelve emulators driven (RB-368), every `<file>`
 template was correct and one `<directory>` declaration still is not: **`openmsx` writes
 `bios/openmsx/savestates/`**, outside the saves tree entirely, against a declared
 `saves/msx1/openmsx`. So never read an empty declared directory as "this game has no states",
@@ -120,12 +120,11 @@ and is mirrored live into `psp/ppsspp/`), and nothing at that point can tell tha
 is that the file was read and does not name the emulator, which an install without the file
 supports neither half of.
 
-**`flycast` was the second and no longer is.** It wrote `dreamcast/reicast/states` against a
-declared `dreamcast/flycast/sstates` on 8.2.0; RetroBat 8.2.1 fixed that
-(`emulatorlauncher#1336`) by pointing the save-state watcher at the directory Flycast really
-writes. Confirmed by hand, three runs: the state lands in both, same bytes, same millisecond,
+**`flycast` writes elsewhere and is still covered by its declaration.** It writes
+`dreamcast/reicast/states`, and RetroBat's save-state watcher mirrors that into the declared
+`dreamcast/flycast/sstates` (`emulatorlauncher#1336`). Confirmed by hand, three runs: the state lands in both, same bytes, same millisecond,
 live. Flycast still writes `reicast/states` first and `emu.cfg`'s `Dreamcast.SavestatePath`
-still names it, so **the declaration became usable without the template moving**. Re-run
+still names it, so **the declaration is usable although the template names another path**. Re-run
 `tools/m0-probes/probe2-flycast-mirror.ps1` if that ever looks doubtful; a changelog line is
 not a measurement, which is why this one was driven.
 

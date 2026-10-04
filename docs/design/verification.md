@@ -28,8 +28,9 @@ read-when: Adding a test suite, deciding what a change must be tested against, o
 - **Scale simulation:** run sync-set resolution and gamelist generation against a
   synthetic 100k-ROM catalog fixture and assert bounded memory and bounded request count.
 - **Portability:** a test that relocates a populated install (different root path,
-  simulating a drive-letter change) and asserts the next sync is a clean no-op. Add a
-  static check that fails the build if any absolute path reaches the database, and a
+  simulating a drive-letter change) and asserts the next sync is a clean no-op. Keeping an
+  absolute path out of the database takes three layers, none a static check
+  ([local store](../architecture/local-store.md#no-column-ever-holds-an-absolute-path)). Add a
   FAT32-constraint test for the 4 GB ceiling and coarse mtime handling.
 - **Integration against a live RomM:** run one locally per `DEVELOPER_SETUP.md` and
   exercise pair → resolve set → pull → negotiate → upload → complete end to end. Assert

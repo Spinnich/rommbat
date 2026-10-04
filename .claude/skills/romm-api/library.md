@@ -60,10 +60,9 @@ Two consequences for anything verifying a transfer:
   a plausible story.
 
 **Verify with md5 and nothing else.** Every successful download is hashed; the size test is a
-fast rejection in front of it. RomMBat used to compute md5, sha1 and crc32 in one pass and
-compare only md5, or sha1 where the server published no md5. Measured across **1,616 rom rows**
+fast rejection in front of it. Measured across **1,616 rom rows**
 from three platforms of a live library, **not one carries a sha1 without also carrying an md5**:
-RomM hashes a file once and sets every hash column or none, so the sha1 comparison served
+RomM hashes a file once and sets every hash column or none, so a sha1 comparison would serve
 nothing. Confirmed over every platform with `tools/romm-5.3-probes/r7-hash-coverage.py`
 (RB-257): 94,472 single-file rows, all three set on 99.4% and all three `''` on 0.6%.
 Test for blank, never for null, because the server never sends null here. crc32 was never compared anywhere at all.
@@ -207,7 +206,7 @@ columns for that reason.
   parameter would be omitted and the query would match the entire library, which reads as a
   picked set resolving to everything.
 
-  The way round it is per-id fetches, at the ~0.15 s each M4 measured, and only on a device the
+  The way round it is per-id fetches, measured at ~0.15 s each, and only on a device the
   set roamed to: the device that did the picking already has every field the membership needs on
   the browse row it was looking at. Fetch one at a time, drop a 404 as ordinary drift, and stop
   on a 401 because every remaining fetch would send the same refused token. **Drop the 404 and
@@ -215,11 +214,9 @@ columns for that reason.
   so counting them as deletions departs the whole set on one bad minute, and the resolution comes
   out complete while it does it.
 
-  **`GetAuthenticatedAsync` folded 404 into `ServerError` until 7b-2c**, so for any read going
-  through it that instruction could not be followed: `RomMResponseStatus.NotFound` existed and
-  only the download and media paths, which classify their own responses, ever produced it. If a
-  new caller wants to tell drift from failure, check the arm is there before writing the branch
-  that depends on it.
+  **`GetAuthenticatedAsync` answers a 404 as `RomMResponseStatus.NotFound`**, never as
+  `ServerError`, so any read going through it can tell drift from failure. A caller that
+  classifies its own responses has to keep that arm too.
 
   **Read one ROM as a `RomRow`, not through the generated detail schema.** Same trap as the
   paged read: the pinned schema declares `fs_size_bytes` a bare `integer`, so a generated DTO

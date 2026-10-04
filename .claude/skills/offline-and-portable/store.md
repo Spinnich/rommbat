@@ -5,9 +5,7 @@ Part of the [offline-and-portable](SKILL.md) skill. How threads share the SQLite
 ## Offline-first
 
 - **One `SqliteConnection` is shared by every store class, and it is gated inside the process.**
-  `SqliteConnection` is not thread-safe and nothing serialised it until M7 stage 7b-2b, which is
-  the stage that made the race reachable: before it the only background work touching the store
-  was a resolve, and a sync writes from a background thread for minutes while the drawing thread
+  `SqliteConnection` is not thread-safe, and the race is reachable: a sync writes from a background thread for minutes while the drawing thread
   reads the same connection on every redraw. The symptom is not a clean exception but
   "Collection was modified" thrown out of `SqliteCommand.Dispose`, from two threads mutating one
   connection's prepared-statement list.
@@ -80,19 +78,17 @@ Part of the [offline-and-portable](SKILL.md) skill. How threads share the SQLite
 
 - **Never take `TreeLock` to find out whether it is held.** Failing to acquire is a _success_
   for a flush: it concludes another pass is draining the queue and exits, reporting `Ok`
-  (`SaveFlushService.cs:168-176`, moved out of `FlushCommand` in 7b-2b so both front ends get
-  the same answer). So anything that grabs the lock for an instant just to look at it
+  (`SaveFlushService.cs:168-176`, in Core so both front ends get the same answer). So anything that grabs the lock for an instant just to look at it
   makes a `background quit` flush starting in that instant skip the upload entirely and call it
   success, leaving the user's save in the outbox until the next quit with nothing saying why.
   **Take the lock only around work you are actually going to do**, and hold it for the whole of
   that work. To show whether a pass is running, find another way or do not show it.
 
   **Reading needs no lock at all.** The store is SQLite in WAL mode, so a reader and a writer
-  coexist. The gamepad UI is read-only through stage 7b-1 and therefore never touches the lock,
-  which a structural test asserts against the built assembly.
+  coexist. The gamepad UI never names `TreeLock`, which a structural test asserts against the built
+  assembly.
 
-  **The UI writes as of stage 7b-2a and the assertion still holds, because a Core service takes
-  the lock and the UI never names the type.** Two rules fall out, and the first is the one that
+  **The UI does write, and the assertion holds because a Core service takes the lock for it.** Two rules fall out, and the first is the one that
   looks wrong:
   - **A write to SQLite alone takes no lock.** Defining, editing or deleting a sync set, and
     setting the disk budget, are rows in a WAL database. The tree lock serialises writers of
@@ -106,10 +102,10 @@ Part of the [offline-and-portable](SKILL.md) skill. How threads share the SQLite
     than reimplementing it. **This is the pattern to copy**: never a throw, never a silent
     no-op, and never a lock taken speculatively to answer a question.
 
-  `UiTreeLockTests` carries the anti-vacuity companion as of #100: Core must still _define_
+  `UiTreeLockTests` carries the anti-vacuity companion: Core must still _define_
   `TreeLock`, or renaming it would disarm the boundary with nothing saying so.
 
-  **The flush settles this for good as of 7b-2b: it takes the lock itself and returns
+  **The flush settles this for good: it takes the lock itself and returns
   `FlushState.Skipped`.** `SaveFlushService` is one Core service that both `flush` and the sync
   screen are printers over, so the lock is acquired in exactly one place and the refusal reaches
   either front end as a value with its own sentence. Nothing outside Core needs to know the lock

@@ -56,11 +56,11 @@ writer on its slots (RM-4). Server layout (RM-10) is administration and inert he
 
 - Read the RomM version from `GET /api/heartbeat` (`SYSTEM.VERSION`) at startup and the
   RetroBat version from **`system/version.info`** in the tree.
-- **There is no `build.ini`.** M0 confirmed it does not exist anywhere in a RetroBat 8.2
-  tree. `system/version.info` is a single line carrying a channel and architecture suffix,
+- **There is no `build.ini`.** It does not exist anywhere in a RetroBat 8.2
+  tree (RB-377). `system/version.info` is a single line carrying a channel and architecture suffix,
   `8.2.1-stable-win64`, so it is not a bare semantic version and must be split on `-`
   before comparison.
-- **Both version strings can carry prerelease suffixes.** The instance M0 measured against
+- **Both version strings can carry prerelease suffixes.** A live instance has
   reported `5.1.1-beta.1`. A comparison that assumes three numeric components will throw on
   real-world values from either side.
 - Below minimum: refuse with a clear message naming both versions. Above but untested:
