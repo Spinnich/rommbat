@@ -609,8 +609,8 @@ public sealed class BrowseScreenTests : IDisposable
     [Fact]
     public async Task A_game_installed_from_browse_roams_its_pick()
     {
-        // A pick from the couch pushed nothing, where `sets add` and the resolve screen both
-        // push Device.sync_config, so the same choice persisted differently by front end. #444.
+        // A pick from the couch pushes Device.sync_config as `sets add` and the resolve screen
+        // do, so the same choice persists the same way from either front end. #444.
         using var stub = Library(1);
         stub.Content[stub.Library[0].Id] = new byte[1_024];
 

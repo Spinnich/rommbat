@@ -68,8 +68,8 @@ public sealed class GameCommandTests : IDisposable
     [Fact]
     public async Task Install_pushes_the_pick_so_it_follows_the_user()
     {
-        // `sets add` and `sets resolve` pushed Device.sync_config and a pick pushed nothing, so a
-        // game picked here reached another device only after something else pushed. #444.
+        // A pick changes the picked set's ids, so it pushes Device.sync_config as `sets add` and
+        // `sets resolve` do. #444.
         Pair(RomMScopes.DevicesRead, RomMScopes.DevicesWrite);
 
         var run = await AgentRunner.RunAgainstAsync(_tree, _stub, "game", "install", "7");
