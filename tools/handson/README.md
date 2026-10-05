@@ -61,7 +61,9 @@ The UI's keys are its desk map: `Up`, `Down`, `Left`, `Right`, `Enter` (A), `Esc
 - **During `/certify` the test is input, not processes.** The maintainer plays in the same session
   the kit drives, so ES and a game are expected. `Assert-TakeoverAllowed -WhilePlaying` refuses
   when anyone used the keyboard or mouse in the last 30 s, or an XInput pad in a 3 s sample.
-  `Send-Key` makes the keyboard and mouse check before every key. The kit's own keys do not count:
+  `Send-Key` makes the keyboard and mouse check before every key, in every pass and not only
+  `/certify`, so typing a prompt into the session the kit drives pauses it for 30 s; the Escape
+  `Stop-Game` falls back on skips it. The kit's own keys do not count:
   it records when it last sent one, in a file under `%TEMP%`, because each shell call is a new
   process. A DirectInput-only pad is not seen.
 - **A disconnected session cannot be driven.** With no RDP client attached, screenshots come back

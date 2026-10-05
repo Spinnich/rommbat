@@ -29,8 +29,9 @@ sends keys and takes screenshots; `waves.md` covers what it does not, such as an
 
 The maintainer plays this tree over RDP, in the same desktop session the kit drives, and RDP eats
 keyboard combinations. Before taking the keyboard while ES or a game runs, call
-`Assert-TakeoverAllowed -WhilePlaying`: it refuses when the keyboard, mouse or an XInput pad was
-used in the last 30 s, and `Send-Key` makes the same keyboard check before each key. A refusal
+`Assert-TakeoverAllowed -WhilePlaying`: it refuses when the keyboard or mouse was used in the
+last 30 s or an XInput pad during a 3 s sample, and `Send-Key` makes the keyboard and mouse check
+before each key it sends, in any pass. A refusal
 means the maintainer is playing; wait, or ask. Keep the RomM web player closed. Pick USA or
 English releases for anything they have to navigate.
 

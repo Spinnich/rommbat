@@ -73,7 +73,8 @@ design is in question, not the code.
 - Deploys to, pairs, syncs, resets and drives its own agent tree (`ROMMBAT_AGENT_ROOT`), to do the
   hands-on pass a change owes, `/certify` included, with `tools/handson/`. It takes the screen and
   keyboard only when EmulationStation, every emulator and RomMBat are closed, and during
-  `/certify` when nobody has touched the keyboard, mouse or a pad for 30 s. It asks otherwise.
+  `/certify` when nobody has touched the keyboard or mouse for 30 s or a pad during a 3 s sample.
+  It asks otherwise.
 - Merges on green, once review is done, a PR that is docs only, tests only, or a Dependabot patch
   or minor bump.
 

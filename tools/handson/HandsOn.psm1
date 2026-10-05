@@ -105,8 +105,8 @@ function Assert-TakeoverAllowed {
     .DESCRIPTION
         The maintainer plays on this machine over RDP, in the same session the agent drives, so
         a running ES or emulator means they may be at the pad. -WhilePlaying is /certify's form:
-        ES and an emulator may run, but nobody may have touched the keyboard, mouse or a pad
-        within -IdleSec. Otherwise ask instead.
+        ES and an emulator may run, but nobody may have touched the keyboard or mouse within
+        -IdleSec, or an XInput pad during a 3 s sample. Otherwise ask instead.
     #>
     param([switch] $WhilePlaying, [int] $IdleSec = 30)
     $state = Get-SessionState
@@ -341,7 +341,7 @@ function Stop-Game {
         $launcher.Refresh()
         if (-not $escapeSent -and (Get-Date) -gt $deadline.AddSeconds(-$TimeoutSec / 2)) {
             $window = $children | Where-Object { -not $_.HasExited -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-            if ($window) { Set-WindowFocus $window.MainWindowHandle; Send-Key Escape }
+            if ($window) { Set-WindowFocus $window.MainWindowHandle; Send-Key Escape -IdleSec 0 }
             $escapeSent = $true
         }
     }
@@ -476,7 +476,8 @@ function Send-Key {
         keybd_event with the scan code reaches DirectInput readers that ignore SendKeys
         (EmuHawk, RB-269), and an emulator needs the key held about 400 ms (passes.md). The UI
         reads the key on press, so -HoldMs 60 is enough there. It refuses while someone has
-        used the keyboard or mouse in the last -IdleSec, which the kit's own keys do not count.
+        used the keyboard or mouse in the last -IdleSec, checked before every press, and the kit's
+        own keys do not count. -IdleSec 0 skips the check, for ending a game the kit launched.
     .EXAMPLE
         Send-Key Down -Window RomMBat
         Send-Key Ctrl+F2 -Window EmuHawk
@@ -489,13 +490,13 @@ function Send-Key {
         [int] $GapMs = 250,
         [int] $IdleSec = 30
     )
-    Assert-HumanIdle -IdleSec $IdleSec
-    if ($Window) { Set-WindowFocus (Get-MainWindow $Window) }
+    if ($Window) { Assert-HumanIdle -IdleSec $IdleSec; Set-WindowFocus (Get-MainWindow $Window) }
     $vks = foreach ($part in $Key -split '\+') {
         if (-not $script:Keys.ContainsKey($part)) { throw "Unknown key '$part'. Known: $($script:Keys.Keys -join ', ')" }
         [byte]$script:Keys[$part]
     }
     for ($i = 0; $i -lt $Times; $i++) {
+        Assert-HumanIdle -IdleSec $IdleSec
         foreach ($vk in $vks) {
             $flags = if ($script:ExtendedKeys -contains $vk) { 1 } else { 0 }
             [HandsOn.Native]::keybd_event($vk, [byte][HandsOn.Native]::MapVirtualKey($vk, 0), $flags, [UIntPtr]::Zero)
