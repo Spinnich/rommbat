@@ -32,7 +32,7 @@ public enum HashScope
 /// <summary>What a recorded file is.</summary>
 /// <remarks>
 /// Media shares its <see cref="LocalFile.RomId"/> with the ROM it decorates, so one ROM can
-/// have six rows. Everything that used to assume one row per ROM now says which kind it
+/// have six rows, and nothing may assume one row per ROM: every reader says which kind it
 /// means.
 /// </remarks>
 public enum LocalFileKind
@@ -364,10 +364,10 @@ public sealed class LocalFileStore
     /// What RomMBat downloaded, in bytes, without materialising a row.
     /// </summary>
     /// <remarks>
-    /// <b>The figure the disk budget is arithmetic over.</b> Callers used to read it as
+    /// <b>The figure the disk budget is arithmetic over.</b> Not
     /// <c>List().Where(origin == Synced).Sum(...)</c>, which pulls the whole table into memory
     /// to add one column: migration 013's header puts the live install at 5,268 rows, and
-    /// interleaving artwork per game turned that from one scan per run into one per game.
+    /// interleaving artwork per game reads the figure once per game rather than once per run.
     /// Same answer, one row of results. See #111.
     /// <para>
     /// Adopted files are excluded, for the same reason they never counted: a user's own library

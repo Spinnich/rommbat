@@ -581,9 +581,9 @@ public sealed class ContentSync
     /// Which check actually ran, which is not always the one that was wanted.
     /// </summary>
     /// <remarks>
-    /// <see cref="VerifiedBy.Sha1"/> is no longer produced. It stays in the enum and in the
-    /// column's CHECK because rows written before migration 013 carry it, and a value that is
-    /// no longer written is not the same as one that was never valid.
+    /// <see cref="VerifiedBy.Sha1"/> is not produced. It stays in the enum and in the
+    /// column's CHECK because rows written before migration 013 carry it, and a value nothing
+    /// writes is not the same as one that was never valid.
     /// </remarks>
     private static VerifiedBy VerificationOf(SyncSetMember member, ContentFingerprint fingerprint) =>
         VerificationOf(member.Md5Hash, fingerprint);

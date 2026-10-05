@@ -196,13 +196,13 @@ public static class ContentHasher
         long fileBytes,
         bool describesLibraryContent)
     {
-        // MD5 alone, and the other two are gone rather than optional. It is not a security
-        // primitive here: the question is only whether two files are the same file, and md5 is
-        // what RomM publishes and what this client compares.
+        // MD5 alone, with SHA-1 and CRC-32 not computed at all rather than optional. It is not
+        // a security primitive here: the question is only whether two files are the same file,
+        // and md5 is what RomM publishes and what this client compares.
         //
-        // SHA-1 and CRC-32 were computed on every download and compared on none. Measured on a
+        // Nothing compares SHA-1 or CRC-32, so computing them is pure cost. Measured on a
         // 3.41 GB image already in the OS cache, so these are processor numbers: md5 alone runs
-        // at 594 MB/s where md5 plus sha1 runs at 338, and crc32 was on top of that. On the
+        // at 594 MB/s where md5 plus sha1 runs at 338, and crc32 is on top of that. On the
         // development box that headroom is invisible against a 34.5 MB/s download, which is the
         // wrong machine to reason from: RomMBat's target is a handheld off a cheap stick, where
         // the link can be faster and the processor several times slower.

@@ -38,7 +38,7 @@ public sealed class RomIndex
     /// Two dictionaries off one pass, because the two lookups ask different questions.
     /// <c>(folder, stem)</c> answers "which ROM is this file named after" in one hit, and folder
     /// alone answers "every ROM in this system", which the Game ID route needs and which a
-    /// prefix scan of the first dictionary used to cost O(systems x total ROMs) per scan.
+    /// prefix scan of the first dictionary would cost O(systems x total ROMs) per scan.
     /// </remarks>
     public static RomIndex Build(LocalStore store)
     {

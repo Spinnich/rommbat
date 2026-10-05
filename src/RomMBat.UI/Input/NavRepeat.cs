@@ -180,9 +180,9 @@ public sealed class NavRepeat
     /// before it acts again.
     /// </summary>
     /// <remarks>
-    /// <b>One physical press is one action, always.</b> An earlier version did the opposite and
-    /// treated anything still held as a fresh press for the new screen, reasoning that a screen
-    /// opening under a finger should still see it. That is wrong, and wrong in a way found by
+    /// <b>One physical press is one action, always.</b> The opposite rule treats anything still
+    /// held as a fresh press for the new screen, reasoning that a screen opening under a finger
+    /// should still see it. That is wrong, and wrong in a way found by
     /// using it rather than by testing it: back out of a screen while still holding B and the
     /// pop is followed immediately by a second Back on the screen underneath, which on the root
     /// screen closes RomMBat. The same shape would have typed a character on the on-screen

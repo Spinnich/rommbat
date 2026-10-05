@@ -27,10 +27,10 @@ public sealed record MediaSyncOutcome
     /// Files removed because their kind is no longer wanted.
     /// </summary>
     /// <remarks>
-    /// Turning a kind off used to stop future downloads and nothing else, so the artwork already
-    /// fetched stayed for ever with nothing able to reclaim it: measured on a real install, 1.09
-    /// GB of video on one platform and 566 MB on another. The setting means the same thing in
-    /// both directions now.
+    /// Turning a kind off means the same thing in both directions, because stopping future
+    /// downloads alone leaves the artwork already fetched there for ever with nothing able to
+    /// reclaim it: measured on a real install, 1.09 GB of video on one platform and 566 MB on
+    /// another.
     /// </remarks>
     public int Removed { get; init; }
 
@@ -376,10 +376,10 @@ public sealed class MediaSync
     /// Takes back artwork of a kind this install no longer wants.
     /// </summary>
     /// <remarks>
-    /// <b>Turning a kind off has to mean the same thing in both directions.</b> It used to stop
-    /// future downloads and nothing else, so what had already been fetched stayed for ever with
+    /// <b>Turning a kind off has to mean the same thing in both directions.</b> Stopping future
+    /// downloads and nothing else leaves what had already been fetched there for ever with
     /// nothing able to reclaim it: eviction removes whole games under budget pressure and has no
-    /// notion of a kind. Measured on a real install, that was 1.09 GB of video on one platform
+    /// notion of a kind. Measured on a real install, that is 1.09 GB of video on one platform
     /// and 566 MB on another.
     /// <para>
     /// <b>Only <see cref="FileOrigin.Synced"/>.</b> A user's own scrape sits at exactly these

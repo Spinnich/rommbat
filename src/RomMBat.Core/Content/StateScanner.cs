@@ -29,9 +29,9 @@ public sealed record StateScanOutcome
     /// <remarks>
     /// <b>The alternative is silence, and silence is the defect.</b> A name matching an
     /// emulator's template except for the width of its slot is a state that emulator really
-    /// wrote, and it used to be dropped by the same rule that passes over the <c>.txt</c>
-    /// sidecar and the screenshots. A slot outside the declared bounds is synced and was never
-    /// mentioned. See #34 and #65.
+    /// wrote, and the rule that passes over the <c>.txt</c> sidecar and the screenshots would
+    /// drop it without a word. A slot outside the declared bounds is synced, and is listed here
+    /// so that it is not synced in silence. See #34 and #65.
     /// </remarks>
     public IReadOnlyList<SaveStateNearMiss> NearMisses { get; init; } = [];
 
@@ -65,11 +65,11 @@ public sealed record StateScanOutcome
 /// unsyncable with the reason, because reading the wrong tree is worse than reading none.
 /// </para>
 /// <para>
-/// <b><c>flycast</c> used to be the other one and no longer is.</b> On RetroBat 8.2.0 it wrote
-/// <c>saves/dreamcast/reicast/states/</c> and the declared <c>flycast/sstates</c> stayed empty;
-/// 8.2.1 fixed that (<c>emulatorlauncher#1336</c>) and a hands-on pass confirmed the state is
-/// mirrored into the declared path in the same millisecond it is written natively. 8.2.1 is the
-/// minimum supported version, so the declaration is now the one to read.
+/// <b><c>flycast</c> writes its declared directory.</b> It writes
+/// <c>saves/dreamcast/reicast/states/</c> natively, and on the 8.2.1 floor
+/// (<c>emulatorlauncher#1336</c>) a hands-on pass confirmed the state is mirrored into the
+/// declared <c>flycast/sstates</c> in the same millisecond, so the declaration is the one to
+/// read.
 /// </para>
 /// </remarks>
 public sealed class StateScanner
@@ -106,16 +106,16 @@ public sealed class StateScanner
     /// trap: a client that trusts the declaration concludes the game has no states rather than
     /// concluding it is looking in the wrong place.
     /// <para>
-    /// <b><c>flycast</c> was here until RetroBat 8.2.1 and is not any more.</b> It was filed as
-    /// RetroBat-Official/emulatorlauncher#1336 and fixed by pointing RetroBat's save-state
-    /// watcher at the directory Flycast really writes. Confirmed by hand on 8.2.1 rather than
-    /// taken from the changelog, three runs of `Sega Tetris (Japan) (Rev A)` under
+    /// <b><c>flycast</c> is not here.</b> On the 8.2.1 floor RetroBat's save-state watcher
+    /// points at the directory Flycast really writes (RetroBat-Official/emulatorlauncher#1336).
+    /// Confirmed by hand on 8.2.1 rather than taken from the changelog, three runs of
+    /// `Sega Tetris (Japan) (Rev A)` under
     /// <c>tools/m0-probes/probe2-flycast-mirror.ps1</c>: the state lands in both
     /// <c>reicast/states</c> and the declared <c>flycast/sstates</c>, same bytes, same
     /// millisecond, while the emulator is still running. What makes Dreamcast states sync is
     /// 8.2.1 populating the declared directory, which <see cref="Scan"/> already walks; this
-    /// registry documents the trap rather than gating the scan, so the entry coming out
-    /// records that the declaration became usable.
+    /// registry documents the trap rather than gating the scan, so an emulator whose
+    /// declaration is usable has no entry.
     /// </para>
     /// </remarks>
     public static IReadOnlyDictionary<string, string> WrongDeclaredDirectories { get; } =

@@ -110,8 +110,8 @@ public sealed class StatusCommandTests
     {
         // #211. A captive portal's login page answers the heartbeat 200, and so would a newer
         // RomM whose heartbeat moved. The probe throws RomMApiException for a body it cannot
-        // read, and status used to leave the process on it, before the playtime block's own
-        // catch was ever reached.
+        // read, and uncaught it leaves the process before the playtime block's own catch is
+        // ever reached.
         using var server = CannedRomMServer.HeartbeatAnswering(
             "<html><body>Sign in to the hotel Wi-Fi</body></html>",
             "text/html");

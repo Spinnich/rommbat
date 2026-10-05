@@ -472,9 +472,9 @@ public sealed class MediaSyncTests : IDisposable
     [Fact]
     public async Task Artwork_of_a_kind_that_has_been_turned_off_is_taken_back()
     {
-        // Turning a kind off used to stop future downloads and nothing else, so what had already
-        // been fetched stayed for ever: eviction removes whole games under budget pressure and
-        // has no notion of a kind. Measured on a real install, 1.09 GB of video on one platform.
+        // Stopping future downloads and nothing else would leave what had already been fetched
+        // there for ever: eviction removes whole games under budget pressure and has no notion
+        // of a kind. Measured on a real install, 1.09 GB of video on one platform.
         using var stub = Library(1);
         using var store = LocalStore.Open(_tree.Install());
 

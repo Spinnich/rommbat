@@ -151,10 +151,10 @@ public sealed class PartialSweep
 
     /// <summary>Where the partials live, relative to the RetroBat root.</summary>
     /// <remarks>
-    /// <see cref="RetroBatInstall.PartialDirectory"/>, which every producer resolves to. This
-    /// class used to build the path itself, and <see cref="Plan"/> answers an empty plan for a
-    /// directory that is not there, so a producer moving would have made the sweep report a
-    /// clean install over a directory full of dead transfers rather than fail.
+    /// <see cref="RetroBatInstall.PartialDirectory"/>, which every producer resolves to, rather
+    /// than a path of this class's own. <see cref="Plan"/> answers an empty plan for a
+    /// directory that is not there, so a copy that drifted from the producers' would make the
+    /// sweep report a clean install over a directory full of dead transfers rather than fail.
     /// </remarks>
     public static RelativePath Directory => RetroBatInstall.PartialDirectory;
 

@@ -74,11 +74,11 @@ public sealed record GameSyncOutcome
 /// stopped, or lost the server. That sentence is what this type exists for, and the two halves
 /// of it are the interleave and the rollback.
 /// <para>
-/// <b>Artwork is fetched per game, straight after that game's ROMs, and that is a fix rather
-/// than a tidy-up.</b> Media used to be one pass after every ROM of every set, so
-/// <c>ContentPlanner.Plan</c> filled the cap with ROMs and <c>MediaSync</c> then found no room
-/// at all: the games landed in EmulationStation with no covers, and no later run repaired it,
-/// because nothing frees space by itself. Interleaving makes a budget that runs out truncate
+/// <b>Artwork is fetched per game, straight after that game's ROMs, and that is load-bearing
+/// rather than tidy.</b> As one pass after every ROM of every set, media would find
+/// <c>ContentPlanner.Plan</c> had filled the cap with ROMs and leave no room at all: the games
+/// land in EmulationStation with no covers, and no later run repairs it, because nothing
+/// frees space by itself. Interleaving makes a budget that runs out truncate
 /// the tail of the library instead of stripping the artwork off all of it. Nothing is reserved
 /// for artwork, because the size is free at fetch time and unknowable at plan time: RomM
 /// publishes no media size on the rom row, so a reservation would need one HEAD per kind per

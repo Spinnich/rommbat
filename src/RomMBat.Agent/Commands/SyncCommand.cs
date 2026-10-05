@@ -135,12 +135,11 @@ internal static class SyncCommand
     }
 
     /// <summary>
-    /// Turns each reported pass into the lines the console has always written.
+    /// Turns each reported pass into the console's lines.
     /// </summary>
     /// <remarks>
-    /// Every method here is a pure function of the event it is given. The ordering that used
-    /// to come from statement order in one long method now comes from the order the service
-    /// reports in, which is what makes a swapped pass observable.
+    /// Every method here is a pure function of the event it is given. The ordering comes from
+    /// the order the service reports in, which is what makes a swapped pass observable.
     /// </remarks>
     internal static class Printer
     {

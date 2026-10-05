@@ -438,12 +438,12 @@ public sealed class BrowseScreenTests : IDisposable
     // ------------------------------------------------------------------ what a row says
 
     /// <summary>
-    /// A game in two folders names both, which is what made the doubling invisible before.
+    /// A game in two folders names both, so the doubling is visible.
     /// </summary>
     /// <remarks>
-    /// One ROM in two folders is legitimate and costs twice the room. The crash it used to cause
-    /// is fixed in <c>EvictionPlanner</c>; this is the other half of the finding, which is that
-    /// nobody could see why the bytes had doubled.
+    /// One ROM in two folders is legitimate and costs twice the room. That the planner survives
+    /// it is <c>TwoFolderEvictionTests</c>; this is the other half of the finding, which is that
+    /// a row naming one folder gives nobody a way to see why the bytes had doubled.
     /// </remarks>
     [Fact]
     public async Task A_game_in_two_folders_names_both_on_its_row()
@@ -736,8 +736,8 @@ public sealed class BrowseScreenTests : IDisposable
     /// </summary>
     /// <remarks>
     /// The preview holds the report it took before the removal, and it goes on offering to take
-    /// the game off because that report still names something to remove. Same defect the set
-    /// side fixed, reintroduced here by adding a screen above the preview.
+    /// the game off because that report still names something to remove. The set side has the
+    /// same shape, with a screen above the preview.
     /// </remarks>
     [Fact]
     public async Task Taking_a_game_off_lands_back_on_its_detail_screen()

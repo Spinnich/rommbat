@@ -130,17 +130,16 @@ public interface IScreen
 /// A screen drawn as a windowed list of rows.
 /// </summary>
 /// <remarks>
-/// <b>Because the number of rows and the height of one are the same decision, and they were
-/// being made in two files.</b> The count lived in a view model and the height in the renderer,
-/// so a screen could compute a window of <see cref="Screens.ListWindow.Capacity"/> and be drawn
-/// at the reading height, overflowing the display by exactly the margin
-/// <see cref="Screens.ListWindow.ReadingCapacity"/> exists to avoid. A hands-on round found that
-/// on the problems list and it was fixed at that one instance; browse then reintroduced it,
-/// which is what a rule enforced at an instance rather than at its class does.
+/// <b>Because the number of rows and the height of one are the same decision, and it belongs
+/// in one file.</b> With the count in a view model and the height in the renderer, a screen
+/// can compute a window of <see cref="Screens.ListWindow.Capacity"/> and be drawn at the
+/// reading height, overflowing the display by exactly the margin
+/// <see cref="Screens.ListWindow.ReadingCapacity"/> exists to avoid. A rule enforced at one
+/// instance rather than at its class is reintroduced by the next screen.
 /// <para>
 /// A screen answers <see cref="Reading"/> once and <c>ListWindow.CapacityFor</c> follows from
-/// it, so the renderer asks rather than deciding. A pane of facts is no longer drawn at a
-/// uniform height either: its block is bounded by <c>ListWindow.ContentBudget</c>, so there is
+/// it, so the renderer asks rather than deciding. A pane of facts is not drawn at a uniform
+/// height either: its block is bounded by <c>ListWindow.ContentBudget</c>, so there is
 /// no second number left to disagree with the first.
 /// </para>
 /// <para>

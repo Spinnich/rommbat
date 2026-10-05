@@ -59,8 +59,8 @@ internal static class BiosCommand
             folders = planner.FoldersNeedingBios();
 
             // Falling through to Plan([]) answers "no BIOS is required for these systems" over
-            // the empty set, which is the same false clean bill of health a mistyped positional
-            // used to produce, in the path Validate cannot cover. Two different installs land
+            // the empty set: a false clean bill of health, the one Validate refuses a mistyped
+            // positional for, in the path Validate cannot cover. Two different installs land
             // here, though, and one sentence cannot serve both: FoldersNeedingBios() filters by
             // the manifest, so it is empty both for an install that has synced nothing and for
             // one whose systems need no firmware. The second is the ordinary case, since only
@@ -195,8 +195,8 @@ internal static class BiosCommand
         }
 
         // A real system RetroBat asks no firmware for. Said explicitly, because the alternative
-        // is the same "no BIOS is required" line a mistyped name used to produce, and a user who
-        // cannot tell those apart cannot trust either.
+        // is the same "no BIOS is required" line a mistyped name would get if the check above
+        // let it through, and a user who cannot tell those apart cannot trust either.
         var needNothing = folders
             .Where(folder => BiosManifest.Bundled.For(folder).Count == 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
