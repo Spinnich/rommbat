@@ -110,7 +110,9 @@ against 7 systems**:
 `nes` is 9 of 9, `megadrive` 11 of 11, `gba` 9 of 10, `gb` 14 of 14, `gbc` 12 of 12, `snes` 15 of 15 and `mastersystem` 10 of 10 because RomMBat's bundled supplement
 declares the emulators `es_savestates.cfg` leaves out there: `mednafen`, `mesen` and `ares` on
 `nes`, `mednafen`, `ares` and `kega-fusion`'s three rows on `megadrive`, and `mgba`, `mednafen`,
-`mesen` and `ares` on `gba`, the same four on `gb` and on `gbc`, `mednafen`, `mesen`, `snes9x` and `ares` on `snes`, and `mednafen`, `mesen`, `ares` and both `kega-fusion` rows on `mastersystem`. `nosgba` writes states nowhere RomMBat was shown. Every other system counts
+`mesen` and `ares` on `gba`, the same four on `gb` and on `gbc`, `mednafen`, `mesen`, `snes9x` and `ares` on `snes`, and `mednafen`, `mesen`, `ares` and both `kega-fusion` rows on `mastersystem`. `nosgba` writes states nowhere RomMBat was shown. Beyond wave 1 the supplement
+declares `mednafen` on `psx`, `mednafen`, `mesen` and `ares` on `pcengine`, `ares`, `simple64` and
+`project64` on `n64`, and `mednafen` and `ares` on `gamegear`; every other system counts
 `es_savestates.cfg` alone.
 
 **Steps 1, 2, 3, 7, 8 and 9 are per system and carry across the rows with a note.** Only 4, 5
@@ -207,7 +209,7 @@ work. All three counts are against the 51 systems above.
   emulator writes**: three of those were driven and all three wrote states anyway, so step 5 records the
   path as well as the absence.
 
-## Ninety-one rows are certified, and the gate is open
+## Ninety-six rows are certified, and the gate is open
 
 A pass needs the framework working end to end on a single platform, and a person at the
 machine launching real games through the gamepad UI. Both hold: a game has been launched from
@@ -288,13 +290,15 @@ steps, and each record's "Where each row stands" states the result.
 
 **`n64` follows: all nine of its rows certified at RomM `5.3.1`**, on 2026-09-27 both `libretro` cores, RMG, simple64, Project64, ares and both BizHawk cores, and on 2026-09-29 `gopher64`, with each row's Controller Pak option driven at step 6. Every row but the `libretro` two needed code: a battery rule for ares, one for RMG and simple64 together, which name their shared file with mupen64plus's title, and one for Project64's directory per game; `n64` added to BizHawk's rule; and state declarations for ares, simple64 and Project64, the last two joined to their ROM through the battery binding. `gopher64`'s battery saves are outside `saves/`, where a rule anchored at the RetroBat root reads them (#239). RB-336 to RB-341; [n64/](n64/index.md) is the record.
 
-**Read all nine as narrowly as they are written.** They certify ninety-one
-`(system, emulator, core)` rows on one install, wave 1's seventy-five, `psx`'s seven and `n64`'s nine, each at the
+**Wave 4 has begun with `gamegear`: five of its seven rows certified at RomM `5.3.1`** on 2026-10-05, both `libretro` cores that boot the library, mednafen, ares and BizHawk's SMSHawk, with no firmware needed by any row. The three standalone rows needed a battery rule each and `mednafen` and `ares` a state declaration, and because ares writes 32 KB of `0xFF` for every cartridge, the scanner now passes over a battery file that is entirely `0xFF` (#453, RB-408, RB-409). `libretro`/`fbneo` refuses the No-Intro names, and `jgenesis` plays a Game Gear game to a black screen because RetroBat launches it as a Master System (RB-410, RB-412). [gamegear/](gamegear/index.md) is the record.
+
+**Read all ten as narrowly as they are written.** They certify ninety-six
+`(system, emulator, core)` rows on one install, wave 1's seventy-five, `psx`'s seven, `n64`'s nine and `gamegear`'s five, each at the
 floors its record names. They certify none of those
 emulators on any other system: every rule and declaration the non-`libretro` rows needed is scoped
 to the systems it was measured on. [nes/](nes/index.md), [megadrive/](megadrive/index.md),
 [gba/](gba/index.md), [gb/](gb/index.md), [gbc/](gbc/index.md), [snes/](snes/index.md), [mastersystem/](mastersystem/index.md),
-[psx/](psx/index.md) and [n64/](n64/index.md) are the records, gaps included.
+[psx/](psx/index.md), [n64/](n64/index.md) and [gamegear/](gamegear/index.md) are the records, gaps included.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps. A change to save logic
 owes a hands-on pass of the shape it touches, through EmulationStation and back on every emulator

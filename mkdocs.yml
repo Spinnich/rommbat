@@ -48,6 +48,7 @@ nav:
       - Game Boy Color: platforms/gbc.md
       - Game Boy Advance: platforms/gba.md
       - Master System: platforms/mastersystem.md
+      - Game Gear: platforms/gamegear.md
       - Mega Drive and Genesis: platforms/megadrive.md
       - PlayStation: platforms/psx.md
   - Reference:

@@ -120,6 +120,18 @@ with no mirror**, as gopher64 does (341). A battery rule can read it there with 
 needs a migration admitting the folder to `local_save` (#239); until one lands, the row is recorded,
 not certified.
 
+**`gamegear` opens wave 4: five of its seven rows certified at `5.3.1` on 2026-10-05**, in one
+morning, with `docs/platforms/gamegear/` the record. **A game that autosaves makes the best test
+game**: Defenders of Oasis writes its SRAM as it is played, so each row's save landed within seconds,
+and its Continue showed every row reading the last one's progress, which a game like Golden Axe
+Warrior cannot (RB-326). **Look at the boot screenshot, not only the boot write**: jgenesis wrote a
+normal save at boot while the screen stayed black, because RetroBat launches it as a Master System
+(RB-410), and the pass learned it only when the maintainer sat down. **An emulator that writes a
+save for every cartridge needs the erased-file rule**: ares writes 32 KB of `0xFF` for a game with no
+battery (RB-408), so boot a battery-less game under each row too. **The server can already hold a
+sibling dump's boot write**: another client's 285 B save for the Virtual Console Defenders of Oasis
+came down at the first ES start, though nobody here played that rom.
+
 **Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next

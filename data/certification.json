@@ -782,6 +782,64 @@
       "status": "certified",
       "romm": "5.3.1",
       "retrobat": "8.2.1"
+    },
+    {
+      "system": "gamegear",
+      "emulator": "libretro",
+      "core": "genesis_plus_gx",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gamegear",
+      "emulator": "libretro",
+      "core": "picodrive",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gamegear",
+      "emulator": "libretro",
+      "core": "fbneo",
+      "status": "not-certified",
+      "note": "Boots no game named the No-Intro way, because FBNeo picks its driver from the file name",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gamegear",
+      "emulator": "mednafen",
+      "core": "gg",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gamegear",
+      "emulator": "ares",
+      "core": "GameGear",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gamegear",
+      "emulator": "bizhawk",
+      "core": "SMSHawk",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gamegear",
+      "emulator": "jgenesis",
+      "core": null,
+      "status": "not-certified",
+      "note": "RetroBat launches it as a Master System, so a Game Gear game plays to a black screen",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
     }
   ]
 }
