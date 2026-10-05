@@ -778,7 +778,7 @@ public sealed class SetEditorViewModel : IScreen
 
         if (!IsNew)
         {
-            // The folder, and a filter set's filter. Caps are not shown here any more, and an
+            // The folder, and a filter set's filter. Caps are not shown here, and an
             // unset property on SetEdit means "leave it alone", so a set given a cap from the
             // console keeps it. Sending the cleared values a hidden row would have produced
             // would silently wipe somebody's limit for opening a screen.

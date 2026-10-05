@@ -743,7 +743,8 @@ public sealed class SyncScreenTests : IDisposable
         };
 
         // A pane windows to what its rows actually take, not to a fixed count: these carry a
-        // one-word detail, so many more of them fit than the old three-line reserve allowed.
+        // one-word detail, so many more of them fit than a three-line reserve per row would
+        // allow.
         var expected = ListWindow.ScrolledByHeight(
             0,
             [.. screen.Rows.Select(row => ListWindow.FactHeight(row.Detail))],
