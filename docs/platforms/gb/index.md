@@ -179,8 +179,9 @@ before a flush could send it.
 
 **A boot write on `gb` is not recognisably blank.** On `gba` every one was uniform `0xFF`. Here
 Mesen randomises uninitialised RAM, and Pokemon's first generation decompresses sprites through
-cartridge RAM, so a boot can leave real-looking bytes. RB-287 already says only a baseline
-separates a boot write from a save; `gb` shows a fill test would not even be a heuristic. RB-294.
+cartridge RAM, so a boot can leave real-looking bytes. The scanner passes over a file of nothing
+but `0xFF` (RB-408), which covers the rows above that write one, and only a baseline separates
+the rest from a save. RB-294.
 
 ## A cartridge with a clock: Pokemon Silver on `gb`
 
