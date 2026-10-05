@@ -197,13 +197,13 @@ ares also wrote `<rom>.dram`, 512 B, beside a 2,048 B `.ram`: the DSP's data RAM
 listed and moved aside. No one saved in these launches, so they measure what each row writes and
 names, not a save driven through a sync.
 
-| Game                                     | Rom    | Covers                                            | Save    |
-| ---------------------------------------- | ------ | ------------------------------------------------- | ------- |
-| Super Mario Kart (USA)                   | 166868 | DSP-1, HiROM                                      | 2 KB    |
-| Kirby's Dream Land 3 (USA)               | 166168 | SA-1, its BW-RAM as the save                      | 32 KB   |
-| Super Mario World 2 - Yoshi's Island     | 166870 | Super FX, its RAM declared in the expansion byte  | 32 KB   |
-| New Horizons (USA)                       | 166381 | HiROM with 32 KB of SRAM                          | 32 KB   |
-| Super Shell Monsters Story II [T-En]     | 191007 | S-RTC real-time clock, ExHiROM                    | 8 KB    |
+| Game                                 | Rom    | Covers                                           | Save  |
+| ------------------------------------ | ------ | ------------------------------------------------ | ----- |
+| Super Mario Kart (USA)               | 166868 | DSP-1, HiROM                                     | 2 KB  |
+| Kirby's Dream Land 3 (USA)           | 166168 | SA-1, its BW-RAM as the save                     | 32 KB |
+| Super Mario World 2 - Yoshi's Island | 166870 | Super FX, its RAM declared in the expansion byte | 32 KB |
+| New Horizons (USA)                   | 166381 | HiROM with 32 KB of SRAM                         | 32 KB |
+| Super Shell Monsters Story II [T-En] | 191007 | S-RTC real-time clock, ExHiROM                   | 8 KB  |
 
 Yoshi's Island is the `(USA) (Rev 1)` release, and Super Shell Monsters Story II is Daikaijuu
 Monogatari II with Dynamic Designs' v0.90 translation, from RomM's second `snes` platform. The
