@@ -140,11 +140,12 @@ and 6 are redone per row, and they collapse into four families rather than 81 se
   `saves` says so, which is the reporting half: a directory whose emulator the file does not name
   is reported under `no_state_declaration` rather than folded into the row that promises save
   states sync. **The fix is per system**: `data/retrobat/es_savestates.supplement.xml` declares
-  `mednafen`, `mesen` and `ares` on `nes` and `mednafen`, `ares` and `kega-fusion` on
-  `megadrive`, each where it was driven, and a row in this family anywhere else needs its own
+  each row in this family on the systems it was driven on, and a row anywhere else needs its own
   supplement entry and battery rule, from its own pass, before steps 4 and 5 can pass. **The
   layout is the emulator's per system, not per emulator**: ares keeps `nes` under `ares/Famicom/`
-  and `megadrive` under `ares/Mega Drive/`, so the supplement carries one entry per system.
+  and `megadrive` under `ares/Mega Drive/`, so the supplement carries one entry per directory
+  name. An extension can share its parent's: ares writes `sega32x` states under
+  `ares/Mega Drive/` too, so that entry names both systems (RB-413).
 
   **Check the declaration by emulator name, not by save-directory name**, before recording a row
   as declaring none. RetroBat does not spell the two the same way everywhere: Dolphin is declared
