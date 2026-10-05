@@ -119,15 +119,14 @@ using it requires no change to the user's configuration.
 | `/caps`                   | GET    | `{"Version": "8.2.0-stable-win64", ...}`       |
 | `/quit`                   | GET    | Close ES. RomMBat does not call it             |
 | `/emukill`                | GET    | Kill the running emulator                      |
-| `/launch`                 | POST   | **Does nothing.** 200 and no launch; see below |
+| `/launch`                 | POST   | Starts the game whose path is the body         |
 
 `POST /reloadgames` is 404; the verb is GET. Treat the whole API as best-effort: it only
 answers while ES is running, so every call needs a short timeout and a no-ES fallback.
 
 **A 200 from this API is never evidence the action happened**, on any route that does
-something. `/quit` and `/emukill` do nothing while a game is running; `/reloadgames` has no
-effect while one runs, and answers in 1-2 ms before doing the work either way; and **`POST
-/launch` does not launch anything at all**.
+something. `/quit` and `/emukill` do nothing while a game is running, and `/reloadgames` has no
+effect while one runs and answers in 1-2 ms before doing the work either way.
 
 **"Ignored" is the wrong word for `/reloadgames`, and the difference decides a design.** It is
 **deferred, not discarded**: a reload issued while an app is in front of ES is queued and
