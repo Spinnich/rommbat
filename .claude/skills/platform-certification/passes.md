@@ -132,6 +132,19 @@ battery (RB-408), so boot a battery-less game under each row too. **The server c
 sibling dump's boot write**: another client's 285 B save for the Virtual Console Defenders of Oasis
 came down at the first ES start, though nobody here played that rom.
 
+**`sega32x` opens wave 6: four of its five rows certified at `5.3.1` on 2026-10-05**, with
+`docs/platforms/sega32x/` the record. **Read the save medium from the cartridge header**, the `RA`
+tag at `0x1B0`, rather than from memory: it found the library's seven SRAM games and its two Acclaim
+EEPROM ones in one pass. **Know what makes the game write, and test that before the sitting**: a new
+game in Chaotix saves nothing until the hub, and RetroArch's autosave flush writes a `.srm` 24 s after
+launch whether or not the game saved, which made a slow save look fast. **Deleting a save slot from
+the game's own menu is the fastest write there is**, seconds per row, and a row whose file stays
+byte-identical after a delete is not writing. **An extension's emulators can use the parent's
+names**: ares writes 32X states to `ares/Mega Drive/` and Kega Fusion to `saves/megadrive/`, so look
+in the parent's folders too (RB-413, RB-416). **Test every save medium the library holds**: ares
+and BizHawk keep 32X SRAM and lose its EEPROM (RB-415). **Change a pin in `gamelist.xml` only with ES
+closed**, since ES writes its own copy on exit, and the line numbers move each time it does.
+
 **Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next

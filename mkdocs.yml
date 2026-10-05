@@ -50,6 +50,7 @@ nav:
       - Master System: platforms/mastersystem.md
       - Game Gear: platforms/gamegear.md
       - Mega Drive and Genesis: platforms/megadrive.md
+      - 32X: platforms/sega32x.md
       - PlayStation: platforms/psx.md
   - Reference:
       - Command line: reference/cli.md
