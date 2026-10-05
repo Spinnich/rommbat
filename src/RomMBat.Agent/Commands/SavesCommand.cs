@@ -831,9 +831,8 @@ internal static class SavesCommand
             return ExitCode.NotPaired;
         }
 
-        // Parsed before either list is fetched, so a usage error costs no request at all. It used
-        // to run after both, which made 'saves restore notanumber' pay for a full GET /api/saves
-        // and GET /api/states before saying the word was not a number.
+        // Parsed before either list is fetched, so a usage error such as 'saves restore notanumber'
+        // costs no request at all, rather than a full GET /api/saves and GET /api/states first.
         int? romFilter = null;
         string? slotFilter = null;
 
@@ -868,7 +867,7 @@ internal static class SavesCommand
 
         // <b>A state list this device cannot read does not take the save restore down with it.</b>
         // The two are independent reads, and a token whose scopes do not cover /api/states, or a
-        // 500 on that route, would otherwise restore zero saves where it used to restore them all.
+        // 500 on that route, would otherwise turn a restore of every save into a restore of none.
         // Reported and carried, and an --apply that could not see the state half ends Partial
         // rather than Ok, because it did not do everything it was asked.
         IReadOnlyList<RestorableState> restorableStates = [];
