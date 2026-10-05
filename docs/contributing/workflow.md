@@ -71,10 +71,9 @@ design is in question, not the code.
   (`CONTRIBUTING.md`, "Labels and release notes"), and lists a label it picked for your veto.
 - Closes an issue a later commit already fixed, citing that commit.
 - Deploys to, pairs, syncs, resets and drives its own agent tree (`ROMMBAT_AGENT_ROOT`), to do the
-  hands-on pass a change owes with `tools/handson/`. It takes the screen and keyboard only when
-  EmulationStation, every emulator and RomMBat are closed, and asks otherwise.
-- During `/certify`, writes inside the test install's folders for the system being certified,
-  after copying them to `probe-output/` first.
+  hands-on pass a change owes, `/certify` included, with `tools/handson/`. It takes the screen and
+  keyboard only when EmulationStation, every emulator and RomMBat are closed, and during
+  `/certify` when nobody has touched the keyboard, mouse or a pad for 30 s. It asks otherwise.
 - Merges on green, once review is done, a PR that is docs only, tests only, or a Dependabot patch
   or minor bump.
 
@@ -101,12 +100,12 @@ commands run it.
 
 ## One-time setup
 
-The commands find both RetroBat trees in the repository-root `.env`, which git ignores, beside
-the test server and tokens:
+The commands find the agent's RetroBat tree in the repository-root `.env`, which git ignores,
+beside the test server and tokens. Every hands-on pass and every `/certify` runs there, and you
+play it over RDP:
 
 ```bash
-ROMMBAT_MAINTAINER_ROOT=R:\RetroBat      # yours, for /certify and save passes
-ROMMBAT_AGENT_ROOT=D:\retrobat-agent   # the agent's own, for every other hands-on pass
+ROMMBAT_AGENT_ROOT=D:\retrobat-agent
 ```
 
 Building the agent tree is in [the hands-on kit](../../tools/handson/README.md#the-agent-tree).

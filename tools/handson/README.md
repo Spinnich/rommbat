@@ -12,10 +12,13 @@ Test-HandsOnEnv -Gui        # one line per check, then ready or not ready
 
 ## The agent tree
 
-`ROMMBAT_AGENT_ROOT` in the main checkout's `.env` names it, beside `ROMMBAT_MAINTAINER_ROOT`, the
-maintainer's install, which this kit never touches: the stop functions act only on processes running from the agent tree, and the ES calls refuse while an ES from anywhere else runs. The tree is paired as the approver test
-account, so what it uploads stays apart from the maintainer's own saves. The agent may deploy to
-it, pair, sync, reset and drive it without asking ([workflow](../../docs/contributing/workflow.md)).
+`ROMMBAT_AGENT_ROOT` in the main checkout's `.env` names it. It is the only tree hands-on passes
+and `/certify` use, and the kit touches no other: the stop functions act only on processes
+running from the agent tree, and the ES calls refuse while an ES from anywhere else runs. The tree
+is paired as the approver test account, so what it uploads stays apart from the maintainer's own
+saves. The agent may deploy to it, pair, sync, reset and drive it without asking
+([workflow](../../docs/contributing/workflow.md)), and the maintainer plays it over RDP during
+`/certify`.
 
 Building it from scratch, after `./tools/retrobat-install.ps1 -Path D:\retrobat-pristine`:
 
@@ -44,7 +47,8 @@ Invoke-Agent sync
 | `Start-RomMBatUI`, `Stop-RomMBatUI`           | The deployed `RomMBat.exe` on the tree, standalone                                                  |
 | `Send-Key <key> [-Window <proc>] [-HoldMs n]` | `keybd_event` with the scan code. `Ctrl+F2` for a chord. The UI needs `-HoldMs 60`                  |
 | `Save-Screenshot <name> [-Window <proc>]`     | A PNG under `probe-output/handson-<date>/`, path returned for the Read tool                         |
-| `Assert-TakeoverAllowed`                      | Throws when the session is not Active or ES, an emulator or RomMBat is running                      |
+| `Assert-TakeoverAllowed [-WhilePlaying]`      | Throws when the session is not Active or ES, an emulator or RomMBat is running                      |
+| `Assert-HumanIdle [-IdleSec n] [-Pads]`       | Throws when someone used the keyboard or mouse, or with `-Pads` an XInput pad, recently             |
 
 The UI's keys are its desk map: `Up`, `Down`, `Left`, `Right`, `Enter` (A), `Escape` (B),
 `Backspace` (L1), `Tab` (X), `F5` (Start).
@@ -54,6 +58,12 @@ The UI's keys are its desk map: `Up`, `Down`, `Left`, `Right`, `Enter` (A), `Esc
 - **The screen is taken only when it is free.** `Start-ES` and `Start-RomMBatUI` refuse while ES,
   `emulatorLauncher` or RomMBat is running, from any tree, because the maintainer may be playing
   over RDP on this machine. Ask them instead.
+- **During `/certify` the test is input, not processes.** The maintainer plays in the same session
+  the kit drives, so ES and a game are expected. `Assert-TakeoverAllowed -WhilePlaying` refuses
+  when anyone used the keyboard or mouse in the last 30 s, or an XInput pad in a 3 s sample.
+  `Send-Key` makes the keyboard and mouse check before every key. The kit's own keys do not count:
+  it records when it last sent one, in a file under `%TEMP%`, because each shell call is a new
+  process. A DirectInput-only pad is not seen.
 - **A disconnected session cannot be driven.** With no RDP client attached, screenshots come back
   black and keys go nowhere. `Test-HandsOnEnv -Gui` reports the state; record the GUI half as
   unproven rather than sending keys blind.
