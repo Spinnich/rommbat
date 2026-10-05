@@ -144,7 +144,7 @@ before a flush could send it. RB-409 holds the detail.
 | `bizhawk`/`SMSHawk`          | `bizhawk/Defenders of Oasis (UE).SaveRAM`, 8,192 B        |
 | `jgenesis`                   | `jgenesis/gg/<rom>.sav`, 32,768 B, the upper 24 KB `0x00` |
 
-Every one holds the game's `Backup Ver0.84` header at `0x10E`. **ares also writes 32,768 B of `0xFF`
+Every one holds the game's header from `0x100`, its ASCII `Backup Ver0.84` at `0x10E`. **ares also writes 32,768 B of `0xFF`
 for a cartridge with no battery**, as Sonic Chaos and Castle of Illusion showed, which the scanner now
 passes over as erased (RB-408). **mednafen's md5 is of the whole `.gg` inside the zip.**
 
