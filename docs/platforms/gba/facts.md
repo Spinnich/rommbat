@@ -17,7 +17,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../../upstrea
 
 ## RB-287. A `gba` boot writes a battery save on every row that got past boot and closed
 
-Each wrote 131,072 B of `0xFF` for Emerald, md5 `41d2e2c0...`, an unwritten 128 KB flash chip; BizHawk's is 131,088 B. That is RB-404 on a second system: no property of the file separates it from a save, only a baseline does. All were moved out of the tree before a flush
+Each wrote 131,072 B of `0xFF` for Emerald, md5 `41d2e2c0...`, an unwritten 128 KB flash chip; BizHawk's is 131,088 B. The scanner passes over a battery file of nothing but `0xFF` as erased (RB-408), which covers these. A boot write holding anything else is RB-404 on a second system: no property of the file separates it from a save, only a baseline does. All were moved out of the tree before a flush
 
 ## RB-288. Three `gba` emulators meet on the loose `.sav` before a save is made, and two keep Emerald's clock in a second file
 

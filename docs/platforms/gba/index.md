@@ -174,8 +174,9 @@ battery save before one is made, and because every one of them wrote a file.
 | `nosgba`                  | nothing under `saves/`; it has its own `emulators/nosgba/BATTERY/`      |           |
 
 **Every 131,072 B file is the same 128 KB of `0xFF`**, md5 `41d2e2c0...`: an unwritten flash
-chip, flushed at boot: the boot-time write of RB-404 on a second system, and the reason a first
-save seen with no baseline is not evidence of play. All of them were moved to
+chip, flushed at boot, which the scanner passes over as erased (RB-408). A boot write holding
+anything else is RB-404's, and the reason a first save seen with no baseline is not evidence of
+play. All of them were moved to
 `R:\rommbat-evidence\gba\` before any flush could send them. RB-287.
 
 **Three rows share the loose `<rom>.sav`**: `mgba` and `mesen` name it after the ROM, and

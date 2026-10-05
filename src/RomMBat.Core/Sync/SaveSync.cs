@@ -970,11 +970,12 @@ public sealed class SaveSync
 
             // The scan above rebuilt the store from the tree, so a row missing there should mean
             // a file missing here. Checked anyway, because restoring over a file nobody asked
-            // about is the one outcome this feature must never produce. A blank memory card is
-            // not such a file: an emulator writes one on a first boot before any restore could
-            // run, and the write copies it aside like anything else it replaces.
+            // about is the one outcome this feature must never produce. A blank memory card or an
+            // erased battery file is not such a file: an emulator writes one on a first boot
+            // before any restore could run, and the write copies it aside like anything else it
+            // replaces.
             var existing = _install.Resolve(destination);
-            if (File.Exists(existing) && !Ps1MemoryCard.IsBlank(existing))
+            if (File.Exists(existing) && !Ps1MemoryCard.IsBlank(existing) && !ErasedSave.IsErased(existing))
             {
                 continue;
             }
@@ -1630,6 +1631,16 @@ public sealed class SaveSync
                     "the server holds a formatted memory card with no save on it, which an emulator "
                         + "writes on exit whether or not the game saved. Delete that save on the server "
                         + "to stop it being offered.");
+            }
+
+            // The same for a battery file of nothing but 0xFF, which ares writes for every
+            // cartridge (#453).
+            if (ErasedSave.IsErased(part))
+            {
+                SafeDelete(part);
+                return (0, null, null,
+                    "the server holds a save of nothing but 0xFF, which is save memory no game wrote. "
+                        + "Delete that save on the server to stop it being offered.");
             }
 
             var absolute = _install.Resolve(destination);

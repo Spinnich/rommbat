@@ -99,6 +99,18 @@ public sealed class MednafenRomHashTests : IDisposable
     }
 
     [Fact]
+    public void A_zipped_gamegear_rom_hashes_the_whole_gg_inside()
+    {
+        // Measured on Defenders of Oasis (USA, Europe): 8430050c... is the .gg's own md5, on
+        // mednafen's .sav and on its states (#453).
+        var body = Body("TMR SEGA");
+        var zip = Zip("Game (USA).zip", ("Game (USA).gg", body));
+
+        Assert.Equal(Md5(body), MednafenRomHash.Of(zip, "gamegear"));
+        Assert.Null(MednafenRomHash.Of(Zip("Other (USA).zip", ("Other (USA).bin", body)), "gamegear"));
+    }
+
+    [Fact]
     public void An_smc_answers_null_because_it_can_carry_a_copier_header_nobody_measured()
     {
         Assert.Null(MednafenRomHash.Of(Zip("Game (USA).zip", ("Game (USA).smc", Body("x"))), "snes"));

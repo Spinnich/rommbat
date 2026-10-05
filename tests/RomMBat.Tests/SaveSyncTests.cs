@@ -3356,6 +3356,52 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task An_erased_battery_file_in_the_tree_does_not_stop_a_restore()
+    {
+        // ares writes 32 KB of 0xFF on its first launch of any cartridge (#453), which must not
+        // stand in for the save the server holds.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gamegear", "Defenders of Oasis (USA, Europe)", ".zip", ".srm", "placeholder");
+        var ram = fixture.Resolve("saves/gamegear/Defenders of Oasis (USA, Europe).srm");
+        File.WriteAllBytes(ram, ErasedSaveTests.ErasedRam());
+        fixture.Scan();
+        Assert.Empty(fixture.Store.Saves.List());
+
+        fixture.SeedServerSave(7, "libretro:battery", "Defenders of Oasis (USA, Europe)", "srm", "the real save");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var outcome = await fixture.RestoreAsync([Assert.Single(findings.Restorable)], TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal("the real save", File.ReadAllText(ram));
+        var aside = Assert.Single(Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value)));
+        Assert.Equal(ErasedSaveTests.ErasedRam(), File.ReadAllBytes(aside));
+    }
+
+    [Fact]
+    public async Task An_erased_battery_file_the_server_holds_is_refused_rather_than_restored()
+    {
+        // The scan passes over one, so a slot holding one reads as empty and would fetch the same
+        // erased file back on every restore.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gamegear", "Sonic Chaos (USA, Europe, Brazil) (En)", ".zip", ".srm", "placeholder");
+        File.Delete(fixture.Resolve("saves/gamegear/Sonic Chaos (USA, Europe, Brazil) (En).srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Sonic Chaos (USA, Europe, Brazil) (En)", "srm", "placeholder");
+        fixture.Stub.Saves[100] = fixture.Stub.Saves[100] with { Bytes = ErasedSaveTests.ErasedRam() };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var outcome = await fixture.RestoreAsync(findings.Restorable, TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Restored);
+        Assert.Equal(1, outcome.Rejected);
+        Assert.False(File.Exists(fixture.Resolve("saves/gamegear/Sonic Chaos (USA, Europe, Brazil) (En).srm")));
+    }
+
+    [Fact]
     public async Task A_save_for_a_game_this_device_does_not_hold_is_skipped_without_a_word()
     {
         // The ordinary case on a device carrying a subset of the library, and the reason the

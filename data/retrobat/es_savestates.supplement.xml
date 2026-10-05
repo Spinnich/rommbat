@@ -16,7 +16,7 @@
   measured would report real states as outside it.
 -->
 <savestates>
-  <emulator name="mednafen" systems="nes,megadrive,gba,gb,gbc,snes,mastersystem,psx,pcengine">
+  <emulator name="mednafen" systems="nes,megadrive,gba,gb,gbc,snes,mastersystem,psx,pcengine,gamegear">
     <directory>{{system}}/mednafen/sstates</directory>
     <file>{{romfilename}}.{{romhash}}.mc{{slot0}}</file>
     <evidence>nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote mednafen/sstates/Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.mc0, 11,981 B, the md5 being of the .nes inside less its 16-byte iNES header (#150)</evidence>
@@ -28,6 +28,7 @@
     <evidence>mastersystem under mednafen, core mastersystem, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote mednafen/sstates/&lt;rom&gt;.d46e40bbb729ba233f171ad7bf6169f5.mc0 and .mc1, 9,875 B and 9,749 B, the md5 being of the whole .sms inside. F2 saves and F7 steps the slot</evidence>
     <evidence>psx under mednafen, core psx, on 8.2.1: Metal Gear Solid (USA).m3u, two .cue discs, wrote mednafen/sstates/&lt;rom&gt;.2f876f4966ab9a14472349c43b3d64a4.mc0 and .mc1, 1,328,938 B and 1,899,888 B, the md5 being the layout hash over both discs, not any file's content</evidence>
     <evidence>pcengine under mednafen, core pce, 1.32.1, on 8.2.1: Populous (Japan) (En).zip wrote mednafen/sstates/&lt;rom&gt;.9d599a43d2c69738f3562f58aeff8828.mc0 and .mc1, 30,942 B and 100,633 B, the md5 being of the whole headerless .pce inside. F2 saves and F7 steps the slot (#396)</evidence>
+    <evidence>gamegear under mednafen, core gg, 1.32.1, on 8.2.1: Defenders of Oasis (USA, Europe).zip wrote mednafen/sstates/&lt;rom&gt;.8430050c60db46b3887cf7d7cf2f206f.mc0 and .mc1, 9,576 B and 9,648 B, the md5 being of the whole .gg inside. F2 saves and F7 steps the slot (#453)</evidence>
   </emulator>
   <emulator name="mesen" systems="nes,gba,gb,gbc,snes,mastersystem,pcengine">
     <directory>{{system}}/mesen/SaveStates</directory>
@@ -81,6 +82,11 @@
     <directory>{{system}}/ares/Master System</directory>
     <file>{{romfilename}}.bs{{slot}}</file>
     <evidence>mastersystem under ares, core MasterSystem, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote ares/Master System/&lt;rom&gt;.bs1 and .bs2, 58,231 B each, beside its battery save .ram. F2 saves and F7 steps the slot</evidence>
+  </emulator>
+  <emulator name="ares" systems="gamegear">
+    <directory>{{system}}/ares/Game Gear</directory>
+    <file>{{romfilename}}.bs{{slot}}</file>
+    <evidence>gamegear under ares, core GameGear, on 8.2.1: Defenders of Oasis (USA, Europe).zip wrote ares/Game Gear/&lt;rom&gt;.bs1 and .bs2, 58,231 B each, beside its battery save .ram. F2 saves and F7 steps the slot (#453)</evidence>
   </emulator>
   <emulator name="ares" systems="pcengine">
     <directory>{{system}}/ares/PC Engine</directory>
