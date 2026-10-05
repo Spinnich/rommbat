@@ -369,6 +369,8 @@ if (-not ('HandsOn.Native' -as [type])) {
 [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
 [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
 [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdc, uint flags);
+[DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
+[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
 [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
 '@
 }
@@ -379,11 +381,18 @@ $script:BannerState = Join-Path ([IO.Path]::GetTempPath()) 'rommbat-handson-bann
 $script:BannerHeartbeat = Join-Path ([IO.Path]::GetTempPath()) 'rommbat-handson-heartbeat.txt'
 
 function Get-AgentBanner {
-    # The banner's process and window handle, or $null when it is not up.
+    # The banner's process and window handle, or $null when it is not up. A state file outlives a
+    # banner that was killed or a reboot, and its PID may since belong to another process, so the
+    # process counts only while the stored window exists and is that process's own.
     try { $pidText, $handle = (Get-Content -LiteralPath $script:BannerState -Raw -ErrorAction Stop) -split ' ' } catch { return $null }
-    $process = Get-Process -Id ([int]$pidText) -ErrorAction SilentlyContinue
+    $handle = [IntPtr][long]$handle
+    $owner = 0
+    if (-not [HandsOn.Native]::IsWindow($handle)) { return $null }
+    $null = [HandsOn.Native]::GetWindowThreadProcessId($handle, [ref]$owner)
+    if ($owner -ne [uint32]$pidText) { return $null }
+    $process = Get-Process -Id $owner -ErrorAction SilentlyContinue
     if (-not $process -or $process.HasExited) { return $null }
-    [pscustomobject]@{ Process = $process; Handle = [IntPtr][long]$handle }
+    [pscustomobject]@{ Process = $process; Handle = $handle }
 }
 
 function Show-AgentBanner {
@@ -403,6 +412,7 @@ function Show-AgentBanner {
     Start-Process -FilePath (Get-Process -Id $PID).Path -WindowStyle Hidden -ArgumentList $arguments | Out-Null
     $deadline = (Get-Date).AddSeconds(15)
     while (-not (Get-AgentBanner) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 200 }
+    if (-not (Get-AgentBanner)) { Write-Warning 'The "agent is driving" banner did not come up. Say in chat that the kit is driving.' }
 }
 
 function Hide-AgentBanner {
