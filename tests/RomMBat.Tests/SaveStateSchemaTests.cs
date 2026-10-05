@@ -37,8 +37,8 @@ public class SaveStateSchemaTests
             Assert.False(loaded.For(name)!.AppliesTo("supergrafx"));
         }
 
-        // Seventeen entries for eight emulators, because ares and kega-fusion keep one per system.
-        Assert.Equal(shipped.Emulators.Count + 17, loaded.Emulators.Count);
+        // Eighteen entries for eight emulators, because ares and kega-fusion keep one per system.
+        Assert.Equal(shipped.Emulators.Count + 18, loaded.Emulators.Count);
 
         // Measured on nes, so the same tree under supergrafx is nobody's state directory.
         Assert.Equal("mesen", loaded.MatchDirectory("nes/mesen/SaveStates")?.Emulator.Name);
@@ -204,6 +204,22 @@ public class SaveStateSchemaTests
         Assert.Equal("mastersystem", loaded.MatchDirectory("mastersystem/ares/Master System")?.System);
         Assert.Null(loaded.MatchDirectory("megadrive/ares/Master System"));
         var ares = SaveStateTemplate.Create(loaded.For("ares", "mastersystem")!, "mastersystem", core: null)!;
+        Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
+    }
+
+    [Fact]
+    public void Gamegear_states_are_read_where_each_standalone_emulator_was_measured_writing_them()
+    {
+        // Defenders of Oasis, driven under each row on 8.2.1 (#453).
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+        const string Rom = "Defenders of Oasis (USA, Europe)";
+
+        var mednafen = SaveStateTemplate.Create(loaded.For("mednafen", "gamegear")!, "gamegear", core: null)!;
+        Assert.Equal(1, mednafen.Match($"{Rom}.8430050c60db46b3887cf7d7cf2f206f.mc1")?.Slot);
+
+        Assert.Equal("gamegear", loaded.MatchDirectory("gamegear/ares/Game Gear")?.System);
+        Assert.Null(loaded.MatchDirectory("mastersystem/ares/Game Gear"));
+        var ares = SaveStateTemplate.Create(loaded.For("ares", "gamegear")!, "gamegear", core: null)!;
         Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
     }
 

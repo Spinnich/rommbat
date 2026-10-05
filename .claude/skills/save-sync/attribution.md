@@ -109,6 +109,11 @@ reads the format, not the system or extension. A card whose saves were deleted i
 those frames `0xA1` to `0xA3` and still syncs. A download refuses a blank card too (RB-334),
 or a slot the scan leaves empty fetches the server's blank copy back on every restore.
 
+**A battery file of nothing but `0xFF` is treated the same way, under every rule on every
+system** (`ErasedSave`): ares writes a 32 KB one on `gamegear` for every cartridge, battery or not
+(RB-408). `0xFF` is erased SRAM, flash and EEPROM, so no save a game wrote looks like it. An
+empty file is a different question, settled per extension by `empty_not_a_save`.
+
 **DuckStation's per-game cards are a display-name rule with a slot per port** (RB-329):
 `duckstation/memcards/<saveName>_1.mcd` uploads as `duckstation:battery` and `_2.mcd` as
 `duckstation:battery:2`, from the rule's `stem_suffixes`. The title is the stem less the suffix, so

@@ -211,7 +211,7 @@ public sealed class SaveScanner
                     continue;
                 }
 
-                if (Ps1MemoryCard.IsBlank(file))
+                if (Ps1MemoryCard.IsBlank(file) || ErasedSave.IsErased(file))
                 {
                     continue;
                 }
@@ -461,7 +461,7 @@ public sealed class SaveScanner
                     continue;
                 }
 
-                if (Ps1MemoryCard.IsBlank(file))
+                if (Ps1MemoryCard.IsBlank(file) || ErasedSave.IsErased(file))
                 {
                     carried.Add(_install.Relativize(file));
                     continue;

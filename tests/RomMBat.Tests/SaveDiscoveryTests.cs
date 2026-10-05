@@ -806,6 +806,31 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void Every_gamegear_rows_battery_save_for_defenders_of_oasis_takes_its_own_slot()
+    {
+        // Measured on 8.2.1: Defenders of Oasis booted under every gamegear row (#453). BizHawk's
+        // title-named save is joined through a launch, which DisplayNameSaveTests covers.
+        using var fixture = SaveTree.Create();
+        const string Rom = "Defenders of Oasis (USA, Europe)";
+
+        fixture.AddRom(1, "gamegear", $"{Rom}.zip");
+        fixture.AddSave("gamegear", $"{Rom}.srm", "the cores' battery save");
+        fixture.AddSave("gamegear", $"{Rom}.8430050c60db46b3887cf7d7cf2f206f.sav", "mednafen's battery save");
+        fixture.AddSave("gamegear", $"ares/Game Gear/{Rom}.ram", "ares's battery save");
+        fixture.AddSave("gamegear", $"jgenesis/gg/{Rom}.sav", "jgenesis's battery save");
+
+        fixture.Scan();
+
+        var saves = fixture.Store.Saves.List().ToDictionary(save => save.Path.Value);
+        Assert.Equal("libretro:battery", saves[$"saves/gamegear/{Rom}.srm"].Slot);
+        Assert.Equal("mednafen:battery", saves[$"saves/gamegear/{Rom}.8430050c60db46b3887cf7d7cf2f206f.sav"].Slot);
+        Assert.Equal("ares:battery", saves[$"saves/gamegear/ares/Game Gear/{Rom}.ram"].Slot);
+        Assert.Equal("jgenesis:battery", saves[$"saves/gamegear/jgenesis/gg/{Rom}.sav"].Slot);
+        Assert.All(saves.Values, save => Assert.Equal(1, save.RomId));
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "gamegear");
+    }
+
+    [Fact]
     public void Loose_sav_files_on_nes_go_to_mesen_or_mednafen_by_the_hash_on_the_stem()
     {
         // The two files measured on nes, 8.2.1, each tied to its ROM and neither to libretro.
@@ -1147,6 +1172,31 @@ public class SaveDiscoveryTests
 
         Assert.Empty(fixture.Store.Saves.List());
         Assert.Empty(fixture.Store.Unsyncable.List());
+    }
+
+    [Fact]
+    public void An_erased_battery_file_is_neither_recorded_nor_reported_under_a_rule_or_loose()
+    {
+        // ares/GameGear writes 32 KB of 0xFF for every cartridge, battery or not: Sonic Chaos has
+        // none and left one on Esc (#453). A loose file is tested too, since the rule is any rule's.
+        using var fixture = SaveTree.Create();
+        const string Rom = "Sonic Chaos (USA, Europe, Brazil) (En)";
+
+        fixture.AddRom(1, "gamegear", $"{Rom}.zip");
+        fixture.AddSaveBytes("gamegear", $"ares/Game Gear/{Rom}.ram", ErasedSaveTests.ErasedRam());
+        fixture.AddSaveBytes("gamegear", $"{Rom}.srm", ErasedSaveTests.ErasedRam(8_192));
+
+        var outcome = fixture.Scan();
+
+        Assert.Equal(0, outcome.Found);
+        Assert.Empty(fixture.Store.Saves.List());
+        Assert.Empty(fixture.Store.Unsyncable.List());
+
+        // The same file once a game has written to it is that game's save.
+        fixture.AddSaveBytes("gamegear", $"ares/Game Gear/{Rom}.ram", ErasedSaveTests.RamWithHeader());
+        fixture.Scan();
+
+        Assert.Equal("ares:battery", Assert.Single(fixture.Store.Saves.List()).Slot);
     }
 
     [Fact]

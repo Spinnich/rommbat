@@ -20,7 +20,8 @@ namespace RomMBat.Core.Content;
 /// On <c>snes</c> it is the whole <c>.sfc</c>, measured on Legend of Zelda, The - A Link to the
 /// Past (USA): <c>608c22b8...</c>, on a loose <c>.srm</c> rather than a <c>.sav</c>. On
 /// <c>mastersystem</c> it is the whole <c>.sms</c>, measured on Golden Axe Warrior (USA, Europe,
-/// Brazil) (En): <c>d46e40bb...</c>. On <c>pcengine</c> it is the whole <c>.pce</c>, measured on
+/// Brazil) (En): <c>d46e40bb...</c>. On <c>gamegear</c> it is the whole <c>.gg</c>, measured on
+/// Defenders of Oasis (USA, Europe): <c>8430050c...</c>. On <c>pcengine</c> it is the whole <c>.pce</c>, measured on
 /// Populous (Japan) (En), a headerless 524,288 B dump: <c>9d599a43...</c>. On <c>psx</c> it is no file's content at all but the disc
 /// layout, over every disc the playlist names (<see cref="CdLayout"/>).
 /// <para>
@@ -29,7 +30,9 @@ namespace RomMBat.Core.Content;
 /// format but a plain <c>.md</c>, since an interleaved <c>.smd</c> is decoded before it is hashed
 /// and a <c>.bin</c> or <c>.gen</c> has not been driven. On <c>snes</c> only a <c>.sfc</c>, since a
 /// <c>.smc</c> can carry a 512-byte copier header and none has been driven. On <c>mastersystem</c>
-/// only a <c>.sms</c>, the one format the measured library holds. On <c>pcengine</c> only a
+/// only a <c>.sms</c>, the one format the measured library holds. On <c>gamegear</c> only a
+/// <c>.gg</c>: the library's nineteen <c>.sms</c> cartridges run in Master System mode and none
+/// has a battery, so none has been driven. On <c>pcengine</c> only a
 /// <c>.pce</c> without a 512-byte copier header, since a headered dump has not been driven.
 /// </para>
 /// </remarks>
@@ -48,6 +51,7 @@ public static partial class MednafenRomHash
             "gba" => WholeRom(absolutePath, ".gba")?.Hash,
             "snes" => WholeRom(absolutePath, ".sfc")?.Hash,
             "mastersystem" => WholeRom(absolutePath, ".sms")?.Hash,
+            "gamegear" => WholeRom(absolutePath, ".gg")?.Hash,
             "pcengine" => WholeRom(absolutePath, ".pce", HasNoCopierHeader)?.Hash,
             "psx" => CdLayout(absolutePath),
             _ => null,

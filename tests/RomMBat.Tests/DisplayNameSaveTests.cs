@@ -246,6 +246,24 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void The_bundled_gamegear_rules_give_each_of_defenders_of_oasiss_saves_one_owner()
+    {
+        // Defenders of Oasis, booted under every gamegear row on 8.2.1 (#453).
+        var shapes = SaveShapes.Bundled;
+        const string Rom = "Defenders of Oasis (USA, Europe)";
+
+        Assert.Equal("libretro", shapes.BatteryRuleFor("gamegear", string.Empty, $"{Rom}.srm")?.Emulator);
+        Assert.Equal("mednafen", shapes.BatteryRuleFor("gamegear", string.Empty, $"{Rom}.8430050c60db46b3887cf7d7cf2f206f.sav")?.Emulator);
+        Assert.Equal("bizhawk", shapes.BatteryRuleFor("gamegear", "bizhawk", "Defenders of Oasis (UE).SaveRAM")?.Emulator);
+        Assert.Equal("jgenesis", shapes.BatteryRuleFor("gamegear", "jgenesis/gg", $"{Rom}.sav")?.Emulator);
+        Assert.Equal("ares", shapes.BatteryRuleFor("gamegear", "ares/Game Gear", $"{Rom}.ram")?.Emulator);
+
+        // Each directory is the system's own, so mastersystem's names own nothing here.
+        Assert.Null(shapes.BatteryRuleFor("gamegear", "jgenesis/sms", $"{Rom}.sav"));
+        Assert.Null(shapes.BatteryRuleFor("gamegear", "ares/Master System", $"{Rom}.ram"));
+    }
+
+    [Fact]
     public void The_bundled_n64_rules_give_each_of_the_test_games_saves_one_owner()
     {
         // Ocarina of Time and Mario Kart 64, booted under every n64 row on 8.2.1.
