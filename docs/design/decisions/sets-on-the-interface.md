@@ -61,9 +61,8 @@ they had just described. Starting minutes of network work uninvited is only reas
 stopping costs one press and keeps what it found.
 
 **A set defined from the interface roams, and the resolve is what mirrors it.** `sets add` and
-`sets resolve` both push `Device.sync_config`; the editor pushed nothing, so the same action
-persisted differently depending on which front end took it, and a second device paired against
-the same server found none of the sets made from the couch. The push hangs off the resolve
+`sets resolve` both push `Device.sync_config`, and the interface does too, so the same action
+persists the same way whichever front end takes it. The push hangs off the resolve
 screen rather than off the save, because creating and editing both land there and it is the one
 place with somewhere to say the push failed. Best effort as everywhere else: its own connection,
 never on the screen's cancellation token, and a failure is a note appended to the result rather

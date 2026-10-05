@@ -21,8 +21,8 @@ public sealed record RoamingPush(bool Pushed, string? Note);
 /// failure here comes back as a <see cref="RoamingPush"/> with a note, never as a throw and
 /// never as a non-zero outcome.
 /// <para>
-/// Lifted out of <c>SetsCommand</c> unchanged. It opens its own connection because the caller
-/// that defines a set has no reason to hold one, and pairing may have expired since.
+/// It opens its own connection because the caller that defines a set has no reason to hold
+/// one, and pairing may have expired since.
 /// </para>
 /// </remarks>
 public sealed class RoamingConfigService
