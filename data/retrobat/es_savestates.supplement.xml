@@ -53,10 +53,11 @@
     <file>{{romfilename}}.bs{{slot}}</file>
     <evidence>nes under ares, core Famicom, on 8.2.1: Dragon Warrior IV (USA).zip wrote ares/Famicom/Dragon Warrior IV (USA).bs1, 21,719 B, beside its battery save .ram (#150)</evidence>
   </emulator>
-  <emulator name="ares" systems="megadrive">
+  <emulator name="ares" systems="megadrive,sega32x">
     <directory>{{system}}/ares/Mega Drive</directory>
     <file>{{romfilename}}.bs{{slot}}</file>
     <evidence>megadrive under ares, core MegaDrive, on 8.2.1: Sonic &amp; Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote ares/Mega Drive/&lt;rom&gt;.bs1 and .bs2, 212,543 B each, beside its battery save .ram</evidence>
+    <evidence>sega32x under ares, core Mega32X, on 8.2.1: Knuckles' Chaotix (Japan, USA) (En).zip wrote ares/Mega Drive/&lt;rom&gt;.bs1 and .bs2, 1,010,843 B each, under saves/sega32x, while its battery save goes to ares/Mega 32X. F2 saves and F7 steps the slot (#464)</evidence>
   </emulator>
   <emulator name="ares" systems="gba">
     <directory>{{system}}/ares/Game Boy Advance</directory>

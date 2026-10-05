@@ -73,7 +73,9 @@ install declares always wins, and a supplement entry answers only for the system
 the 32-hex md5 it puts in the name (RB-274). **Add a row to the supplement only from a hands-on
 pass**, scoped to the system it was driven on: ares keeps `nes` under `ares/Famicom/` and
 `megadrive` under `ares/Mega Drive/`, each named after its own system, so nothing about one
-system's layout carries to the next. The supplement may carry one entry per system for the same
+system's layout carries to the next without a pass. An extension can take its parent's name:
+ares writes `sega32x` states under `ares/Mega Drive/`, so that one entry names both systems
+(RB-413). The supplement may carry one entry per system for the same
 emulator, `SaveStateSchema.For(emulator, system)` picks between them, and an install that declares
 the emulator itself drops every supplement entry for it (RB-281).
 

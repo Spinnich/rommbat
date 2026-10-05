@@ -831,6 +831,34 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void Every_sega32x_rows_battery_save_takes_its_own_slot()
+    {
+        // Measured on 8.2.1: NBA Jam TE, a serial EEPROM, and Knuckles' Chaotix, SRAM, booted under
+        // every sega32x row (#464). BizHawk's title-named save is joined through a launch, which
+        // DisplayNameSaveTests covers.
+        using var fixture = SaveTree.Create();
+        const string NbaJam = "NBA Jam - Tournament Edition (World)";
+        const string Chaotix = "Knuckles' Chaotix (Japan, USA) (En)";
+
+        fixture.AddRom(1, "sega32x", $"{NbaJam}.zip");
+        fixture.AddRom(2, "sega32x", $"{Chaotix}.zip");
+        fixture.AddSave("sega32x", $"{NbaJam}.srm", "picodrive's EEPROM image");
+        fixture.AddSave("sega32x", $"jgenesis/32x/{NbaJam}.sav", "jgenesis's EEPROM image");
+        fixture.AddSave("sega32x", $"ares/Mega 32X/{NbaJam}.eeprom", "ares's EEPROM image");
+        fixture.AddSave("sega32x", $"ares/Mega 32X/{Chaotix}.ram", "ares's SRAM");
+
+        fixture.Scan();
+
+        var saves = fixture.Store.Saves.List().ToDictionary(save => save.Path.Value);
+        Assert.Equal("libretro:battery", saves[$"saves/sega32x/{NbaJam}.srm"].Slot);
+        Assert.Equal("jgenesis:battery", saves[$"saves/sega32x/jgenesis/32x/{NbaJam}.sav"].Slot);
+        Assert.Equal("ares:battery", saves[$"saves/sega32x/ares/Mega 32X/{NbaJam}.eeprom"].Slot);
+        Assert.Equal(1, saves[$"saves/sega32x/ares/Mega 32X/{NbaJam}.eeprom"].RomId);
+        Assert.Equal(2, saves[$"saves/sega32x/ares/Mega 32X/{Chaotix}.ram"].RomId);
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "sega32x");
+    }
+
+    [Fact]
     public void Loose_sav_files_on_nes_go_to_mesen_or_mednafen_by_the_hash_on_the_stem()
     {
         // The two files measured on nes, 8.2.1, each tied to its ROM and neither to libretro.
