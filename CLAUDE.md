@@ -48,6 +48,7 @@ shape, slot, set and floor are defined in [docs/design/glossary.md](docs/design/
 | Moving the supported RomM or RetroBat version                                          | "Version floor" below, then `pre-pr-verification`: "When the change moves..."                                |
 | Writing or editing any doc                                                             | [docs/contributing/writing.md](docs/contributing/writing.md)                                                 |
 | A scripted edit or a `gh` body edit from Windows                                       | [docs/contributing/windows-agent-hazards.md](docs/contributing/windows-agent-hazards.md)                     |
+| Driving a change on a real install: deploy, ES, the UI, keys, screenshots              | [tools/handson/README.md](tools/handson/README.md), then `pre-pr-verification`: "Hands-on by change type"    |
 | Wrapping up: commit, PR, "done"                                                        | `pre-pr-verification`, all of it, then `tools/pre-pr.ps1`                                                    |
 | Picking up an issue, driving or reviewing a PR, certifying a system                    | [docs/contributing/workflow.md](docs/contributing/workflow.md), then `/start-issue`, `/drive-pr`, `/certify` |
 
@@ -124,7 +125,8 @@ profile before adding a slow test (`pre-pr-verification`: "Test cost").
 works" is not a claim. A change to save logic owes a hands-on pass of the shape it touches,
 on every emulator and save option that writes it (`pre-pr-verification`), and a session that
 cannot take one says which claims are unproven rather than letting the test
-suite stand in for evidence.
+suite stand in for evidence. Any other change a user can see or the server can receive is
+driven on the agent tree with the deployed build, through `tools/handson/`, before it is done.
 
 **Ask the maintainer as multiple choice.** A decision that is the maintainer's goes through
 `AskUserQuestion`, never prose in a reply. Recommended option first, related decisions batched

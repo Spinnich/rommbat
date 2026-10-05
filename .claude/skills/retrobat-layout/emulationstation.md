@@ -111,23 +111,22 @@ ES serves an API on `127.0.0.1:1234` whenever it is running. It works on loopbac
 `PublicWebAccess` setting untouched, because that setting gates only non-local callers, so
 using it requires no change to the user's configuration.
 
-| Route                     | Method | Use                                            |
-| ------------------------- | ------ | ---------------------------------------------- |
-| `/reloadgames`            | GET    | Rescan roms and re-read gamelists, no restart  |
-| `/systems`                | GET    | Systems as JSON, including `totalGames`        |
-| `/systems/<system>/games` | GET    | Games as JSON: `name`, `desc`, `image`         |
-| `/caps`                   | GET    | `{"Version": "8.2.0-stable-win64", ...}`       |
-| `/quit`                   | GET    | Close ES. RomMBat does not call it             |
-| `/emukill`                | GET    | Kill the running emulator                      |
-| `/launch`                 | POST   | **Does nothing.** 200 and no launch; see below |
+| Route                     | Method | Use                                           |
+| ------------------------- | ------ | --------------------------------------------- |
+| `/reloadgames`            | GET    | Rescan roms and re-read gamelists, no restart |
+| `/systems`                | GET    | Systems as JSON, including `totalGames`       |
+| `/systems/<system>/games` | GET    | Games as JSON: `name`, `desc`, `image`        |
+| `/caps`                   | GET    | `{"Version": "8.2.0-stable-win64", ...}`      |
+| `/quit`                   | GET    | Close ES. RomMBat does not call it            |
+| `/emukill`                | GET    | Kill the running emulator                     |
+| `/launch`                 | POST   | Starts the game whose path is the body        |
 
 `POST /reloadgames` is 404; the verb is GET. Treat the whole API as best-effort: it only
 answers while ES is running, so every call needs a short timeout and a no-ES fallback.
 
 **A 200 from this API is never evidence the action happened**, on any route that does
-something. `/quit` and `/emukill` do nothing while a game is running; `/reloadgames` has no
-effect while one runs, and answers in 1-2 ms before doing the work either way; and **`POST
-/launch` does not launch anything at all**.
+something. `/quit` and `/emukill` do nothing while a game is running, and `/reloadgames` has no
+effect while one runs and answers in 1-2 ms before doing the work either way.
 
 **"Ignored" is the wrong word for `/reloadgames`, and the difference decides a design.** It is
 **deferred, not discarded**: a reload issued while an app is in front of ES is queued and
@@ -160,8 +159,7 @@ byte-identical to before the run.
 
 A reload works with **ES unfocused**, so ES's own reload does not depend on focus (RB-233).
 
-**`POST /launch` answers 200 and launches nothing.** Driven twice with the exact path
-`/systems/<system>/games` reports and an explicit `text/plain` body: an empty response,
-`emulatorLauncher.log` did not grow by a byte, and no emulator process appeared (RB-208). **A
-hands-on pass covering `game-start` and `game-end` needs a person at the controller; it cannot
-be scripted through this API.**
+**`POST /launch` starts the game** whose `path` `/systems/<system>/games` reports, sent as the raw
+body: an empty 200, `emulatorLauncher.log` grows and an emulator appears (RB-208). The
+`game-start` and `game-end` hooks run as for a player, so a hands-on pass over them needs no one
+at the controller; `tools/handson`'s `Start-Game` is the call.

@@ -94,8 +94,10 @@ and the row says what that evidence was.
    `good first issue`). Reply on each of the maintainer's threads.
 7. **Fix.** A failing test first, where the finding is a defect. Scoped changes only: no cleanup
    rides along. A fix that falsifies a doc corrects it in the same commit (`pre-pr-verification`,
-   "Documentation parity"). A fix to save logic owes the hands-on pass for that shape: run
-   `/certify <system> --hands-on $PR`, or record in the ledger which claims are unproven. Then
+   "Documentation parity"). A fix owes the hands-on pass `pre-pr-verification`'s "Hands-on by change type"
+   names for it: redeploy to the agent tree and re-drive what the fix touched, updating the PR
+   body's Hands-on section. For save logic run `/certify <system> --hands-on $PR`. A pass that
+   cannot run is recorded in the ledger as unproven. Then
    `pwsh -File tools/pre-pr.ps1 -Quiet`, commit naming the finding IDs, push, update the ledger.
 8. **Decide the next step.**
    - Anything FIXED this round changed the code, so go to 3 for the next round.

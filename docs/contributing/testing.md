@@ -133,6 +133,14 @@ Never read the token out of `rommbat.db` to call the API yourself; Claude Code's
 classifier refuses that as credential handling. When only a direct API read will answer, use the
 owner token or ask the maintainer to run it.
 
+### The agent tree
+
+Hands-on passes run on a RetroBat tree of the agent's own, named by `ROMMBAT_AGENT_ROOT` and
+paired as the approver account, so its saves and play sessions never mix with the maintainer's.
+`tools/handson/` pairs it headlessly with the approver token, the way `ApprovingUser` does, and
+re-pairs it keeping `device.id`. [Its README](../../tools/handson/README.md) has the functions and
+how to rebuild the tree; what a change owes is in `pre-pr-verification`.
+
 ### Re-pairing a throwaway tree
 
 A test tree pairs as its own device, since identity is the GUID in

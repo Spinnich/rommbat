@@ -61,9 +61,11 @@ without that script. Never work on main; the pre-push hook refuses it anyway.
 4. The fix, scoped to the issue. A cleanup it tempts you into is a follow-up issue.
 5. Docs travel with the code: work `pre-pr-verification`'s "Documentation parity" table and
    correct every sentence the change falsifies.
-6. **A save-logic change owes a hands-on pass** of the shape it touches, on every emulator and
-   save option that writes it. Schedule it with `/certify <system> --hands-on <PR>` once the PR
-   is open. That stops for play. If it cannot happen, the PR body names which claims are unproven.
+6. **Drive it.** Work `pre-pr-verification`'s "Hands-on by change type" table: deploy this branch
+   to the agent tree with `tools/handson/` and run what the rows the diff falls in owe, before the
+   PR opens. That needs no maintainer. Save logic is the exception: schedule
+   `/certify <system> --hands-on <PR>` once the PR is open, which stops for play. A pass that
+   cannot run goes in the PR body as unproven, with the reason.
 7. `pwsh -File tools/pre-pr.ps1 -Quiet`. Every gate green, apart from trunk, which a worktree skips.
 
 ## PR
@@ -79,6 +81,8 @@ CONTRIBUTING's "Labels and release notes" table; the impact is picked by
 - the Step 0 verdict and its evidence, in two lines;
 - "Decisions for veto", listing every reversible choice you made alone;
 - which docs moved, and which you read and found already correct;
+- a **Hands-on** section: what was driven, on which deployed build, and what it showed, or
+  why none was owed;
 - what was verified and what was not.
 
 Then run `/drive-pr` on the new PR.
