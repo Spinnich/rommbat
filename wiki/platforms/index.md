@@ -25,6 +25,7 @@ been tested yet.
 | [Master System - Mark III](#mastersystem)       | 9 of 10        | libretro / genesis_plus_gx, certified  |
 | [PlayStation](#psx)                             | 7 of 7         | libretro / mednafen_psx_hw, certified  |
 | [Nintendo 64](#n64)                             | 9 of 9         | libretro / mupen64plus_next, certified |
+| [Game Gear](#gamegear)                          | 5 of 7         | libretro / genesis_plus_gx, certified  |
 
 ## Nintendo Entertainment System - Famicom {#nes}
 
@@ -185,3 +186,17 @@ RetroBat's `n64` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certifica
 | bizhawk   | Mupen64Plus      | Certified           |
 | project64 |                  | Certified           |
 | gopher64  |                  | Certified           |
+
+## Game Gear {#gamegear}
+
+RetroBat's `gamegear` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/gamegear/) has the detail. [Its page](gamegear.md) says which emulator to pick, what BIOS to supply and what will not work.
+
+| Emulator | Core            | Status              | Note                                                                                    |
+| -------- | --------------- | ------------------- | --------------------------------------------------------------------------------------- |
+| libretro | genesis_plus_gx | Certified (default) |                                                                                         |
+| libretro | picodrive       | Certified           |                                                                                         |
+| libretro | fbneo           | Not certified       | Boots no game named the No-Intro way, because FBNeo picks its driver from the file name |
+| mednafen | gg              | Certified           |                                                                                         |
+| ares     | GameGear        | Certified           |                                                                                         |
+| bizhawk  | SMSHawk         | Certified           |                                                                                         |
+| jgenesis |                 | Not certified       | RetroBat launches it as a Master System, so a Game Gear game plays to a black screen    |

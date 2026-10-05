@@ -55,7 +55,10 @@ controls remapped in its own menu before the pad plays (RB-284). On the maintain
 RetroBat machine a Logitech LIGHTSPEED receiver takes DirectInput index 0, so every
 DirectInput-indexed generator (Kega, mednafen, Snes9x, Mesen, PCSX2 and others) binds player 1
 one pad too high until the floor carries emulatorlauncher#1376's fix (`docs/upstream/issues.md`).
-A pad that does nothing there is that, not a failed row. **When a key's effect cannot be seen,
+A pad that does nothing there is that, not a failed row. **Strip `HOME` before launching `emulatorLauncher` from Git Bash**, which exports it: mednafen
+then takes `%HOME%\.mednafen` as its base directory over the config `emulatorLauncher` writes, and
+its saves land in `C:\Users\<you>\.mednafen\sav\` instead of `saves/`. ES sets no `HOME`, so only
+an agent launch does this; on `gamegear` it looked like mednafen writing nothing. **When a key's effect cannot be seen,
 take a screenshot of the screen from the agent's session** rather than sending keys blind: a
 blind Start on a title screen is as likely to land during a fade as on the menu.
 

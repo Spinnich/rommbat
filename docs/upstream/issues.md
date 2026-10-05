@@ -47,8 +47,13 @@ emulatorlauncher#1390, read on 2026-10-01.
 
 ## Not yet reported
 
-Nothing, as of 2026-09-27. A problem a finding judges upstream's to fix goes here until it is
-filed, which is the maintainer's call, and then moves to [Tracked](#tracked).
+A problem a finding judges upstream's to fix goes here until it is filed, which is the maintainer's
+call, and then moves to [Tracked](#tracked).
+
+- **emulatorlauncher: `gamegear` under jgenesis is started with `--hardware MasterSystem`**, so a
+  Game Gear cartridge runs to a black screen; `--hardware GameGear` plays it. Judged
+  upstream's on 2026-10-05, from the `gamegear` pass. Meanwhile `gamegear` under `jgenesis` is recorded
+  as not certifiable. RB-410; `platforms/gamegear/`.
 
 ## Retired
 
