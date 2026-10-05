@@ -32,12 +32,12 @@ boot launches below (#464).
 **Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1**, measured there on
 2026-10-05. Nothing is owed.
 
-| File                           | What it holds                                                                                   |
-| ------------------------------ | ----------------------------------------------------------------------------------------------- |
-| This file                      | Steps 1, 2 and 3, which are the system's; what the first boots wrote; how the test games save   |
-| [libretro.md](libretro.md)     | `libretro`/`picodrive`                                                                          |
-| [standalone.md](standalone.md) | ares, BizHawk and jgenesis, and Kega Fusion                                                     |
-| [facts.md](facts.md)           | The measured facts about `sega32x`'s emulators, with RB- IDs                                    |
+| File                           | What it holds                                                                                 |
+| ------------------------------ | --------------------------------------------------------------------------------------------- |
+| This file                      | Steps 1, 2 and 3, which are the system's; what the first boots wrote; how the test games save |
+| [libretro.md](libretro.md)     | `libretro`/`picodrive`                                                                        |
+| [standalone.md](standalone.md) | ares, BizHawk and jgenesis, and Kega Fusion                                                   |
+| [facts.md](facts.md)           | The measured facts about `sega32x`'s emulators, with RB- IDs                                  |
 
 ## The install this was measured on
 
@@ -129,13 +129,13 @@ Drive BIOS in the tree, every row booted all three games, Kega Fusion with its t
 **Not steps 4 or 5.** Each launch ran about 30 seconds from `emulatorLauncher` with no key sent, and
 every file was deleted before the first ES session. RB-413 and RB-414 hold the detail.
 
-| Row                     | Chaotix                                   | NBA Jam                                       | Doom              |
-| ----------------------- | ----------------------------------------- | --------------------------------------------- | ----------------- |
-| `libretro`/`picodrive`  | nothing                                   | `<rom>.srm`, 8,192 B, the 256 B format first  | nothing           |
-| `ares`/`Mega32X`        | `ares/Mega 32X/<rom>.ram`, 512 B, `0xFF`  | `<rom>.eeprom`, 512 B, `0xFF`                 | nothing           |
-| `kega-fusion`/`sega32x` | nothing                                   | `emulators/kega-fusion/<rom>.srm`, 256 B      | nothing           |
-| `bizhawk`/`PicoDrive`   | `bizhawk/<title>.SaveRAM`, 1,024 B, `0x00` | 8,192 B, `0x00`                              | 16,384 B, `0x00`  |
-| `jgenesis`              | nothing                                   | `jgenesis/32x/<rom>.sav`, 256 B, the format   | nothing           |
+| Row                     | Chaotix                                    | NBA Jam                                      | Doom             |
+| ----------------------- | ------------------------------------------ | -------------------------------------------- | ---------------- |
+| `libretro`/`picodrive`  | nothing                                    | `<rom>.srm`, 8,192 B, the 256 B format first | nothing          |
+| `ares`/`Mega32X`        | `ares/Mega 32X/<rom>.ram`, 512 B, `0xFF`   | `<rom>.eeprom`, 512 B, `0xFF`                | nothing          |
+| `kega-fusion`/`sega32x` | nothing                                    | `emulators/kega-fusion/<rom>.srm`, 256 B     | nothing          |
+| `bizhawk`/`PicoDrive`   | `bizhawk/<title>.SaveRAM`, 1,024 B, `0x00` | 8,192 B, `0x00`                              | 16,384 B, `0x00` |
+| `jgenesis`              | nothing                                    | `jgenesis/32x/<rom>.sav`, 256 B, the format  | nothing          |
 
 ## What the pass turned up that is not a row
 

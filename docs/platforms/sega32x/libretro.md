@@ -5,22 +5,22 @@ read-when: When a result for `sega32x` under `libretro` is needed, or before re-
 
 # sega32x: `libretro`/`picodrive`
 
-|              | `libretro`/`picodrive`                                                      |
-| ------------ | --------------------------------------------------------------------------- |
-| Selected by  | nothing: the stock row, no `sega32x.emulator` and no per-game override      |
-| Confirmed by | `retroarch.exe ... -L picodrive_libretro.dll` in `emulatorLauncher.log`     |
+|              | `libretro`/`picodrive`                                                  |
+| ------------ | ----------------------------------------------------------------------- |
+| Selected by  | nothing: the stock row, no `sega32x.emulator` and no per-game override  |
+| Confirmed by | `retroarch.exe ... -L picodrive_libretro.dll` in `emulatorLauncher.log` |
 
 ## Checklist
 
-| #   | Result                                                                                                 |
-| --- | ------------------------------------------------------------------------------------------------------ |
-| 1-3 | **Pass**, the system's ([index.md](index.md#steps-1-2-and-3-for-every-row))                            |
-| 4   | **Pass**: Chaotix's SRAM and NBA Jam's EEPROM each went up as `libretro:battery` at its own md5        |
-| 5   | **Pass**: two slots made in ES, one deleted and restored, state and screenshot md5-identical           |
-| 6   | **N/A**                                                                                                |
-| 7   | **Pass**: both games launched from ES on the synced ROM, art and description present                   |
-| 8   | **Pass**: every session read back by `status` under `recent:`                                          |
-| 9   | **Pass**: 0 downloaded, 0 written, `gamelists: all 10 unchanged`, gamelist byte-identical, 0 sent      |
+| #   | Result                                                                                            |
+| --- | ------------------------------------------------------------------------------------------------- |
+| 1-3 | **Pass**, the system's ([index.md](index.md#steps-1-2-and-3-for-every-row))                       |
+| 4   | **Pass**: Chaotix's SRAM and NBA Jam's EEPROM each went up as `libretro:battery` at its own md5   |
+| 5   | **Pass**: two slots made in ES, one deleted and restored, state and screenshot md5-identical      |
+| 6   | **N/A**                                                                                           |
+| 7   | **Pass**: both games launched from ES on the synced ROM, art and description present              |
+| 8   | **Pass**: every session read back by `status` under `recent:`                                     |
+| 9   | **Pass**: 0 downloaded, 0 written, `gamelists: all 10 unchanged`, gamelist byte-identical, 0 sent |
 
 ## 4. Battery saves
 
@@ -40,8 +40,8 @@ up as `libretro:battery`, server saves 657 and 658, and read back `in step`.
 
 ## 5. States
 
-| Slot | File under `saves/sega32x/libretro.picodrive/` | Size      | Screenshot          |
-| ---- | ---------------------------------------------- | --------- | ------------------- |
+| Slot | File under `saves/sega32x/libretro.picodrive/` | Size      | Screenshot              |
+| ---- | ---------------------------------------------- | --------- | ----------------------- |
 | 4    | `<rom>.state4`                                 | 165,798 B | `856a2504...`, 14,757 B |
 | 5    | `<rom>.state5`                                 | 167,329 B | `95650f89...`, 9,043 B  |
 

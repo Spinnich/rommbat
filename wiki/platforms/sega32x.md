@@ -1,11 +1,11 @@
 # 32X
 
-|                 |                                                                         |
-| --------------- | ----------------------------------------------------------------------- |
-| RetroBat system | `sega32x`                                                               |
-| Games go in     | `roms\sega32x`                                                          |
+|                 |                                                                             |
+| --------------- | --------------------------------------------------------------------------- |
+| RetroBat system | `sega32x`                                                                   |
+| Games go in     | `roms\sega32x`                                                              |
 | BIOS            | None needed. RetroBat lists three 32X files, and no emulator asked for them |
-| Tested rows     | [Platforms](index.md#sega32x) lists each emulator and whether it passed |
+| Tested rows     | [Platforms](index.md#sega32x) lists each emulator and whether it passed     |
 
 ## Which emulator to use
 
