@@ -275,6 +275,63 @@ public sealed class BiosSyncTests : IDisposable
         Assert.True(plan.IsNoOp);
     }
 
+    [Fact]
+    public async Task A_hashless_file_RomM_holds_under_the_same_name_is_named_but_never_fetched()
+    {
+        // nds wants bios/firmware.bin with no hash, and the library measured holds a
+        // firmware.bin twice, both copies the same bytes. The name is a lead for the user to
+        // check, not a join, so the state stays Unverifiable and nothing is requested.
+        var bytes = Content("firmware.bin");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "nds", "nds", "Nintendo DS")
+        {
+            Firmware =
+            [
+                new StubFirmware(758, "firmware.bin", bytes),
+                new StubFirmware(751, "firmware.bin", bytes),
+            ],
+        });
+
+        var manifest = Manifest(("nds", null, "bios/firmware.bin"));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        var step = Assert.Single(plan.Steps);
+        Assert.Equal(BiosAction.Unverifiable, step.Action);
+        Assert.Null(step.Match);
+        Assert.Contains(step.SameName?.Id, new int?[] { 751, 758 });
+        Assert.Contains("firmware.bin", step.Reason, StringComparison.Ordinal);
+        Assert.Contains(Md5(bytes), step.Reason, StringComparison.Ordinal);
+        Assert.True(plan.IsNoOp);
+        Assert.Empty(stub.FirmwareRequests);
+    }
+
+    [Fact]
+    public async Task A_hashless_file_already_on_disk_is_not_pointed_at_the_library()
+    {
+        // Something is at the path and may be the BIOS the user plays with. With no hash to
+        // compare the two, naming RomM's copy beside it is noise.
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "nds", "nds", "Nintendo DS")
+        {
+            Firmware = [new StubFirmware(751, "firmware.bin", Content("firmware.bin"))],
+        });
+
+        Write("bios/firmware.bin", Encoding.UTF8.GetBytes("the user's own"));
+
+        var manifest = Manifest(("nds", null, "bios/firmware.bin"));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        var step = Assert.Single(plan.Steps);
+        Assert.Equal(BiosAction.Unverifiable, step.Action);
+        Assert.Null(step.SameName);
+        Assert.Contains("a file is there", step.Reason, StringComparison.Ordinal);
+    }
+
     // ------------------------------------------------------------------ what is already there
 
     [Fact]

@@ -34,5 +34,7 @@ than read from the install. And **181 of the 355 entries carry no md5**, so a BI
 three states rather than two: matched, missing from the library, and unverifiable because
 RetroBat names no hash. A zip is still joined on md5, which both sides take over the container
 (RM-28), so only a byte-identical build matches; a miss where the library holds a zip under the
-exact name says so and fetches nothing, since neither side says what is inside. `bios/` is otherwise a tree RomMBat does not own, holding thousands of
+exact name says so and fetches nothing, since neither side says what is inside. A hashless
+requirement not on disk is pointed at a library file under its exact name the same way, and
+stays unverifiable. `bios/` is otherwise a tree RomMBat does not own, holding thousands of
 files of emulator user data, so nothing there is overwritten or deleted.

@@ -23,7 +23,9 @@ worth more than RomMBat's idea of the right one.
 Some files have to come from you:
 
 - RetroBat lists about half of its BIOS files without a checksum, so RomMBat cannot tell which
-  file in your library is the right one.
+  file in your library is the right one. When one of those is not in `bios` and your library has a
+  file under exactly its name, the report names that file and its checksum for you to judge, and
+  RomMBat still leaves it alone.
 - A file your RomM library does not have.
 - Some zipped firmware, such as `neogeo.zip`. A zip's checksum covers the zip itself, so it
   matches only when your copy was built exactly like RetroBat's, even if the files inside are the
@@ -39,6 +41,6 @@ row was tested with its BIOS in place.
 `rommbat-agent bios` reports, for each system you have games on, which files are present, which
 it would fetch, which your library lacks, and which it cannot check. Under a file your library
 lacks, it prints the checksum to search for, and why, when RomM has a record that is not usable or
-a zip by the same name. It writes nothing until you
-add `--apply`. `--all` covers every system RetroBat knows. See
-[Command line](../reference/cli.md).
+a zip by the same name. Under a file it cannot check, it names a library file with the same name,
+if there is one. It writes nothing until you add `--apply`. `--all` covers every system RetroBat
+knows. See [Command line](../reference/cli.md).
