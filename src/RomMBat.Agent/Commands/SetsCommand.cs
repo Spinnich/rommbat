@@ -361,7 +361,7 @@ internal static class SetsCommand
         CommandLine command,
         CancellationToken cancellationToken)
     {
-        var push = await new RoamingConfigService(context.Session)
+        var push = await new RoamingConfigService(context.Session, AgentContext.ConnectOverride)
             .PushAsync(command.Value("passphrase"), cancellationToken)
             .ConfigureAwait(false);
 

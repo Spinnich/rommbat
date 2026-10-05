@@ -224,6 +224,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     /// <summary>The one game, when this screen is installing rather than syncing a set.</summary>
     private readonly SyncSetMember? _installing;
 
+    /// <summary>How an install mirrors the pick that started it, or null for a set's sync.</summary>
+    private readonly Func<CancellationToken, Task<RoamingPush>>? _roam;
+
     /// <summary>
     /// Orders the writers of <see cref="_state"/> and of <see cref="_problems"/>.
     /// </summary>
@@ -238,6 +241,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         new(SyncStage.Working, "Working out what this device should hold...");
 
     private Task? _work;
+    private Task? _roaming;
     private bool _disposed;
     private bool _stopping;
 
@@ -300,12 +304,17 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     /// and says why for each of the six it leaves out.
     /// </para>
     /// </remarks>
+    /// <param name="roam">
+    /// How the pick is mirrored into <c>Device.sync_config</c>. Taken so a test can stand in
+    /// for <see cref="RoamingConfigService"/>, as <see cref="ResolveViewModel"/> does.
+    /// </param>
     public SyncViewModel(
         InstallSession session,
         SyncSetDefinition set,
         SyncSetMember member,
         Func<Uri, RomMConnection>? connect = null,
-        Func<IScreen>? pair = null)
+        Func<IScreen>? pair = null,
+        Func<CancellationToken, Task<RoamingPush>>? roam = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(set);
@@ -315,6 +324,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         _sets = [set];
         _pair = pair;
         _installing = member;
+        _roam = roam ?? (token => new RoamingConfigService(session, connect).PushAsync(cancellationToken: token));
 
         Start(connect);
     }
@@ -523,6 +533,30 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         }
 
         _work = Task.Run(() => RunAsync(connection), CancellationToken.None);
+
+        // A pick roams as a resolve does (#444): the picked set's ids are its definition, and
+        // a game picked from the couch otherwise reached another device only when something
+        // else happened to push. Beside the install, so the fetch does not wait on it.
+        if (_roam is not null)
+        {
+            _roaming = Task.Run(RoamAsync, CancellationToken.None);
+        }
+    }
+
+    /// <summary>Mirrors the pick, and says so only when it could not.</summary>
+    /// <remarks>
+    /// <b>Not on this screen's token, and not waited on by <see cref="Dispose"/></b>, for the
+    /// reasons <see cref="ResolveViewModel"/> gives. The note goes with the problems rather
+    /// than into the detail line, which <see cref="Settle"/> replaces whichever finishes first.
+    /// </remarks>
+    private async Task RoamAsync()
+    {
+        var push = await _roam!(CancellationToken.None).ConfigureAwait(false);
+
+        if (push.Note is { } note)
+        {
+            Note(note);
+        }
     }
 
     private async Task RunAsync(RomMConnection connection)

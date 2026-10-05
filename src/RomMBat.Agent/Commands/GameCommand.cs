@@ -15,7 +15,7 @@ namespace RomMBat.Agent.Commands;
 /// runs. The per-game memory card is the screen's third verb and is <c>saves convert</c> here.
 /// <para>
 /// <b><c>install</c> joins the hand-picked set and fetches straight away</b>, which is what
-/// one press means on the screen. <b><c>remove</c> previews and writes on <c>--apply</c></b>,
+/// one press means on the screen, and pushes the definitions as <c>sets add</c> does. <b><c>remove</c> previews and writes on <c>--apply</c></b>,
 /// like everything else in this agent that deletes.
 /// </para>
 /// </remarks>
@@ -138,6 +138,11 @@ internal static class GameCommand
             ? $"{row.DisplayName} is in '{pick.Outcome.Set.Name}' but not on the device yet. Fetching it."
             : $"Added {row.DisplayName} to '{pick.Outcome.Set.Name}'. Fetching it.");
 
+        // A pick roams as a resolve does (#444), beside the fetch rather than in front of it,
+        // and not on the caller's token: stopping the fetch is not stopping the pick.
+        var roaming = new RoamingConfigService(context.Session, AgentContext.ConnectOverride)
+            .PushAsync(command.Value("passphrase"), CancellationToken.None);
+
         var report = await new LibrarySyncService(context.Session)
             .InstallAsync(
                 pick.Outcome.Set,
@@ -146,6 +151,11 @@ internal static class GameCommand
                 new Immediate<SyncEvent>(SyncCommand.Printer.Show),
                 cancellationToken)
             .ConfigureAwait(false);
+
+        if ((await roaming.ConfigureAwait(false)).Note is { } note)
+        {
+            Console.WriteLine($"  {note}");
+        }
 
         return SyncCommand.ExitCodeFor(report);
     }

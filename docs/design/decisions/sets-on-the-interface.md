@@ -61,11 +61,15 @@ they had just described. Starting minutes of network work uninvited is only reas
 stopping costs one press and keeps what it found.
 
 **A set defined from the interface roams, and the resolve is what mirrors it.** `sets add` and
-`sets resolve` both push `Device.sync_config`; the editor pushed nothing, so the same action
-persisted differently depending on which front end took it, and a second device paired against
-the same server found none of the sets made from the couch. The push hangs off the resolve
+`sets resolve` both push `Device.sync_config`, and the interface does too, so the same action
+persists the same way whichever front end takes it. The push hangs off the resolve
 screen rather than off the save, because creating and editing both land there and it is the one
 place with somewhere to say the push failed. Best effort as everywhere else: its own connection,
 never on the screen's cancellation token, and a failure is a note appended to the result rather
 than an error. Roaming is how set definitions reach other devices, and the front end with no
 prompt is the one that needs it most.
+
+**A pick roams too**, because the picked set's ids are its definition. Browse's install and
+`game install` both push beside the one-game fetch, on the same best-effort terms. On the
+interface the install screen is where a failure is said, as one of its problems rather than in
+the detail line the finished install replaces.

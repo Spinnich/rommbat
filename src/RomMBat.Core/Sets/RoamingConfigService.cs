@@ -21,18 +21,24 @@ public sealed record RoamingPush(bool Pushed, string? Note);
 /// failure here comes back as a <see cref="RoamingPush"/> with a note, never as a throw and
 /// never as a non-zero outcome.
 /// <para>
-/// Lifted out of <c>SetsCommand</c> unchanged. It opens its own connection because the caller
-/// that defines a set has no reason to hold one, and pairing may have expired since.
+/// It opens its own connection because the caller that defines a set has no reason to hold
+/// one, and pairing may have expired since.
 /// </para>
 /// </remarks>
 public sealed class RoamingConfigService
 {
     private readonly InstallSession _session;
+    private readonly Func<Uri, RomMConnection>? _connect;
 
-    public RoamingConfigService(InstallSession session)
+    /// <param name="connect">
+    /// Where the push goes in place of the paired origin's own connection, for a test standing a
+    /// stub in front of a front end. Null in production.
+    /// </param>
+    public RoamingConfigService(InstallSession session, Func<Uri, RomMConnection>? connect = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         _session = session;
+        _connect = connect;
     }
 
     /// <summary>Pushes the current definitions, or says why it could not.</summary>
@@ -56,7 +62,9 @@ public sealed class RoamingConfigService
                 return new RoamingPush(false, null);
             }
 
-            using var connection = attempt.Connection;
+            using var connection = _connect is not null && device.ServerOrigin is { } origin
+                ? Replace(attempt.Connection, _connect(origin))
+                : attempt.Connection;
 
             var current = await connection
                 .GetDeviceAsync(device.RomMDeviceId, cancellationToken)
@@ -77,5 +85,11 @@ public sealed class RoamingConfigService
         {
             return new RoamingPush(false, "(definitions stay on this device until the server is reachable)");
         }
+    }
+
+    private static RomMConnection Replace(RomMConnection authenticated, RomMConnection replacement)
+    {
+        authenticated.Dispose();
+        return replacement;
     }
 }
