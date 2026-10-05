@@ -72,7 +72,7 @@ than merely unscheduled.
 | 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | 6   | The hard save shapes: memory cards, GCI folders, VMU, and the class C directories |
 | 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | 10  | Ten cheap rows that answer one question: is the class A fallback safe             |
 | 5    | `atari5200`, `colecovision`, `intellivision`, `vectrex`, `channelf`, `arcadia`, `odyssey2`, `sg1000`     | 8   | Generation 2, small BIOS sets, every recommended core under libretro              |
-| 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | 6   | Five `hardware=extension` systems share a parent's tree, which nothing has tested |
+| 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | 6   | `hardware=extension`: emulators can write into the parent's names (`sega32x`)     |
 | 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | 4   | Shape unclassified in all four, and `jaguar` carries the one non-libretro pick    |
 | 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | 4   | Arcade: romset-versioned naming, the seven-folder mapping question, 12 BIOS files |
 
@@ -112,7 +112,8 @@ declares the emulators `es_savestates.cfg` leaves out there: `mednafen`, `mesen`
 `nes`, `mednafen`, `ares` and `kega-fusion`'s three rows on `megadrive`, and `mgba`, `mednafen`,
 `mesen` and `ares` on `gba`, the same four on `gb` and on `gbc`, `mednafen`, `mesen`, `snes9x` and `ares` on `snes`, and `mednafen`, `mesen`, `ares` and both `kega-fusion` rows on `mastersystem`. `nosgba` writes states nowhere RomMBat was shown. Beyond wave 1 the supplement
 declares `mednafen` on `psx`, `mednafen`, `mesen` and `ares` on `pcengine`, `ares`, `simple64` and
-`project64` on `n64`, and `mednafen` and `ares` on `gamegear`; every other system counts
+`project64` on `n64`, `mednafen` and `ares` on `gamegear`, and `ares` on `sega32x`, on the entry it
+shares with `megadrive`; every other system counts
 `es_savestates.cfg` alone.
 
 **Steps 1, 2, 3, 7, 8 and 9 are per system and carry across the rows with a note.** Only 4, 5
@@ -210,7 +211,7 @@ work. All three counts are against the 51 systems above.
   emulator writes**: three of those were driven and all three wrote states anyway, so step 5 records the
   path as well as the absence.
 
-## Ninety-six rows are certified, and the gate is open
+## One hundred rows are certified, and the gate is open
 
 A pass needs the framework working end to end on a single platform, and a person at the
 machine launching real games through the gamepad UI. Both hold: a game has been launched from
@@ -293,13 +294,15 @@ steps, and each record's "Where each row stands" states the result.
 
 **Wave 4 has begun with `gamegear`: five of its seven rows certified at RomM `5.3.1`** on 2026-10-05, both `libretro` cores that boot the library, mednafen, ares and BizHawk's SMSHawk, with no firmware needed by any row. The three standalone rows needed a battery rule each and `mednafen` and `ares` a state declaration, and because ares writes 32 KB of `0xFF` for every cartridge, the scanner now passes over a battery file that is entirely `0xFF` (#453, RB-408, RB-409). `libretro`/`fbneo` refuses the No-Intro names, and `jgenesis` plays a Game Gear game to a black screen because RetroBat launches it as a Master System (RB-410, RB-412). [gamegear/](gamegear/index.md) is the record.
 
-**Read all ten as narrowly as they are written.** They certify ninety-six
-`(system, emulator, core)` rows on one install, wave 1's seventy-five, `psx`'s seven, `n64`'s nine and `gamegear`'s five, each at the
+**Wave 6 has begun with `sega32x`: four of its five rows certified at RomM `5.3.1`** on 2026-10-05, `libretro`/`picodrive`, ares, BizHawk's PicoDrive and jgenesis, with no firmware needed by any row. The extension keeps its own `roms\sega32x` and `saves\sega32x`, but two emulators reach into the parent's names: ares writes its 32X states to `ares/Mega Drive/`, which the supplement's `megadrive` entry declares for `sega32x` too, and Kega Fusion writes them to `saves/megadrive/kega-fusion/`, where they read as megadrive states with no rom (RB-413, RB-416). The three standalone rows needed a battery rule each (#464). Kega Fusion is driven and not certified, for `megadrive`'s reason (RB-283), and ares and BizHawk keep no serial EEPROM, so NBA Jam TE and NFL Quarterback Club keep no save under either (RB-415). [sega32x/](sega32x/index.md) is the record.
+
+**Read all eleven as narrowly as they are written.** They certify one hundred
+`(system, emulator, core)` rows on one install, wave 1's seventy-five, `psx`'s seven, `n64`'s nine, `gamegear`'s five and `sega32x`'s four, each at the
 floors its record names. They certify none of those
 emulators on any other system: every rule and declaration the non-`libretro` rows needed is scoped
 to the systems it was measured on. [nes/](nes/index.md), [megadrive/](megadrive/index.md),
 [gba/](gba/index.md), [gb/](gb/index.md), [gbc/](gbc/index.md), [snes/](snes/index.md), [mastersystem/](mastersystem/index.md),
-[psx/](psx/index.md), [n64/](n64/index.md) and [gamegear/](gamegear/index.md) are the records, gaps included.
+[psx/](psx/index.md), [n64/](n64/index.md), [gamegear/](gamegear/index.md) and [sega32x/](sega32x/index.md) are the records, gaps included.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps. A change to save logic
 owes a hands-on pass of the shape it touches, through EmulationStation and back on every emulator

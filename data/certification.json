@@ -840,6 +840,47 @@
       "note": "RetroBat launches it as a Master System, so a Game Gear game plays to a black screen",
       "romm": "5.3.1",
       "retrobat": "8.2.1"
+    },
+    {
+      "system": "sega32x",
+      "emulator": "libretro",
+      "core": "picodrive",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "sega32x",
+      "emulator": "ares",
+      "core": "Mega32X",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "sega32x",
+      "emulator": "kega-fusion",
+      "core": "sega32x",
+      "status": "not-certified",
+      "note": "Writes its battery saves outside saves/, and its states into the Mega Drive's folder",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "sega32x",
+      "emulator": "bizhawk",
+      "core": "PicoDrive",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "sega32x",
+      "emulator": "jgenesis",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
     }
   ]
 }
