@@ -202,9 +202,8 @@ Start with `Test-HandsOnEnv -Gui`, then `Publish-ToAgentTree`, so the pass runs 
 | Docs, tests, CI or dev tooling alone | Nothing                                                                                                                                           |
 
 A diff in two rows owes both. **A pass that cannot run is named, never skipped silently**: a
-disconnected session, ES or an emulator already running, or recent keyboard, mouse or pad input
-(the kit refuses to take the screen then, because the maintainer may be playing), or a server
-down. Say which claims that leaves
+disconnected session, ES or an emulator already running outside `/certify` (the kit refuses to
+take the screen then, because the maintainer may be playing), or a server down. Say which claims that leaves
 unproven. The PR body's **Hands-on** section says what was driven, on which build (the line in
 `emulators/rommbat/deployed.txt`), and what each screenshot or output showed.
 
