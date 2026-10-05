@@ -73,8 +73,8 @@ design is in question, not the code.
 - Deploys to, pairs, syncs, resets and drives its own agent tree (`ROMMBAT_AGENT_ROOT`), to do the
   hands-on pass a change owes, `/certify` included, with `tools/handson/`. It takes the screen and
   keyboard only when EmulationStation, every emulator and RomMBat are closed, and during
-  `/certify` when nobody has touched the keyboard or mouse for 30 s or a pad during a 3 s sample.
-  It asks otherwise.
+  `/certify`, where it says in chat when it starts and stops driving and the kit shows a strip on
+  screen while it does. It asks otherwise.
 - Merges on green, once review is done, a PR that is docs only, tests only, or a Dependabot patch
   or minor bump.
 
@@ -86,7 +86,7 @@ design is in question, not the code.
 - Writing in a RetroBat install other than the agent tree.
 - Playing: battery saves, name entry, anything a person has to do with a pad.
 - Taking the screen while EmulationStation, an emulator or RomMBat is already running, outside
-  the idle-input rule `/certify` follows.
+  `/certify`.
 
 ## What "done" means
 

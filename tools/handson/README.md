@@ -48,7 +48,7 @@ Invoke-Agent sync
 | `Send-Key <key> [-Window <proc>] [-HoldMs n]` | `keybd_event` with the scan code. `Ctrl+F2` for a chord. The UI needs `-HoldMs 60`                  |
 | `Save-Screenshot <name> [-Window <proc>]`     | A PNG under `probe-output/handson-<date>/`, path returned for the Read tool                         |
 | `Assert-TakeoverAllowed [-WhilePlaying]`      | Throws when the session is not Active or ES, an emulator or RomMBat is running                      |
-| `Assert-HumanIdle [-IdleSec n] [-Pads]`       | Throws when someone used the keyboard or mouse, or with `-Pads` an XInput pad, recently             |
+| `Show-AgentBanner`, `Hide-AgentBanner`        | Put up, or take down, the "agent is driving" strip across the top of the screen                     |
 
 The UI's keys are its desk map: `Up`, `Down`, `Left`, `Right`, `Enter` (A), `Escape` (B),
 `Backspace` (L1), `Tab` (X), `F5` (Start).
@@ -58,18 +58,14 @@ The UI's keys are its desk map: `Up`, `Down`, `Left`, `Right`, `Enter` (A), `Esc
 - **The screen is taken only when it is free.** `Start-ES` and `Start-RomMBatUI` refuse while ES,
   `emulatorLauncher` or RomMBat is running, from any tree, because the maintainer may be playing
   over RDP on this machine. Ask them instead.
-- **During `/certify` the test is input, not processes.** The maintainer plays in the same session
-  the kit drives, so ES and a game are expected. `Assert-TakeoverAllowed -WhilePlaying` refuses
-  when anyone used the keyboard or mouse in the last 30 s, or an XInput pad in a 3 s sample.
-  `Send-Key` makes the keyboard and mouse check before every key, in every pass and not only
-  `/certify`, so typing a prompt into the session the kit drives pauses it for 30 s; the Escape
-  `Stop-Game` falls back on skips it. `Stop-ES` and `Stop-Game` make the same check, with the
-  pad sample, before ending anything, because the maintainer may be in the game; `-Force` skips
-  it. The kit's own keys do not count: after each key it stores Windows' last-input time in a
-  file under `%TEMP%`, because each shell call is a new process, and input is the kit's only
-  while that time is unchanged. A key held for the 400 ms the emulators need is checked before
-  its release, which would otherwise hide someone typing during it. A DirectInput-only pad is
-  not seen.
+- **The kit says when it is driving.** The maintainer plays in the same session the kit drives,
+  and switching into the RDP window to check on a pass is input Windows cannot tell from play, so
+  the kit does not read input to decide. The agent says in chat before it starts driving and when
+  it hands the session back, and the kit shows a red strip across the top of the screen while it
+  acts: `Send-Key`, `Start-ES`, `Start-RomMBatUI`, `Stop-Game` and
+  `Assert-TakeoverAllowed -WhilePlaying` put it up. It is topmost, click-through and never takes
+  focus, `Save-Screenshot` hides it for a full-screen capture, and it goes away 3 min after the
+  kit last acted, or on `Hide-AgentBanner`. An emulator in exclusive full screen can draw over it.
 - **A disconnected session cannot be driven.** With no RDP client attached, screenshots come back
   black and keys go nowhere. `Test-HandsOnEnv -Gui` reports the state; record the GUI half as
   unproven rather than sending keys blind.

@@ -29,11 +29,10 @@ sends keys and takes screenshots; `waves.md` covers what it does not, such as an
 `emulatorLauncher` launch with a row's arguments.
 
 The maintainer plays this tree over RDP, in the same desktop session the kit drives, and RDP eats
-keyboard combinations. Before taking the keyboard while ES or a game runs, call
-`Assert-TakeoverAllowed -WhilePlaying`: it refuses when the keyboard or mouse was used in the
-last 30 s or an XInput pad during a 3 s sample, and `Send-Key` makes the keyboard and mouse check
-before each key it sends, in any pass. A refusal
-means the maintainer is playing; wait, or ask. Keep the RomM web player closed. Pick USA or
+keyboard combinations. Before taking the keyboard while ES or a game runs, say so in chat, then
+call `Assert-TakeoverAllowed -WhilePlaying`, which puts up the kit's "agent is driving" strip.
+When the maintainer's turn comes, call `Hide-AgentBanner` and say in chat that the session is
+theirs. Never send a key during a step the play sheet gives them. Keep the RomM web player closed. Pick USA or
 English releases for anything they have to navigate.
 
 ## The issue
