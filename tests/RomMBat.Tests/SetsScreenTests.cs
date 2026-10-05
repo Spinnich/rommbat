@@ -1659,6 +1659,7 @@ public sealed class SetsScreenTests : IDisposable
                 _session,
                 browsed,
                 new EvictionReport(new PartialSweepPlan(), new EvictionPlan(), HasBudget: false),
+                null,
                 null),
         };
 

@@ -190,6 +190,39 @@ public sealed class GameCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task Remove_with_apply_pushes_the_unpick_so_it_follows_the_user()
+    {
+        // The unpick rewrites the picked set's ids, so it pushes as the pick did. Without this
+        // the server went on holding the game until something else pushed. #451.
+        Pair(RomMScopes.DevicesRead, RomMScopes.DevicesWrite);
+        await AgentRunner.RunAgainstAsync(_tree, _stub, "game", "install", "7");
+
+        var preview = await AgentRunner.RunAgainstAsync(_tree, _stub, "game", "remove", "7");
+
+        Assert.Equal(ExitCode.Ok, preview.ExitCode);
+        Assert.Equal([Chrono], RoamedPicks());
+
+        var run = await AgentRunner.RunAgainstAsync(_tree, _stub, "game", "remove", "7", "--apply");
+
+        Assert.True(run.ExitCode == ExitCode.Ok, run.Error);
+        Assert.Empty(RoamedPicks());
+    }
+
+    [Fact]
+    public async Task An_unpick_that_cannot_roam_says_so_and_still_removes()
+    {
+        Pair();
+        await AgentRunner.RunAgainstAsync(_tree, _stub, "game", "install", "7");
+
+        var run = await AgentRunner.RunAgainstAsync(_tree, _stub, "game", "remove", "7", "--apply");
+
+        Assert.True(run.ExitCode == ExitCode.Ok, run.Error);
+        Assert.True(run.Wrote("devices.write was not granted"), run.Out);
+        Assert.False(File.Exists(Absolute(RomPath)), run.Out);
+        Assert.Empty(WithSession(session => new PickedSetService(session).Picks()));
+    }
+
+    [Fact]
     public async Task A_game_another_set_still_wants_is_kept_and_the_preview_says_why()
     {
         Pair();
@@ -265,6 +298,15 @@ public sealed class GameCommandTests : IDisposable
     }
 
     private string Absolute(string relative) => Path.Combine(_tree.Root, relative);
+
+    /// <summary>The picked set's ids as the server last stored them.</summary>
+    private IReadOnlyList<int> RoamedPicks()
+    {
+        var roamed = RoamingSyncConfig.Extract(_stub.StoredSyncConfig);
+        Assert.NotNull(roamed);
+
+        return PickedScopeJson.Parse(Assert.Single(roamed.Sets, set => set.Scope == "picked").ScopeValue);
+    }
 
     private void Pair(params string[] extraScopes) => WithSession(session =>
     {

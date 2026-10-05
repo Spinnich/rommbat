@@ -72,4 +72,7 @@ prompt is the one that needs it most.
 **A pick roams too**, because the picked set's ids are its definition. Browse's install and
 `game install` both push beside the one-game fetch, on the same best-effort terms. On the
 interface the install screen is where a failure is said, as one of its problems rather than in
-the detail line the finished install replaces.
+the detail line the finished install replaces. Taking a picked game off pushes too, from the
+removal screen and `game remove --apply`, after the unpick so the push carries the shorter
+list. The removal screen waits for it, since nothing else there takes long, and a failure is
+one of its problem rows.
