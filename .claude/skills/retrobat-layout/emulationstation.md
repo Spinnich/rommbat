@@ -160,8 +160,7 @@ byte-identical to before the run.
 
 A reload works with **ES unfocused**, so ES's own reload does not depend on focus (RB-233).
 
-**`POST /launch` answers 200 and launches nothing.** Driven twice with the exact path
-`/systems/<system>/games` reports and an explicit `text/plain` body: an empty response,
-`emulatorLauncher.log` did not grow by a byte, and no emulator process appeared (RB-208). **A
-hands-on pass covering `game-start` and `game-end` needs a person at the controller; it cannot
-be scripted through this API.**
+**`POST /launch` starts the game** whose `path` `/systems/<system>/games` reports, sent as the raw
+body: an empty 200, `emulatorLauncher.log` grows and an emulator appears (RB-208). The
+`game-start` and `game-end` hooks run as for a player, so a hands-on pass over them needs no one
+at the controller; `tools/handson`'s `Start-Game` is the call.

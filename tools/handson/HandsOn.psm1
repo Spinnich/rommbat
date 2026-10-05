@@ -41,7 +41,10 @@ function Get-HandsOnEnv {
 
     $values = @{}
     foreach ($line in Get-Content $file) {
-        if ($line -match '^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$') { $values[$Matches[1]] = $Matches[2].Trim('"') }
+        if ($line -match '^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$') {
+            # A trailing ' # note' is a comment, as it is when bash sources the same file.
+            $values[$Matches[1]] = ($Matches[2] -replace '\s+#.*$', '').Trim('"')
+        }
     }
     $values
 }
@@ -69,6 +72,29 @@ function Get-SessionState {
 function Get-TakeoverBlockers {
     @(Get-Process -Name $script:TakeoverBlockers -ErrorAction SilentlyContinue |
         ForEach-Object { "$($_.Name) (pid $($_.Id))" })
+}
+
+function Get-AgentProcess {
+    <#
+    .SYNOPSIS
+        Running processes by name that execute from the agent tree. The stop functions use it so
+        none can reach the maintainer's install, whatever it has running.
+    #>
+    param([Parameter(Mandatory)] [string[]] $Name)
+    $prefix = (Get-AgentRoot).TrimEnd('\', '/') + '\'
+    @(Get-Process -Name $Name -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($prefix, 'OrdinalIgnoreCase') })
+}
+
+function Assert-AgentES {
+    <#
+    .SYNOPSIS
+        Throws unless the ES answering on port 1234 can only be the agent tree's: no
+        EmulationStation runs from anywhere else.
+    #>
+    $prefix = (Get-AgentRoot).TrimEnd('\', '/') + '\'
+    $foreign = @(Get-Process -Name 'emulationstation' -ErrorAction SilentlyContinue |
+        Where-Object { -not ($_.Path -and $_.Path.StartsWith($prefix, 'OrdinalIgnoreCase')) })
+    if ($foreign.Count) { throw "An EmulationStation outside the agent tree is running (pid $($foreign.Id -join ', ')); port 1234 may be its. Not calling it." }
 }
 
 function Assert-TakeoverAllowed {
@@ -110,7 +136,7 @@ function Test-HandsOnEnv {
     $agentExe = if ($root) { Join-Path $root 'emulators\rommbat\rommbat-agent.exe' }
     $results['a build is deployed'] = [bool]($agentExe -and (Test-Path $agentExe))
     $results['the tree is paired'] = [bool]($root -and (Test-Path (Join-Path $root 'emulators\rommbat\rommbat.db')) -and
-        ((Invoke-Agent status 2>&1 | Out-String) -match 'romm device'))
+        ((Invoke-Agent status 2>&1 | Out-String) -match 'paired:\s+yes'))
 
     try {
         $null = Invoke-WebRequest -Uri ($envValues['ROMMBAT_TEST_SERVER'].TrimEnd('/') + '/api/heartbeat') -TimeoutSec 10
@@ -230,6 +256,7 @@ function Invoke-ES {
         One call to ES's loopback API (RB-386). POST when -Body is given.
     #>
     param([Parameter(Mandatory)] [string] $Path, [string] $Body, [int] $TimeoutSec = 30)
+    Assert-AgentES
     $uri = "$script:EsOrigin$Path"
     if ($PSBoundParameters.ContainsKey('Body')) {
         (Invoke-WebRequest -Uri $uri -Method Post -Body $Body -TimeoutSec $TimeoutSec).Content
@@ -267,7 +294,7 @@ function Stop-ES {
     param([int] $TimeoutSec = 120)
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     Stop-Game
-    $es = Get-Process emulationstation -ErrorAction SilentlyContinue | Select-Object -First 1
+    $es = Get-AgentProcess emulationstation | Select-Object -First 1
     if (-not $es) { return }
     try { $null = Invoke-ES '/quit' -TimeoutSec 10 } catch { }
     while (-not $es.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250; $es.Refresh() }
@@ -297,7 +324,7 @@ function Stop-Game {
         the QuitEmulator key, follows. emulatorLauncher is never killed: it does the mirror.
     #>
     param([int] $TimeoutSec = 30)
-    $launcher = Get-Process emulatorLauncher -ErrorAction SilentlyContinue | Select-Object -First 1
+    $launcher = Get-AgentProcess emulatorLauncher | Select-Object -First 1
     if (-not $launcher) { return }
     $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($launcher.Id)" |
         ForEach-Object { Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue })
@@ -464,7 +491,7 @@ function Start-RomMBatUI {
 }
 
 function Stop-RomMBatUI {
-    Get-Process -Name 'RomMBat' -ErrorAction SilentlyContinue | ForEach-Object {
+    Get-AgentProcess 'RomMBat' | ForEach-Object {
         $null = $_.CloseMainWindow()
         if (-not $_.WaitForExit(10000)) { $_.Kill() }
     }

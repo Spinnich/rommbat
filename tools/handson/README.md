@@ -12,8 +12,8 @@ Test-HandsOnEnv -Gui        # one line per check, then ready or not ready
 
 ## The agent tree
 
-`ROMMBAT_AGENT_ROOT` in the main checkout's `.env` names it, beside `ROMMBAT_RETROBAT_ROOT`, the
-maintainer's install, which this kit never touches. The tree is paired as the approver test
+`ROMMBAT_AGENT_ROOT` in the main checkout's `.env` names it, beside `ROMMBAT_MAINTAINER_ROOT`, the
+maintainer's install, which this kit never touches: the stop functions act only on processes running from the agent tree, and the ES calls refuse while an ES from anywhere else runs. The tree is paired as the approver test
 account, so what it uploads stays apart from the maintainer's own saves. The agent may deploy to
 it, pair, sync, reset and drive it without asking ([workflow](../../docs/contributing/workflow.md)).
 

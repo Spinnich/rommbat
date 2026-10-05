@@ -61,7 +61,7 @@ Verified: RetroBat 8.2.0, 2026-08-08. How: called every route but `/launch`, lis
 | `/caps`                   | GET    | `{"Version":"8.2.0-stable-win64","SortName":false}` |
 | `/quit`                   | GET    | Closes ES                                           |
 | `/emukill`                | GET    | Kills the running emulator                          |
-| `/launch`                 | POST   | Does nothing (RB-208)                               |
+| `/launch`                 | POST   | Starts the game whose path is the body (RB-208)     |
 
 `POST /reloadgames` is 404. `PublicWebAccess` gates only non-local callers. Neither
 `-updatestores`, which drives the content store, nor ES's command line, whose switches are
@@ -106,12 +106,13 @@ after RomMBat exited, until a later reload. So ES applies a queued reload on res
 rescans by itself. The reload worked with ES unfocused. RomMBat's sync screen issues the reload
 after writing gamelists, and the games appear when the user leaves it.
 
-## RB-208. `POST /launch` answers 200 and launches nothing
+## RB-208. `POST /launch` starts the game whose path it is given
 
-Verified: RetroBat 8.2.0, 2026-08-24. How: posted the exact path `/systems/mastersystem/games` reports, as the raw body with and without `text/plain`, twice.
-The response was 200 with an empty body, `emulatorLauncher.log` did not grow by a byte, and no
-emulator process appeared. So the API cannot start a game, and a hands-on pass that covers
-`game-start` and `game-end` needs a person at the controller.
+Verified: RetroBat 8.2.1, 2026-10-04. How: posted the `path` that `/systems/nes/games` reports, as the raw body, to a running ES on an idle tree, then watched the processes and `emulatorLauncher.log`.
+The response was 200 with an empty body, `emulatorLauncher.log` grew by 1.9 KB, and
+`emulatorLauncher` and `retroarch` were running 12 s later. ES runs the `game-start` and
+`game-end` hooks around it as for a player, so a hands-on pass over them can be scripted. Ending
+the game still takes the emulator's own exit (RB-35).
 
 ## RB-108. With ES absent, a loopback connect is refused after 2.04 s
 

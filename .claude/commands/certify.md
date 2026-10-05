@@ -20,7 +20,7 @@ and `waves.md` how the agent launches rows and sends keys. `docs/platforms/nes/`
 
 ## The install
 
-The RetroBat test install is the path in `ROMMBAT_RETROBAT_ROOT`, in the main checkout's `.env`.
+The RetroBat test install is the path in `ROMMBAT_MAINTAINER_ROOT`, in the main checkout's `.env`.
 If it is unset, ask for it once. `tools/handson/` launches, sends keys and takes screenshots; its
 functions act on the agent tree, so on this install use the techniques in `waves.md` directly.
 

@@ -105,7 +105,7 @@ The commands find both RetroBat trees in the repository-root `.env`, which git i
 the test server and tokens:
 
 ```bash
-ROMMBAT_RETROBAT_ROOT=R:\RetroBat      # yours, for /certify and save passes
+ROMMBAT_MAINTAINER_ROOT=R:\RetroBat      # yours, for /certify and save passes
 ROMMBAT_AGENT_ROOT=D:\retrobat-agent   # the agent's own, for every other hands-on pass
 ```
 
