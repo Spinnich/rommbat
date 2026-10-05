@@ -41,7 +41,7 @@ Invoke-Agent sync
 | `Publish-ToAgentTree`                         | `publish.ps1 -Deploy` into the tree, and records branch and sha in `emulators/rommbat/deployed.txt` |
 | `Invoke-Agent <args>`                         | The deployed `rommbat-agent.exe` with `--root` set                                                  |
 | `Connect-AgentTree [-Repair]`                 | Pairs headlessly, approving with the approver token for exactly the scopes requested                |
-| `Start-ES`, `Stop-ES`                         | Start RetroBat and wait for ES's API; end any game, quit, wait for the process to exit              |
+| `Start-ES`, `Stop-ES`                         | Start RetroBat and wait for ES's API; end any game, quit, wait for the process to exit; `-Force` skips the guard |
 | `Get-ESGames <system>`, `Start-Game <path>`   | List a system through ES, and launch through it so the hooks run as for a player                    |
 | `Stop-Game`                                   | WM_CLOSE to the emulator, then Escape. `/emukill` does nothing while a game runs (RB-35)            |
 | `Start-RomMBatUI`, `Stop-RomMBatUI`           | The deployed `RomMBat.exe` on the tree, standalone                                                  |
@@ -63,9 +63,13 @@ The UI's keys are its desk map: `Up`, `Down`, `Left`, `Right`, `Enter` (A), `Esc
   when anyone used the keyboard or mouse in the last 30 s, or an XInput pad in a 3 s sample.
   `Send-Key` makes the keyboard and mouse check before every key, in every pass and not only
   `/certify`, so typing a prompt into the session the kit drives pauses it for 30 s; the Escape
-  `Stop-Game` falls back on skips it. The kit's own keys do not count:
-  it records when it last sent one, in a file under `%TEMP%`, because each shell call is a new
-  process. A DirectInput-only pad is not seen.
+  `Stop-Game` falls back on skips it. `Stop-ES` and `Stop-Game` make the same check, with the
+  pad sample, before ending anything, because the maintainer may be in the game; `-Force` skips
+  it. The kit's own keys do not count: after each key it stores Windows' last-input time in a
+  file under `%TEMP%`, because each shell call is a new process, and input is the kit's only
+  while that time is unchanged. A key held for the 400 ms the emulators need is checked before
+  its release, which would otherwise hide someone typing during it. A DirectInput-only pad is
+  not seen.
 - **A disconnected session cannot be driven.** With no RDP client attached, screenshots come back
   black and keys go nowhere. `Test-HandsOnEnv -Gui` reports the state; record the GUI half as
   unproven rather than sending keys blind.

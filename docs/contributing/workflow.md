@@ -83,9 +83,10 @@ design is in question, not the code.
 - A design question: anything a doc under `docs/` or a skill would have to change to record.
 - Closing an issue for any reason other than "already fixed".
 - Any other merge, and anything that touches main directly.
-- Writing anywhere else in the RetroBat install, and restoring it from a snapshot.
+- Writing in a RetroBat install other than the agent tree.
 - Playing: battery saves, name entry, anything a person has to do with a pad.
-- Taking the screen while EmulationStation, an emulator or RomMBat is already running.
+- Taking the screen while EmulationStation, an emulator or RomMBat is already running, outside
+  the idle-input rule `/certify` follows.
 
 ## What "done" means
 

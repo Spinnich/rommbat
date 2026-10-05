@@ -295,10 +295,11 @@ function Stop-ES {
         /quit and /emukill answer 200 and do nothing while a game runs (RB-35), so the emulator
         is ended first and the process is polled rather than trusting the answer.
     #>
-    param([int] $TimeoutSec = 120)
+    param([int] $TimeoutSec = 120, [switch] $Force)
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
-    Stop-Game
     $es = Get-AgentProcess emulationstation | Select-Object -First 1
+    if ($es -and -not $Force) { Assert-HumanIdle -Pads }
+    Stop-Game -Force
     if (-not $es) { return }
     try { $null = Invoke-ES '/quit' -TimeoutSec 10 } catch { }
     while (-not $es.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250; $es.Refresh() }
@@ -327,9 +328,10 @@ function Stop-Game {
         (WM_CLOSE) lets it flush its save; ares can outlast 15 s on that (passes.md), so Escape,
         the QuitEmulator key, follows. emulatorLauncher is never killed: it does the mirror.
     #>
-    param([int] $TimeoutSec = 30)
+    param([int] $TimeoutSec = 30, [switch] $Force)
     $launcher = Get-AgentProcess emulatorLauncher | Select-Object -First 1
     if (-not $launcher) { return }
+    if (-not $Force) { Assert-HumanIdle -Pads }
     $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($launcher.Id)" |
         ForEach-Object { Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue })
     foreach ($child in $children) { $null = $child.CloseMainWindow() }
@@ -375,11 +377,22 @@ if (-not ('HandsOn.Native' -as [type])) {
 '@
 }
 
-# When the kit last sent a key, as TickCount64. A file, because each shell call is a new process.
+# Windows keeps one last-input time, and the kit's own keybd_event moves it. The kit stores that
+# time right after each key it sends, so input is the kit's only while the time is unchanged and
+# a person's as soon as it moves. A file, because each shell call is a new process.
 $script:KitInputMarker = Join-Path ([IO.Path]::GetTempPath()) 'rommbat-handson-lastkey.txt'
 
+function Get-LastInputInfo {
+    $info = New-Object HandsOn.Native+LASTINPUTINFO
+    $info.cbSize = [Runtime.InteropServices.Marshal]::SizeOf($info)
+    if (-not [HandsOn.Native]::GetLastInputInfo([ref]$info)) { return $null }
+    $info
+}
+
 function Set-KitInputMarker {
-    try { Set-Content -LiteralPath $script:KitInputMarker -Value ([Environment]::TickCount64) -NoNewline } catch { }
+    $info = Get-LastInputInfo
+    if (-not $info) { return }
+    try { Set-Content -LiteralPath $script:KitInputMarker -Value $info.dwTime -NoNewline } catch { }
 }
 
 function Get-HumanIdleSeconds {
@@ -387,21 +400,20 @@ function Get-HumanIdleSeconds {
     .SYNOPSIS
         Seconds since the last keyboard or mouse input this kit did not send, RDP input included.
     .DESCRIPTION
-        GetLastInputInfo counts the kit's own keybd_event too, so input at or before the kit's
-        last key is the kit's. Pads do not reach it; Test-PadActivity covers them.
+        GetLastInputInfo counts the kit's own keybd_event too, so a last-input time equal to the
+        one the kit stored after its last key is the kit's. Pads do not reach it; Test-PadActivity
+        covers them.
     #>
-    $info = New-Object HandsOn.Native+LASTINPUTINFO
-    $info.cbSize = [Runtime.InteropServices.Marshal]::SizeOf($info)
-    if (-not [HandsOn.Native]::GetLastInputInfo([ref]$info)) { return 0 }
-    $now = [Environment]::TickCount64
-    # dwTime is the low 32 bits of the tick count, so widen it against now.
-    $last = $now - (([uint64]($now % 4294967296) - $info.dwTime + 4294967296) % 4294967296)
+    $info = Get-LastInputInfo
+    if (-not $info) { return 0 }
 
-    $marker = 0
+    $marker = -1
     try { $marker = [long](Get-Content -LiteralPath $script:KitInputMarker -Raw -ErrorAction Stop) } catch { }
-    # A marker from before a reboot is larger than now, and says nothing.
-    if ($marker -le $now -and $last -le $marker + 250) { return [double]::PositiveInfinity }
-    ($now - $last) / 1000
+    if ($info.dwTime -eq $marker) { return [double]::PositiveInfinity }
+
+    # dwTime is the low 32 bits of the tick count, so subtract modulo 2^32.
+    $now = [Environment]::TickCount64
+    (([uint64]($now % 4294967296) - $info.dwTime + 4294967296) % 4294967296) / 1000
 }
 
 function Test-PadActivity {
@@ -501,7 +513,10 @@ function Send-Key {
             $flags = if ($script:ExtendedKeys -contains $vk) { 1 } else { 0 }
             [HandsOn.Native]::keybd_event($vk, [byte][HandsOn.Native]::MapVirtualKey($vk, 0), $flags, [UIntPtr]::Zero)
         }
+        Set-KitInputMarker
         Start-Sleep -Milliseconds $HoldMs
+        # The release would hide anyone who typed during the hold, so look first, and still release.
+        $interrupted = (Get-HumanIdleSeconds) -lt 1
         [array]::Reverse($vks)
         foreach ($vk in $vks) {
             $flags = 2 -bor $(if ($script:ExtendedKeys -contains $vk) { 1 } else { 0 })
@@ -509,6 +524,7 @@ function Send-Key {
         }
         [array]::Reverse($vks)
         Set-KitInputMarker
+        if ($interrupted) { throw 'Stopped: someone used the keyboard or mouse while the key was held. Ask the maintainer.' }
         Start-Sleep -Milliseconds $GapMs
     }
 }
