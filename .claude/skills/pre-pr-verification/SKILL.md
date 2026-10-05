@@ -198,12 +198,13 @@ Start with `Test-HandsOnEnv -Gui`, then `Publish-ToAgentTree`, so the pass runs 
 | A CLI command or its output          | Run it with `Invoke-Agent` and quote what it printed                                                                                              |
 | Sync, hooks, the spool, ES           | `Start-ES`, launch a game, `Stop-ES`. The spool drains, `background.log` shows both passes, `status` shows the session, and a re-sync is a no-op  |
 | Pairing or a call to the server      | `Connect-AgentTree -Repair`, or the changed call made against the real server                                                                     |
-| Save logic                           | `/certify <system> --hands-on <PR>` on the maintainer's install, as "When the change touches sync" says                                           |
+| Save logic                           | `/certify <system> --hands-on <PR>`, as "When the change touches sync" says                                                                       |
 | Docs, tests, CI or dev tooling alone | Nothing                                                                                                                                           |
 
 A diff in two rows owes both. **A pass that cannot run is named, never skipped silently**: a
-disconnected session, ES or an emulator already running (the kit refuses to take the screen
-then, because the maintainer may be playing), or a server down. Say which claims that leaves
+disconnected session, ES or an emulator already running, or recent keyboard, mouse or pad input
+(the kit refuses to take the screen then, because the maintainer may be playing), or a server
+down. Say which claims that leaves
 unproven. The PR body's **Hands-on** section says what was driven, on which build (the line in
 `emulators/rommbat/deployed.txt`), and what each screenshot or output showed.
 

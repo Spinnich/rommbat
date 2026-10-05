@@ -20,18 +20,21 @@ and `waves.md` how the agent launches rows and sends keys. `docs/platforms/nes/`
 
 ## The install
 
-The RetroBat test install is the path in `ROMMBAT_MAINTAINER_ROOT`, in the main checkout's `.env`.
-If it is unset, ask for it once. `tools/handson/` launches, sends keys and takes screenshots; its
-functions act on the agent tree, so on this install use the techniques in `waves.md` directly.
+The install is the agent tree, `ROMMBAT_AGENT_ROOT` in the main checkout's `.env`, and no other.
+It is the agent's to deploy to, sync, reset and write in without asking, so bring SYSTEM's games
+and firmware in through a RomMBat set and `Invoke-Agent sync`, the way a user's arrive. Run
+`Test-HandsOnEnv -Gui` and `Publish-ToAgentTree` first; with ES already up, its "nothing else has
+the screen" line fails by design, so read the others. `tools/handson/` starts ES, launches,
+sends keys and takes screenshots; `waves.md` covers what it does not, such as an
+`emulatorLauncher` launch with a row's arguments.
 
-You may write, without asking, inside that install's folders for SYSTEM only: `roms/<SYSTEM>`,
-`saves/<SYSTEM>`, the `bios/` files SYSTEM's rows read, and that system's entries in
-`gamelist.xml` and `es_settings.cfg`. **Snapshot first**: copy each folder and file you will touch
-to `probe-output/certify-<SYSTEM>-<yyyymmdd-hhmm>/` before the first write. Anything else in the
-install still asks, and so does restoring from the snapshot.
-
-The maintainer plays over RDP, which eats keyboard combinations. Keep the RomM web player closed.
-Pick USA or English releases for anything they have to navigate.
+The maintainer plays this tree over RDP, in the same desktop session the kit drives, and RDP eats
+keyboard combinations. Before taking the keyboard while ES or a game runs, call
+`Assert-TakeoverAllowed -WhilePlaying`: it refuses when the keyboard or mouse was used in the
+last 30 s or an XInput pad during a 3 s sample, and `Send-Key` makes the keyboard and mouse check
+before each key it sends, in any pass. A refusal
+means the maintainer is playing; wait, or ask. Keep the RomM web player closed. Pick USA or
+English releases for anything they have to navigate.
 
 ## The issue
 
@@ -49,7 +52,8 @@ Nothing here needs an emulator running or a person present.
    save-affecting options each exposes in `es_features.cfg` (memory card type, pak, clock).
    A `--hands-on` pass keeps only the rows and options that write the changed shape.
 2. Check `emulators/` holds an executable for each. One that does not is installed by ES on the
-   first launch, and accepting that is the maintainer's call.
+   first launch, which the agent may accept on its own tree. Its modal has no timeout, so
+   screenshot after each launch until the emulator's window is up.
 3. Run steps 1 and 3, and the inventory half of step 2, for the whole system now.
 4. Recommend the test games by `platform-certification`'s "Choosing test games". Research the
    library and the web, build the coverage table, and put the set to the maintainer as one
@@ -95,5 +99,4 @@ A row that cannot pass is recorded with its reason. That is a result, not a gap.
   what the emulator wrote, what RomMBat did with it, and anything not driven with the reason.
   Add a line to that PR's ledger, then return to its `/drive-pr`.
 
-Put the install back from the snapshot only if the maintainer asks. The snapshot stays in
-`probe-output/` until they say otherwise.
+Leave the agent tree as the pass left it. The next hands-on pass resets what it needs.

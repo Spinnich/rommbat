@@ -78,7 +78,7 @@ function Get-AgentProcess {
     <#
     .SYNOPSIS
         Running processes by name that execute from the agent tree. The stop functions use it so
-        none can reach the maintainer's install, whatever it has running.
+        none can reach another install, whatever it has running.
     #>
     param([Parameter(Mandatory)] [string[]] $Name)
     $prefix = (Get-AgentRoot).TrimEnd('\', '/') + '\'
@@ -103,11 +103,15 @@ function Assert-TakeoverAllowed {
         Throws unless the screen is free to drive: an active desktop session and none of ES, an
         emulator or RomMBat running, whichever tree they belong to.
     .DESCRIPTION
-        The maintainer plays R:\RetroBat over RDP on this machine. A running ES or emulator means
-        they may be at the pad, and keys sent now would land in their game. Ask instead.
+        The maintainer plays on this machine over RDP, in the same session the agent drives, so
+        a running ES or emulator means they may be at the pad. -WhilePlaying is /certify's form:
+        ES and an emulator may run, but nobody may have touched the keyboard or mouse within
+        -IdleSec, or an XInput pad during a 3 s sample. Otherwise ask instead.
     #>
+    param([switch] $WhilePlaying, [int] $IdleSec = 30)
     $state = Get-SessionState
     if ($state -ne 'Active') { throw "The desktop session is '$state', not Active: screenshots and keys will not work. Record the GUI part as unproven." }
+    if ($WhilePlaying) { Assert-HumanIdle -IdleSec $IdleSec -Pads; return }
     $busy = @(Get-TakeoverBlockers)
     if ($busy.Count) { throw "Not taking the screen: $($busy -join ', ') already running. Ask the maintainer before driving." }
 }
@@ -291,10 +295,11 @@ function Stop-ES {
         /quit and /emukill answer 200 and do nothing while a game runs (RB-35), so the emulator
         is ended first and the process is polled rather than trusting the answer.
     #>
-    param([int] $TimeoutSec = 120)
+    param([int] $TimeoutSec = 120, [switch] $Force)
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
-    Stop-Game
     $es = Get-AgentProcess emulationstation | Select-Object -First 1
+    if ($es -and -not $Force) { Assert-HumanIdle -Pads }
+    Stop-Game -Force
     if (-not $es) { return }
     try { $null = Invoke-ES '/quit' -TimeoutSec 10 } catch { }
     while (-not $es.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250; $es.Refresh() }
@@ -323,9 +328,10 @@ function Stop-Game {
         (WM_CLOSE) lets it flush its save; ares can outlast 15 s on that (passes.md), so Escape,
         the QuitEmulator key, follows. emulatorLauncher is never killed: it does the mirror.
     #>
-    param([int] $TimeoutSec = 30)
+    param([int] $TimeoutSec = 30, [switch] $Force)
     $launcher = Get-AgentProcess emulatorLauncher | Select-Object -First 1
     if (-not $launcher) { return }
+    if (-not $Force) { Assert-HumanIdle -Pads }
     $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($launcher.Id)" |
         ForEach-Object { Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue })
     foreach ($child in $children) { $null = $child.CloseMainWindow() }
@@ -337,7 +343,7 @@ function Stop-Game {
         $launcher.Refresh()
         if (-not $escapeSent -and (Get-Date) -gt $deadline.AddSeconds(-$TimeoutSec / 2)) {
             $window = $children | Where-Object { -not $_.HasExited -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-            if ($window) { Set-WindowFocus $window.MainWindowHandle; Send-Key Escape }
+            if ($window) { Set-WindowFocus $window.MainWindowHandle; Send-Key Escape -IdleSec 0 }
             $escapeSent = $true
         }
     }
@@ -363,8 +369,82 @@ if (-not ('HandsOn.Native' -as [type])) {
 [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
 [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
 [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdc, uint flags);
+[DllImport("user32.dll")] public static extern bool GetLastInputInfo(ref LASTINPUTINFO info);
+[DllImport("xinput1_4.dll")] public static extern uint XInputGetState(uint user, out XINPUT_STATE state);
 [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+[StructLayout(LayoutKind.Sequential)] public struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
+[StructLayout(LayoutKind.Sequential)] public struct XINPUT_STATE { public uint dwPacketNumber; public ushort wButtons; public byte bLeftTrigger, bRightTrigger; public short sThumbLX, sThumbLY, sThumbRX, sThumbRY; }
 '@
+}
+
+# Windows keeps one last-input time, and the kit's own keybd_event moves it. The kit stores that
+# time right after each key it sends, so input is the kit's only while the time is unchanged and
+# a person's as soon as it moves. A file, because each shell call is a new process.
+$script:KitInputMarker = Join-Path ([IO.Path]::GetTempPath()) 'rommbat-handson-lastkey.txt'
+
+function Get-LastInputInfo {
+    $info = New-Object HandsOn.Native+LASTINPUTINFO
+    $info.cbSize = [Runtime.InteropServices.Marshal]::SizeOf($info)
+    if (-not [HandsOn.Native]::GetLastInputInfo([ref]$info)) { return $null }
+    $info
+}
+
+function Set-KitInputMarker {
+    $info = Get-LastInputInfo
+    if (-not $info) { return }
+    try { Set-Content -LiteralPath $script:KitInputMarker -Value $info.dwTime -NoNewline } catch { }
+}
+
+function Get-HumanIdleSeconds {
+    <#
+    .SYNOPSIS
+        Seconds since the last keyboard or mouse input this kit did not send, RDP input included.
+    .DESCRIPTION
+        GetLastInputInfo counts the kit's own keybd_event too, so a last-input time equal to the
+        one the kit stored after its last key is the kit's. Pads do not reach it; Test-PadActivity
+        covers them.
+    #>
+    $info = Get-LastInputInfo
+    if (-not $info) { return 0 }
+
+    $marker = -1
+    try { $marker = [long](Get-Content -LiteralPath $script:KitInputMarker -Raw -ErrorAction Stop) } catch { }
+    if ($info.dwTime -eq $marker) { return [double]::PositiveInfinity }
+
+    # dwTime is the low 32 bits of the tick count, so subtract modulo 2^32.
+    $now = [Environment]::TickCount64
+    (([uint64]($now % 4294967296) - $info.dwTime + 4294967296) % 4294967296) / 1000
+}
+
+function Test-PadActivity {
+    <#
+    .SYNOPSIS
+        True when any XInput pad reports input within -SampleMs. DirectInput-only pads are not seen.
+    #>
+    param([int] $SampleMs = 3000)
+    $before = @{}
+    $state = New-Object HandsOn.Native+XINPUT_STATE
+    foreach ($user in 0..3) {
+        try { if ([HandsOn.Native]::XInputGetState($user, [ref]$state) -eq 0) { $before[$user] = $state.dwPacketNumber } } catch { return $false }
+    }
+    if (-not $before.Count) { return $false }
+    Start-Sleep -Milliseconds $SampleMs
+    foreach ($user in @($before.Keys)) {
+        if ([HandsOn.Native]::XInputGetState($user, [ref]$state) -ne 0 -or $state.dwPacketNumber -ne $before[$user]) { return $true }
+    }
+    $false
+}
+
+function Assert-HumanIdle {
+    <#
+    .SYNOPSIS
+        Throws when someone has used the keyboard or mouse within -IdleSec, or with -Pads, an
+        XInput pad within a few seconds. Keys sent now would land in their game.
+    #>
+    param([int] $IdleSec = 30, [switch] $Pads)
+    $idle = Get-HumanIdleSeconds
+    if ($idle -lt $IdleSec) { throw ("Not taking the keyboard: someone used it or the mouse {0:N0} s ago (under {1} s). Ask the maintainer, or wait." -f $idle, $IdleSec) }
+    if ($Pads -and (Test-PadActivity)) { throw 'Not taking the keyboard: a pad is in use. Ask the maintainer, or wait.' }
 }
 
 # The UI's desk map (src/RomMBat.UI/CLAUDE.md), and the keys emulators read (waves.md).
@@ -394,6 +474,7 @@ function Set-WindowFocus {
     # bare Alt tap counts as input and lifts the lock.
     [HandsOn.Native]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero)
     [HandsOn.Native]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
+    Set-KitInputMarker
     $null = [HandsOn.Native]::ShowWindow($Handle, 9)
     $null = [HandsOn.Native]::SetForegroundWindow($Handle)
     Start-Sleep -Milliseconds 200
@@ -406,7 +487,9 @@ function Send-Key {
     .DESCRIPTION
         keybd_event with the scan code reaches DirectInput readers that ignore SendKeys
         (EmuHawk, RB-269), and an emulator needs the key held about 400 ms (passes.md). The UI
-        reads the key on press, so -HoldMs 60 is enough there.
+        reads the key on press, so -HoldMs 60 is enough there. It refuses while someone has
+        used the keyboard or mouse in the last -IdleSec, checked before every press, and the kit's
+        own keys do not count. -IdleSec 0 skips the check, for ending a game the kit launched.
     .EXAMPLE
         Send-Key Down -Window RomMBat
         Send-Key Ctrl+F2 -Window EmuHawk
@@ -416,25 +499,32 @@ function Send-Key {
         [string] $Window,
         [int] $HoldMs = 400,
         [int] $Times = 1,
-        [int] $GapMs = 250
+        [int] $GapMs = 250,
+        [int] $IdleSec = 30
     )
-    if ($Window) { Set-WindowFocus (Get-MainWindow $Window) }
+    if ($Window) { Assert-HumanIdle -IdleSec $IdleSec; Set-WindowFocus (Get-MainWindow $Window) }
     $vks = foreach ($part in $Key -split '\+') {
         if (-not $script:Keys.ContainsKey($part)) { throw "Unknown key '$part'. Known: $($script:Keys.Keys -join ', ')" }
         [byte]$script:Keys[$part]
     }
     for ($i = 0; $i -lt $Times; $i++) {
+        Assert-HumanIdle -IdleSec $IdleSec
         foreach ($vk in $vks) {
             $flags = if ($script:ExtendedKeys -contains $vk) { 1 } else { 0 }
             [HandsOn.Native]::keybd_event($vk, [byte][HandsOn.Native]::MapVirtualKey($vk, 0), $flags, [UIntPtr]::Zero)
         }
+        Set-KitInputMarker
         Start-Sleep -Milliseconds $HoldMs
+        # The release would hide anyone who typed during the hold, so look first, and still release.
+        $interrupted = $IdleSec -gt 0 -and (Get-HumanIdleSeconds) -lt 1
         [array]::Reverse($vks)
         foreach ($vk in $vks) {
             $flags = 2 -bor $(if ($script:ExtendedKeys -contains $vk) { 1 } else { 0 })
             [HandsOn.Native]::keybd_event($vk, [byte][HandsOn.Native]::MapVirtualKey($vk, 0), $flags, [UIntPtr]::Zero)
         }
         [array]::Reverse($vks)
+        Set-KitInputMarker
+        if ($interrupted) { throw 'Stopped: someone used the keyboard or mouse while the key was held. Ask the maintainer.' }
         Start-Sleep -Milliseconds $GapMs
     }
 }
@@ -486,6 +576,7 @@ function Start-RomMBatUI {
     $root = Get-AgentRoot
     Start-Process -FilePath (Join-Path $root 'emulators\rommbat\RomMBat.exe') -ArgumentList '--root', $root -WorkingDirectory $root | Out-Null
     $handle = Get-MainWindow 'RomMBat' -TimeoutSec 60
+    Assert-HumanIdle
     Set-WindowFocus $handle
     Write-Host 'RomMBat is up'
 }
@@ -501,7 +592,7 @@ function Stop-RomMBatUI {
 
 Add-Type -AssemblyName System.Windows.Forms
 
-Export-ModuleMember -Function Get-HandsOnEnv, Get-AgentRoot, Test-HandsOnEnv, Assert-TakeoverAllowed,
+Export-ModuleMember -Function Get-HandsOnEnv, Get-AgentRoot, Test-HandsOnEnv, Assert-TakeoverAllowed, Assert-HumanIdle,
     Publish-ToAgentTree, Invoke-Agent, Connect-AgentTree,
     Invoke-ES, Start-ES, Stop-ES, Start-Game, Stop-Game, Get-ESGames,
     Send-Key, Save-Screenshot, Start-RomMBatUI, Stop-RomMBatUI
