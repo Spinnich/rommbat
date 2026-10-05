@@ -18,7 +18,9 @@ On `nes`, jgenesis (`jgenesis/nes/`), mesen standalone (loose `.sav`), mednafen 
 (`ares/Famicom/*.ram`) each have one since, all measured there and scoped to it. On `megadrive`,
 jgenesis (`jgenesis/md/`) and ares (`ares/Mega Drive/*.ram`) have their own rules, since the
 directory is the emulator's name for the system, and the bizhawk and mednafen rules name both
-systems because their layout did not change (RB-279 to RB-282).
+systems because their layout did not change (RB-279 to RB-282). On `sega32x`, ares keeps a
+cartridge's `.ram` or `.eeprom` in `ares/Mega 32X/` and its states in the parent's
+`ares/Mega Drive/`, and jgenesis saves to `jgenesis/32x/` (RB-413).
 
 **mednafen names a save `<rom>.<md5>.sav` only when `<rom>.sav` is absent** (RB-273): its `%M`
 is empty on the first try, so an existing plain `.sav`, mesen's included, is the file it reads and
@@ -115,7 +117,9 @@ system** (`ErasedSave`): ares writes a 32 KB one on `gamegear` for every cartrid
 The accepted cost, by the maintainer's decision, is a game that erases its own save: the
 wiped file stays local, and `saves restore` offers the server's last save back, moving the erased
 file aside first. An empty file is a different question, settled per extension by
-`empty_not_a_save`.
+`empty_not_a_save`. **A file of nothing but `0x00` is a save**, by the maintainer's decision on
+2026-10-05: BizHawk's PicoDrive writes one at boot for every `sega32x` cartridge, Doom's 16 KB
+though it has no battery, and it uploads, because zero is not an erased state (RB-414).
 
 **DuckStation's per-game cards are a display-name rule with a slot per port** (RB-329):
 `duckstation/memcards/<saveName>_1.mcd` uploads as `duckstation:battery` and `_2.mcd` as

@@ -224,6 +224,20 @@ public class SaveStateSchemaTests
     }
 
     [Fact]
+    public void Sega32x_states_under_ares_are_read_from_the_parents_directory()
+    {
+        // Knuckles' Chaotix, driven under ares on 8.2.1: the battery save went to ares/Mega 32X,
+        // the states to ares/Mega Drive under saves/sega32x (#464).
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+        const string Rom = "Knuckles' Chaotix (Japan, USA) (En)";
+
+        Assert.Equal("sega32x", loaded.MatchDirectory("sega32x/ares/Mega Drive")?.System);
+        Assert.Null(loaded.MatchDirectory("sega32x/ares/Mega 32X"));
+        var ares = SaveStateTemplate.Create(loaded.For("ares", "sega32x")!, "sega32x", core: null)!;
+        Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
+    }
+
+    [Fact]
     public void Pcengine_states_are_read_where_each_standalone_emulator_was_measured_writing_them()
     {
         // Populous (Japan) (En), driven under each row on 8.2.1 (#396).

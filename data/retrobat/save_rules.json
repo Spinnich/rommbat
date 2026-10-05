@@ -23,13 +23,14 @@
         "psx",
         "n64",
         "pcengine",
-        "gamegear"
+        "gamegear",
+        "sega32x"
       ],
       "directory": "bizhawk",
       "extensions": [".saveram"],
       "named_after": "display name",
       "class": "A",
-      "evidence": "nes under bizhawk, NesHawk and quickerNES both, on 8.2.1: StarTropics (USA).zip wrote bizhawk/StarTropics.SaveRAM, and the state sidecar beside it reads StarTropics.NesHawk (#151); megadrive under bizhawk, Genplus-gx, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote bizhawk/Sonic and Knuckles & Sonic 3 (W) [!].SaveRAM, 16,384 B; gba under bizhawk, mGBA, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote bizhawk/Pokemon - Emerald Version (USA, Europe).SaveRAM, 131,088 B, named after the rom file as the sidecar Pokemon - Emerald Version (USA, Europe).mGBA says; gb under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote bizhawk/Pokemon - Yellow Version (USA, Europe).SaveRAM, 32,768 B, one file for all three cores, named after BizHawk's own title as the sidecar Pokemon - Yellow Version (USA, Europe).Gambatte says; gbc under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote bizhawk/Pokemon - Crystal Version (USA, Europe) (Rev A).SaveRAM, named after BizHawk's own title as the sidecar Pokemon - Crystal Version (USA, Europe) (Rev A).Gambatte says. One file for all three cores, each with its own clock: 32,790 B under Gambatte, 32,816 B under SameBoy, and 32,768 B with no clock under GBHawk; snes under bizhawk, BSNES, Faust and Snes9x alike, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote bizhawk/<rom>.SaveRAM, 8,192 B, named after the rom file, one file for all three cores; mastersystem under bizhawk, SMSHawk, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote bizhawk/Golden Axe Warrior (UE).SaveRAM, 8,192 B, named after BizHawk's own title as the sidecar Golden Axe Warrior (UE).SMSHawk says, and only with the SMS+Export firmware in bios; n64 under bizhawk, Ares64 and Mupen64Plus, on 8.2.1: Legend of Zelda, The - Ocarina of Time (USA).zip wrote bizhawk/<rom>.SaveRAM, named after the rom file, one file for both cores in two formats: 32,768 B of SRAM under Ares64, and 296,960 B under Mupen64Plus, which keeps EEPROM, four Controller Paks, SRAM and FlashRAM in one image as the libretro cores do; pcengine under bizhawk on 8.2.1: Populous (Japan) (En).zip wrote bizhawk/Populous (J).SaveRAM, 2,048 B, in PCEHawk's session, named after BizHawk's own title as the sidecars Populous (J).PCEHawk and Populous (J).HyperNyma say; HyperNyma and TurboNyma wrote none on close (#396); gamegear under bizhawk, SMSHawk, on 8.2.1: Defenders of Oasis (USA, Europe).zip wrote bizhawk/Defenders of Oasis (UE).SaveRAM, 8,192 B, named after BizHawk's own title, with no firmware in bios (#453)",
+      "evidence": "nes under bizhawk, NesHawk and quickerNES both, on 8.2.1: StarTropics (USA).zip wrote bizhawk/StarTropics.SaveRAM, and the state sidecar beside it reads StarTropics.NesHawk (#151); megadrive under bizhawk, Genplus-gx, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote bizhawk/Sonic and Knuckles & Sonic 3 (W) [!].SaveRAM, 16,384 B; gba under bizhawk, mGBA, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote bizhawk/Pokemon - Emerald Version (USA, Europe).SaveRAM, 131,088 B, named after the rom file as the sidecar Pokemon - Emerald Version (USA, Europe).mGBA says; gb under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote bizhawk/Pokemon - Yellow Version (USA, Europe).SaveRAM, 32,768 B, one file for all three cores, named after BizHawk's own title as the sidecar Pokemon - Yellow Version (USA, Europe).Gambatte says; gbc under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote bizhawk/Pokemon - Crystal Version (USA, Europe) (Rev A).SaveRAM, named after BizHawk's own title as the sidecar Pokemon - Crystal Version (USA, Europe) (Rev A).Gambatte says. One file for all three cores, each with its own clock: 32,790 B under Gambatte, 32,816 B under SameBoy, and 32,768 B with no clock under GBHawk; snes under bizhawk, BSNES, Faust and Snes9x alike, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote bizhawk/<rom>.SaveRAM, 8,192 B, named after the rom file, one file for all three cores; mastersystem under bizhawk, SMSHawk, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote bizhawk/Golden Axe Warrior (UE).SaveRAM, 8,192 B, named after BizHawk's own title as the sidecar Golden Axe Warrior (UE).SMSHawk says, and only with the SMS+Export firmware in bios; n64 under bizhawk, Ares64 and Mupen64Plus, on 8.2.1: Legend of Zelda, The - Ocarina of Time (USA).zip wrote bizhawk/<rom>.SaveRAM, named after the rom file, one file for both cores in two formats: 32,768 B of SRAM under Ares64, and 296,960 B under Mupen64Plus, which keeps EEPROM, four Controller Paks, SRAM and FlashRAM in one image as the libretro cores do; pcengine under bizhawk on 8.2.1: Populous (Japan) (En).zip wrote bizhawk/Populous (J).SaveRAM, 2,048 B, in PCEHawk's session, named after BizHawk's own title as the sidecars Populous (J).PCEHawk and Populous (J).HyperNyma say; HyperNyma and TurboNyma wrote none on close (#396); gamegear under bizhawk, SMSHawk, on 8.2.1: Defenders of Oasis (USA, Europe).zip wrote bizhawk/Defenders of Oasis (UE).SaveRAM, 8,192 B, named after BizHawk's own title, with no firmware in bios (#453); sega32x under bizhawk, PicoDrive, on 8.2.1: Knuckles' Chaotix (Japan, USA) (En).zip wrote bizhawk/Knuckles' Chaotix (32X) (JU) [!].SaveRAM, 1,024 B, named after BizHawk's own title as the sidecar Knuckles' Chaotix (32X) (JU) [!].PicoDrive says, with no firmware in bios. It writes one at boot for every cartridge, all 0x00, Doom's 16,384 B though Doom has no battery (#464)",
       "not_a_save_extensions": {
         ".bak": "BizHawk's copy of the save a new one replaced, StarTropics.SaveRAM.bak, written on exit (#151)"
       }
@@ -105,6 +106,15 @@
       "named_after": "rom file",
       "class": "A",
       "evidence": "gamegear under jgenesis on 8.2.1: Defenders of Oasis (USA, Europe).zip, holding a .gg, wrote jgenesis/gg/<rom>.sav, 32,768 B, and its states sit apart in jgenesis/states (#453)"
+    },
+    {
+      "emulator": "jgenesis",
+      "systems": ["sega32x"],
+      "directory": "jgenesis/32x",
+      "extensions": [".sav"],
+      "named_after": "rom file",
+      "class": "A",
+      "evidence": "sega32x under jgenesis on 8.2.1: NBA Jam - Tournament Edition (World).zip, holding a .32x with a serial EEPROM, wrote jgenesis/32x/<rom>.sav, 256 B, at boot, and its states sit apart in jgenesis/states, mirrored there from emulators/jgenesis/states/32x (#464)"
     },
     {
       "emulator": "mgba",
@@ -269,6 +279,15 @@
       "named_after": "rom file",
       "class": "A",
       "evidence": "gamegear under ares, core GameGear, on 8.2.1: Defenders of Oasis (USA, Europe).zip wrote ares/Game Gear/<rom>.ram, 32,768 B, on Esc, beside its states .bs1 and .bs2. ares writes the same 32,768 B for a cartridge with no battery, every byte 0xFF, as Sonic Chaos and Castle of Illusion did, which the scanner passes over as erased (#453)"
+    },
+    {
+      "emulator": "ares",
+      "systems": ["sega32x"],
+      "directory": "ares/Mega 32X",
+      "extensions": [".ram", ".eeprom"],
+      "named_after": "rom file",
+      "class": "A",
+      "evidence": "sega32x under ares, core Mega32X, on 8.2.1: Knuckles' Chaotix (Japan, USA) (En).zip, SRAM, wrote ares/Mega 32X/<rom>.ram, 512 B, on Esc, and NBA Jam - Tournament Edition (World).zip, a serial EEPROM, wrote <rom>.eeprom, 512 B. A cartridge has one or the other, so one slot. Its states go to ares/Mega Drive, the parent's name. Doom (Japan, USA) (En), with no battery, left neither (#464)"
     },
     {
       "emulator": "ares",

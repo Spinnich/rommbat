@@ -264,6 +264,26 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void The_bundled_sega32x_rules_give_each_rows_save_one_owner()
+    {
+        // Knuckles' Chaotix (SRAM) and NBA Jam TE (serial EEPROM), booted under every sega32x row
+        // on 8.2.1 (#464).
+        var shapes = SaveShapes.Bundled;
+        const string Chaotix = "Knuckles' Chaotix (Japan, USA) (En)";
+        const string NbaJam = "NBA Jam - Tournament Edition (World)";
+
+        Assert.Equal("libretro", shapes.BatteryRuleFor("sega32x", string.Empty, $"{NbaJam}.srm")?.Emulator);
+        Assert.Equal("bizhawk", shapes.BatteryRuleFor("sega32x", "bizhawk", "Knuckles' Chaotix (32X) (JU) [!].SaveRAM")?.Emulator);
+        Assert.Equal("jgenesis", shapes.BatteryRuleFor("sega32x", "jgenesis/32x", $"{NbaJam}.sav")?.Emulator);
+        Assert.Equal("ares", shapes.BatteryRuleFor("sega32x", "ares/Mega 32X", $"{Chaotix}.ram")?.Emulator);
+        Assert.Equal("ares", shapes.BatteryRuleFor("sega32x", "ares/Mega 32X", $"{NbaJam}.eeprom")?.Emulator);
+
+        // ares's states share the parent's directory name, which holds no battery save here.
+        Assert.Null(shapes.BatteryRuleFor("sega32x", "ares/Mega Drive", $"{Chaotix}.ram"));
+        Assert.Null(shapes.BatteryRuleFor("sega32x", "jgenesis/md", $"{NbaJam}.sav"));
+    }
+
+    [Fact]
     public void The_bundled_n64_rules_give_each_of_the_test_games_saves_one_owner()
     {
         // Ocarina of Time and Mario Kart 64, booted under every n64 row on 8.2.1.
