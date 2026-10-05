@@ -28,4 +28,5 @@ A save follows you to another emulator only where the two read the same file
 ## Known issues
 
 Two 32X games save to a different kind of chip, NBA Jam Tournament Edition and NFL Quarterback
-Club. ares and BizHawk do not keep those saves at all, so play them on PicoDrive or jgenesis.
+Club. ares and BizHawk do not keep those saves at all, so play them on RetroArch's PicoDrive core
+or on jgenesis. BizHawk's 32X core is also called PicoDrive, and it is not the one to pick.
