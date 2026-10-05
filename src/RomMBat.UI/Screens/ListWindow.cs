@@ -220,14 +220,13 @@ public static class ListWindow
 
     /// <summary>How many rows fit, given how tall this screen draws them.</summary>
     /// <remarks>
-    /// <b>One place, because the count and the height were chosen in two files and disagreed.</b>
-    /// The count lives in a view model and the height in the renderer, so a screen could compute
-    /// a window of eight and be drawn at the 122px reading height, overflowing by exactly the
-    /// margin the reading capacity exists to avoid. That is the defect a hands-on round found on
-    /// the problems list, fixed there by changing one screen; browse then reintroduced it, which
-    /// is what a rule enforced at an instance rather than at its class does.
+    /// <b>One place, because a count and a height chosen in two files disagree.</b> With the
+    /// count in a view model and the height in the renderer, a screen can compute a window of
+    /// eight and be drawn at the 122px reading height, overflowing by exactly the margin the
+    /// reading capacity exists to avoid. A rule enforced at one instance rather than at its
+    /// class is reintroduced by the next screen.
     /// <para>
-    /// <b>The height half of that pairing is gone.</b> A pane of facts is no longer drawn at a
+    /// <b>There is no height half to that pairing.</b> A pane of facts is not drawn at a
     /// uniform reading height at all: its rows are the status screen's rows and the block is
     /// bounded by <see cref="ContentBudget"/> through <see cref="ScrolledByHeight"/>. So a
     /// reading screen answers this for its capacity and the renderer decides no height.

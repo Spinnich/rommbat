@@ -169,14 +169,14 @@ public sealed class SetResolveService
                 : [];
 
             // No catch here, and that is the fix for #104. All three ways a walk can stop are
-            // handled inside the resolver now: it breaks out of its page loop on a cancel, on
+            // handled inside the resolver: it breaks out of its page loop on a cancel, on
             // an HTTP failure and on an unreachable server, so every one of them arrives as an
             // ordinary Interrupted resolution carrying the games that segment found.
             //
-            // The unreachable case used to unwind the stack instead, and the accumulator went
-            // with the frame while the offset was still saved. The next walk then resumed at
-            // the right page with nothing carried, completed, and its completion sweep retired
-            // every game the lost segment had found.
+            // A case that unwound the stack instead would take the accumulator with the frame
+            // while the offset was still saved. The next walk would then resume at the right
+            // page with nothing carried, complete, and its completion sweep would retire every
+            // game the lost segment had found.
             var resolution = await resolver
                 .ResolveAsync(set, pager, walkStartedAt, carried, relay, cancellationToken)
                 .ConfigureAwait(false);
@@ -311,8 +311,7 @@ public sealed class SetResolveService
                 ResolveState.Interrupted,
                 resolution.Summary,
                 // Null for a cancel, which has no reason worth printing, and the server's own
-                // sentence for a walk that was stopped by a failure. Interrupted used to mean
-                // only the first of those.
+                // sentence for a walk that was stopped by a failure. Interrupted means either.
                 resolution.Problem,
                 pager.Offset,
                 pager.Total ?? 0,

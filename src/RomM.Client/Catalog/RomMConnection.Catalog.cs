@@ -111,9 +111,9 @@ public sealed partial class RomMConnection
     /// whole library rather than a page, so it is fetched with <c>limit=1</c> and cached for
     /// the session. Nothing that pages ever asks for it.
     /// <para>
-    /// <b>Read through <see cref="RomFilterValuesPage"/>, which ignores the row.</b> This used
-    /// the generated page type and inherited its <c>int32</c> <c>fs_size_bytes</c>, so one ROM
-    /// at or above 2 GiB left every facet empty on a library that had thousands of values.
+    /// <b>Read through <see cref="RomFilterValuesPage"/>, which ignores the row.</b> The
+    /// generated page type carries an <c>int32</c> <c>fs_size_bytes</c>, so through it one ROM
+    /// at or above 2 GiB leaves every facet empty on a library that has thousands of values.
     /// </para>
     /// </remarks>
     public async Task<RomMResponse<RomFilterValues>> GetFilterValuesAsync(

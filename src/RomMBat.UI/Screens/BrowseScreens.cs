@@ -39,7 +39,7 @@ public static class BrowseScreens
         ArgumentNullException.ThrowIfNull(game);
 
         // Re-read on return, because installing and removing both happen on screens above this
-        // one and used to leave the rows saying what they said before the press.
+        // one, and rows read once would go on saying what they said before the press.
         IReadOnlyList<ListRow> Rows() => DetailRows(session, game);
 
         return new ListScreen(
@@ -241,10 +241,9 @@ public static class BrowseScreens
             },
 
             // Back closes this screen and the preview under it, landing on the game's detail,
-            // which re-reads its rows. Popping one left the preview on the stack holding the
-            // report from before the removal, still offering to take off a game that is
-            // already gone. Same defect the set-side path fixed and this one reintroduced by
-            // adding a screen above it.
+            // which re-reads its rows. Popping one would leave the preview on the stack holding
+            // the report from before the removal, still offering to take off a game that is
+            // already gone. The set-side removal pops past its preview for the same reason.
             OnBack = () => ScreenCommand.PopMany(2),
         }.Started();
     }

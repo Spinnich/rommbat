@@ -92,7 +92,7 @@ public class SaveSyncTests
     {
         // #206, and live at 5.3.0-beta.1 and 5.3.0. A save restored from a backup, whose mtime
         // is older than this device's last upload, comes back no_op, "No changes since last
-        // sync", and used to be believed. The client holds the evidence the server does not:
+        // sync", and must not be believed. The client holds the evidence the server does not:
         // content_hash differs from uploaded_content_hash. Driven on a real install as well as
         // asked of the server directly (s4-older-mtime.py, M1).
         using var fixture = SyncFixture.Create();
@@ -186,8 +186,8 @@ public class SaveSyncTests
     [Fact]
     public async Task A_session_close_the_server_refuses_is_reported_rather_than_swallowed()
     {
-        // A refusal returns rather than throws, so a token without devices.write used to report
-        // a clean sync while leaving the session open on the server.
+        // A refusal returns rather than throws, so ignored, a token without devices.write
+        // reports a clean sync while leaving the session open on the server.
         using var fixture = SyncFixture.Create();
         fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
         fixture.Scan();
@@ -248,7 +248,7 @@ public class SaveSyncTests
         // #211, probe case M3 at 5.3.0-beta.1 and 5.3.0: a slot this device has no sync record
         // for is answered "download (Server save is newer (no sync history))" whatever the
         // device holds. Two devices playing one game offline is the ordinary case for a
-        // handheld, and the second one's first flush used to replace its save and report 1 down.
+        // handheld, and the second one's first flush must not replace its save and report 1 down.
         using var fixture = SyncFixture.Create();
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played here offline, never sent");
         fixture.Scan();
@@ -985,11 +985,11 @@ public class SaveSyncTests
     {
         // Negotiate is unscoped: it answers with a download for every save the device has no
         // sync record for, so a device holding a subset is offered the whole library. Those
-        // have no local ROM, so no folder and no stem, and they used to come back as
-        // "nowhere to write it" on stderr, one line each, counted as failures. A user with 500
-        // saves in RomM and one 10-game set synced got ~490 lines and ExitCode.Partial on every
-        // flush. The message was false as well: the server had named a file, and the device had
-        // not "no save in that slot", it had no game.
+        // have no local ROM, so no folder and no stem. Counted as failures, they would come back
+        // as "nowhere to write it" on stderr, one line each: a user with 500 saves in RomM and
+        // one 10-game set synced gets ~490 lines and ExitCode.Partial on every flush. The
+        // message would be false as well: the server named a file, and the device has not "no
+        // save in that slot", it has no game.
         using var fixture = SyncFixture.Create();
 
         fixture.SeedServerSave(4242, "libretro:battery", "Some Other Game (USA)", "srm", "not ours");

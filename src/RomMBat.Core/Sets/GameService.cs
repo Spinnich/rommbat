@@ -27,8 +27,8 @@ public sealed record GameRemovalPreview(EvictionReport Report, IReadOnlyList<str
 /// One game at a time: look it up, put it on the device, take it off.
 /// </summary>
 /// <remarks>
-/// <b>The decisions the browse detail screen used to make inline</b>, moved here when the
-/// console grew the same three verbs. Each composes a service that already existed:
+/// <b>The decisions behind the browse detail screen's verbs</b>, here rather than in the
+/// screen because the console has the same three verbs. Each composes another service:
 /// <see cref="PickedSetService"/> for membership, <see cref="EvictionService"/> for removal and
 /// <see cref="LibrarySyncService.InstallAsync"/> for the fetch, which the caller runs itself
 /// because the progress it reports is a screen's or a console's.

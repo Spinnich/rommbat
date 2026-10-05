@@ -24,9 +24,9 @@ public sealed class SavesCommandTests
     [InlineData("bios", "nes", "--apply", "--help")]
     public async Task Help_prints_usage_and_runs_nothing(params string[] args)
     {
-        // `saves restore --help` used to run a full restore preview, and with --apply on the line
-        // the same mistake writes. Held under the tree lock so any handler that did run would
-        // refuse, and a refusal is not exit 0.
+        // A handler that ran on `saves restore --help` would preview a full restore, and with
+        // --apply on the line it would write. Held under the tree lock so any handler that did run
+        // would refuse, and a refusal is not exit 0.
         using var tree = TempRetroBatTree.Create();
 
         using (TreeLock.TryAcquire(tree.Install()))

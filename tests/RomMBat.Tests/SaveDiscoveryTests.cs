@@ -1411,7 +1411,7 @@ public class SaveDiscoveryTests
         // tag group: a real save came back as
         // "Phantasy Star (Brazil) [2026-08-17_17-01-00].srm" with file_name_no_tags of
         // "Phantasy Star", because (Brazil) is part of the ROM's name. Writing that produces a
-        // file libretro cannot see, so this fails on the old code, which used the untagged name.
+        // file libretro cannot see, so this fails against a writer that uses the untagged name.
         using var tree = TempRetroBatTree.Create();
         using var store = LocalStore.Open(tree.Install());
 

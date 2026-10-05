@@ -14,11 +14,10 @@ namespace RomMBat.Tests;
 /// The flush, driven without a console.
 /// </summary>
 /// <remarks>
-/// <b>Everything asserted here used to need a redirected <c>Console</c> to observe.</b> The pass
-/// was 289 lines welded to <c>Console.WriteLine</c>, so the only way to check that the lock
-/// refusal was benign, or that states were sent after saves, was to compare the positions of two
-/// printed strings. That couples a rule to how one front end happens to format it and says
-/// nothing about the path the other one takes through the same code.
+/// <b>Nothing asserted here needs a redirected <c>Console</c> to observe.</b> Checking through a
+/// console that the lock refusal is benign, or that states are sent after saves, means comparing
+/// the positions of two printed strings. That couples a rule to how one front end happens to
+/// format it and says nothing about the path the other one takes through the same code.
 /// <para>
 /// The three rules below are each load-bearing and each predates this seam. They are asserted
 /// against the service rather than against the agent, because the gamepad UI runs the same pass.
@@ -65,10 +64,9 @@ public sealed class SaveFlushServiceTests
 
         var report = await fixture.RunAsync(fixture.Connect());
 
-        // Partial rather than Unreachable, and that is the behaviour this lift preserved rather
-        // than chose. All three sending passes absorb RomMUnreachableException per item and
-        // report it, so the outer catch that FlushCommand has always carried never fires for
-        // them. Recorded as what it is rather than tidied away inside a refactor.
+        // Partial rather than Unreachable, which is inherited behaviour rather than a choice.
+        // All three sending passes absorb RomMUnreachableException per item and report it, so
+        // the outer catch FlushCommand carries never fires for them. Recorded as what it is.
         Assert.Equal(FlushState.Partial, report.State);
 
         // The half that needs no server ran anyway, and said so.
@@ -202,7 +200,7 @@ public sealed class SaveFlushServiceTests
     public async Task A_session_close_the_server_refuses_ends_the_flush_partial()
     {
         // #148: a token without devices.write negotiates and transfers, then fails the close on
-        // every flush. That used to print the problem and exit 0, so Partial did not track what
+        // every flush. Printing the problem and exiting 0 would leave Partial not tracking what
         // the run did. The transfer still landed and still counts.
         using var fixture = FlushTree.Create();
         fixture.Pair();

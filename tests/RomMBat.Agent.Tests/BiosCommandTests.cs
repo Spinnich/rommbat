@@ -36,9 +36,10 @@ public sealed class BiosCommandTests
     public async Task An_install_that_has_synced_nothing_says_so_rather_than_reporting_a_clean_library()
     {
         // The default path takes FoldersNeedingBios(), which reads the local store, and an
-        // install that has synced nothing returns an empty list. Plan([]) then produced "no
-        // BIOS is required for these systems" over the empty set: the same sentence a mistyped
-        // positional used to produce, and false in the same way, because nothing was consulted.
+        // install that has synced nothing returns an empty list. Plan([]) then produces "no
+        // BIOS is required for these systems" over the empty set: the same sentence Validate
+        // refuses a mistyped positional for, and false in the same way, because nothing was
+        // consulted.
         using var tree = TempRetroBatTree.Create();
         AgentRunner.WriteEsSystems(tree);
 

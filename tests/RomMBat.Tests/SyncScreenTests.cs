@@ -607,7 +607,7 @@ public sealed class SyncScreenTests : IDisposable
 
         // How many rows that is depends on how tall they are, which is the point of measuring
         // rather than counting: these rows carry a one-line sentence, so more of them fit than
-        // the three-line reserve used to allow.
+        // a three-line reserve per row would allow.
         Assert.Equal(30, settled + screen.Window.Count);
 
         // Still nothing to press, which is the whole reason the rows are unavailable.
@@ -720,7 +720,7 @@ public sealed class SyncScreenTests : IDisposable
 
         // The anti-vacuity half. The sweep above is safe because a pane's window is measured
         // against the same budget it is drawn into; this says the budget is load-bearing, by
-        // measuring the shape that used to be reachable. Without it the sweep would go on
+        // measuring the shape the budget rules out. Without it the sweep would go on
         // passing if the budget ever grew past what a display holds, and nobody would know it
         // had stopped meaning anything.
         var mismatched = ListWindow.BlockHeight(ListWindow.Capacity, ListWindow.ReadingRowHeight);
@@ -743,7 +743,8 @@ public sealed class SyncScreenTests : IDisposable
         };
 
         // A pane windows to what its rows actually take, not to a fixed count: these carry a
-        // one-word detail, so many more of them fit than the old three-line reserve allowed.
+        // one-word detail, so many more of them fit than a three-line reserve per row would
+        // allow.
         var expected = ListWindow.ScrolledByHeight(
             0,
             [.. screen.Rows.Select(row => ListWindow.FactHeight(row.Detail))],

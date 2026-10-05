@@ -220,9 +220,9 @@ public sealed class SetsScreenTests : IDisposable
         navigator.Handle(NavAction.Down);
         navigator.Handle(NavAction.Accept);
 
-        // Back on the list, with the deleted set gone from it. It used to land on a message
-        // screen whose only way onward was to leave RomMBat, and the detail screen underneath
-        // was describing a set that no longer existed.
+        // Back on the list, with the deleted set gone from it, not on a message screen whose
+        // only way onward is to leave RomMBat over a detail screen describing a set that no
+        // longer exists.
         Assert.Same(list, navigator.Current);
         Assert.Equal(2, navigator.Depth);
         Assert.Single(list.Rows);
@@ -753,7 +753,7 @@ public sealed class SetsScreenTests : IDisposable
             },
             Now).Set!;
 
-        // The screen no longer shows caps, so it must not send the cleared values a hidden row
+        // The screen shows no caps, so it must not send the cleared values a hidden row
         // would have produced. Opening a screen must never wipe a limit somebody set elsewhere.
         var editor = SetEditorViewModel.ForExisting(_session, set);
         editor.Handle(NavAction.Start);
@@ -849,8 +849,9 @@ public sealed class SetsScreenTests : IDisposable
 
         Assert.Contains(list.Rows, row => row.Label == "Holds" && row.Value == "0 games, 0 B");
 
-        // Stand in for what a resolve writes. It happens on a screen above this one, which used
-        // to leave the counts and the last-resolved time saying what they said before it ran.
+        // Stand in for what a resolve writes. It happens on a screen above this one, so rows
+        // read once would leave the counts and the last-resolved time saying what they said
+        // before it ran.
         _session.Store.SyncSets.ReplaceMembers(
             set.Id,
             [Member(set)],
@@ -914,11 +915,10 @@ public sealed class SetsScreenTests : IDisposable
     [Fact]
     public void Every_screen_with_more_rows_than_fit_keeps_its_cursor_inside_its_window()
     {
-        // The windowing arithmetic used to live in the renderer, so a screen that never called
-        // it drew every row it had and everything past the height of the display went off it.
-        // That happened to the folder picker, was fixed there, and happened again to the set
-        // editor the moment a filter grew to twenty-two rows. The suite could not see either,
-        // because it does not render. The window is a property now, and this walks it.
+        // Windowing done in the renderer is invisible to the suite, which does not render, and a
+        // screen that never calls it draws every row it has, past the height of the display.
+        // The set editor reaches that the moment a filter grows to twenty-two rows. The window
+        // is a property of the screen, and this walks it.
         var editor = FilterEditor();
         Assert.True(
             editor.Rows.Count > ListWindow.Capacity,
@@ -1664,7 +1664,7 @@ public sealed class SetsScreenTests : IDisposable
 
         // The pickers, which are reached from the editor rather than constructed directly.
         // Named rather than numbered: which rows exist depends on the scope, and asking for an
-        // index that no longer exists is what made this hang.
+        // index that does not exist hangs.
         var editor = SetEditorViewModel.ForNew(_session);
 
         foreach (var label in editor.Rows.Select(row => row.Label).ToList())
@@ -1685,12 +1685,10 @@ public sealed class SetsScreenTests : IDisposable
     /// Opens whatever the row with this label leads to.
     /// </summary>
     /// <remarks>
-    /// <b>By label and bounded, for the second time.</b> This asked for a row by index and
-    /// spun the cursor until it matched, which stops being reachable the moment the editor's
-    /// rows change: dropping the caps took it from five rows to two, and asking for index 2
-    /// left it stepping between 0 and 1 for ever. The same defect was fixed in
-    /// <see cref="MoveTo(ListScreen, string)"/> and left standing here, which is what made one
-    /// test take 68 seconds.
+    /// <b>By label and bounded, as <see cref="MoveTo(ListScreen, string)"/> is.</b> Asking for
+    /// a row by index and spinning the cursor until it matches stops being reachable the moment
+    /// the editor's rows change: asking a two-row editor for index 2 steps between 0 and 1 for
+    /// ever.
     /// </remarks>
     private static IScreen? OpenRow(SetEditorViewModel editor, string label)
     {

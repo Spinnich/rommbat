@@ -761,11 +761,11 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     {
         var (stage, detail) = report.State switch
         {
-            // Answered by the service now (#114), where it used to be re-derived here from the
-            // screen's own blocked count. A blocked ROM is not a failed one, so a run the cap
-            // stopped dead came back as Done and this screen rendered it as "Everything in
-            // these sync sets is on this device" over 386 games left out. Every future consumer
-            // would have had to remember the same check, and this one had already forgotten it.
+            // Answered by the service (#114), not re-derived here from the screen's own
+            // blocked count. A blocked ROM is not a failed one, so a run the cap stopped dead
+            // reads as Done to anything that forgets the check, and this screen would render it
+            // as "Everything in these sync sets is on this device" over 386 games left out.
+            // Deciding it once means no consumer has to remember.
             Core.Sets.SyncState.Blocked => (
                 SyncStage.Blocked,
                 "The disk budget is full, so some games were left out. Raise the budget or make "

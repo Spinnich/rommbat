@@ -8,7 +8,7 @@ using Xunit;
 namespace RomMBat.Tests;
 
 /// <summary>
-/// One ROM in two RetroBat folders, which is legitimate and used to be fatal.
+/// One ROM in two RetroBat folders, which is legitimate and must not be fatal.
 /// </summary>
 /// <remarks>
 /// Its own file because it is a claim about the planner rather than about removal: the same
@@ -34,7 +34,7 @@ public sealed class TwoFolderEvictionTests : IDisposable
     // ------------------------------------------------------- one ROM in two folders
 
     /// <summary>
-    /// Two Rom-kind rows for one <c>rom_id</c> are legitimate, and used to take out the planner.
+    /// Two Rom-kind rows for one <c>rom_id</c> are legitimate, and must not take out the planner.
     /// </summary>
     /// <remarks>
     /// <b>Reached by ordinary configuration, not by corruption.</b> <c>folder_override</c> is

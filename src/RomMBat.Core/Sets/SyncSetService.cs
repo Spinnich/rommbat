@@ -206,7 +206,7 @@ public sealed record SetEdit
 /// Defining what this device syncs. Local, instant, and answerable with the server off.
 /// </summary>
 /// <remarks>
-/// <b>This is the orchestration <c>SetsCommand</c> used to hold, with the console taken out.</b>
+/// <b>This is the orchestration behind <c>SetsCommand</c>, with the console taken out.</b>
 /// It decides and it does not report, the way <see cref="InstallSession"/> does: a refusal is a
 /// value carrying the sentence that states the rule, and the caller decides whether that is a
 /// line on stderr or a row on a screen.

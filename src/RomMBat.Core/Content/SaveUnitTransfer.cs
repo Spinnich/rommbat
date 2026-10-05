@@ -75,8 +75,8 @@ public static class SaveUnitTransfer
     /// The members are removed and moved in one at a time, because the container is shared:
     /// <c>saves/psp/SAVEDATA</c> holds every PSP game on the install and the GameCube region
     /// folder holds every GameCube game, so swapping the container would swap other games' saves
-    /// with it. A failure partway through used to leave some new members and some old ones,
-    /// which an emulator may read as corrupt. It is now undone: the members this pass placed are
+    /// with it. A failure partway through would leave some new members and some old ones,
+    /// which an emulator may read as corrupt, so it is undone: the members this pass placed are
     /// deleted and the ones it removed are copied back from <c>replaced/</c>, so the unit is
     /// either wholly new or wholly as it was.
     /// </para>

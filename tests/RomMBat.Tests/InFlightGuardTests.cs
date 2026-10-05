@@ -229,7 +229,7 @@ public class InFlightGuardTests
     {
         // The rom index is read out of the same database as the journal, and a failure there is
         // no more evidence that nothing is running. SaveSync catches an unreachable host and an
-        // IO failure and nothing else, so this used to unwind out of the whole pass.
+        // IO failure and nothing else, so uncaught this unwinds out of the whole pass.
         using var fixture = GuardFixture.Create();
         fixture.AddGame(7, "gb", "Tetris (World).zip");
         fixture.Launch(7);

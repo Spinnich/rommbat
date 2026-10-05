@@ -15,9 +15,8 @@ namespace RomMBat.Tests;
 /// The order a sync does its work in, asserted rather than described.
 /// </summary>
 /// <remarks>
-/// <b>Three of these orderings are data-loss guards and none was checkable before the seam.</b>
-/// The ordering used to be statement order inside a 200-line method that printed as it went,
-/// so the only way to observe it was to redirect a console and compare the positions of two
+/// <b>Three of these orderings are data-loss guards, and they are asserted through the seam.</b>
+/// Observing statement order through a console means comparing the positions of two printed
 /// strings, which couples the rule to how the report happens to be formatted and says nothing
 /// about the path the interface takes through the same code.
 /// <para>
@@ -33,18 +32,16 @@ namespace RomMBat.Tests;
 /// is the normal case for a handheld.
 /// </para>
 /// <para>
-/// <b>A game's artwork goes ahead of the next game's ROM, and this file used to say the
-/// opposite by omission.</b> Media was one pass after every ROM of every set, so a budget that
-/// ran out stripped the artwork off the whole library rather than truncating its tail (#102).
-/// The rule inverted here, and the test that was meant to guard the ordering could not see it:
-/// its runner passed <c>SyncOptions(Offline: true)</c>, and the media pass is gated on being
-/// online, so <see cref="SyncPass.Media"/> had never once appeared in the observed sequence.
-/// It would have stayed green through the change it existed to catch. Every ordering claim
-/// about artwork below is therefore taken from a run <b>with a connection</b>.
+/// <b>A game's artwork goes ahead of the next game's ROM.</b> As one pass after every ROM of
+/// every set, media lets a budget that runs out strip the artwork off the whole library rather
+/// than truncating its tail (#102). The media pass is gated on being online, so a runner
+/// passing <c>SyncOptions(Offline: true)</c> never sees <see cref="SyncPass.Media"/> in the
+/// observed sequence and stays green through exactly the change it exists to catch. Every
+/// ordering claim about artwork below is therefore taken from a run <b>with a connection</b>.
 /// </para>
 /// <para>
-/// <b>Passes no longer occupy disjoint stretches of a run, so the sequence check is over first
-/// occurrences.</b> Content and Media interleave by design now. What may never happen is a pass
+/// <b>Passes do not occupy disjoint stretches of a run, so the sequence check is over first
+/// occurrences.</b> Content and Media interleave by design. What may never happen is a pass
 /// <i>starting</i> out of turn.
 /// </para>
 /// </remarks>
@@ -84,7 +81,7 @@ public sealed class LibrarySyncOrderTests : IDisposable
         Assert.True(order.IndexOf(SyncPass.Content) < order.IndexOf(SyncPass.Gamelists));
 
         // Media is declared after Content because that is where its one summary is reported.
-        // It is no longer a stretch of the run that begins after Content ends, which is what
+        // It is not a stretch of the run that begins after Content ends, which is what
         // the interleave assertion below is for.
         Assert.True(order.IndexOf(SyncPass.Content) < order.IndexOf(SyncPass.Media));
         Assert.True(order.IndexOf(SyncPass.Media) < order.IndexOf(SyncPass.Gamelists));

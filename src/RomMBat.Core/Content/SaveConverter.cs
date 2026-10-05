@@ -171,7 +171,7 @@ public sealed class SaveConverter
         var revert = mode is ConversionMode.Revert or ConversionMode.QueueRevert;
         var apply = mode is ConversionMode.Apply or ConversionMode.Revert;
 
-        // Two different questions that used to be one. "Is this caller queueing" decides whether
+        // Two different questions, kept apart. "Is this caller queueing" decides whether
         // the EmulationStation check applies, and QueuePreview is queueing for that purpose
         // because it is describing a queue. "Does this caller write" decides whether a row is
         // recorded, and QueuePreview does not.

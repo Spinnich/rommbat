@@ -10,9 +10,9 @@ namespace RomMBat.Tests;
 /// An agent older than the hook beside it, which is the second half of issue #31.
 /// </summary>
 /// <remarks>
-/// <c>SpoolRecord.Parse</c> used to require the version marker to match exactly and
-/// <c>SpoolDrain</c> deleted anything it could not parse, so an older agent discarded every
-/// event a newer hook had written, permanently, and reported only a count of them. The risk is
+/// <c>SpoolDrain</c> deletes anything <c>SpoolRecord.Parse</c> cannot parse, so a parser that
+/// required the version marker to match exactly would have an older agent discard every event
+/// a newer hook had written, permanently, and report only a count of them. The risk is
 /// low while the agent installs the hook and stays in step with it, and it stops being low the
 /// moment somebody updates one binary by hand.
 /// </remarks>
