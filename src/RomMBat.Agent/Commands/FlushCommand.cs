@@ -60,8 +60,8 @@ internal static class FlushCommand
 
         // Buffered, not written straight out. Authenticating has to happen before the service
         // runs, because the service takes the connection; the refusal still belongs after the
-        // local half's own lines, which is where it has always appeared. Without this the
-        // stderr sentence overtakes the stdout it used to follow.
+        // local half's own lines. Without this the stderr sentence overtakes the stdout it
+        // belongs after.
         using var refusal = new StringWriter();
 
         try

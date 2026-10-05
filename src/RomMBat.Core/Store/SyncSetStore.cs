@@ -754,10 +754,10 @@ public sealed class SyncSetStore
     /// What a set is ordered by when nothing says otherwise.
     /// </summary>
     /// <remarks>
-    /// <b>One place, because it used to be two.</b> The record's initializer said one thing and
-    /// <see cref="ParseOrdering"/> answered a different one for an absent value, so changing
-    /// "the default" changed nothing on the path that actually creates sets. Every caller reads
-    /// it from here now.
+    /// <b>One place, because two drift.</b> With the record's initializer saying one thing and
+    /// <see cref="ParseOrdering"/> answering another for an absent value, changing "the
+    /// default" changes nothing on the path that actually creates sets. Every caller reads it
+    /// from here.
     /// </remarks>
     public static SetOrdering DefaultOrdering => SetOrdering.RecentlyUpdated;
 

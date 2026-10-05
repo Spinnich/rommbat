@@ -385,11 +385,11 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     /// concatenated would look identical for the first few pages and hold a library by the end.
     /// </remarks>
     /// <remarks>
-    /// <b>One fetch at a time, refused here rather than at the presses that start one.</b> The
-    /// guard used to name three navigation actions in <c>Handle</c>, which the search path went
-    /// around entirely, and two fetches racing meant the later answer won whichever was asked
-    /// for second: on a slow library a stale page overwrote a search result, leaving the
-    /// previous list under a title naming the search term. Refusing at the one place that
+    /// <b>One fetch at a time, refused here rather than at the presses that start one.</b> A
+    /// guard naming navigation actions in <c>Handle</c> is one the search path goes around
+    /// entirely, and two fetches racing means the later answer wins whichever was asked for
+    /// second: on a slow library a stale page overwrites a search result, leaving the previous
+    /// list under a title naming the search term. Refusing at the one place that
     /// starts the work covers every route into it, including the ones not yet written. #118.
     /// </remarks>
     private void Fetch(int offset, bool landOnLast = false)

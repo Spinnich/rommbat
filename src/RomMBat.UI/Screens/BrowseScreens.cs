@@ -39,7 +39,7 @@ public static class BrowseScreens
         ArgumentNullException.ThrowIfNull(game);
 
         // Re-read on return, because installing and removing both happen on screens above this
-        // one and used to leave the rows saying what they said before the press.
+        // one, and rows read once would go on saying what they said before the press.
         IReadOnlyList<ListRow> Rows() => DetailRows(session, game);
 
         return new ListScreen(

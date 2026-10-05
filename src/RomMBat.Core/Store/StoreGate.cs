@@ -73,9 +73,9 @@ internal static class StoreGate
 
     /// <summary>Takes the gate for a close, and stops the close releasing it from underneath.</summary>
     /// <remarks>
-    /// Disposal has to be ordered against readers like everything else. It used to close the
-    /// connection with no gate at all, so <c>SqliteConnection.Close</c> enumerated its
-    /// prepared-statement list while a background reader was still mutating it. That throws out
+    /// Disposal has to be ordered against readers like everything else. Closing the connection
+    /// with no gate lets <c>SqliteConnection.Close</c> enumerate its prepared-statement list
+    /// while a background reader is still mutating it. That throws out
     /// of <c>Dispose</c> as either "Collection was modified" or an
     /// <c>ObjectDisposedException</c> naming <c>SQLitePCL.sqlite3_stmt</c>, depending on which
     /// of the two the close reaches first, so neither string alone identifies it.

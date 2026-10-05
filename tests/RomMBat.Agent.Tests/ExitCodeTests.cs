@@ -30,7 +30,7 @@ public sealed class ExitCodeTests
     [Fact]
     public void A_sync_the_server_rejected_exits_not_paired_rather_than_ok()
     {
-        // SyncState.Rejected used to fall through the default arm, so a 401 mid-run exited 0.
+        // SyncState.Rejected falling through the default arm would exit 0 on a 401 mid-run.
         Assert.Equal(ExitCode.NotPaired, SyncCommand.ExitCodeFor(new SyncReport(SyncState.Rejected, [])));
     }
 

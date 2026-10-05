@@ -952,12 +952,12 @@ public sealed class SaveScanner
     /// </para>
     /// <para>
     /// <b>Two rows, split on whether <c>es_savestates.cfg</c> names the emulator at all.</b> One
-    /// row said "this release syncs the save states beside them" over both halves, and for an
-    /// emulator with no entry that is false: <c>mednafen</c>, <c>mesen</c> and <c>ares</c> each
-    /// wrote a real save state into a directory they name themselves, and those files landed in
-    /// a count whose reason is about battery saves and shared containers. Telling someone their
-    /// states sync while counting them as unsyncable is the earlier defect in the other
-    /// direction. See #150.
+    /// row saying "this release syncs the save states beside them" over both halves is false for
+    /// an emulator with no entry: <c>mednafen</c>, <c>mesen</c> and <c>ares</c> each write a
+    /// real save state into a directory they name themselves, and those files would land in a
+    /// count whose reason is about battery saves and shared containers. Telling someone their
+    /// states sync while counting them as unsyncable is the first paragraph's defect in the
+    /// other direction. See #150.
     /// </para>
     /// </remarks>
     private void AddSubdirectories(

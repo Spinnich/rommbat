@@ -703,11 +703,9 @@ internal static class ScreenView
             Spacing = 14,
             HorizontalAlignment = HorizontalAlignment.Center,
 
-            // Fixed, not a maximum, and this is the second screen to learn it. A maximum makes
-            // the block as wide as its widest drawn row, and the drawn rows change as the
-            // window scrolls, so the whole thing grows and shrinks under the cursor. The list
-            // was fixed for that in round three; this screen only started scrolling later, and
-            // inherited the bug the moment it did.
+            // Fixed, not a maximum, as for the list. A maximum makes the block as wide as its
+            // widest drawn row, and the drawn rows change as the window scrolls, so the whole
+            // thing grows and shrinks under the cursor.
             Width = ListWidth,
         };
 

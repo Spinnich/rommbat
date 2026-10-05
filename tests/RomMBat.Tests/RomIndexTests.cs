@@ -10,8 +10,8 @@ namespace RomMBat.Tests;
 /// The two lookups <see cref="RomIndex"/> serves, and the one set of ROMs they answer over.
 /// </summary>
 /// <remarks>
-/// <c>InFolder</c> used to be a prefix scan of the <c>(folder, stem)</c> dictionary and is now
-/// a second dictionary built in the same pass, so these pin the contract the two share: the
+/// <c>InFolder</c> is a second dictionary built in the same pass as the <c>(folder, stem)</c>
+/// one, rather than a prefix scan of it, so these pin the contract the two share: the
 /// folder is half the key in both directions, a stem collision resolves the same way in both,
 /// and the reverse lookup's order is stable.
 /// </remarks>

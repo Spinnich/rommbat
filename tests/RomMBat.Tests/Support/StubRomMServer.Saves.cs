@@ -74,8 +74,8 @@ internal sealed partial class StubRomMServer
     /// </summary>
     /// <remarks>
     /// A real shape, not a synthetic one: a save uploaded by a client that sets no slot comes
-    /// back from <c>GET /api/saves</c> with <c>"slot": null</c>, measured on 5.2.0. The client
-    /// used to key that as the empty string, which <c>local_save.slot</c> refuses with a CHECK.
+    /// back from <c>GET /api/saves</c> with <c>"slot": null</c>, measured on 5.2.0. Keyed as the
+    /// empty string, it is refused by <c>local_save.slot</c>'s CHECK.
     /// </remarks>
     public HashSet<int> SlotlessDownloads { get; } = [];
 
@@ -409,8 +409,8 @@ internal sealed partial class StubRomMServer
         // slotted upload to carry a datetime tag at one-second resolution and looks the row up
         // by that name, so what decides between updating a row and appending one is the clock
         // and never the flag. Two uploads inside one second are one row; a second apart they are
-        // two. RB-160, and it is why this stub previously hid an append: it reused the
-        // id in the slot outright, so a resolution could not be seen to grow the slot.
+        // two. RB-160, and it is why this stub does not reuse the id in the slot outright:
+        // that would hide an append, so a resolution could not be seen to grow the slot.
         var candidate = new StubSave
         {
             Id = 0,
@@ -813,11 +813,11 @@ internal sealed partial class StubRomMServer
     /// mangled by a decode that assumes text.
     /// <para>
     /// <b>Both markers are looked for in the part's headers only, and the part ends at the real
-    /// boundary.</b> The earlier version searched the whole body for both, which held for as
-    /// long as every uploaded save was a small text fixture and broke the moment class C started
-    /// sending a zip. Deflate output contains the literal bytes of a filename marker and of a
-    /// boundary-looking sequence often enough to hit both traps at once: the name was read from
-    /// inside the archive, and the body was truncated at the first thing that looked like a
+    /// boundary.</b> Searching the whole body for both holds for as long as every uploaded save
+    /// is a small text fixture and breaks the moment one is a zip. Deflate output contains the
+    /// literal bytes of a filename marker and of a
+    /// boundary-looking sequence often enough to hit both traps at once: the name is read from
+    /// inside the archive, and the body is truncated at the first thing that looks like a
     /// terminator. A save is arbitrary bytes, so a parser over it has to be anchored.
     /// </para>
     /// <para>

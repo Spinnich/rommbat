@@ -10,7 +10,7 @@ namespace RomMBat.Agent.Commands;
 /// </summary>
 /// <remarks>
 /// <b>The browse detail screen's verbs, from a terminal.</b> A printer over
-/// <see cref="GameService"/>, which holds what that screen used to decide inline, and over
+/// <see cref="GameService"/>, which holds the decisions that screen and this command share, and over
 /// <see cref="LibrarySyncService.InstallAsync"/>, which is the same one-game pass the screen
 /// runs. The per-game memory card is the screen's third verb and is <c>saves convert</c> here.
 /// <para>

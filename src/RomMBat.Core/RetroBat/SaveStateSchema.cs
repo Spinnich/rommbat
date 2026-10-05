@@ -600,10 +600,10 @@ public sealed partial class SaveStateTemplate
     /// matches the template except for the width of its slot is a state this emulator really
     /// wrote and this client cannot read; <c>bigpemu</c> declares <c>firstslot="001"</c> and
     /// <c>lastslot="999"</c> against a two-digit <c>{{slot2d}}</c>, so 100 to 999 is
-    /// unrepresentable and a three-digit name matched nothing and was dropped along with the
-    /// <c>.txt</c> sidecars (#34). A slot outside the declared bounds is the other end of the
-    /// same declaration: <c>_state00</c> reads as slot 0, below <c>bigpemu</c>'s floor, and was
-    /// accepted in silence because <see cref="SaveStateEmulator.Bounds"/> had no caller (#65).
+    /// unrepresentable and a three-digit name matches nothing and would be dropped along with
+    /// the <c>.txt</c> sidecars (#34). A slot outside the declared bounds is the other end of
+    /// the same declaration: <c>_state00</c> reads as slot 0, below <c>bigpemu</c>'s floor, and
+    /// only <see cref="SaveStateEmulator.Bounds"/> can say so (#65).
     /// <para>
     /// <b>A width miss is two different facts and the report has to pick the right one.</b> The
     /// free-width expression is <c>\d+</c>, so it matches names narrower than the token and
@@ -835,8 +835,8 @@ public enum NearMissKind
 /// <summary>One name a state directory holds that neither synced cleanly nor is a sidecar.</summary>
 /// <remarks>
 /// The alternative to this type is silence, which is what #34 and #65 are both about. A
-/// three-digit <c>bigpemu</c> name matched nothing and was dropped with the screenshots, and a
-/// slot below the declared floor was accepted without a word.
+/// three-digit <c>bigpemu</c> name matches nothing and would be dropped with the screenshots,
+/// and a slot below the declared floor would be accepted without a word.
 /// </remarks>
 public sealed record SaveStateNearMiss(string FileName, NearMissKind Kind, string Detail);
 

@@ -412,10 +412,10 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
                 }
                 catch (Exception ex)
                 {
-                    // A throw used to fault this task unobserved, so the screen drew its empty
-                    // message and told the user the library had none of what it had failed to
-                    // ask for. A filter picker said "this library reports no genres" against a
-                    // library with 343, because one ROM over 2 GiB broke the response.
+                    // Uncaught, a throw faults this task unobserved, so the screen draws its
+                    // empty message and tells the user the library has none of what it failed
+                    // to ask for. A filter picker said "this library reports no genres" against
+                    // a library with 343, because one ROM over 2 GiB broke the response.
                     //
                     // Broad on purpose. A loader talks to a server, a disk and a database, and
                     // the alternative to catching everything here is drawing "nothing" for

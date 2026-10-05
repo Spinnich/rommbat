@@ -66,9 +66,9 @@ public sealed class SetEditorViewModel : IScreen
     /// The yes-or-no properties, three-state because "either" is the default.
     /// </summary>
     /// <remarks>
-    /// Null is "do not filter on this", which is not the same as false. Favourites used to be
-    /// a two-state toggle here and could therefore only ever say yes or nothing; RomM's own
-    /// interface offers all three, and "games I have not favourited" is a real thing to sync.
+    /// Null is "do not filter on this", which is not the same as false. A two-state toggle
+    /// could only ever say yes or nothing; RomM's own interface offers all three, and "games I
+    /// have not favourited" is a real thing to sync.
     /// </remarks>
     private readonly Dictionary<string, bool?> _properties =
         FilterFacet.Properties.ToDictionary(property => property, _ => (bool?)null, StringComparer.Ordinal);
@@ -111,9 +111,8 @@ public sealed class SetEditorViewModel : IScreen
 
         if (existing?.Scope == CatalogScopeKind.Filter)
         {
-            // Editing a filter set used to open on a blank filter, so the screen showed
-            // "anything" for a set that had one. Nothing was lost, because SetEdit had no way
-            // to write a filter either, but a set defined from the couch could never be
+            // Loaded from the stored set, so editing a filter set opens on its filter rather
+            // than on a blank one showing "anything", and a set defined from the couch can be
             // changed from it.
             var stored = SyncSetService.FilterOf(existing);
 
@@ -267,9 +266,9 @@ public sealed class SetEditorViewModel : IScreen
             }
         }
 
-        // Outside the block above, so a filter set can be changed and not merely made. The
-        // whole scope section used to be new-set-only, which left Edit on a filter set
-        // showing one row about folders and nothing about the filter itself.
+        // Outside the block above, so a filter set can be changed and not merely made. Inside
+        // it, Edit on a filter set would show one row about folders and nothing about the
+        // filter itself.
         if (_scope == CatalogScopeKind.Filter)
         {
             rows.Add(new EditorRow(
@@ -373,9 +372,9 @@ public sealed class SetEditorViewModel : IScreen
                 Cursor = (Cursor + 1) % rows.Count;
                 return ScreenCommand.Stay;
 
-            // Nothing on this screen steps any more. Every row opens something, which is what
-            // Accept is for; the caps that used to move on Left and Right are gone, because the
-            // bound a person sets is the install-wide disk budget.
+            // Nothing on this screen steps. Every row opens something, which is what Accept is
+            // for; a set has no caps to move on Left and Right, because the bound a person sets
+            // is the install-wide disk budget.
             case NavAction.Accept:
                 return Open(rows[Cursor].Label);
 

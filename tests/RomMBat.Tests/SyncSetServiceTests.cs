@@ -15,11 +15,10 @@ namespace RomMBat.Tests;
 /// The set orchestration, driven without a console.
 /// </summary>
 /// <remarks>
-/// <b>Being able to write these at all is the point of the seam.</b> Every rule here used to
-/// live inside <c>SetsCommand</c>, welded to <see cref="Console"/>, so the only way to assert
-/// any of it was to redirect the console and read printed strings. That works, and the agent
-/// suite still does it, but it could never be reached from the interface, which meant the
-/// interface would have needed a second copy of each rule.
+/// <b>Being able to write these at all is the point of the seam.</b> A rule inside
+/// <c>SetsCommand</c>, welded to <see cref="Console"/>, can only be asserted by redirecting the
+/// console and reading printed strings. That works, and the agent suite does it, but it cannot
+/// be reached from the interface, which would need a second copy of each rule.
 /// <para>
 /// <b>Nothing here touches the network.</b> Defining, editing, listing and removing a set are
 /// all answerable with the server switched off, which is not incidental: a handheld away from

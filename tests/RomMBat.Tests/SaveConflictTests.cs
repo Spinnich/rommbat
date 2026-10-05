@@ -115,8 +115,8 @@ public class SaveConflictTests
     [Fact]
     public async Task Keeping_the_local_side_a_second_later_appends_a_row_rather_than_replacing_one()
     {
-        // overwrite=true does not replace the row in the slot, which this stub used to say it
-        // did. The server renames a slotted upload to carry the current second
+        // overwrite=true does not replace the row in the slot, whatever the flag suggests.
+        // The server renames a slotted upload to carry the current second
         // and keys the row on that name, so what decides between updating and appending is the
         // clock. A person deciding a conflict is never inside the same second as the save they are
         // deciding against, so the real answer for the only caller of overwrite=true is: it
@@ -342,7 +342,7 @@ public class SaveConflictTests
     public async Task A_decided_conflict_keeps_its_row_and_stops_pointing_at_the_pruned_copy()
     {
         // Migration 007 keeps decided rows so `saves` can say what was chosen, and so a slot that
-        // conflicts again is recognised as one already settled. Pruning the copy aside used to
+        // conflicts again is recognised as one already settled. Pruning the copy aside must not
         // delete the row with it, microseconds after the resolution was written.
         using var fixture = ConflictFixture.Create();
         await fixture.ConflictAsync(TestContext.Current.CancellationToken);

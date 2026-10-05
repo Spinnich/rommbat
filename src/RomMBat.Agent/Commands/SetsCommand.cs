@@ -14,9 +14,9 @@ namespace RomMBat.Agent.Commands;
 /// <c>sets add</c> plus <c>sets resolve</c>, and everything except <c>resolve</c> works with
 /// the server switched off.
 /// <para>
-/// <b>This is a printer now.</b> Every decision it used to make lives in
+/// <b>This is a printer.</b> Every decision it prints lives in
 /// <see cref="SyncSetService"/> and <see cref="SetResolveService"/>, because the gamepad UI
-/// needs the same decisions and the alternative was two implementations of them. What is left
+/// needs the same decisions and the alternative is two implementations of them. What is left
 /// here is parsing a command line, choosing an exit code, and writing lines: the parts that
 /// are genuinely a console's.
 /// </para>
@@ -102,11 +102,9 @@ internal static class SetsCommand
                 $"'{scopeText}' is not a scope. Use collection, smart_collection, virtual_collection, platform or filter.");
         }
 
-        // A filter scope is built from its own flags, so --value has nothing to be. It used to
-        // be accepted, never read and never complained about, which produced the widest possible
-        // scope from a command that named three games: the empty filter matches the entire
-        // library, and the only thing that caught it was an unrelated refusal to resolve arcade
-        // without --folder. Refused rather than ignored. #78.
+        // A filter scope is built from its own flags, so --value has nothing to be. Ignoring it
+        // would produce the widest possible scope from a command that named three games: the
+        // empty filter matches the entire library. Refused rather than ignored. #78.
         if (scope == CatalogScopeKind.Filter && command.Value("value") is { Length: > 0 })
         {
             return Usage(

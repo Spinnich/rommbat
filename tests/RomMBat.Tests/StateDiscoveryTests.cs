@@ -180,8 +180,8 @@ public class StateDiscoveryTests
     {
         // local_state is UNIQUE on (rom_id, slot) as well as on the path, and the free-width
         // token reads both of these as slot zero. The scanner takes any file its template
-        // matches, whoever wrote it, so the second one used to throw SqliteException out of the
-        // pass and take the flush with it.
+        // matches, whoever wrote it, so recorded naively the second one throws SqliteException
+        // out of the pass and takes the flush with it.
         using var tree = StateTree.Create();
         tree.AddRom(5, "megadrive", "Phantasy Star (Brazil).zip");
         tree.AddRom(6, "megadrive", "Sonic (World).zip");

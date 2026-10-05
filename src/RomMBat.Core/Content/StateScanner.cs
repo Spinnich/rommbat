@@ -29,9 +29,9 @@ public sealed record StateScanOutcome
     /// <remarks>
     /// <b>The alternative is silence, and silence is the defect.</b> A name matching an
     /// emulator's template except for the width of its slot is a state that emulator really
-    /// wrote, and it used to be dropped by the same rule that passes over the <c>.txt</c>
-    /// sidecar and the screenshots. A slot outside the declared bounds is synced and was never
-    /// mentioned. See #34 and #65.
+    /// wrote, and the rule that passes over the <c>.txt</c> sidecar and the screenshots would
+    /// drop it without a word. A slot outside the declared bounds is synced, and is listed here
+    /// so that it is not synced in silence. See #34 and #65.
     /// </remarks>
     public IReadOnlyList<SaveStateNearMiss> NearMisses { get; init; } = [];
 
@@ -65,11 +65,11 @@ public sealed record StateScanOutcome
 /// unsyncable with the reason, because reading the wrong tree is worse than reading none.
 /// </para>
 /// <para>
-/// <b><c>flycast</c> used to be the other one and no longer is.</b> On RetroBat 8.2.0 it wrote
-/// <c>saves/dreamcast/reicast/states/</c> and the declared <c>flycast/sstates</c> stayed empty;
-/// 8.2.1 fixed that (<c>emulatorlauncher#1336</c>) and a hands-on pass confirmed the state is
-/// mirrored into the declared path in the same millisecond it is written natively. 8.2.1 is the
-/// minimum supported version, so the declaration is now the one to read.
+/// <b><c>flycast</c> writes its declared directory.</b> It writes
+/// <c>saves/dreamcast/reicast/states/</c> natively, and on the 8.2.1 floor
+/// (<c>emulatorlauncher#1336</c>) a hands-on pass confirmed the state is mirrored into the
+/// declared <c>flycast/sstates</c> in the same millisecond, so the declaration is the one to
+/// read.
 /// </para>
 /// </remarks>
 public sealed class StateScanner

@@ -130,8 +130,9 @@ public static class SetsScreens
             return new MessageScreen("Sync sets", $"There is no set named '{name}' any more.");
         }
 
-        // Re-read on return, because resolving happens on a screen above this one and used to
-        // leave the counts and the last-resolved time showing what they said before it ran.
+        // Re-read on return, because resolving happens on a screen above this one, and rows
+        // read once would leave the counts and the last-resolved time saying what they said
+        // before it ran.
         IReadOnlyList<ListRow> Rows()
         {
             detail = service.Show(name) ?? detail;
@@ -274,9 +275,8 @@ public static class SetsScreens
                 new SyncSetService(session).Remove(name);
 
                 // Back to the list, closing the detail screen underneath, whose set no longer
-                // exists. It used to land on a message screen instead, which said the right
-                // sentence at the wrong moment and left the only way onward being to quit
-                // RomMBat entirely.
+                // exists. A message screen here would say the right sentence at the wrong
+                // moment and leave the only way onward being to quit RomMBat entirely.
                 return ScreenCommand.PopMany(2);
             },
             acceptLabel: "Choose",
