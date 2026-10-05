@@ -222,6 +222,10 @@ RetroBat is portable, so a copy is disposable.
    Where RomMBat's own files land in the tree is in
    [docs/architecture/writing-into-the-tree.md](docs/architecture/writing-into-the-tree.md#where-rommbats-files-live).
 
+The agent's own tree is one of these copies, kept rather than deleted, and paired as the
+approver account: [the hands-on kit](tools/handson/README.md#the-agent-tree) builds it and
+drives it.
+
 For the portable-move test, install to a USB stick, pair, sync a couple of games, change the
 drive letter or move it to another PC, and confirm root discovery, the file index, the ES menu
 entry, the hooks and the device identity all still work. A FAT32 stick also exercises the 4 GB

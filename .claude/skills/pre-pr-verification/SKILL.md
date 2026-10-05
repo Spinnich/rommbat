@@ -85,7 +85,8 @@ cost there.
 
 ## When the change touches sync
 
-- Re-run a sync with no changes: zero uploads, zero downloads, no gamelist churn.
+- Re-run a sync with no changes on the agent tree ("Hands-on by change type"): zero uploads,
+  zero downloads, no gamelist churn.
 - Exercise the offline path: switch the stub to unreachable mid-operation and confirm work
   either completes locally or queues, and that a later flush is idempotent under replay.
 - **If save logic changed**, a real emulator must have written a real save or state of the
@@ -182,6 +183,29 @@ measurement was taken on and must not.
    step. Each record's "Where each row stands" then says which steps were re-run at the new
    floor and which are owed. The rule and what counts as touched are in the
    `platform-certification` skill, "When the floor moves".
+
+## Hands-on by change type
+
+**A change a user can see or a server can receive is driven on a real install before it is
+done**, not only tested. The tests prove the mechanism; a hands-on pass proves the shipped build
+does it. The install is the agent tree, `ROMMBAT_AGENT_ROOT` in `.env`, which is the agent's to
+deploy to and drive without asking, and the kit is `tools/handson/` (its README has the how).
+Start with `Test-HandsOnEnv -Gui`, then `Publish-ToAgentTree`, so the pass runs this branch's build.
+
+| The diff changes                     | Owed, on the agent tree with the deployed build                                                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A gamepad screen                     | Walk every changed state with `Send-Key`, screenshot each, and read the screenshots. Include the empty, offline and error states the change moves |
+| A CLI command or its output          | Run it with `Invoke-Agent` and quote what it printed                                                                                              |
+| Sync, hooks, the spool, ES           | `Start-ES`, launch a game, `Stop-ES`. The spool drains, `background.log` shows both passes, `status` shows the session, and a re-sync is a no-op  |
+| Pairing or a call to the server      | `Connect-AgentTree -Repair`, or the changed call made against the real server                                                                     |
+| Save logic                           | `/certify <system> --hands-on <PR>` on the maintainer's install, as "When the change touches sync" says                                           |
+| Docs, tests, CI or dev tooling alone | Nothing                                                                                                                                           |
+
+A diff in two rows owes both. **A pass that cannot run is named, never skipped silently**: a
+disconnected session, ES or an emulator already running (the kit refuses to take the screen
+then, because the maintainer may be playing), or a server down. Say which claims that leaves
+unproven. The PR body's **Hands-on** section says what was driven, on which build (the line in
+`emulators/rommbat/deployed.txt`), and what each screenshot or output showed.
 
 ## Before claiming done
 

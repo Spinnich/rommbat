@@ -70,6 +70,9 @@ design is in question, not the code.
 - Gives each PR its type label for the release notes and its `semver:*` label for the bump
   (`CONTRIBUTING.md`, "Labels and release notes"), and lists a label it picked for your veto.
 - Closes an issue a later commit already fixed, citing that commit.
+- Deploys to, pairs, syncs, resets and drives its own agent tree (`ROMMBAT_AGENT_ROOT`), to do the
+  hands-on pass a change owes with `tools/handson/`. It takes the screen and keyboard only when
+  EmulationStation, every emulator and RomMBat are closed, and asks otherwise.
 - During `/certify`, writes inside the test install's folders for the system being certified,
   after copying them to `probe-output/` first.
 - Merges on green, once review is done, a PR that is docs only, tests only, or a Dependabot patch
@@ -82,12 +85,14 @@ design is in question, not the code.
 - Any other merge, and anything that touches main directly.
 - Writing anywhere else in the RetroBat install, and restoring it from a snapshot.
 - Playing: battery saves, name entry, anything a person has to do with a pad.
+- Taking the screen while EmulationStation, an emulator or RomMBat is already running.
 
 ## What "done" means
 
 CI green, every finding ruled, docs corrected in the same PR, and a plain statement of what was
-verified and what was not. A save-logic change also has its hands-on pass, or says which claims
-are unproven without one.
+verified and what was not. A change a user can see or the server can receive also has its
+hands-on pass on the deployed build (`pre-pr-verification`, "Hands-on by change type"), or says
+which claims are unproven without one.
 
 `tools/pre-pr.ps1` runs every CI gate locally: `pwsh -File tools/pre-pr.ps1`. In a git
 worktree it skips trunk, which cannot read one from WSL, and CI's trunk check covers it.
@@ -96,12 +101,15 @@ commands run it.
 
 ## One-time setup
 
-`/certify` needs to know where the RetroBat test install is. Add it to your own
-`.claude/settings.local.json`, which git ignores, beside the test server:
+The commands find both RetroBat trees in the repository-root `.env`, which git ignores, beside
+the test server and tokens:
 
-```json
-{ "env": { "ROMMBAT_RETROBAT_ROOT": "R:\\RetroBat" } }
+```bash
+ROMMBAT_RETROBAT_ROOT=R:\RetroBat      # yours, for /certify and save passes
+ROMMBAT_AGENT_ROOT=D:\retrobat-agent   # the agent's own, for every other hands-on pass
 ```
+
+Building the agent tree is in [the hands-on kit](../../tools/handson/README.md#the-agent-tree).
 
 The commands the loop runs most are allowed in `.claude/settings.json`, so they do not prompt.
 Merging and closing issues are left off that list on purpose, so

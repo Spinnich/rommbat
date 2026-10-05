@@ -27,6 +27,9 @@
 - [ ] No token, secret or instance URL appears in the diff
 - [ ] Every new user-visible string is reachable without a mouse
 
+**Hands-on**
+<sup>What was driven on a real install, on which build (the line in <code>emulators/rommbat/deployed.txt</code>), and what each screenshot or output showed. See "Hands-on by change type" in the <code>pre-pr-verification</code> skill. "Not owed: docs only" or "Unproven: &lt;reason&gt;" are answers; a blank is not.</sup>
+
 **Docs**
 <sup>Which docs moved, and which you read and found already correct. See "Documentation parity" in the <code>pre-pr-verification</code> skill. "Docs unchanged" with nothing read reads as not having looked.</sup>
 

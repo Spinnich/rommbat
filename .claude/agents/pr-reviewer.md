@@ -68,8 +68,10 @@ general correctness pass (no `--comment`, no `--fix`), and keep only what surviv
    names the diff changed. This is the dimension whose file is usually not in the diff.
 4. **Present tense.** No doc in the diff records how something used to be (`CLAUDE.md`, "Docs
    describe the present").
-5. **Evidence claims.** A platform claim needs its certification record. A save-logic change
-   needs its hands-on pass or a statement of which claims are unproven.
+5. **Evidence claims.** A platform claim needs its certification record. A diff in any row of
+   `pre-pr-verification`'s "Hands-on by change type" table needs the PR body's Hands-on section
+   to cover that row: what was driven on the deployed build and what it showed, or which claims
+   are unproven and why. A missing or blank section on such a diff is a blocking finding.
 6. **Scope.** One coherent change, or two? Did it grow past the issue it names?
 7. **AI disclosure** in the body, stating the extent, on `.github/PULL_REQUEST_TEMPLATE.md`.
    Ticked boxes are claims: flag one the diff contradicts.
