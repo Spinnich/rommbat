@@ -5,25 +5,25 @@ read-when: When a result for one of these `gamegear` rows is needed, or before r
 
 # gamegear: The two `libretro` rows, and FBNeo
 
-|                   | Selected by                                   | Confirmed on the ES launch line            |
-| ----------------- | --------------------------------------------- | ------------------------------------------ |
-| `genesis_plus_gx` | **Nothing: RetroBat's default**               | `-emulator libretro -core genesis_plus_gx` |
-| `picodrive`       | the game's emulator option in ES              | `-core picodrive -state_slot 3`            |
-| `fbneo`           | the game's emulator option in ES              | `-core fbneo -state_slot 3`                |
+|                   | Selected by                      | Confirmed on the ES launch line            |
+| ----------------- | -------------------------------- | ------------------------------------------ |
+| `genesis_plus_gx` | **Nothing: RetroBat's default**  | `-emulator libretro -core genesis_plus_gx` |
+| `picodrive`       | the game's emulator option in ES | `-core picodrive -state_slot 3`            |
+| `fbneo`           | the game's emulator option in ES | `-core fbneo -state_slot 3`                |
 
-| #   | `genesis_plus_gx`                                                       | `picodrive`                                       |
-| --- | ----------------------------------------------------------------------- | ------------------------------------------------- |
-| 4   | **Pass, both directions.** Class A `.srm`, 3,840 B                      | **Pass, both directions.** The same `.srm`, 32 KB |
-| 5   | **Pass**, the screenshot byte-checked                                   | **Pass**, the screenshot byte-checked             |
-| 6   | **N/A.** `gamegear` is class A                                          | **N/A**                                           |
-| 7   | **Pass.** Launched from ES after the sync, with box art and description | **Pass**, carried                                 |
-| 8   | **Pass.** 10:20:38Z to 10:22:14Z, 1m 36s                                | **Pass.** 10:23:43Z to 10:24:14Z, 31s             |
+| #   | `genesis_plus_gx`                                                        | `picodrive`                                       |
+| --- | ------------------------------------------------------------------------ | ------------------------------------------------- |
+| 4   | **Pass, both directions.** Class A `.srm`, 3,840 B                       | **Pass, both directions.** The same `.srm`, 32 KB |
+| 5   | **Pass**, the screenshot byte-checked                                    | **Pass**, the screenshot byte-checked             |
+| 6   | **N/A.** `gamegear` is class A                                           | **N/A**                                           |
+| 7   | **Pass.** Launched from ES after the sync, with box art and description  | **Pass**, carried                                 |
+| 8   | **Pass.** 10:20:38Z to 10:22:14Z, 1m 36s                                 | **Pass.** 10:23:43Z to 10:24:14Z, 31s             |
 | 9   | **Pass.** 546 present and verified, 2,046 media, gamelist byte-identical | **Pass**                                          |
 
-| Core              | `.srm` after  | States, slot: state, png                                            |
-| ----------------- | ------------- | ------------------------------------------------------------------- |
-| `genesis_plus_gx` | `0c136a7a...` | 1: `d55b0052...`, `ffecb041...`; 2: `3c9941f0...`, `68f18b0d...`     |
-| `picodrive`       | `f374fdb8...` | 1: `85d3bfe8...`, `81f25fb6...`; 2: `43140b07...`, `ef10edc1...`     |
+| Core              | `.srm` after  | States, slot: state, png                                         |
+| ----------------- | ------------- | ---------------------------------------------------------------- |
+| `genesis_plus_gx` | `0c136a7a...` | 1: `d55b0052...`, `ffecb041...`; 2: `3c9941f0...`, `68f18b0d...` |
+| `picodrive`       | `f374fdb8...` | 1: `85d3bfe8...`, `81f25fb6...`; 2: `43140b07...`, `ef10edc1...` |
 
 **The maintainer started the game on the stock row**, played a minute and made two states on
 different screens, so each slot's image is its own. RetroArch's periodic flush wrote the full

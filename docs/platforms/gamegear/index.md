@@ -33,24 +33,24 @@ a battery file of nothing but `0xFF`, because ares writes one for every cartridg
 **Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1**, measured there on
 2026-10-05. Nothing is owed.
 
-| File                             | What it holds                                                                                                   |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| This file                        | Steps 1, 2 and 3, which are the system's; what the first boots wrote, and how the test game saves; what else turned up |
-| [libretro.md](libretro.md)       | The two `libretro` rows, and FBNeo                                                                              |
-| [standalone.md](standalone.md)   | The three certified standalone rows, and jgenesis                                                               |
-| [facts.md](facts.md)             | The measured facts about `gamegear`'s emulators, with RB- IDs                                                   |
+| File                           | What it holds                                                                                                          |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| This file                      | Steps 1, 2 and 3, which are the system's; what the first boots wrote, and how the test game saves; what else turned up |
+| [libretro.md](libretro.md)     | The two `libretro` rows, and FBNeo                                                                                     |
+| [standalone.md](standalone.md) | The three certified standalone rows, and jgenesis                                                                      |
+| [facts.md](facts.md)           | The measured facts about `gamegear`'s emulators, with RB- IDs                                                          |
 
 ## The install this was measured on
 
-|           |                                                                         |
-| --------- | ----------------------------------------------------------------------- |
-| RetroBat  | `8.2.1-stable-win64`, the supported floor                               |
-| RomM      | `5.3.1`, read back by `status` as Supported                             |
-| Root      | `R:\RetroBat`, found by walking up from the executable                  |
-| Store     | schema 21 of 21, WAL                                                    |
+|           |                                                                                  |
+| --------- | -------------------------------------------------------------------------------- |
+| RetroBat  | `8.2.1-stable-win64`, the supported floor                                        |
+| RomM      | `5.3.1`, read back by `status` as Supported                                      |
+| Root      | `R:\RetroBat`, found by walking up from the executable                           |
+| Store     | schema 21 of 21, WAL                                                             |
 | Client    | `main` at `cc167a2`, carrying #453's rules, deployed before the first ES session |
-| Budget    | unlimited, 2 GB free-space floor                                        |
-| Test game | Defenders of Oasis (USA, Europe)                                        |
+| Budget    | unlimited, 2 GB free-space floor                                                 |
+| Test game | Defenders of Oasis (USA, Europe)                                                 |
 
 **The test game is a 512 KB cartridge with battery SRAM**, RomM rom 272855, the `.gg` inside the zip
 hashing to `8430050c...`. **It autosaves as it is played**, so every row's save reached the file
@@ -135,14 +135,14 @@ two Master System files this install keeps for `mastersystem`'s SMSHawk moved ou
 `emulatorLauncher` with no key sent, and every file was moved to `R:\rommbat-evidence\gamegear\boot\`
 before a flush could send it. RB-409 holds the detail.
 
-| Row                          | Wrote at boot                                                |
-| ---------------------------- | ------------------------------------------------------------ |
-| `libretro`/`genesis_plus_gx` | `<rom>.srm`, 285 B, trimmed at the last used byte            |
-| `libretro`/`picodrive`       | `<rom>.srm`, 32,768 B                                        |
-| `mednafen`/`gg`              | `<rom>.8430050c60db46b3887cf7d7cf2f206f.sav`, 32,768 B       |
-| `ares`/`GameGear`            | `ares/Game Gear/<rom>.ram`, 32,768 B, on `Esc`               |
-| `bizhawk`/`SMSHawk`          | `bizhawk/Defenders of Oasis (UE).SaveRAM`, 8,192 B            |
-| `jgenesis`                   | `jgenesis/gg/<rom>.sav`, 32,768 B, the upper 24 KB `0x00`     |
+| Row                          | Wrote at boot                                             |
+| ---------------------------- | --------------------------------------------------------- |
+| `libretro`/`genesis_plus_gx` | `<rom>.srm`, 285 B, trimmed at the last used byte         |
+| `libretro`/`picodrive`       | `<rom>.srm`, 32,768 B                                     |
+| `mednafen`/`gg`              | `<rom>.8430050c60db46b3887cf7d7cf2f206f.sav`, 32,768 B    |
+| `ares`/`GameGear`            | `ares/Game Gear/<rom>.ram`, 32,768 B, on `Esc`            |
+| `bizhawk`/`SMSHawk`          | `bizhawk/Defenders of Oasis (UE).SaveRAM`, 8,192 B        |
+| `jgenesis`                   | `jgenesis/gg/<rom>.sav`, 32,768 B, the upper 24 KB `0x00` |
 
 Every one holds the game's `Backup Ver0.84` header at `0x10E`. **ares also writes 32,768 B of `0xFF`
 for a cartridge with no battery**, as Sonic Chaos and Castle of Illusion showed, which the scanner now
@@ -151,7 +151,7 @@ passes over as erased (RB-408). **mednafen's md5 is of the whole `.gg` inside th
 ## What the pass turned up that is not a row
 
 - **The server already held a save for the Virtual Console dump**, rom 272854, `Defenders of Oasis
-  (USA, Europe) (Virtual Console).srm`: 285 B, `c57a4b80...`, byte-identical to the boot write
+(USA, Europe) (Virtual Console).srm`: 285 B, `c57a4b80...`, byte-identical to the boot write
   Genesis Plus GX makes for the test game. Some other client booted that dump and uploaded its boot
   write, and the first ES session's start flush placed it, since this device held nothing for that
   rom. It is not the test game and was left alone.

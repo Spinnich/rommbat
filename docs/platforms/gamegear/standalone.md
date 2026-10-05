@@ -5,12 +5,12 @@ read-when: When a result for one of these `gamegear` rows is needed, or before r
 
 # gamegear: The three standalone rows, and jgenesis
 
-|            | Selected by                      | Confirmed on the ES launch line                |
-| ---------- | -------------------------------- | ---------------------------------------------- |
-| `mednafen` | the game's emulator option in ES | `-emulator mednafen -core gg`                  |
-| `ares`     | the game's emulator option in ES | `-emulator ares -core GameGear`                |
-| `SMSHawk`  | the game's emulator option in ES | `-emulator bizhawk -core SMSHawk`              |
-| `jgenesis` | the game's emulator option in ES | `-emulator jgenesis -core genesis_plus_gx`     |
+|            | Selected by                      | Confirmed on the ES launch line            |
+| ---------- | -------------------------------- | ------------------------------------------ |
+| `mednafen` | the game's emulator option in ES | `-emulator mednafen -core gg`              |
+| `ares`     | the game's emulator option in ES | `-emulator ares -core GameGear`            |
+| `SMSHawk`  | the game's emulator option in ES | `-emulator bizhawk -core SMSHawk`          |
+| `jgenesis` | the game's emulator option in ES | `-emulator jgenesis -core genesis_plus_gx` |
 
 ## Checklist for the three
 
@@ -45,11 +45,11 @@ across the system's five.
 
 ## 5. States on the three
 
-| Row        | Directory under `saves/gamegear/` | Slots and who made them                         | Round-tripped                        |
-| ---------- | --------------------------------- | ----------------------------------------------- | ------------------------------------ |
-| `mednafen` | `mednafen/sstates/`               | `.<md5>.mc0` and `.mc9`, both in ES             | `.mc9`, `69a38d0e...`                |
-| `ares`     | `ares/Game Gear/`                 | `.bs1` and `.bs2`, both by the agent            | `.bs2`, `0063ae6d...`                |
-| `SMSHawk`  | `bizhawk/sstates/SMSHawk/`        | `QuickSave2` and `QuickSave4`, both by the agent | `QuickSave4`, `34bec4ec...`          |
+| Row        | Directory under `saves/gamegear/` | Slots and who made them                          | Round-tripped               |
+| ---------- | --------------------------------- | ------------------------------------------------ | --------------------------- |
+| `mednafen` | `mednafen/sstates/`               | `.<md5>.mc0` and `.mc9`, both in ES              | `.mc9`, `69a38d0e...`       |
+| `ares`     | `ares/Game Gear/`                 | `.bs1` and `.bs2`, both by the agent             | `.bs2`, `0063ae6d...`       |
+| `SMSHawk`  | `bizhawk/sstates/SMSHawk/`        | `QuickSave2` and `QuickSave4`, both by the agent | `QuickSave4`, `34bec4ec...` |
 
 **`mednafen` and `ares` declare no state directory**, and each wrote to the one above, which the
 supplement declares for `gamegear` (#453). **The maintainer's second mednafen slot was 9**: the slot
@@ -62,12 +62,12 @@ having ended before one was saved; their frames, `Framebuffer.bmp` inside each s
 
 ## 8. Sessions
 
-| Row        | Journal, UTC                                    | Length      |
-| ---------- | ----------------------------------------------- | ----------- |
-| `mednafen` | 10:55:13 to 10:56:20                            | 1m 7s       |
-| `ares`     | 12:03:06 to 12:03:37                            | 31s         |
-| `SMSHawk`  | 12:05:46 to 12:06:09                            | 23s         |
-| `jgenesis` | 12:08:05 to 12:10:01                            | 1m 55s      |
+| Row        | Journal, UTC         | Length |
+| ---------- | -------------------- | ------ |
+| `mednafen` | 10:55:13 to 10:56:20 | 1m 7s  |
+| `ares`     | 12:03:06 to 12:03:37 | 31s    |
+| `SMSHawk`  | 12:05:46 to 12:06:09 | 23s    |
+| `jgenesis` | 12:08:05 to 12:10:01 | 1m 55s |
 
 Every one is on the server, rom 272855, jgenesis's being the black-screen session.
 
@@ -85,12 +85,12 @@ colour. No ES option sets the flag (RB-410), so the row as a user gets it cannot
 right.** The maintainer played on the keyboard, since a run outside `emulatorLauncher` gets none of
 its pad setup:
 
-| What                         | Result                                                                                        |
-| ---------------------------- | --------------------------------------------------------------------------------------------- |
-| Battery save                 | `jgenesis/gg/<rom>.sav`, 32,768 B, `9b53a63a...`, 84 bytes changed against BizHawk's seed     |
-| Its upload and restore       | Went up as `jgenesis:battery`, and came back at its own md5 with the other four                |
-| States                       | `_0.jst` and `_1.jst`, 46,855 B and 49,552 B, in `emulators/jgenesis/states/gg/`              |
-| States under `saves/`        | None: only `emulatorLauncher` mirrors them into `saves/gamegear/jgenesis/states/`, so unproven |
+| What                   | Result                                                                                         |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| Battery save           | `jgenesis/gg/<rom>.sav`, 32,768 B, `9b53a63a...`, 84 bytes changed against BizHawk's seed      |
+| Its upload and restore | Went up as `jgenesis:battery`, and came back at its own md5 with the other four                |
+| States                 | `_0.jst` and `_1.jst`, 46,855 B and 49,552 B, in `emulators/jgenesis/states/gg/`               |
+| States under `saves/`  | None: only `emulatorLauncher` mirrors them into `saves/gamegear/jgenesis/states/`, so unproven |
 
 **jgenesis rewrites its `.sav` every two seconds while the game autosaves**, and fills the upper 24 KB
 of a fresh one with `0x00`.
