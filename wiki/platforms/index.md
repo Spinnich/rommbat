@@ -26,6 +26,7 @@ been tested yet.
 | [PlayStation](#psx)                             | 7 of 7         | libretro / mednafen_psx_hw, certified  |
 | [Nintendo 64](#n64)                             | 9 of 9         | libretro / mupen64plus_next, certified |
 | [Game Gear](#gamegear)                          | 5 of 7         | libretro / genesis_plus_gx, certified  |
+| [32X](#sega32x)                                 | 4 of 5         | libretro / picodrive, certified        |
 
 ## Nintendo Entertainment System - Famicom {#nes}
 
@@ -200,3 +201,15 @@ RetroBat's `gamegear` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [cert
 | ares     | GameGear        | Certified           |                                                                                         |
 | bizhawk  | SMSHawk         | Certified           |                                                                                         |
 | jgenesis |                 | Not certified       | RetroBat launches it as a Master System, so a Game Gear game plays to a black screen    |
+
+## 32X {#sega32x}
+
+RetroBat's `sega32x` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/sega32x/) has the detail. [Its page](sega32x.md) says which emulator to pick, what BIOS to supply and what will not work.
+
+| Emulator    | Core      | Status              | Note                                                                                 |
+| ----------- | --------- | ------------------- | ------------------------------------------------------------------------------------ |
+| libretro    | picodrive | Certified (default) |                                                                                      |
+| ares        | Mega32X   | Certified           |                                                                                      |
+| kega-fusion | sega32x   | Not certified       | Writes its battery saves outside saves/, and its states into the Mega Drive's folder |
+| bizhawk     | PicoDrive | Certified           |                                                                                      |
+| jgenesis    |           | Certified           |                                                                                      |
