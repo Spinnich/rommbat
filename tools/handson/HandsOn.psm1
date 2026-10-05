@@ -516,7 +516,7 @@ function Send-Key {
         Set-KitInputMarker
         Start-Sleep -Milliseconds $HoldMs
         # The release would hide anyone who typed during the hold, so look first, and still release.
-        $interrupted = (Get-HumanIdleSeconds) -lt 1
+        $interrupted = $IdleSec -gt 0 -and (Get-HumanIdleSeconds) -lt 1
         [array]::Reverse($vks)
         foreach ($vk in $vks) {
             $flags = 2 -bor $(if ($script:ExtendedKeys -contains $vk) { 1 } else { 0 })
@@ -576,6 +576,7 @@ function Start-RomMBatUI {
     $root = Get-AgentRoot
     Start-Process -FilePath (Join-Path $root 'emulators\rommbat\RomMBat.exe') -ArgumentList '--root', $root -WorkingDirectory $root | Out-Null
     $handle = Get-MainWindow 'RomMBat' -TimeoutSec 60
+    Assert-HumanIdle
     Set-WindowFocus $handle
     Write-Host 'RomMBat is up'
 }

@@ -23,7 +23,8 @@ and `waves.md` how the agent launches rows and sends keys. `docs/platforms/nes/`
 The install is the agent tree, `ROMMBAT_AGENT_ROOT` in the main checkout's `.env`, and no other.
 It is the agent's to deploy to, sync, reset and write in without asking, so bring SYSTEM's games
 and firmware in through a RomMBat set and `Invoke-Agent sync`, the way a user's arrive. Run
-`Test-HandsOnEnv -Gui` and `Publish-ToAgentTree` first. `tools/handson/` starts ES, launches,
+`Test-HandsOnEnv -Gui` and `Publish-ToAgentTree` first; with ES already up, its "nothing else has
+the screen" line fails by design, so read the others. `tools/handson/` starts ES, launches,
 sends keys and takes screenshots; `waves.md` covers what it does not, such as an
 `emulatorLauncher` launch with a row's arguments.
 
