@@ -758,25 +758,87 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
-    public void An_empty_rtc_on_snes_is_not_a_save_and_one_with_content_is_still_reported()
+    public void An_empty_rtc_on_snes_is_not_a_save_and_one_with_content_is_the_cores_clock()
     {
-        // libretro/mednafen_snes leaves a 0 B loose .rtc on every exit, measured on 8.2.1.
+        // libretro/mednafen_snes leaves a 0 B loose .rtc on every exit for a game with no clock,
+        // and 20 B for one with an S-RTC, measured on 8.2.1.
         using var fixture = SaveTree.Create();
 
         fixture.AddRom(1, "snes", "Zelda (USA).zip");
-        fixture.AddRom(2, "snes", "Kart (USA).zip");
+        fixture.AddRom(2, "snes", "Shell Monsters (Japan).zip");
         fixture.AddSave("snes", "Zelda (USA).srm", "the cores' battery save");
         fixture.AddSave("snes", "Zelda (USA).rtc", string.Empty);
-        fixture.AddSave("snes", "Kart (USA).rtc", "a clock nobody measured");
+        fixture.AddSave("snes", "Shell Monsters (Japan).rtc", "the cartridge clock");
         fixture.AddSave("nes", "Empty (USA).rtc", string.Empty);
 
         fixture.Scan();
 
-        Assert.Equal("libretro:battery", Assert.Single(fixture.Store.Saves.List()).Slot);
-        var snes = Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.System == "snes");
-        Assert.Equal(1, snes.FileCount);
-        Assert.Contains("Kart (USA).rtc", snes.Detail, StringComparison.Ordinal);
+        var slots = fixture.Store.Saves.List().ToDictionary(save => save.Path.Value, save => save.Slot);
+        Assert.Equal(2, slots.Count);
+        Assert.Equal("libretro:battery", slots["saves/snes/Zelda (USA).srm"]);
+        Assert.Equal("libretro:battery:rtc", slots["saves/snes/Shell Monsters (Japan).rtc"]);
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "snes");
         Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.System == "nes");
+    }
+
+    [Fact]
+    public void Every_snes_rows_clock_for_an_s_rtc_cartridge_takes_its_own_slot_beside_the_save()
+    {
+        // Measured on 8.2.1: Super Shell Monsters Story II, an S-RTC cartridge, under every snes
+        // row, and Kirby's Dream Land 3, an SA-1 cartridge, under ares. The saves keep the slots
+        // they had before the clocks were claimed.
+        using var fixture = SaveTree.Create();
+        const string Shell = "Super Shell Monsters Story II (Japan) [T-En by Dynamic Designs v0.90] [n]";
+        const string Md5 = "fe6c7d5083495dc199d247ede7eb4a05";
+        const string Kirby = "Kirby's Dream Land 3 (USA)";
+
+        fixture.AddRom(1, "snes", $"{Shell}.zip");
+        fixture.AddRom(2, "snes", $"{Kirby}.zip");
+        fixture.AddSave("snes", $"{Shell}.srm", "the cores' battery save");
+        fixture.AddSave("snes", $"{Shell}.rtc", "the cores' clock");
+        fixture.AddSave("snes", $"{Shell}.{Md5}.srm", "mednafen's battery save");
+        fixture.AddSave("snes", $"{Shell}.{Md5}.rtc", "mednafen's clock");
+        fixture.AddSave("snes", $"ares/Super Famicom/{Shell}.ram", "ares's battery save");
+        fixture.AddSave("snes", $"ares/Super Famicom/{Shell}.rtc", "ares's clock");
+        fixture.AddSave("snes", $"ares/Super Famicom/{Kirby}.ram", "ares's battery save");
+        fixture.AddSave("snes", $"ares/Super Famicom/{Kirby}.iram", "the SA-1's internal RAM");
+        fixture.AddSave("snes", $"jgenesis/sfc/{Shell}.sav", "jgenesis's battery save");
+        fixture.AddSave("snes", $"jgenesis/sfc/{Shell}.rtc", "jgenesis's clock");
+
+        fixture.Scan();
+
+        var saves = fixture.Store.Saves.List().ToDictionary(save => save.Path.Value);
+        Assert.Equal("libretro:battery", saves[$"saves/snes/{Shell}.srm"].Slot);
+        Assert.Equal("libretro:battery:rtc", saves[$"saves/snes/{Shell}.rtc"].Slot);
+        Assert.Equal("mednafen:battery", saves[$"saves/snes/{Shell}.{Md5}.srm"].Slot);
+        Assert.Equal("mednafen:battery:rtc", saves[$"saves/snes/{Shell}.{Md5}.rtc"].Slot);
+        Assert.Equal("ares:battery:ram", saves[$"saves/snes/ares/Super Famicom/{Shell}.ram"].Slot);
+        Assert.Equal("ares:battery:rtc", saves[$"saves/snes/ares/Super Famicom/{Shell}.rtc"].Slot);
+        Assert.Equal("ares:battery:iram", saves[$"saves/snes/ares/Super Famicom/{Kirby}.iram"].Slot);
+        Assert.Equal("jgenesis:battery", saves[$"saves/snes/jgenesis/sfc/{Shell}.sav"].Slot);
+        Assert.Equal("jgenesis:battery:rtc", saves[$"saves/snes/jgenesis/sfc/{Shell}.rtc"].Slot);
+        Assert.Equal(2, saves[$"saves/snes/ares/Super Famicom/{Kirby}.iram"].RomId);
+        Assert.All(saves.Values.Where(save => !save.Path.Value.Contains(Kirby, StringComparison.Ordinal)), save => Assert.Equal(1, save.RomId));
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "snes");
+    }
+
+    [Fact]
+    public void Bsnes_jgs_clock_named_after_the_zip_and_its_member_joins_no_rom()
+    {
+        // libretro/bsnes-jg names an S-RTC cartridge's clock <rom>.zip#<member>.rtc, measured on
+        // 8.2.1. The loose .rtc rule joins on the rom file, so that stem names no rom.
+        using var fixture = SaveTree.Create();
+        const string Shell = "Super Shell Monsters Story II (Japan) [T-En by Dynamic Designs v0.90] [n]";
+
+        fixture.AddRom(1, "snes", $"{Shell}.zip");
+        fixture.AddSave("snes", $"{Shell}.srm", "the cores' battery save");
+        fixture.AddSave("snes", $"{Shell}.zip#{Shell}.rtc", "bsnes-jg's clock");
+
+        fixture.Scan();
+
+        var saves = fixture.Store.Saves.List().ToDictionary(save => save.Path.Value);
+        Assert.Equal(1, saves[$"saves/snes/{Shell}.srm"].RomId);
+        Assert.Null(saves[$"saves/snes/{Shell}.zip#{Shell}.rtc"].RomId);
     }
 
     [Fact]

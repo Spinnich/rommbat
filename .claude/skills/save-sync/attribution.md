@@ -86,9 +86,15 @@ it when it is there and otherwise writes `<rom>.<md5>.srm`, a `.srm` and not the
 other systems, the md5 being of the whole `.sfc` (RB-318), which uploads as
 `mednafen:battery`. BizHawk's `.SaveRAM` is named after the ROM file on `snes`, and ares keeps a
 DSP-1 cartridge's data RAM as `<rom>.dram` beside the `.ram`, class B, `ares:battery:dram`.
-`libretro`/`mednafen_snes` leaves an empty `<rom>.rtc` on every exit, and `empty_not_a_save` in
-`save_rules.json` passes over an empty one per system and extension, while one with content is
-still reported (RB-319). Zelda, the test game, writes
+ares keeps an SA-1 cartridge's internal RAM as `<rom>.iram`, `ares:battery:iram` (RB-418).
+**An S-RTC cartridge's clock is a second file on eight rows**, each in its own class B slot beside
+a save that keeps the slot it had: the loose `<rom>.rtc` the cores and standalone Snes9x write, as
+`libretro:battery:rtc`, mednafen's `<rom>.<md5>.rtc` as `mednafen:battery:rtc`, and ares's and
+jgenesis's as `ares:battery:rtc` and `jgenesis:battery:rtc`. `libretro`/`bsnes-jg` names its clock
+`<rom>.zip#<member>.rtc`, which joins no rom, and BizHawk's Snes9x core appends the clock to the
+shared `.SaveRAM` (RB-417). `libretro`/`mednafen_snes` leaves an empty `<rom>.rtc` for a game with
+no clock, and `empty_not_a_save` in `save_rules.json` passes over an empty one per system and
+extension (RB-319). Zelda writes
 its SRAM at boot, so any launch uploads a new `.srm` version whether or not the game was saved.
 
 **On `mastersystem` only the two `libretro` cores share the loose `<rom>.srm`**, Genesis Plus GX

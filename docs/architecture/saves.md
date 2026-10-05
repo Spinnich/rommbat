@@ -47,8 +47,9 @@ title for the game** (`StarTropics.SaveRAM` for `StarTropics (USA).zip`), which
 `Content/DisplayNameAttributor` learns from the state sidecar and the launch window and caches
 in `game_id_binding` under the file name. A title two ROMs answer to fails closed, and a
 download for such a slot is placed only where a title was learned (#151). A clock file beside a
-save is class B: on `gb` the loose `.rtc` is `libretro`'s second slot, `libretro:battery:rtc`,
-because a clock cartridge keeps its clock there under the stock core, and on `gba` it is Mesen's.
+save is class B: on `gb` and `snes` the loose `.rtc` is `libretro`'s second slot,
+`libretro:battery:rtc`, because a clock cartridge keeps its clock there under the stock core, and
+on `gba` it is Mesen's.
 A rule can carry **stem suffixes**, one per memory card port, each with its own slot: DuckStation's
 `<title>_1.mcd` and `_2.mcd` on `psx` are `duckstation:battery` and `duckstation:battery:2`, and the
 title is the stem less the suffix. mednafen's `psx` hash is of no file but of every disc's table of
