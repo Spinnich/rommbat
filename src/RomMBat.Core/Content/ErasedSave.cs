@@ -10,8 +10,9 @@ namespace RomMBat.Core.Content;
 /// game played under ares would gain a blank save on the server.
 /// <para>
 /// <b>It holds for any rule on any system</b>, by the maintainer's decision, because <c>0xFF</c> is
-/// the erased state of SRAM, flash and EEPROM alike, so no save a game wrote looks like this. It is
-/// <see cref="Ps1MemoryCard"/>'s test for a format with no structure to read.
+/// the erased state of SRAM, flash and EEPROM alike, so a save a game keeps never looks like this.
+/// A game that erases its own save does leave one, and that wipe stays local: the accepted cost.
+/// It is <see cref="Ps1MemoryCard"/>'s test for a format with no structure to read.
 /// </para>
 /// </remarks>
 public static class ErasedSave

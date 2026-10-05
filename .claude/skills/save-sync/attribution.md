@@ -111,8 +111,11 @@ or a slot the scan leaves empty fetches the server's blank copy back on every re
 
 **A battery file of nothing but `0xFF` is treated the same way, under every rule on every
 system** (`ErasedSave`): ares writes a 32 KB one on `gamegear` for every cartridge, battery or not
-(RB-408). `0xFF` is erased SRAM, flash and EEPROM, so no save a game wrote looks like it. An
-empty file is a different question, settled per extension by `empty_not_a_save`.
+(RB-408). `0xFF` is erased SRAM, flash and EEPROM, so a save a game keeps never looks like it.
+The accepted cost, by the maintainer's decision, is a game that erases its own save: the
+wiped file stays local, and `saves restore` offers the server's last save back, moving the erased
+file aside first. An empty file is a different question, settled per extension by
+`empty_not_a_save`.
 
 **DuckStation's per-game cards are a display-name rule with a slot per port** (RB-329):
 `duckstation/memcards/<saveName>_1.mcd` uploads as `duckstation:battery` and `_2.mcd` as
