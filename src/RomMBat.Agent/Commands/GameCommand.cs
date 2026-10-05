@@ -253,6 +253,16 @@ internal static class GameCommand
             GamelistCommand.Report(gamelists);
         }
 
+        // An unpick roams as the pick did (#451), after it so the push carries the new ids, and
+        // not on the caller's token. A game that was never picked changed no definition.
+        if (isPicked
+            && (await new RoamingConfigService(context.Session, AgentContext.ConnectOverride)
+                .PushAsync(command.Value("passphrase"), CancellationToken.None)
+                .ConfigureAwait(false)).Note is { } note)
+        {
+            Console.WriteLine($"  {note}");
+        }
+
         return ExitCode.Ok;
     }
 

@@ -192,7 +192,7 @@ public static class BrowseScreens
             Verbs = (action, _) => action switch
             {
                 NavAction.Accept when report is { } ready && ready.Plan.Selected.Count > 0 =>
-                    ScreenCommand.Push(ApplyRemoval(session, game, ready, changed)),
+                    ScreenCommand.Push(ApplyRemoval(session, game, ready, connect, changed)),
                 _ => null,
             },
         }.Started();
@@ -202,9 +202,11 @@ public static class BrowseScreens
         InstallSession session,
         BrowseGame game,
         EvictionReport report,
+        Func<Uri, RomMConnection>? connect,
         Action? changed)
     {
         EvictionApplied? applied = null;
+        string? unroamed = null;
 
         return new ListScreen(
             $"Taking '{game.DisplayName}' off",
@@ -221,6 +223,7 @@ public static class BrowseScreens
                         false),
                     .. (done.Evicted?.Problems ?? []).Select(problem =>
                         new ListRow("Problem", null, problem, false)),
+                    .. unroamed is { } note ? new[] { new ListRow("Problem", null, note, false) } : [],
                 ]
                 : [],
             _ => ScreenCommand.Stay,
@@ -231,12 +234,25 @@ public static class BrowseScreens
             LoadingMessage = "Removing the game and rewriting the list EmulationStation reads...",
             Load = async token =>
             {
+                var wasPicked = new PickedSetService(session).Picks().Contains(game.RomId);
+
                 // Unpicks as well, whatever the files did. See GameService.ApplyRemovalAsync.
                 applied = await new GameService(session)
                     .ApplyRemovalAsync(game.RomId, report, token)
                     .ConfigureAwait(false);
 
                 changed?.Invoke();
+
+                // An unpick roams as the pick did (#451). Waited on, unlike the install's push,
+                // because nothing else here takes long and the screen has no later redraw to
+                // carry a note on; not on the screen's token, so leaving does not stop it.
+                if (wasPicked)
+                {
+                    unroamed = (await new RoamingConfigService(session, connect)
+                        .PushAsync(cancellationToken: CancellationToken.None)
+                        .ConfigureAwait(false)).Note;
+                }
+
                 return null;
             },
 

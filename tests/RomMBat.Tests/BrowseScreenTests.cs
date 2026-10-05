@@ -768,6 +768,86 @@ public sealed class BrowseScreenTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "Chrono Trigger.sfc")));
     }
 
+    [Fact]
+    public async Task A_game_taken_off_from_browse_roams_its_unpick()
+    {
+        // The unpick rewrites the picked set's ids, so it pushes as the pick did. #451.
+        using var stub = Library(1);
+        stub.Content[stub.Library[0].Id] = new byte[1_024];
+
+        Pair(RomMScopes.DevicesRead, RomMScopes.DevicesWrite);
+        await InstallFromBrowse(stub);
+
+        var picked = Assert.Single(RoamingSyncConfig.Extract(stub.StoredSyncConfig)!.Sets, set => set.Scope == "picked");
+        Assert.Equal([stub.Library[0].Id], PickedScopeJson.Parse(picked.ScopeValue));
+
+        using var applying = await TakeOffFromBrowse(stub);
+
+        picked = Assert.Single(RoamingSyncConfig.Extract(stub.StoredSyncConfig)!.Sets, set => set.Scope == "picked");
+        Assert.Empty(PickedScopeJson.Parse(picked.ScopeValue));
+        Assert.DoesNotContain(applying.Rows, row => row.Label == "Problem");
+    }
+
+    [Fact]
+    public async Task An_unpick_that_could_not_roam_says_so_among_the_problems()
+    {
+        using var stub = Library(1);
+        stub.Content[stub.Library[0].Id] = new byte[1_024];
+
+        Pair();
+        await InstallFromBrowse(stub);
+
+        using var applying = await TakeOffFromBrowse(stub);
+
+        Assert.Contains(
+            applying.Rows,
+            row => row.Label == "Problem" && row.Detail?.Contains("devices.write", StringComparison.Ordinal) == true);
+        Assert.Contains(applying.Rows, row => row.Label == "Removed" && row.Value != "nothing");
+        Assert.Empty(new PickedSetService(_session).Picks());
+    }
+
+    /// <summary>Installs the stub's first game through browse, and waits for its push to land.</summary>
+    private async Task InstallFromBrowse(StubRomMServer stub)
+    {
+        using var browse = new BrowseViewModel(_session, Connect(stub));
+        var navigator = new Navigator(browse);
+
+        await Settled(browse);
+
+        navigator.Handle(NavAction.Accept);
+        using var detail = Assert.IsType<ListScreen>(navigator.Current);
+        navigator.Handle(NavAction.Start);
+
+        using var sync = Assert.IsType<SyncViewModel>(navigator.Current);
+        await SyncSettled(sync);
+
+        // Waits out the pick's own push, which runs beside the install, so it cannot land after
+        // the unpick's and put the game back.
+        await Wait(() => RoamingSyncConfig.Extract(stub.StoredSyncConfig) is not null || sync.State.Problems.Count > 0);
+    }
+
+    /// <summary>Takes the stub's first game off through a fresh browse, and returns the result screen.</summary>
+    private async Task<ListScreen> TakeOffFromBrowse(StubRomMServer stub)
+    {
+        using var browse = new BrowseViewModel(_session, Connect(stub));
+        var navigator = new Navigator(browse);
+
+        await Settled(browse);
+
+        navigator.Handle(NavAction.Accept);
+        using var detail = Assert.IsType<ListScreen>(navigator.Current);
+
+        navigator.Handle(NavAction.Alternate);
+        using var preview = Assert.IsType<ListScreen>(navigator.Current);
+        await Wait(() => !preview.IsLoading);
+
+        navigator.Handle(NavAction.Accept);
+        var applying = Assert.IsType<ListScreen>(navigator.Current);
+        await Wait(() => !applying.IsLoading);
+
+        return applying;
+    }
+
     private static async Task Wait(Func<bool> settled)
     {
         for (var attempt = 0; attempt < 300; attempt++)
