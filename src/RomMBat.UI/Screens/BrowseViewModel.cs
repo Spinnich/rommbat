@@ -262,9 +262,9 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
         var state = _state;
 
         // Nothing moves while a page is on its way. A held d-pad repeats several times a second
-        // and a page takes about 280 ms, so every press between the request and its answer used
-        // to start another one: half a dozen fetches in flight, landing out of order, each
-        // resetting the cursor to the top of whatever arrived last. From the couch that is the
+        // and a page takes about 280 ms, so letting every press between the request and its
+        // answer start another one puts half a dozen fetches in flight, landing out of order,
+        // each resetting the cursor to the top of whatever arrived last. From the couch that is the
         // selection snapping backwards, which is what a hands-on pass called rubberbanding.
         //
         // Swallowed rather than queued. A person holding the pad wants the list to keep moving,

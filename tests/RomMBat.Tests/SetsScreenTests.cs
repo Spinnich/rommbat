@@ -753,7 +753,7 @@ public sealed class SetsScreenTests : IDisposable
             },
             Now).Set!;
 
-        // The screen no longer shows caps, so it must not send the cleared values a hidden row
+        // The screen shows no caps, so it must not send the cleared values a hidden row
         // would have produced. Opening a screen must never wipe a limit somebody set elsewhere.
         var editor = SetEditorViewModel.ForExisting(_session, set);
         editor.Handle(NavAction.Start);
@@ -849,8 +849,9 @@ public sealed class SetsScreenTests : IDisposable
 
         Assert.Contains(list.Rows, row => row.Label == "Holds" && row.Value == "0 games, 0 B");
 
-        // Stand in for what a resolve writes. It happens on a screen above this one, which used
-        // to leave the counts and the last-resolved time saying what they said before it ran.
+        // Stand in for what a resolve writes. It happens on a screen above this one, so rows
+        // read once would leave the counts and the last-resolved time saying what they said
+        // before it ran.
         _session.Store.SyncSets.ReplaceMembers(
             set.Id,
             [Member(set)],
@@ -1663,7 +1664,7 @@ public sealed class SetsScreenTests : IDisposable
 
         // The pickers, which are reached from the editor rather than constructed directly.
         // Named rather than numbered: which rows exist depends on the scope, and asking for an
-        // index that no longer exists is what made this hang.
+        // index that does not exist hangs.
         var editor = SetEditorViewModel.ForNew(_session);
 
         foreach (var label in editor.Rows.Select(row => row.Label).ToList())

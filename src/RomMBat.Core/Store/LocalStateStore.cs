@@ -50,10 +50,10 @@ public sealed record LocalState
     /// When the scan that recorded this row ran.
     /// </summary>
     /// <remarks>
-    /// The column has always been written and nothing could read it back. It is exposed because
-    /// the flush's rule that states are scanned before saves (#64) had no witness outside a
-    /// class C fixture: the sidecar attribution route reads <c>local_state</c>, so scanning
-    /// saves first leaves it reading an empty table, and the two stamps are what a test compares.
+    /// Exposed because the flush's rule that states are scanned before saves (#64) has no other
+    /// witness outside a class C fixture: the sidecar attribution route reads
+    /// <c>local_state</c>, so scanning saves first leaves it reading an empty table, and the two
+    /// stamps are what a test compares.
     /// </remarks>
     public DateTimeOffset? ScannedAtUtc { get; init; }
 

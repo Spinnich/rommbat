@@ -736,8 +736,8 @@ public sealed class BrowseScreenTests : IDisposable
     /// </summary>
     /// <remarks>
     /// The preview holds the report it took before the removal, and it goes on offering to take
-    /// the game off because that report still names something to remove. Same defect the set
-    /// side fixed, reintroduced here by adding a screen above the preview.
+    /// the game off because that report still names something to remove. The set side has the
+    /// same shape, with a screen above the preview.
     /// </remarks>
     [Fact]
     public async Task Taking_a_game_off_lands_back_on_its_detail_screen()

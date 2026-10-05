@@ -40,7 +40,7 @@ namespace RomMBat.Tests;
 /// ordering claim about artwork below is therefore taken from a run <b>with a connection</b>.
 /// </para>
 /// <para>
-/// <b>Passes no longer occupy disjoint stretches of a run, so the sequence check is over first
+/// <b>Passes do not occupy disjoint stretches of a run, so the sequence check is over first
 /// occurrences.</b> Content and Media interleave by design. What may never happen is a pass
 /// <i>starting</i> out of turn.
 /// </para>
@@ -81,7 +81,7 @@ public sealed class LibrarySyncOrderTests : IDisposable
         Assert.True(order.IndexOf(SyncPass.Content) < order.IndexOf(SyncPass.Gamelists));
 
         // Media is declared after Content because that is where its one summary is reported.
-        // It is no longer a stretch of the run that begins after Content ends, which is what
+        // It is not a stretch of the run that begins after Content ends, which is what
         // the interleave assertion below is for.
         Assert.True(order.IndexOf(SyncPass.Content) < order.IndexOf(SyncPass.Media));
         Assert.True(order.IndexOf(SyncPass.Media) < order.IndexOf(SyncPass.Gamelists));

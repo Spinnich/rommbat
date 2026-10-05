@@ -241,10 +241,9 @@ public static class BrowseScreens
             },
 
             // Back closes this screen and the preview under it, landing on the game's detail,
-            // which re-reads its rows. Popping one left the preview on the stack holding the
-            // report from before the removal, still offering to take off a game that is
-            // already gone. Same defect the set-side path fixed and this one reintroduced by
-            // adding a screen above it.
+            // which re-reads its rows. Popping one would leave the preview on the stack holding
+            // the report from before the removal, still offering to take off a game that is
+            // already gone. The set-side path pops two for the same reason.
             OnBack = () => ScreenCommand.PopMany(2),
         }.Started();
     }

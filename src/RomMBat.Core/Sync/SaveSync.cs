@@ -1717,7 +1717,7 @@ public sealed class SaveSync
     /// </para>
     /// <para>
     /// The previous copy is kept under <c>replaced/</c> until the next successful sync, which is
-    /// the retention rule this plan has always been written against.
+    /// the retention rule this plan is written against.
     /// </para>
     /// </remarks>
     private async Task<(long Bytes, string? Problem)> RestoreUnitAsync(

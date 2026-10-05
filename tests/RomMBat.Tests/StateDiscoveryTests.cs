@@ -550,7 +550,7 @@ public class StateDiscoveryTests
 
         var outcome = tree.Scan();
 
-        // The three-digit name is still not synced. It is no longer silent.
+        // The three-digit name is not synced, and it is not silent either.
         Assert.Equal(1, outcome.Found);
 
         var miss = Assert.Single(outcome.NearMisses);

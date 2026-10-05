@@ -86,7 +86,7 @@ internal static class FlushCommand
     }
 
     /// <summary>
-    /// Turns one report into the lines the console has always written.
+    /// Turns one report into the console's lines.
     /// </summary>
     /// <param name="authExitCode">
     /// What authenticating said, which is the exit code a refusal maps to. The service reports
@@ -94,8 +94,8 @@ internal static class FlushCommand
     /// install that was never paired.
     /// </param>
     /// <param name="authRefusal">
-    /// Why authenticating failed, held back so it prints where it always has: after the passes
-    /// that needed no server.
+    /// Why authenticating failed, held back so it prints after the passes that needed no
+    /// server.
     /// </param>
     private static int Show(FlushReport report, bool quiet, int authExitCode, string authRefusal)
     {

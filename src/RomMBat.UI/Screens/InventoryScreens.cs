@@ -41,9 +41,9 @@ public static class InventoryScreens
             Reading = true,
             LoadingMessage = "Checking every recorded file against the drive...",
 
-            // Accept, and only once the check says there is something to forget. There was no
-            // hint at all here, so from the couch this screen counted the problem and named no
-            // way to fix it: the footer said Back and nothing else while Start quietly worked.
+            // Accept, and only once the check says there is something to forget. Without a hint
+            // here the screen counts the problem and names no way to fix it from the couch: the
+            // footer says Back and nothing else while Start quietly works.
             OfferAcceptWhen = () => report is { IsClean: false, NothingFound: false },
             Load = token =>
             {

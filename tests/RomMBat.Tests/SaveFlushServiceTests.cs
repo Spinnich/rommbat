@@ -64,10 +64,9 @@ public sealed class SaveFlushServiceTests
 
         var report = await fixture.RunAsync(fixture.Connect());
 
-        // Partial rather than Unreachable, and that is the behaviour this lift preserved rather
-        // than chose. All three sending passes absorb RomMUnreachableException per item and
-        // report it, so the outer catch that FlushCommand has always carried never fires for
-        // them. Recorded as what it is rather than tidied away inside a refactor.
+        // Partial rather than Unreachable, which is inherited behaviour rather than a choice.
+        // All three sending passes absorb RomMUnreachableException per item and report it, so
+        // the outer catch FlushCommand carries never fires for them. Recorded as what it is.
         Assert.Equal(FlushState.Partial, report.State);
 
         // The half that needs no server ran anyway, and said so.

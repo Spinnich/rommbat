@@ -371,7 +371,7 @@ public sealed class SaveStateSchema
                     (string?)element.Attribute("per_game_directory"), "true", StringComparison.OrdinalIgnoreCase),
             };
 
-            // A later entry of the same name replaces an earlier one, as it always has, unless
+            // A later entry of the same name replaces an earlier one, unless
             // both are scoped to systems and the systems differ, which only the supplement writes.
             emulators.RemoveAll(earlier => Named(earlier, name)
                 && (earlier.Systems is null || entry.Systems is null || earlier.Systems.Overlaps(entry.Systems)));
@@ -615,8 +615,8 @@ public sealed partial class SaveStateTemplate
     /// </para>
     /// <para>
     /// <b>Reported, never refused.</b> The file on disk is evidence and the declaration is only
-    /// a claim, so an out-of-bounds slot is still recorded and still uploaded. What changes is
-    /// that it is no longer invisible.
+    /// a claim, so an out-of-bounds slot is recorded and uploaded like any other, and is also
+    /// named in the report.
     /// </para>
     /// <para>
     /// Only the slot widens. Everything else in the expression stays anchored and escaped, so a
