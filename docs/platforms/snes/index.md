@@ -210,7 +210,7 @@ Monogatari II with Dynamic Designs' v0.90 translation, from RomM's second `snes`
 agent tree was given the DSP-1 firmware as the maintainer's install has it, above, so that all
 fifteen rows reach Super Mario Kart's title.
 
-**Every row sized and named the save as it does Zelda's**, whatever the chip (RB-418). Two things
+**Every row that wrote a save sized and named it as it does Zelda's**, whatever the chip (RB-418). Two things
 were new. **The clock cartridge writes a second file on eight rows**, in four names, and each now
 takes a class B slot of its own beside the save, as a clock does on `gb` (RB-417). **ares writes
 the SA-1's internal RAM** as `<rom>.iram` beside the `.ram`, as it writes a DSP-1's data RAM as
