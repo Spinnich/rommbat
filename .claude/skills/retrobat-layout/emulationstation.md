@@ -111,15 +111,15 @@ ES serves an API on `127.0.0.1:1234` whenever it is running. It works on loopbac
 `PublicWebAccess` setting untouched, because that setting gates only non-local callers, so
 using it requires no change to the user's configuration.
 
-| Route                     | Method | Use                                            |
-| ------------------------- | ------ | ---------------------------------------------- |
-| `/reloadgames`            | GET    | Rescan roms and re-read gamelists, no restart  |
-| `/systems`                | GET    | Systems as JSON, including `totalGames`        |
-| `/systems/<system>/games` | GET    | Games as JSON: `name`, `desc`, `image`         |
-| `/caps`                   | GET    | `{"Version": "8.2.0-stable-win64", ...}`       |
-| `/quit`                   | GET    | Close ES. RomMBat does not call it             |
-| `/emukill`                | GET    | Kill the running emulator                      |
-| `/launch`                 | POST   | Starts the game whose path is the body         |
+| Route                     | Method | Use                                           |
+| ------------------------- | ------ | --------------------------------------------- |
+| `/reloadgames`            | GET    | Rescan roms and re-read gamelists, no restart |
+| `/systems`                | GET    | Systems as JSON, including `totalGames`       |
+| `/systems/<system>/games` | GET    | Games as JSON: `name`, `desc`, `image`        |
+| `/caps`                   | GET    | `{"Version": "8.2.0-stable-win64", ...}`      |
+| `/quit`                   | GET    | Close ES. RomMBat does not call it            |
+| `/emukill`                | GET    | Kill the running emulator                     |
+| `/launch`                 | POST   | Starts the game whose path is the body        |
 
 `POST /reloadgames` is 404; the verb is GET. Treat the whole API as best-effort: it only
 answers while ES is running, so every call needs a short timeout and a no-ES fallback.
