@@ -261,7 +261,8 @@ columns for that reason.
   only the container md5 and RomM serves no member hashes, so there is no reference side. A
   zip the md5 misses, where the library holds one under the exact name, stays
   `MissingFromLibrary` with `BiosStep.SameName` set and a reason saying so, and is never
-  fetched.
+  fetched. A hashless requirement absent from disk gets the same pointer to an exact-name record,
+  zip or not, and stays `Unverifiable`.
 
 - **Do not reconcile deletions with `GET /api/roms/identifiers`.** It answers 95,989 ids in
   under a second on 5.3.1, but it takes no parameters, so it cannot be scoped to a set, and a

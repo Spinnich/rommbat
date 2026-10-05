@@ -257,7 +257,8 @@ internal static class BiosCommand
                 }
 
                 if (step.Reason is { } reason
-                    && step.Action is BiosAction.Mismatch or BiosAction.Blocked or BiosAction.MissingFromLibrary)
+                    && (step.Action is BiosAction.Mismatch or BiosAction.Blocked or BiosAction.MissingFromLibrary
+                        || step.SameName is not null))
                 {
                     Console.WriteLine($"      {reason}");
                 }
@@ -267,10 +268,16 @@ internal static class BiosCommand
         var unverifiable = plan.Count(BiosAction.Unverifiable);
         if (unverifiable > 0)
         {
+            var named = plan.Steps.Count(step => step.Action == BiosAction.Unverifiable && step.SameName is not null);
+
             Console.WriteLine();
             Console.WriteLine(
                 $"{unverifiable} of these are files RetroBat lists without a hash. RomMBat can neither find "
-                    + "them in RomM nor recognise them on disk, so it says nothing about whether you have them.");
+                    + "them in RomM nor recognise them on disk, so it says nothing about whether you have them."
+                    + (named > 0
+                        ? $" For {named} of them RomM holds a file under the same name, named above, which is "
+                            + "never fetched: whether it is the right one is yours to judge."
+                        : string.Empty));
         }
     }
 

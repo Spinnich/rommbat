@@ -1,4 +1,7 @@
+using RomM.Client;
 using RomMBat.Agent.Tests.Support;
+using RomMBat.Core;
+using RomMBat.Core.Identity;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Store;
 using RomMBat.Tests.Support;
@@ -164,6 +167,40 @@ public sealed class BiosCommandTests
 
         Assert.Equal(3, run.ExitCode);
         Assert.True(run.Complained("es_systems.cfg"), run.Error);
+    }
+
+    [Fact]
+    public async Task A_hashless_file_RomM_has_under_the_same_name_is_printed_with_its_hash()
+    {
+        // The pointer is only worth anything if the report shows it: the planner sets
+        // SameName, and the per-folder lines print no reason for Unverifiable otherwise.
+        using var tree = TempRetroBatTree.Create();
+        using var stub = new StubRomMServer();
+        AgentRunner.WriteEsSystems(tree);
+
+        var firmware = new StubFirmware(751, "firmware.bin", [0x4e, 0x44, 0x53]);
+        stub.Platforms.Add(new StubPlatform(1, "nds", "nds", "Nintendo DS") { Firmware = [firmware] });
+
+        using (var session = InstallSession.Open(tree.Root).Session!)
+        {
+            var now = DateTimeOffset.UtcNow;
+            session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(session.Install));
+            session.Store.Device.SavePairing(
+                new PairingResult(
+                    new Uri("https://romm.invalid/"),
+                    "device-1",
+                    "Handheld",
+                    new GrantedScopes(["roms.read", "assets.read", "assets.write"]),
+                    TokenProtector.Protect("rmm_token", null, now.AddYears(1))),
+                now);
+        }
+
+        var run = await AgentRunner.RunAgainstAsync(tree, stub, "bios", "nds");
+
+        Assert.Equal(0, run.ExitCode);
+        Assert.True(run.Wrote($"RomM has a firmware.bin ({firmware.Md5Hash})"), run.Out);
+        Assert.True(run.Wrote("For 1 of them RomM holds a file under the same name"), run.Out);
+        Assert.Empty(stub.FirmwareRequests);
     }
 }
 

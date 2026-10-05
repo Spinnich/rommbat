@@ -57,12 +57,14 @@ public sealed record BiosStep
     public FirmwareRow? Match { get; init; }
 
     /// <summary>
-    /// A library zip under this zip's exact name, when the md5 found nothing.
+    /// A library record under the requirement's exact name, when no md5 can decide: a zip the
+    /// md5 found nothing for, or a hashless file not on disk.
     /// </summary>
     /// <remarks>
     /// Pointed at, never fetched. RomM and RetroBat both hash a firmware zip as its container
     /// (RM-28), so two builds of the same members disagree, and neither side says what the
-    /// members are. It may well be what the emulator wants; RomMBat cannot tell.
+    /// members are; a hashless requirement has nothing to compare at all. It may well be what
+    /// the emulator wants; RomMBat cannot tell.
     /// </remarks>
     public FirmwareRow? SameName { get; init; }
 
@@ -150,7 +152,8 @@ public sealed record BiosPlan
 /// <b>A requirement with no md5 is a third state.</b> It can be neither found in RomM nor
 /// recognised on disk, so it is reported as unverifiable and never as missing: telling a user
 /// to go and find a file RomMBat could not recognise if they already had it is worse than
-/// saying nothing.
+/// saying nothing. When nothing is at the path and RomM holds a file under the same name, the
+/// step names it as <see cref="BiosStep.SameName"/> for the user to judge.
 /// </para>
 /// <para>
 /// <b>Nothing here overwrites.</b> A file at a destination whose md5 disagrees is left exactly
@@ -364,12 +367,31 @@ public sealed class BiosPlanner
 
         if (requirement.Md5 is not { } wanted)
         {
+            if (info.Exists)
+            {
+                return step with
+                {
+                    Action = BiosAction.Unverifiable,
+                    Reason = "a file is there, and RetroBat names no hash to check it against.",
+                };
+            }
+
+            // A lead, never a join: the state stays Unverifiable and nothing is fetched.
+            if (candidates is not null && SameNamed(requirement, candidates) is { } named)
+            {
+                return step with
+                {
+                    Action = BiosAction.Unverifiable,
+                    SameName = named,
+                    Reason = $"RomM has a {named.FileName} ({named.NormalizedMd5}). RetroBat names no hash "
+                        + "to say whether it is this file, so it is not fetched.",
+                };
+            }
+
             return step with
             {
                 Action = BiosAction.Unverifiable,
-                Reason = info.Exists
-                    ? "a file is there, and RetroBat names no hash to check it against."
-                    : "RetroBat names no hash for this file, so RomMBat cannot find it or recognise it.",
+                Reason = "RetroBat names no hash for this file, so RomMBat cannot find it or recognise it.",
             };
         }
 
@@ -455,13 +477,16 @@ public sealed class BiosPlanner
     /// </remarks>
     private static FirmwareRow? SameNamedZip(
         BiosRequirement requirement,
+        IReadOnlyDictionary<string, FirmwareRow> candidates) =>
+        requirement.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
+            ? SameNamed(requirement, candidates)
+            : null;
+
+    /// <summary>A fetchable library record under the requirement's exact name, the lowest id first.</summary>
+    private static FirmwareRow? SameNamed(
+        BiosRequirement requirement,
         IReadOnlyDictionary<string, FirmwareRow> candidates)
     {
-        if (!requirement.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
         return candidates.Values
             .Where(row => row.IsFetchable
                 && string.Equals(row.FileName, requirement.FileName, StringComparison.OrdinalIgnoreCase))
