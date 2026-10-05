@@ -13,7 +13,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../../upstrea
 
 ## RB-294. A `gb` boot write is not always a recognisable fill, so only a baseline tells it from a save
 
-RB-287 holds here more strongly. Nine rows flushed 32,768 B of `0xFF` for Yellow, md5 `3df7b333...`. `libretro`/`mesen-s` and `mesen` standalone flushed random bytes, all 256 values present, since Mesen randomises uninitialised RAM. `libretro`/`tgbdual` and `DoubleCherryGB` flushed mostly `0x00` with Yellow's sprite scratch data in it, because Pokemon's first generation decompresses sprites through cartridge RAM. A fill test would pass all four as saves
+Nine rows flushed 32,768 B of `0xFF` for Yellow, md5 `3df7b333...`, which the scanner passes over as erased (RB-408). `libretro`/`mesen-s` and `mesen` standalone flushed random bytes, all 256 values present, since Mesen randomises uninitialised RAM. `libretro`/`tgbdual` and `DoubleCherryGB` flushed mostly `0x00` with Yellow's sprite scratch data in it, because Pokemon's first generation decompresses sprites through cartridge RAM. A fill test would pass all four as saves, so on these only a baseline separates a boot write from a save, as RB-287 says
 
 ## RB-295. The `libretro` `.rtc` on `gb` holds a real clock on a clock cartridge, and otherwise, on three cores, only the host time
 
