@@ -21,7 +21,9 @@ that walks the whole library. On the device that did the picking there is nothin
 the browse page already carries every field `sync_set_member` wants, so a pick writes its member
 row from the `RomRow` in hand. On a device it roams to, the ids hydrate one at a time through
 `GET /api/roms/{id}`, measured at ~0.15 s each, which is why the scope is meant for tens of
-games. It roams with no change to `RoamingSyncConfig`, which carries `scope_value` verbatim.
+games. It roams with no change to `RoamingSyncConfig`, which carries `scope_value` verbatim, and
+every pick that leads to a fetch pushes it, as
+[Sets on the interface](sets-on-the-interface.md) records.
 
 **The picked set's name is fixed and per device**, `Picked on <device>`. Fixed keeps the
 commonest path to one press; per device is what stops two devices picking into one RomM account

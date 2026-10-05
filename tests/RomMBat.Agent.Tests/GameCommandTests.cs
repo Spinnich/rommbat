@@ -6,6 +6,7 @@ using RomMBat.Core.Mapping;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
 using Xunit;
 
@@ -62,6 +63,38 @@ public sealed class GameCommandTests : IDisposable
         Assert.Contains("Chrono Trigger", File.ReadAllText(Absolute("roms/snes/gamelist.xml")), StringComparison.Ordinal);
         Assert.True(run.Wrote("Added Chrono Trigger to 'Picked on"), run.Out);
         Assert.Equal([Chrono], WithSession(session => new PickedSetService(session).Picks()));
+    }
+
+    [Fact]
+    public async Task Install_pushes_the_pick_so_it_follows_the_user()
+    {
+        // `sets add` and `sets resolve` pushed Device.sync_config and a pick pushed nothing, so a
+        // game picked here reached another device only after something else pushed. #444.
+        Pair(RomMScopes.DevicesRead, RomMScopes.DevicesWrite);
+
+        var run = await AgentRunner.RunAgainstAsync(_tree, _stub, "game", "install", "7");
+
+        Assert.True(run.ExitCode == ExitCode.Ok, run.Error);
+
+        var roamed = RoamingSyncConfig.Extract(_stub.StoredSyncConfig);
+        Assert.NotNull(roamed);
+
+        var picked = Assert.Single(roamed.Sets, set => set.Scope == "picked");
+        Assert.Equal([Chrono], PickedScopeJson.Parse(picked.ScopeValue));
+    }
+
+    [Fact]
+    public async Task A_pick_that_cannot_roam_says_so_and_still_installs()
+    {
+        // Best effort, as a resolve's push is: the note is printed and the install is untouched.
+        Pair();
+
+        var run = await AgentRunner.RunAgainstAsync(_tree, _stub, "game", "install", "7");
+
+        Assert.True(run.ExitCode == ExitCode.Ok, run.Error);
+        Assert.True(run.Wrote("devices.write was not granted"), run.Out);
+        Assert.True(File.Exists(Absolute(RomPath)), run.Out);
+        Assert.Null(_stub.StoredSyncConfig);
     }
 
     [Fact]
@@ -233,7 +266,7 @@ public sealed class GameCommandTests : IDisposable
 
     private string Absolute(string relative) => Path.Combine(_tree.Root, relative);
 
-    private void Pair() => WithSession(session =>
+    private void Pair(params string[] extraScopes) => WithSession(session =>
     {
         session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(session.Install));
         session.Store.Device.SavePairing(
@@ -241,7 +274,7 @@ public sealed class GameCommandTests : IDisposable
                 Origin,
                 "device-1",
                 "Handheld",
-                new GrantedScopes(["roms.read", "assets.read", "assets.write"]),
+                new GrantedScopes(["roms.read", "assets.read", "assets.write", .. extraScopes]),
                 TokenProtector.Protect("rmm_token", null, Now.AddYears(1))),
             Now);
     });

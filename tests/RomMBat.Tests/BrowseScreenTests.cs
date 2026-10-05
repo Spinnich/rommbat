@@ -8,6 +8,7 @@ using RomMBat.Core.Paths;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
 using RomMBat.UI.Input;
 using RomMBat.UI.Screens;
@@ -606,6 +607,77 @@ public sealed class BrowseScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task A_game_installed_from_browse_roams_its_pick()
+    {
+        // A pick from the couch pushed nothing, where `sets add` and the resolve screen both
+        // push Device.sync_config, so the same choice persisted differently by front end. #444.
+        using var stub = Library(1);
+        stub.Content[stub.Library[0].Id] = new byte[1_024];
+
+        Pair(RomMScopes.DevicesRead, RomMScopes.DevicesWrite);
+
+        var navigator = new Navigator(new BrowseViewModel(_session, Connect(stub)));
+        var browse = Assert.IsType<BrowseViewModel>(navigator.Current);
+
+        await Settled(browse);
+
+        navigator.Handle(NavAction.Accept);
+        navigator.Handle(NavAction.Start);
+
+        using var sync = Assert.IsType<SyncViewModel>(navigator.Current);
+        await SyncSettled(sync);
+
+        // The push runs beside the install, so it may land just after the screen settles.
+        RoamingSyncConfig? roamed = null;
+
+        for (var attempt = 0; attempt < 500 && roamed is null; attempt++)
+        {
+            roamed = RoamingSyncConfig.Extract(stub.StoredSyncConfig);
+
+            if (roamed is null)
+            {
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            }
+        }
+
+        Assert.NotNull(roamed);
+
+        var picked = Assert.Single(roamed.Sets, set => set.Scope == "picked");
+        Assert.Equal([stub.Library[0].Id], PickedScopeJson.Parse(picked.ScopeValue));
+    }
+
+    [Fact]
+    public async Task A_pick_that_could_not_roam_says_so_among_the_problems()
+    {
+        // In the problems, not the detail line: Settle replaces that, and the push and the
+        // install finish in either order. Best effort, so the install still lands.
+        using var stub = Library(1);
+        stub.Content[stub.Library[0].Id] = new byte[1_024];
+
+        Pair();
+
+        var navigator = new Navigator(new BrowseViewModel(_session, Connect(stub)));
+        var browse = Assert.IsType<BrowseViewModel>(navigator.Current);
+
+        await Settled(browse);
+
+        navigator.Handle(NavAction.Accept);
+        navigator.Handle(NavAction.Start);
+
+        using var sync = Assert.IsType<SyncViewModel>(navigator.Current);
+        await SyncSettled(sync);
+
+        for (var attempt = 0; attempt < 500 && sync.State.Problems.Count == 0; attempt++)
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        Assert.Equal(SyncStage.Done, sync.State.Stage);
+        Assert.Contains(sync.State.Problems, problem => problem.Contains("devices.write", StringComparison.Ordinal));
+        Assert.Null(stub.StoredSyncConfig);
+    }
+
+    [Fact]
     public async Task A_second_install_press_says_the_game_is_already_here_rather_than_running_a_pass()
     {
         // PickOutcome.AlreadyPicked was computed for exactly this and nothing had ever read it,
@@ -878,7 +950,7 @@ public sealed class BrowseScreenTests : IDisposable
         return stub;
     }
 
-    private void Pair()
+    private void Pair(params string[] extraScopes)
     {
         _session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(_session.Install));
         _session.Store.Device.SavePairing(
@@ -886,7 +958,7 @@ public sealed class BrowseScreenTests : IDisposable
                 Origin,
                 "device-1",
                 "Handheld",
-                new GrantedScopes(["roms.read", "assets.read", "assets.write"]),
+                new GrantedScopes(["roms.read", "assets.read", "assets.write", .. extraScopes]),
                 TokenProtector.Protect("rmm_token", null, Now.AddYears(1))),
             Now);
     }
