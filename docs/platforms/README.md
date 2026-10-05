@@ -110,7 +110,9 @@ against 7 systems**:
 `nes` is 9 of 9, `megadrive` 11 of 11, `gba` 9 of 10, `gb` 14 of 14, `gbc` 12 of 12, `snes` 15 of 15 and `mastersystem` 10 of 10 because RomMBat's bundled supplement
 declares the emulators `es_savestates.cfg` leaves out there: `mednafen`, `mesen` and `ares` on
 `nes`, `mednafen`, `ares` and `kega-fusion`'s three rows on `megadrive`, and `mgba`, `mednafen`,
-`mesen` and `ares` on `gba`, the same four on `gb` and on `gbc`, `mednafen`, `mesen`, `snes9x` and `ares` on `snes`, and `mednafen`, `mesen`, `ares` and both `kega-fusion` rows on `mastersystem`. `nosgba` writes states nowhere RomMBat was shown. Every other system counts
+`mesen` and `ares` on `gba`, the same four on `gb` and on `gbc`, `mednafen`, `mesen`, `snes9x` and `ares` on `snes`, and `mednafen`, `mesen`, `ares` and both `kega-fusion` rows on `mastersystem`. `nosgba` writes states nowhere RomMBat was shown. Beyond wave 1 the supplement
+declares `mednafen` on `psx`, `mednafen`, `mesen` and `ares` on `pcengine`, `ares`, `simple64` and
+`project64` on `n64`, and `mednafen` and `ares` on `gamegear`; every other system counts
 `es_savestates.cfg` alone.
 
 **Steps 1, 2, 3, 7, 8 and 9 are per system and carry across the rows with a note.** Only 4, 5
