@@ -16,7 +16,7 @@ read-when: When a result for one of these `sega32x` rows is needed, or before re
 
 | #   | Result on every one of the three                                                             |
 | --- | -------------------------------------------------------------------------------------------- |
-| 4   | **Pass, both directions** on Chaotix's SRAM, every file back at its own md5 after a restore  |
+| 4   | **Pass, both directions**, class A: Chaotix's SRAM back at its own md5 after a restore       |
 | 5   | **Pass**: two slots each, one deleted and restored at its own md5                            |
 | 6   | **N/A**                                                                                      |
 | 7   | **Pass**: Chaotix launched from ES on the synced ROM under each, art and description present |

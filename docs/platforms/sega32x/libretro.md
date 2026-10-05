@@ -12,15 +12,15 @@ read-when: When a result for `sega32x` under `libretro` is needed, or before re-
 
 ## Checklist
 
-| #   | Result                                                                                            |
-| --- | ------------------------------------------------------------------------------------------------- |
-| 1-3 | **Pass**, the system's ([index.md](index.md#steps-1-2-and-3-for-every-row))                       |
-| 4   | **Pass**: Chaotix's SRAM and NBA Jam's EEPROM each went up as `libretro:battery` at its own md5   |
-| 5   | **Pass**: two slots made in ES, one deleted and restored, state and screenshot md5-identical      |
-| 6   | **N/A**                                                                                           |
-| 7   | **Pass**: both games launched from ES on the synced ROM, art and description present              |
-| 8   | **Pass**: every session read back by `status` under `recent:`                                     |
-| 9   | **Pass**: 0 downloaded, 0 written, `gamelists: all 10 unchanged`, gamelist byte-identical, 0 sent |
+| #   | Result                                                                                               |
+| --- | ---------------------------------------------------------------------------------------------------- |
+| 1-3 | **Pass**, the system's ([index.md](index.md#steps-1-2-and-3-for-every-row))                          |
+| 4   | **Pass, both directions**, class A: Chaotix's SRAM and NBA Jam's EEPROM up and back at their own md5 |
+| 5   | **Pass**: two slots made in ES, one deleted and restored, state and screenshot md5-identical         |
+| 6   | **N/A**                                                                                              |
+| 7   | **Pass**: both games launched from ES on the synced ROM, art and description present                 |
+| 8   | **Pass**: every session read back by `status` under `recent:`                                        |
+| 9   | **Pass**: 0 downloaded, 0 written, `gamelists: all 10 unchanged`, gamelist byte-identical, 0 sent    |
 
 ## 4. Battery saves
 
@@ -33,7 +33,10 @@ read-when: When a result for `sega32x` under `libretro` is needed, or before re-
 md5 on exit. RetroArch's 10 s `autosave_interval` writes the `.srm` 24 s after launch, before the game
 has saved anything, so an early file is no evidence of a save. **NBA Jam's file is the boot format**,
 written within seconds; entering initials in two later sessions left it at the same md5. Both went
-up as `libretro:battery`, server saves 657 and 658, and read back `in step`.
+up as `libretro:battery`, server saves 657 and 658, and read back `in step`. **Both were deleted and
+`saves restore 209635 --apply` and `saves restore 209644 --apply` brought each back at its own md5**,
+`restored 1 save(s)` and `restored 2 save(s) ... failed 0`, the second also returning ares's NBA Jam
+file. Each is a loose `<rom>.srm`, class A, as `save_shapes.json` has recorded for `sega32x`.
 
 **This file is the seed for every other row**, which reads it in its own layout
 ([index.md](index.md#the-install-this-was-measured-on)).
