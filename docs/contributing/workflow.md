@@ -10,14 +10,14 @@ runs its work to a merge-ready PR and stops only when it needs one of those thre
 
 ## Which command
 
-| You want to                                    | Run                 | It stops for you when                                                               |
-| ---------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------- |
-| Pick something to work on                      | `/next`             | It shows the top four and asks which                                                |
-| Work on a known issue                          | `/start-issue <n>`  | The issue looks stale or wrong, a design question comes up, or a save needs playing |
-| Move an open PR forward, from any state        | `/drive-pr <n>`     | It is ready to merge, or a design question is left                                  |
-| Get one review of a PR without fixing anything | `/review-pr <n>`    | Never                                                                               |
-| Certify a system                               | `/certify <system>` | It is time to play                                                                  |
-| Scout or adopt a RomM or RetroBat release      | `/upstream <project> [tag]` | A re-run needs play, a design question comes up, or it is ready to merge     |
+| You want to                                    | Run                         | It stops for you when                                                               |
+| ---------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
+| Pick something to work on                      | `/next`                     | It shows the top four and asks which                                                |
+| Work on a known issue                          | `/start-issue <n>`          | The issue looks stale or wrong, a design question comes up, or a save needs playing |
+| Move an open PR forward, from any state        | `/drive-pr <n>`             | It is ready to merge, or a design question is left                                  |
+| Get one review of a PR without fixing anything | `/review-pr <n>`            | Never                                                                               |
+| Certify a system                               | `/certify <system>`         | It is time to play                                                                  |
+| Scout or adopt a RomM or RetroBat release      | `/upstream <project> [tag]` | A re-run needs play, a design question comes up, or it is ready to merge            |
 
 `/start-issue`, `/certify` and an adopting `/upstream` end by running `/drive-pr`, so you rarely run it by hand. Run it
 again on a PR that stopped for you, once you have answered.
