@@ -106,3 +106,39 @@ ES asks `SystemConf` for `system.language`. `Paths.cpp` gives `SystemConf` a fil
 `Settings`, and `batocera.conf` is absent on the live install. The value is split on `_` and the
 first part lowercased, so `fr_FR` resolves and a bare `FR` does not; anything but `fr` or `ko`
 gets `kbUs`. ES prunes `Language` when it equals the default (RB-170), so absent means default.
+
+## RB-421. ES's game list puts search on the left button, and L2 and R2 change system
+
+Verified: RetroBat 8.2.1, 2026-10-06. How: drove ES on the agent tree through the hands-on kit, pressed each button and read the help bar.
+In a game list the help bar reads SELECT OPTIONS, START MENU, then BACK on the right button,
+SEARCH/RANDOM on the left, SAVE STATES/FAVORITE on the top, and GAME OPTIONS (HOLD) on the bottom,
+whose press launches. L1 and R1 move one screen. L2 and R2 leave the list for the previous or next
+system's. The system carousel puts SEARCH/RANDOM on the left button too. RomMBat's long lists
+search on the left button and page on L1 and R1, and the library steps platform on L2 and R2.
+
+## RB-422. ES's letter jump, text filter and sort live in a popup Select opens
+
+Verified: RetroBat 8.2.1, 2026-10-06. How: pressed Select in a game list on the agent tree and read the popup.
+Select opens VIEW OPTIONS. Under NAVIGATION it offers FILTER GAMES BY TEXT, OTHER FILTERS, SELECT
+RANDOM GAME, JUMP TO GAME BEGINNING WITH THE LETTER (a letter stepped with left and right) and
+SORT GAMES BY, and under VIEW OPTIONS the GAMELIST VIEW STYLE and VIEW CUSTOMIZATION. No button
+jumps by letter. RomMBat's library puts its letter jump, sort and filters behind Select the same way.
+
+## RB-423. ES's menus are a centered panel that Start opens and closes, and the bottom button selects
+
+Verified: RetroBat 8.2.1, 2026-10-06. How: opened MAIN MENU, VIEW OPTIONS and GAME OPTIONS on the agent tree and read each screen.
+MAIN MENU's help bar reads START CLOSE, SELECT on the bottom button, and CHOOSE on the d-pad. Each
+menu is a dark panel with its title in capitals, small capital group headings in the accent
+color, rows in capitals with a full-width accent bar on the selected one, and a chevron on a row
+that opens another. GAME OPTIONS, which holding the bottom button on a game opens, is the same
+list drawn as a panel from the right edge. RomMBat's actions menu opens and closes on Start and
+selects on the bottom button.
+
+## RB-424. ES's message box selects YES first, and the right button answers no
+
+Verified: RetroBat 8.2.1, 2026-10-06. How: opened DELETE GAME's confirmation on a synced game, pressed the right button, and checked the file was still in `roms/snes`.
+The box shows a question icon, the question in capitals and a row of buttons, YES then NO, with
+YES selected even for a delete. The help bar names only YES on the bottom button and CHOOSE on the
+d-pad. The right button closed the box and deleted nothing. RomMBat's confirmation copies the
+button row and the right button's answer, but selects the answer that changes nothing first,
+because its questions guard a delete or a stop.
