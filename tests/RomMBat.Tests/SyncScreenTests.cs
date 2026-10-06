@@ -671,6 +671,10 @@ public sealed class SyncScreenTests : IDisposable
 
         // And a short one that fits whole is not offered, which is a press that does nothing.
         Assert.False(ProgressLayout.Hides(["short"]));
+
+        // One problem is now offered, so the label cannot say "all 1 problems" (R2.1 on #498).
+        Assert.Equal("See the whole problem", SyncViewModel.SeeAll(1));
+        Assert.Equal("See all 27 problems", SyncViewModel.SeeAll(27));
     }
 
     /// <summary>What a layout reserves, without what it says.</summary>

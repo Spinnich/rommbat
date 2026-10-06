@@ -413,9 +413,13 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         [
             .. OffersPairing ? new[] { new ScreenAction("Pair with RomM", () => ScreenCommand.Push(_pair())) } : [],
             .. ProgressLayout.Hides(_state.Problems)
-                ? new[] { new ScreenAction($"See all {_state.Problems.Count} problems", () => ScreenCommand.Push(AllProblems(_state.Problems))) }
+                ? new[] { new ScreenAction(SeeAll(_state.Problems.Count), () => ScreenCommand.Push(AllProblems(_state.Problems))) }
                 : [],
         ];
+
+    /// <summary>The offer's label, singular when one long problem is all there is.</summary>
+    internal static string SeeAll(int count) =>
+        count == 1 ? "See the whole problem" : $"See all {count} problems";
 
     /// <summary>
     /// Whether pairing again is the remedy, so the footer offers it.
