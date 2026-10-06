@@ -59,7 +59,7 @@ before starting the other's.
 | `Get-ESGames <system>`, `Start-Game <path>`   | List a system through ES, and launch through it so the hooks run as for a player                    |
 | `Start-EmulatorLauncher`                      | Boot one row through `emulatorLauncher` without ES, so no hooks: `-System -Emulator -Core -Rom`     |
 | `Wait-Emulator`, `Get-LauncherDialog`         | Wait for the emulator, answering "install now?"; the handle of a launcher prompt, or nothing        |
-| `Stop-Game [-Force]`                          | WM_CLOSE, then Escape, then No to "keep the uncompressed game?". `-Force` ends a deaf emulator      |
+| `Stop-Game [-Force]`                          | WM_CLOSE (Escape for ares), then Escape, then No to "keep the uncompressed game?"; `-Force` kills   |
 | `Start-RomMBatUI`, `Stop-RomMBatUI`           | The deployed `RomMBat.exe` on the tree, standalone                                                  |
 | `Send-Key <key> [-Window <proc>] [-HoldMs n]` | `keybd_event` with the scan code. `Ctrl+F2` for a chord. The UI needs `-HoldMs 60`                  |
 | `Save-Screenshot <name> [-Window <proc>]`     | A PNG under `probe-output/handson-<date>/`, path returned for the Read tool                         |

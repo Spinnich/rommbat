@@ -243,8 +243,8 @@ Silver under `ares`/`GameBoy` wrote `ares/Game Boy/<rom>.rtc` beside the `.ram`;
   path working, recorded because it is the first file to appear under `saves/gb/` on this install.
 - **Mesen rewrites the `.srm` on exit with nothing saved**, byte for byte the same, so a launch
   moves its mtime without changing it, and nothing is sent.
-- **ares closes on the pad's hotkey and ignored `WM_CLOSE` here**, which is how the agent's launches
-  end it, so those were killed after their states were on disk. The `gbc` pass saw it close on
+- **ares closes on the pad's hotkey and ignored `WM_CLOSE` here**, which is how that pass's launches
+  ended it, so those were killed after their states were on disk. The `gbc` pass saw it close on
   `WM_CLOSE` alone, later than the 15 s these launches allowed.
 - **A pad `Ctrl+F2` for EmuHawk needs the keys held.** `keybd_event` with 120 ms between press and
   release never reached it; 400 ms did.
