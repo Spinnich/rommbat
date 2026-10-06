@@ -48,7 +48,7 @@
 -- Three things deliberately get no column.
 --
 -- No emulator version table. The version is a property of one state at the moment it was
--- taken, not of an install, so it is denormalized onto local_state. There will be as many
+-- taken, not of an install, so it is denormalised onto local_state. There will be as many
 -- distinct values as there are emulator upgrades, which is a handful.
 --
 -- No state slot on save_slot and no state row in save_slot. States never negotiate.
@@ -93,7 +93,7 @@ CREATE TABLE local_state (
   --
   -- Both are path- and name-shaped for the same reason the save emulator is: the server
   -- writes the emulator into the stored state's file_path as a directory segment. Measured,
-  -- it does not sanitize it, so an emulator carrying a separator becomes two segments there.
+  -- it does not sanitise it, so an emulator carrying a separator becomes two segments there.
   emulator              TEXT    NOT NULL CHECK (
                           length(trim(emulator)) > 0
                           AND emulator NOT LIKE '%/%'

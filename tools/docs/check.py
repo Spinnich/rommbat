@@ -312,8 +312,14 @@ def check_file(rel: str, text: str, findings: Findings, defined_facts: set[str] 
         if GENERIC_DRY_RUN.search(re.sub(r"\"[^\"]*\"", "", line)):
             dry_run += 1
             findings.report("dry-run", f"{rel}:{number}: generic dry-run; say preview")
-        # A quotation keeps its source's spelling; a dotted or --flag word is a name.
-        for word in BRITISH_SPELLING.findall(re.sub(r"\"[^\"]*\"", "", line)):
+        # A quotation, straight, curly or blockquoted, keeps its source's spelling, and so does
+        # a link target. A dotted or --flag word is a name.
+        if not re.match(r"\s{0,3}>", line):
+            unquoted = re.sub(r"\"[^\"]*\"|“[^”]*”|\]\([^)]*\)", "", line)
+            spelled = BRITISH_SPELLING.findall(unquoted)
+        else:
+            spelled = []
+        for word in spelled:
             findings.errors.append(f"{rel}:{number}: {word}; the house style is American English")
         if defined_facts is not None and not FACT_HEADING.match(line):
             for prefix, digits in FACT_ID.findall(line):

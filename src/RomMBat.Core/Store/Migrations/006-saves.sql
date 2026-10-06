@@ -15,7 +15,7 @@
 --    `save_id`, which is the only way to address the save for download or ack; `file_name`,
 --    which the server rewrites to `<name> [YYYY-MM-DD_HH-MM-SS]<ext>` and which is NOT the
 --    name to write on disk; `server_content_hash`, which decides a conflict; and
---    `origin_device_id`, which is how this device recognizes its own upload coming back down.
+--    `origin_device_id`, which is how this device recognises its own upload coming back down.
 --
 -- 3. The read position into emulatorLauncher.log. Measured on a real install: the file
 --    rotates at a ~1 MiB size threshold and the two halves do not overlap, so a byte offset
@@ -27,7 +27,7 @@
 --
 -- Two things deliberately get no column.
 --
--- `journal` is unchanged. It already carries the event, the relativized rom path, the
+-- `journal` is unchanged. It already carries the event, the relativised rom path, the
 -- basename, the display name, and the system, emulator and core that correlation fills in
 -- from the launch log, plus a state of open, correlated or discarded. A `game-start` row's
 -- `recorded_at_utc` is the session start and the matching `game-end` row's is the end, so a
@@ -168,7 +168,7 @@ CREATE TABLE save_slot (
   server_updated_at   TEXT,
 
   -- Names the device that uploaded the current save, so a `download` operation for a save
-  -- this device itself sent is recognizable rather than acted on blindly.
+  -- this device itself sent is recognisable rather than acted on blindly.
   origin_device_id    TEXT,
 
   last_negotiated_at  TEXT,

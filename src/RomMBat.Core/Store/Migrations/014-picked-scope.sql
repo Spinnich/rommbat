@@ -16,7 +16,7 @@
 --    walk the library for a set whose membership is already known.
 --
 -- 2. An unmanaged download outside any set. That means storing "this orphan is deliberate" and
---    teaching EvictionPlanner to recognize it, which is a set by another name with none of a
+--    teaching EvictionPlanner to recognise it, which is a set by another name with none of a
 --    set's machinery: it would not list, sync, roam, evict or delete like one.
 --
 -- 3. A new column holding the ids. For this scope the id list **is** the definition, exactly as

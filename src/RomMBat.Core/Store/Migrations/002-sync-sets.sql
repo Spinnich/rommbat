@@ -202,7 +202,7 @@ ALTER TABLE sync_cursor ADD COLUMN walk_total INTEGER;
 -- mapping surface and no one can point the unofficial set at a different folder.
 --
 -- fs_slug is the identifier RomM constrains unique, it is stable across a rescan, and it is
--- the one a person recognizes, so it is the key. The slug stays as a column because it is
+-- the one a person recognises, so it is the key. The slug stays as a column because it is
 -- what the bundled table is looked up by, and the numeric id stays because it is what a rom
 -- row carries.
 CREATE TABLE platform_map_v2 (

@@ -198,6 +198,15 @@ class SpellingTest(unittest.TestCase):
     def test_american_ise_words_pass(self) -> None:
         self.assertEqual(self.reports("Advertise, exercise, a premise, otherwise, emphasis.\n"), [])
 
+    def test_blockquotes_curly_quotes_and_link_targets_pass(self) -> None:
+        self.assertEqual(
+            self.reports(
+                "> The colour is set here.\n"
+                "It says “centre”, per [the page](https://example.org/colour-settings).\n"
+            ),
+            [],
+        )
+
     def test_quotations_code_and_flags_pass(self) -> None:
         self.assertEqual(
             self.reports('It answers "Session is already CANCELLED", `ExitCode.Cancelled` and --favourite.\n'),
