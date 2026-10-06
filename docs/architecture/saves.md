@@ -31,7 +31,8 @@ directory is relative to the RetroBat root instead (`from_root`), since RetroBat
 in the emulator's own folder. A path there belongs to a system only when that rule also claims its
 name, because Kega's folder holds the emulator and every system's `.srm` beside the `.ssm`. The emulator becomes the slot, so `SaveShapes` refuses at load a table where
 two rules could claim one file, or one emulator has two rules on a system unless class B gives
-each extension its own slot and no extension is in both. That is what keeps
+each extension its own slot and no extension is in both, or both are class B with different
+`slot_qualifier`s. That is what keeps
 mesen's loose `Crystalis (USA).sav` from landing in libretro's `libretro:battery` beside
 libretro's own `.srm` (#152). Most rules join on the ROM file; mednafen's on `nes` joins on the ROM
 file **and the md5 of its content less the iNES header**, which it appends only when the plain
@@ -42,7 +43,9 @@ land on the plain name stays on the server when the rule's `refuses_plain` recor
 that slot's save on that system (#235). `libretro`/`mednafen_gba` on `gba` joins on **the zip, the
 file inside it and that file's md5**, `<rom>.zip#<member>.<md5>.sav`, under
 `libretro:battery:sav`. Rules claiming one extension in one directory are asked narrowest first,
-archive member, then hash, then plain, and two of one narrowness are refused. BizHawk's joins on **its own
+archive member and hash, archive member, then hash, then plain, and two of one narrowness are refused.
+`libretro`/`bsnes-jg` on `snes` names its clock `<rom>.zip#<member>.rtc` with no hash, and its
+rule's `slot_qualifier` gives it `libretro:battery:member.rtc` beside the loose `libretro:battery:rtc`. BizHawk's joins on **its own
 title for the game** (`StarTropics.SaveRAM` for `StarTropics (USA).zip`), which
 `Content/DisplayNameAttributor` learns from the state sidecar and the launch window and caches
 in `game_id_binding` under the file name. A title two ROMs answer to fails closed, and a

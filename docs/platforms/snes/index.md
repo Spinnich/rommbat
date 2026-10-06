@@ -215,7 +215,8 @@ were new. **The clock cartridge writes a second file on eight rows**, in four na
 takes a class B slot of its own beside the save, as a clock does on `gb` (RB-417). **ares writes
 the SA-1's internal RAM** as `<rom>.iram` beside the `.ram`, as it writes a DSP-1's data RAM as
 `.dram`, and it takes its own slot too. `libretro`/`snes9x2005` would not start the clock
-cartridge, and `libretro`/`bsnes-jg` names its clock so it joins no rom. Evidence is under
+cartridge, and `libretro`/`bsnes-jg` names its clock after the zip and the file inside it, which
+takes a slot apart from the other cores' clock. Evidence is under
 `R:\rommbat-evidence\snes\edge\`.
 
 **Then the maintainer raced Super Mario Kart on all fifteen rows**, on 2026-10-06, one Time Trial

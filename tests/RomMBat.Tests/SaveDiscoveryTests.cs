@@ -823,22 +823,25 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
-    public void Bsnes_jgs_clock_named_after_the_zip_and_its_member_joins_no_rom()
+    public void Bsnes_jgs_clock_named_after_the_zip_and_its_member_takes_a_slot_of_its_own()
     {
         // libretro/bsnes-jg names an S-RTC cartridge's clock <rom>.zip#<member>.rtc, measured on
-        // 8.2.1. The loose .rtc rule joins on the rom file, so that stem names no rom.
+        // 8.2.1, beside the loose <rom>.rtc snes9x writes for the same game (RB-417).
         using var fixture = SaveTree.Create();
         const string Shell = "Super Shell Monsters Story II (Japan) [T-En by Dynamic Designs v0.90] [n]";
 
         fixture.AddRom(1, "snes", $"{Shell}.zip");
         fixture.AddSave("snes", $"{Shell}.srm", "the cores' battery save");
+        fixture.AddSave("snes", $"{Shell}.rtc", "snes9x's clock");
         fixture.AddSave("snes", $"{Shell}.zip#{Shell}.rtc", "bsnes-jg's clock");
 
         fixture.Scan();
 
         var saves = fixture.Store.Saves.List().ToDictionary(save => save.Path.Value);
-        Assert.Equal(1, saves[$"saves/snes/{Shell}.srm"].RomId);
-        Assert.Null(saves[$"saves/snes/{Shell}.zip#{Shell}.rtc"].RomId);
+        Assert.Equal("libretro:battery:rtc", saves[$"saves/snes/{Shell}.rtc"].Slot);
+        Assert.Equal("libretro:battery:member.rtc", saves[$"saves/snes/{Shell}.zip#{Shell}.rtc"].Slot);
+        Assert.All(saves.Values, save => Assert.Equal(1, save.RomId));
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "snes");
     }
 
     [Fact]

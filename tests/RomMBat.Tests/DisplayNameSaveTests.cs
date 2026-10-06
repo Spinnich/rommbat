@@ -684,6 +684,45 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void A_slot_qualifier_lets_one_emulator_hold_two_rules_for_one_extension()
+    {
+        // libretro on snes: snes9x's loose <rom>.rtc and bsnes-jg's <rom>.zip#<member>.rtc (RB-417).
+        var shapes = SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(
+                """{ "emulator": "libretro", "directory": "", "extensions": [".srm"], "named_after": "rom file" }""",
+                """{ "emulator": "libretro", "systems": ["snes"], "directory": "", "extensions": [".rtc"], "named_after": "rom file", "class": "B" }""",
+                """{ "emulator": "libretro", "systems": ["snes"], "directory": "", "extensions": [".rtc"], "named_after": "archive member", "class": "B", "slot_qualifier": "member" }"""));
+
+        var member = shapes.BatteryRuleFor("snes", string.Empty, "Game [n].zip#Game.rtc");
+        Assert.Equal(BatteryNaming.ArchiveMember, member?.NamedAfter);
+        Assert.Equal("Game [n]", member!.RomStemOf("Game [n].zip#Game.rtc"));
+        Assert.Equal("libretro:battery:member.rtc", member.SlotOf("Game [n].zip#Game.rtc", SaveShapeClass.B));
+        Assert.Equal(BatteryNaming.RomFile, shapes.BatteryRuleFor("snes", string.Empty, "Game.rtc")?.NamedAfter);
+
+        // Only the qualified slot is the member rule's, and the plain one needs no rule to place.
+        Assert.Same(member, shapes.BatteryRuleForSlot("snes", "libretro:battery:member.rtc"));
+        Assert.Null(shapes.BatteryRuleForSlot("snes", "libretro:battery:rtc"));
+
+        // Without a qualifier the two would meet in libretro:battery:rtc.
+        var shared = Assert.Throws<InvalidOperationException>(() => SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(
+                """{ "emulator": "libretro", "directory": "", "extensions": [".srm"], "named_after": "rom file" }""",
+                """{ "emulator": "libretro", "systems": ["snes"], "directory": "", "extensions": [".rtc"], "named_after": "rom file", "class": "B" }""",
+                """{ "emulator": "libretro", "systems": ["snes"], "directory": "", "extensions": [".rtc"], "named_after": "archive member", "class": "B" }""")));
+        Assert.Contains("two battery rules", shared.Message, StringComparison.Ordinal);
+
+        // A qualifier names a per-extension slot, so it means nothing outside class B.
+        var unslotted = Assert.Throws<InvalidOperationException>(() => SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(
+                """{ "emulator": "libretro", "directory": "", "extensions": [".srm"], "named_after": "rom file" }""",
+                """{ "emulator": "libretro", "systems": ["snes"], "directory": "", "extensions": [".rtc"], "named_after": "archive member", "class": "A", "slot_qualifier": "member" }""")));
+        Assert.Contains("slot_qualifier", unslotted.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_per_extension_slot_belongs_only_to_a_rule_carrying_that_extension()
     {
         var jgenesis = SaveShapes.Bundled.BatteryRuleFor("gba", "jgenesis/gba", "Game.sav")!;
