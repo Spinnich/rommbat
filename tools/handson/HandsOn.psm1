@@ -492,7 +492,8 @@ function Stop-Game {
         Start-Sleep -Milliseconds 500
         $launcher.Refresh()
         if (-not $escapeSent -and (Get-Date) -gt $deadline.AddSeconds(-$TimeoutSec / 2)) {
-            $children | Where-Object { -not $_.HasExited } | Select-Object -First 1 | ForEach-Object { Send-QuitKey $_ }
+            foreach ($child in $children) { $child.Refresh() }
+            $children | Where-Object { -not $_.HasExited -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1 | ForEach-Object { Send-QuitKey $_ }
             $escapeSent = $true
         }
 
