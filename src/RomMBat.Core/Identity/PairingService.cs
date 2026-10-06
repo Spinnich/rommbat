@@ -280,6 +280,11 @@ public sealed class PairingService
         {
             return new DeviceCheck(DeviceCheckOutcome.Unverified, $"Could not verify the pairing, {ex.Message}");
         }
+        catch (RomMApiException ex)
+        {
+            // A body the client cannot read, such as a proxy's sign-in page answering 200.
+            return new DeviceCheck(DeviceCheckOutcome.Unverified, $"Could not read the device list back: {ex.Message}");
+        }
     }
 
     /// <summary>

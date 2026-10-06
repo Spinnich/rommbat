@@ -85,6 +85,34 @@ public class DeviceCheckTests
     }
 
     [Fact]
+    public async Task A_list_that_is_not_json_is_unverified_rather_than_thrown()
+    {
+        // A proxy's HTML page answering 200 makes the client throw RomMApiException, which the
+        // pairing screen would otherwise turn into Refused over a pairing that is stored and works.
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+        using var stub = new StubRomMServer();
+        stub.ThenApproved(RomMScopes.Requested, "device-77");
+
+        using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
+        var pairing = new PairingService(tree.Install(), store, new TestTimeProvider(Start));
+        var session = await pairing.BeginAsync(connection, cancellationToken: TestContext.Current.CancellationToken);
+        var completion = await pairing.CompleteAsync(
+            connection,
+            session,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        using var html = new HtmlPage();
+        var check = await pairing.VerifyDeviceAsync(
+            completion,
+            token => new RomMConnection(new RomMClientOptions { Origin = Origin, AccessToken = token }, html),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(DeviceCheckOutcome.Unverified, check.Outcome);
+        Assert.True(store.Device.Read()!.IsPaired);
+    }
+
+    [Fact]
     public async Task The_check_carries_the_token_pairing_stored()
     {
         using var tree = TempRetroBatTree.Create();
@@ -125,5 +153,17 @@ public class DeviceCheckTests
                 return new RomMConnection(new RomMClientOptions { Origin = Origin, AccessToken = token }, stub);
             },
             cancellationToken: TestContext.Current.CancellationToken);
+    }
+
+    private sealed class HtmlPage : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<html>Sign in</html>", System.Text.Encoding.UTF8, "application/json"),
+                RequestMessage = request,
+            });
     }
 }
