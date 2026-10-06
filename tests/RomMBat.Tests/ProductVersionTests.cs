@@ -192,4 +192,17 @@ public class ProductVersionTests
         Assert.Equal(ProductVersion.Parse("8.2.1"), RetroBatVersion.Minimum);
         Assert.Equal(new Version(8, 2, 1), RetroBatRoot.MinimumVersion);
     }
+
+    /// <summary>
+    /// The floor only ever names an upstream stable; a prerelease gets a scout pass instead
+    /// (the version-adoption skill). Checked on the suffix because a prerelease compares equal
+    /// to its release.
+    /// </summary>
+    [Fact]
+    public void The_floor_and_the_tested_row_name_stable_releases()
+    {
+        Assert.All(
+            [RomMServerVersion.Minimum, RomMServerVersion.LastTested, RetroBatVersion.Minimum, RetroBatVersion.LastTested],
+            version => Assert.Null(version.Suffix));
+    }
 }

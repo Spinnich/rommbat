@@ -11,6 +11,13 @@ against the generators that derive them from these files, and exits non-zero nam
 generator to run. It never regenerates them itself: rewriting a committed generated file
 mid-refresh would hide the change the script exists to surface.
 
+**The files are fetched at the floor's release tags**, read from `RomMServerVersion` and
+`RetroBatVersion`, so they describe the builds RomMBat supports and not upstream's default branch.
+`--ref romm=<tag>` or `--ref retrobat=<tag>` takes another tag, and `--out <dir>` writes and checks
+there instead of here, which is how a scout pass reads a prerelease (the `version-adoption` skill).
+A RetroBat release downloads emulatorlauncher from its rolling `continuous` build, so the two
+emulatorlauncher files come from its last commit at or before the RetroBat release was published.
+
 | File                           | Source                                                                                  | What it settles                                                                                                                                                        |
 | ------------------------------ | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `systems_names.lst`            | `RetroBat-Official/retrobat` `system/configgen/systems_names.lst`                       | The authoritative list of RetroBat system folder names (240)                                                                                                           |

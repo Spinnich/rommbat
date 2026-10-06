@@ -29,24 +29,15 @@ steps the move touches are re-run or recorded as owed at the new floor, step 9 a
 them, and each step carried over says why. A record is neither voided by a move nor carried
 through one silently (#187, and the `platform-certification` skill).
 
-**A prerelease is adoptable, and which prerelease needs a rule of its own.** "Within one
-release" says when to move and not what to move to, and prereleases supersede each other on a
-timescale the policy was not written for: `5.3.0-alpha.2` shipped about eight hours after
-`5.3.0-alpha.1`, on the same day the assessment of `alpha.1` was being written. So **the
-target is the newest prerelease of the version being adopted at the moment the work starts,
-re-checked before the PR opens**, and adopting the older of two same-day prereleases is
-adopting a build that was superseded before anyone could run it. Two consequences follow from
-a prerelease specifically. The public demo will not carry it, so the pin comes from a
-self-hosted instance and `SYSTEM.VERSION` is **read at capture time rather than assumed**,
-because the instance can be upgraded underneath the work exactly as the tag was. And the delta
-between two prereleases is read rather than waved through: `alpha.1` to `alpha.2` was 19
-commits over 21 files, and reading them is what said which findings held at both tags and
-which had to be re-attributed.
-
-Read a RomM delta from source, counted from the tags' trees (`pre-pr-verification`, step 7).
-The release notes are cumulative from the last minor and can say the opposite of the code: 5.3's
-say ordinary browser play goes to `autosave`, and RM-4 is what the player does for a game RomMBat
-syncs.
+**The floor is only ever a stable.** A RomM or RetroBat prerelease is scouted, never adopted:
+a scout pass reads its delta, refreshes the reference data against it into scratch, smoke-tests a
+RetroBat beta on a tree of its own, and lands the fixes the stable will need as changes that are
+correct on the floor too. When the stable ships, adoption is moving the numbers and re-running
+what moved, not discovering it. A prerelease floor would make every RomMBat release built on it
+require a server or a RetroBat that upstream itself does not call finished, and prereleases
+supersede each other in hours, so the floor would name a build nobody can still install
+([decision](decisions/stable-only-floor.md)). Both tracks, the tracking issue each line gets and
+how to read a delta are in the `version-adoption` skill.
 
 RomMBat does not adopt RomM features that never reach a local RetroBat install, so a delta that
 adds only these needs no work: Jukebox and the soundtrack player, walkthroughs, barcode

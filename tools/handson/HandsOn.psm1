@@ -49,9 +49,30 @@ function Get-HandsOnEnv {
     $values
 }
 
+# Which .env key names the tree every function acts on. Use-ScoutTree moves the whole kit, guards
+# included, onto the scout tree a prerelease is smoke-tested in (the version-adoption skill).
+$script:TreeKey = 'ROMMBAT_AGENT_ROOT'
+
+function Use-ScoutTree {
+    <#
+    .SYNOPSIS
+        Points every function at ROMMBAT_SCOUT_ROOT, the agent's second tree, for a scout pass
+        on a RetroBat prerelease. Use-AgentTree points them back.
+    #>
+    $root = (Get-HandsOnEnv)['ROMMBAT_SCOUT_ROOT']
+    if (-not $root) { throw 'ROMMBAT_SCOUT_ROOT is not set in .env. tools/handson/README.md, "The scout tree", says how to build it.' }
+    $script:TreeKey = 'ROMMBAT_SCOUT_ROOT'
+    Write-Host "Acting on the scout tree: $root"
+}
+
+function Use-AgentTree {
+    $script:TreeKey = 'ROMMBAT_AGENT_ROOT'
+    Write-Host "Acting on the agent tree: $(Get-AgentRoot)"
+}
+
 function Get-AgentRoot {
-    $root = (Get-HandsOnEnv)['ROMMBAT_AGENT_ROOT']
-    if (-not $root) { throw 'ROMMBAT_AGENT_ROOT is not set in .env. tools/handson/README.md says how to build the tree.' }
+    $root = (Get-HandsOnEnv)[$script:TreeKey]
+    if (-not $root) { throw "$script:TreeKey is not set in .env. tools/handson/README.md says how to build the tree." }
     $root
 }
 
@@ -126,16 +147,23 @@ function Test-HandsOnEnv {
 
     $results = [ordered]@{}
     $envValues = Get-HandsOnEnv
-    $root = $envValues['ROMMBAT_AGENT_ROOT']
+    $root = $envValues[$script:TreeKey]
+    $scout = $script:TreeKey -eq 'ROMMBAT_SCOUT_ROOT'
 
-    $results['.env has ROMMBAT_AGENT_ROOT'] = [bool]$root
+    $results[".env has $script:TreeKey"] = [bool]$root
     $results['.env has the server and approver token'] = [bool]($envValues['ROMMBAT_TEST_SERVER'] -and $envValues['ROMMBAT_TEST_APPROVER_TOKEN'])
     $results['agent tree exists'] = [bool]($root -and (Test-Path (Join-Path $root 'RetroBat.exe')) -and (Test-Path (Join-Path $root 'emulationstation')))
 
     $versionFile = if ($root) { Join-Path $root 'system\version.info' }
     $floor = Get-RetroBatFloor
     $version = if ($versionFile -and (Test-Path $versionFile)) { (Get-Content $versionFile -Raw).Trim() }
-    $results["RetroBat is the floor ($floor)"] = [bool]($version -and $version.StartsWith("$floor-"))
+    if ($scout) {
+        # A scout tree runs the prerelease being scouted, never the floor.
+        $results["RetroBat is not the floor ($version)"] = [bool]($version -and -not $version.StartsWith("$floor-"))
+    }
+    else {
+        $results["RetroBat is the floor ($floor)"] = [bool]($version -and $version.StartsWith("$floor-"))
+    }
 
     $agentExe = if ($root) { Join-Path $root 'emulators\rommbat\rommbat-agent.exe' }
     $results['a build is deployed'] = [bool]($agentExe -and (Test-Path $agentExe))
@@ -565,7 +593,7 @@ function Stop-RomMBatUI {
 
 Add-Type -AssemblyName System.Windows.Forms
 
-Export-ModuleMember -Function Get-HandsOnEnv, Get-AgentRoot, Test-HandsOnEnv, Assert-TakeoverAllowed, Show-AgentBanner, Hide-AgentBanner,
+Export-ModuleMember -Function Get-HandsOnEnv, Get-AgentRoot, Use-ScoutTree, Use-AgentTree, Test-HandsOnEnv, Assert-TakeoverAllowed, Show-AgentBanner, Hide-AgentBanner,
     Publish-ToAgentTree, Invoke-Agent, Connect-AgentTree,
     Invoke-ES, Start-ES, Stop-ES, Start-Game, Stop-Game, Get-ESGames,
     Send-Key, Save-Screenshot, Start-RomMBatUI, Stop-RomMBatUI

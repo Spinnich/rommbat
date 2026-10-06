@@ -6,11 +6,13 @@ Needs the vendored rommapp/romm files refresh.sh pulls, romm-slugs.txt included.
 """
 
 import json
+import os
 import pathlib
 import re
 import sys
 
-HERE = pathlib.Path(__file__).parent
+# A scout points this at a scratch refresh at a prerelease tag; the default is the vendored copy.
+HERE = pathlib.Path(os.environ.get("ROMMBAT_REFERENCE_DIR") or pathlib.Path(__file__).parent)
 FAIL = []
 
 

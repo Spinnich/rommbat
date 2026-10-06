@@ -10,15 +10,16 @@ runs its work to a merge-ready PR and stops only when it needs one of those thre
 
 ## Which command
 
-| You want to                                    | Run                 | It stops for you when                                                               |
-| ---------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------- |
-| Pick something to work on                      | `/next`             | It shows the top four and asks which                                                |
-| Work on a known issue                          | `/start-issue <n>`  | The issue looks stale or wrong, a design question comes up, or a save needs playing |
-| Move an open PR forward, from any state        | `/drive-pr <n>`     | It is ready to merge, or a design question is left                                  |
-| Get one review of a PR without fixing anything | `/review-pr <n>`    | Never                                                                               |
-| Certify a system                               | `/certify <system>` | It is time to play                                                                  |
+| You want to                                    | Run                         | It stops for you when                                                               |
+| ---------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
+| Pick something to work on                      | `/next`                     | It shows the top four and asks which                                                |
+| Work on a known issue                          | `/start-issue <n>`          | The issue looks stale or wrong, a design question comes up, or a save needs playing |
+| Move an open PR forward, from any state        | `/drive-pr <n>`             | It is ready to merge, or a design question is left                                  |
+| Get one review of a PR without fixing anything | `/review-pr <n>`            | Never                                                                               |
+| Certify a system                               | `/certify <system>`         | It is time to play                                                                  |
+| Scout or adopt a RomM or RetroBat release      | `/upstream <project> [tag]` | A re-run needs play, a design question comes up, or it is ready to merge            |
 
-`/start-issue` and `/certify` end by running `/drive-pr`, so you rarely run it by hand. Run it
+`/start-issue`, `/certify` and an adopting `/upstream` end by running `/drive-pr`, so you rarely run it by hand. Run it
 again on a PR that stopped for you, once you have answered.
 
 ## Which model each command runs on
@@ -34,6 +35,7 @@ switches model when the command starts and returns to your own default on your n
 | `pr-reviewer`    | Opus   | medium | A different, stronger model from the one driving the PR       |
 | `/review-pr`     | Sonnet | low    | Spawns the reviewer and relays its comment                    |
 | `/certify`       | Sonnet | medium | Mostly launching rows, sending keys and recording             |
+| `/upstream`      | Opus   | medium | Reading an upstream delta and ruling on what it changes       |
 
 Other general-purpose subagents run on Sonnet, from `CLAUDE_CODE_SUBAGENT_MODEL` in
 `.claude/settings.json`. The values are family aliases, so each takes the newest model in its
@@ -70,6 +72,8 @@ design is in question, not the code.
 - Gives each PR its type label for the release notes and its `semver:*` label for the bump
   (`CONTRIBUTING.md`, "Labels and release notes"), and lists a label it picked for your veto.
 - Closes an issue a later commit already fixed, citing that commit.
+- Builds and drives its scout tree (`ROMMBAT_SCOUT_ROOT`) for a RetroBat prerelease, and posts
+  scout findings on an `upstream` tracking issue.
 - Deploys to, pairs, syncs, resets and drives its own agent tree (`ROMMBAT_AGENT_ROOT`), to do the
   hands-on pass a change owes, `/certify` included, with `tools/handson/`. It takes the screen and
   keyboard only when EmulationStation, every emulator and RomMBat are closed, and during
@@ -108,9 +112,13 @@ play it over RDP:
 
 ```bash
 ROMMBAT_AGENT_ROOT=D:\retrobat-agent
+ROMMBAT_SCOUT_ROOT=D:\retrobat-scout
 ```
 
 Building the agent tree is in [the hands-on kit](../../tools/handson/README.md#the-agent-tree).
+`ROMMBAT_SCOUT_ROOT` is optional: it holds a RetroBat prerelease for `/upstream`'s scout pass
+([the scout tree](../../tools/handson/README.md#the-scout-tree)), and without it that pass
+records its smoke test as unproven.
 
 The commands the loop runs most are allowed in `.claude/settings.json`, so they do not prompt.
 Merging and closing issues are left off that list on purpose, so

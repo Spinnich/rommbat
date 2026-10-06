@@ -251,7 +251,9 @@ across emulators with a note (step 2 not where emulators disagree about a playli
 carry it forward by itself.** Nor does it void it. The PR that moves a floor owes a mapping of the
 move onto the nine steps, in its description, and the re-run of the steps it touches. Each record's
 "Where each row stands", in its `index.md`, then says which steps were re-run at the new floor and
-when, which carry, and which are owed. The mapping itself stays in the PR:
+when, which carry, and which are owed. A scout pass on the prerelease drafts this mapping on the
+line's tracking issue (`version-adoption`), and the PR starts from that draft. The mapping itself
+stays in the PR:
 
 - **A step is touched** when the move changes code or bundled data that step exercises (the
   diff since the previous floor under `src/` and `data/`), or when a fact in `docs/upstream/`
