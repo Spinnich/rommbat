@@ -654,6 +654,25 @@ public sealed class SyncScreenTests : IDisposable
         Assert.True(kept.Sum(line => line.Lines) <= ProgressLayout.ProblemLines);
     }
 
+    [Fact]
+    public void One_problem_cut_short_is_offered_in_full_though_nothing_was_left_out()
+    {
+        // R1.1 on #498. The memory card advisory for a long ROM name runs past two lines and
+        // ends in the command to run, so the box keeps one of one with its remedy trimmed.
+        // Counting only the problems left out offered nothing, and the remedy was unreadable.
+        IReadOnlyList<string> problems =
+        [
+            $"'{new string('n', 120)}' shares the system memory card with other games. "
+                + "Run 'saves convert 1234 --apply' to give it its own.",
+        ];
+
+        Assert.Single(ProgressLayout.Fit(problems));
+        Assert.True(ProgressLayout.Hides(problems));
+
+        // And a short one that fits whole is not offered, which is a press that does nothing.
+        Assert.False(ProgressLayout.Hides(["short"]));
+    }
+
     /// <summary>What a layout reserves, without what it says.</summary>
     private static string Shape(IReadOnlyList<ProgressSlot> layout) =>
         string.Join(" | ", layout.Select(slot => $"{slot.Name}:{slot.Style}:{slot.Lines}"));
@@ -712,7 +731,7 @@ public sealed class SyncScreenTests : IDisposable
         await SettledAsync(sync);
 
         Assert.True(
-            ProgressLayout.Fit(sync.State.Problems).Count < sync.State.Problems.Count,
+            ProgressLayout.Hides(sync.State.Problems),
             $"the fixture produced only {sync.State.Problems.Count} problems, and all of them fit");
 
         var offer = Assert.Single(sync.Actions, action => action.Label.StartsWith("See all", StringComparison.Ordinal));
@@ -975,7 +994,7 @@ public sealed class SyncScreenTests : IDisposable
         var sync = new SyncViewModel(_session, Set(), Connect(stub));
         await SettledAsync(sync);
 
-        Assert.Equal(sync.State.Problems.Count, ProgressLayout.Fit(sync.State.Problems).Count);
+        Assert.False(ProgressLayout.Hides(sync.State.Problems));
         Assert.Empty(sync.Actions);
         Assert.DoesNotContain(sync.Hints, hint => hint.Action == NavAction.Start);
 

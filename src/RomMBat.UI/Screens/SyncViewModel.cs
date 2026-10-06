@@ -402,9 +402,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     /// </summary>
     /// <remarks>
     /// Nothing while it runs, so Start cannot open a menu over a transfer in progress. The
-    /// problems are offered only once the box has had to leave some out, because offering two
-    /// that are already on screen is a press that appears to do nothing. Both read
-    /// <see cref="ProgressLayout.Fit"/>: a screen showing six while the footer stays silent about
+    /// problems are offered only once the box has had to leave some out or cut one short,
+    /// because offering two that are already on screen whole is a press that appears to do
+    /// nothing. Both read <see cref="ProgressLayout.Fit"/>: a screen showing six while the footer stays silent about
     /// twenty-seven is what a hands-on pass found, with no way to reach the other twenty-one.
     /// </remarks>
     public IReadOnlyList<ScreenAction> Actions => _state.Stage == SyncStage.Working
@@ -412,7 +412,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         :
         [
             .. OffersPairing ? new[] { new ScreenAction("Pair with RomM", () => ScreenCommand.Push(_pair())) } : [],
-            .. ProgressLayout.Fit(_state.Problems).Count < _state.Problems.Count
+            .. ProgressLayout.Hides(_state.Problems)
                 ? new[] { new ScreenAction($"See all {_state.Problems.Count} problems", () => ScreenCommand.Push(AllProblems(_state.Problems))) }
                 : [],
         ];

@@ -78,10 +78,11 @@ public static class ProgressLayout
     /// Lines the sentence under the title is given.
     /// </summary>
     /// <remarks>
-    /// Three rather than two: a refused query adds its remedy to the server's sentence, and a
-    /// definition that did not roam adds a third clause after that.
+    /// Four: a refused query on an arcade platform adds its remedy to the server's sentence, 241
+    /// characters, and a definition that did not roam appends its note, about 312, which is four
+    /// lines at roughly ninety characters a line.
     /// </remarks>
-    public const int DetailLines = 3;
+    public const int DetailLines = 4;
 
     /// <summary>Lines the problems box holds under its heading.</summary>
     public const int ProblemLines = 6;
@@ -130,6 +131,22 @@ public static class ProgressLayout
 
         kept.Reverse();
         return kept;
+    }
+
+    /// <summary>
+    /// Whether the box cannot show every problem whole, so the screen offers the full list.
+    /// </summary>
+    /// <remarks>
+    /// Either one was left out, or one kept is longer than its lines and is trimmed. A single
+    /// long problem otherwise leaves the box at one of one with its remedy cut off and no press
+    /// that reaches the rest of it: the memory card advisory ends in the command to run.
+    /// </remarks>
+    public static bool Hides(IReadOnlyList<string> problems)
+    {
+        var kept = Fit(problems);
+
+        return kept.Count < problems.Count
+            || kept.Any(line => line.Text.Length > line.Lines * ProblemColumns);
     }
 
     /// <summary>The problems box, headed only once there is something in it.</summary>
