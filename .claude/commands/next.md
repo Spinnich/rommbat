@@ -11,11 +11,14 @@ effort: low
    names (`Fixes #`, `Closes #`, or `issue-<n>-` in the branch), and one labelled
    `needs-decision`.
 2. Rank what is left:
-   1. by milestone, the one due soonest first, when issues carry milestones;
-   2. a defect that can lose a save, before any other defect;
-   3. certification in wave order (`platform-certification`, "Wave order"), a system at a time;
-   4. the rest, oldest first.
+   1. an `upstream` issue whose releases table lists a **stable**, because adopting it is due
+      within one release;
+   2. by milestone, the one due soonest first, when issues carry milestones;
+   3. a defect that can lose a save, before any other defect;
+   4. an `upstream` issue listing only prereleases, for its scout pass;
+   5. certification in wave order (`platform-certification`, "Wave order"), a system at a time;
+   6. the rest, oldest first.
 3. Ask one multiple-choice question with the top four, your pick first and marked
    "(Recommended)", each with one line on why it ranks there.
-4. Run `/start-issue` on the answer, or `/certify <system>` when it is a `platform` issue titled
-   `Certify <system>: ...`.
+4. Run `/start-issue` on the answer, `/certify <system>` when it is a `platform` issue titled
+   `Certify <system>: ...`, or `/upstream <project>` when it is an `upstream` issue.

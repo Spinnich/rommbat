@@ -25,11 +25,13 @@ Usage: python tools/build-bios-manifest.py [--check]
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-REFERENCE = ROOT / "reference"
+# A scout points this at a scratch refresh to see what the next adoption would regenerate.
+REFERENCE = Path(os.environ.get("ROMMBAT_REFERENCE_DIR") or ROOT / "reference")
 OUTPUT = ROOT / "data" / "retrobat" / "bios.json"
 
 # The manifest is keyed by batocera system names, which is a third vocabulary beside
@@ -144,6 +146,8 @@ def main() -> int:
         print(f"{OUTPUT.relative_to(ROOT)} is up to date.")
         return 0
 
+    if os.environ.get("ROMMBAT_REFERENCE_DIR"):
+        sys.exit("ROMMBAT_REFERENCE_DIR is set: only --check runs against a scratch refresh.")
     OUTPUT.write_text(rendered, encoding="utf-8")
     print(
         f"{OUTPUT.relative_to(ROOT)}: {document['_systems']} systems, {document['_files']} files, "

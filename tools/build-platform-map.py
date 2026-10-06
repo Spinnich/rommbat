@@ -29,12 +29,14 @@ Usage: python tools/build-platform-map.py [--check]
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-REFERENCE = ROOT / "reference"
+# A scout points this at a scratch refresh to see what the next adoption would regenerate.
+REFERENCE = Path(os.environ.get("ROMMBAT_REFERENCE_DIR") or ROOT / "reference")
 OUTPUT = ROOT / "data" / "retrobat" / "platforms.json"
 
 # Slugs that must never resolve on their own. Arcade ROM names are romset-versioned, so the
@@ -174,6 +176,8 @@ def main() -> int:
         print(f"{OUTPUT.relative_to(ROOT)} is up to date.")
         return 0
 
+    if os.environ.get("ROMMBAT_REFERENCE_DIR"):
+        sys.exit("ROMMBAT_REFERENCE_DIR is set: only --check runs against a scratch refresh.")
     OUTPUT.write_text(rendered, encoding="utf-8")
     platforms = document["platforms"]
     assert isinstance(platforms, dict)

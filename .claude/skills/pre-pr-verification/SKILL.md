@@ -124,7 +124,7 @@ docs for the terms the diff touches (the command name, the class, the table, the
 | Sync protocol, the save or state model, attribution, hashing | `docs/architecture/saves.md` and the `save-sync` skill                                                      |
 | A rule that only exists because something was measured       | The skill for that area, plus its fact in `docs/upstream/`, and a `docs/design/decisions/` record it amends |
 | A milestone or stage changing state                          | The GitHub milestone and issue that track it                                                                |
-| A minimum RomM or RetroBat version                           | The whole version-move checklist below                                                                      |
+| A minimum RomM or RetroBat version                           | The `version-adoption` skill, "Adopt: a stable"                                                             |
 | A new project, folder, probe set or bundled data file        | `docs/architecture/projects.md` and `reference-data.md`                                                     |
 | A folder, type or trap a nested `CLAUDE.md` names            | That project's `CLAUDE.md`, and the routing table in the root `CLAUDE.md`                                   |
 
@@ -138,51 +138,9 @@ Three rules that keep this from becoming its own scope creep:
 
 ## When the change moves the supported RomM or RetroBat version
 
-RomMBat tracks the newest stable of both rather than supporting a range, so this happens on
-a schedule rather than by accident. A version move is not a find-and-replace: some numbers in
-this repo are the **current** supported version and must move, and some are the version a
-measurement was taken on and must not.
-
-1. `reference/refresh.sh`, then resolve every drift it reports rather than editing the
-   expected number. A drift is a signal to revisit the docs that cite it.
-2. Move together, or the startup check disagrees with the README: `RetroBatVersion.Minimum`,
-   `RetroBatVersion.LastTested`, `RetroBatRoot.MinimumVersion`, the `README.md` requirements
-   table, and the guide's `wiki/getting-started/requirements.md` and the compatibility row in
-   `wiki/reference/compatibility.md`. A test asserts the first three agree.
-3. `python3 tools/docs/check.py --stale` then lists the re-check work: every fact whose
-   `Verified:` stamp names a build below the new floor, and every fact with no stamp. It reads
-   the floor from `RetroBatVersion.Minimum` and `RomMServerVersion.Minimum`, so run it once the
-   floor being moved is in code: step 2 for RetroBat, step 6 for RomM. Re-measure each fact
-   and restamp it, or delete it with its citations when it stopped being true. Read the upstream
-   changelog end to end as well, for behaviour no fact records yet.
-4. Re-check every entry in `docs/upstream/issues.md`. A fix upstream changes what
-   RomMBat should do; **no workaround comes out until a hands-on pass has seen the fixed
-   behaviour.** A changelog line is upstream's belief, not a measurement.
-5. Leave provenance alone. `data/retrobat/*.json`'s
-   `_retrobat_version`, and a live capture under `tests/.../fixtures/` all record the version
-   something was **measured on**. Rewriting those to the new number silently reattributes a
-   measurement to a build nobody ran it against.
-6. A RomM move also moves the pinned OpenAPI schema, which is the minimum version on purpose.
-   `RomMServerVersion.Minimum`, `RomMServerVersion.LastTested` and the `info.version` inside
-   the pinned file move in one commit, and a test reads the pin rather than restating it so a
-   pin that moves without the floor fails there. See `src/RomM.Client/openapi/README.md`.
-7. **If the target is a prerelease, adopt the newest one and re-check it before the PR opens.**
-   Prereleases supersede each other in hours: `5.3.0-alpha.2` shipped eight hours after
-   `5.3.0-alpha.1`. Read the delta between the two rather than assuming it is cosmetic, because
-   it decides which of your findings were attributed to the wrong tag. The pin cannot come from
-   the public demo, which carries stable only, so it comes from a self-hosted instance whose
-   `SYSTEM.VERSION` you **read at capture time**: a live library can be upgraded underneath the
-   work, and a capture that does not match the floor is the wrong artifact even when it parses.
-   **Take the file list from the trees, not from the compare endpoint.**
-   `GET /repos/{owner}/{repo}/compare/{a}...{b}` caps `files` at 300 and says nothing in the
-   payload when it truncates, so a delta that size reads as complete while hiding whichever
-   files sort last. `alpha.3` to `beta.1` hit exactly 300 and hid the browser save writer, which
-   a finding turned on. Diff blob shas from `git/trees/{ref}?recursive=1` at both tags instead.
-8. **Map the move onto every record in `docs/platforms/`.** The PR description marks the nine
-   steps touched or carried, step 9 always touched, with a one-line reason for each carried
-   step. Each record's "Where each row stands" then says which steps were re-run at the new
-   floor and which are owed. The rule and what counts as touched are in the
-   `platform-certification` skill, "When the floor moves".
+The `version-adoption` skill owns it: "Adopt: a stable" is the checklist, and a prerelease never
+moves the floor. A PR that moves a floor and skips that checklist is not done, whatever the tests
+say.
 
 ## Hands-on by change type
 

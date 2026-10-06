@@ -17,8 +17,9 @@ are committed, so an upstream deploy cannot change the contract mid-session.
 
 **The pin is always the minimum version RomMBat declares support for**, so the generated DTOs
 describe the oldest server the client claims to work with. Since RomMBat tracks the newest
-stable, or a prerelease ahead of it when one is adopted early, that is also the newest release RomMBat has
-adopted: moving the floor and moving the pin are one decision.
+stable, that is also the newest release RomMBat has adopted: moving the floor and moving the pin
+are one decision. A prerelease's schema is diffed against the pin in scratch by a scout pass and
+never committed (the `version-adoption` skill).
 
 **Prefer the public demo at `demo.romm.app` as the source**, because anyone can reproduce the
 file from it without an account, a token or a hostname that would have to be scrubbed. The

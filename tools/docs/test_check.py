@@ -236,6 +236,17 @@ class StaleTest(unittest.TestCase):
         floor = check.floors()
         self.assertEqual(set(floor), {"RetroBat", "RomM"})
 
+    def test_a_proposed_floor_replaces_one_project_only(self) -> None:
+        floor = check.floors(check.floor_overrides(["--stale", "--floor", "romm=5.4.0"]))
+        self.assertEqual(floor["RomM"][0], "5.4.0")
+        self.assertEqual(floor["RetroBat"], check.floors()["RetroBat"])
+        self.assertEqual(check.stamps_below("Verified: RomM 5.3.1, 2026-09-29.", floor), ["RomM 5.3.1"])
+
+    def test_a_malformed_floor_is_refused(self) -> None:
+        for argv in (["--floor", "romm"], ["--floor", "playnite=1.0"], ["--floor"]):
+            with self.assertRaises(SystemExit):
+                check.floor_overrides(argv)
+
 
 class HookTest(unittest.TestCase):
     def run_hook(self, file_path: str) -> int:

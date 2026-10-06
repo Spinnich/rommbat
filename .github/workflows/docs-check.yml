@@ -31,5 +31,8 @@ jobs:
       - name: Test the checker
         run: python3 -m unittest discover -s tools/docs
 
+      - name: Test the upstream watch
+        run: python3 -m unittest discover -s tools -p "test_*.py"
+
       - name: Check docs
         run: python3 tools/docs/check.py

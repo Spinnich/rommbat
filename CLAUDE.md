@@ -45,7 +45,7 @@ shape, slot, set and floor are defined in [docs/design/glossary.md](docs/design/
 | How RetroBat or RomM behaves, and the evidence, or an `RB-`/`RM-` ID                   | [docs/upstream/](docs/upstream/README.md): the topic file, or grep the ID                                    |
 | How RomMBat's code is laid out and why                                                 | [docs/architecture/](docs/architecture/README.md), the file for the area                                     |
 | Why a behaviour was chosen, when no skill says                                         | [docs/design/decisions/](docs/design/decisions/README.md), the record it names                               |
-| Moving the supported RomM or RetroBat version                                          | "Version floor" below, then `pre-pr-verification`: "When the change moves..."                                |
+| A RomM or RetroBat release: scouting a prerelease, adopting a stable, the floor        | `version-adoption`, then `/upstream`                                                                         |
 | Writing or editing any doc                                                             | [docs/contributing/writing.md](docs/contributing/writing.md)                                                 |
 | A scripted edit or a `gh` body edit from Windows                                       | [docs/contributing/windows-agent-hazards.md](docs/contributing/windows-agent-hazards.md)                     |
 | Driving a change on a real install: deploy, ES, the UI, keys, screenshots              | [tools/handson/README.md](tools/handson/README.md), then `pre-pr-verification`: "Hands-on by change type"    |
@@ -108,12 +108,12 @@ layout, and the Playnite plugin as the structural analogue for a C# repo in the 
 
 **Version floor.** Every release names its minimum RomM and RetroBat. Currently RetroBat 8.2.1
 and RomM 5.3.1, both the newest stable; anything older is refused at startup, and anything newer
-warns. The floor moves forward: adopt a new stable (or a prerelease ahead of it) within one
-release. Adopting one means re-running `reference/refresh.sh` and resolving the drift, moving
-the floor and the tested row together, reading the upstream changelog, then re-checking every
-fact `tools/docs/check.py --stale` lists and every entry in `docs/upstream/issues.md`. Moving the RomM floor
-also moves the pinned OpenAPI schema. Details are in
-[docs/design/version-compatibility.md](docs/design/version-compatibility.md).
+warns. The floor moves forward: adopt a new stable within one release, and never move the floor,
+the tested row or the pin to a prerelease. A prerelease gets a scout pass instead, which reports
+what adoption will owe and lands fixes that are correct on the floor too. A daily workflow opens
+one `upstream` issue per version line, and `/upstream` runs either track from the
+`version-adoption` skill. Moving the RomM floor also moves the pinned OpenAPI schema. Details are
+in [docs/design/version-compatibility.md](docs/design/version-compatibility.md).
 
 **Tests travel with code.** New logic gets a test. Save-shape and mapping logic get fixtures
 from a real install, checked in: its layout, config and logs, never game content. The suite's

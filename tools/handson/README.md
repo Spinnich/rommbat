@@ -13,8 +13,9 @@ Test-HandsOnEnv -Gui        # one line per check, then ready or not ready
 ## The agent tree
 
 `ROMMBAT_AGENT_ROOT` in the main checkout's `.env` names it. It is the only tree hands-on passes
-and `/certify` use, and the kit touches no other: the stop functions act only on processes
-running from the agent tree, and the ES calls refuse while an ES from anywhere else runs. The tree
+and `/certify` use, and the kit touches no other but the scout tree below: the stop functions act
+only on processes running from the selected tree, and the ES calls refuse while an ES from anywhere
+else runs. The tree
 is paired as the approver test account, so what it uploads stays apart from the maintainer's own
 saves. The agent may deploy to it, pair, sync, reset and drive it without asking
 ([workflow](../../docs/contributing/workflow.md)), and the maintainer plays it over RDP during
@@ -33,6 +34,19 @@ Invoke-Agent sync
 
 `Connect-AgentTree -Repair` re-pairs, keeping `device.id`, so RomM keeps one device for the tree.
 
+Adopting a new RetroBat stable rebuilds the tree this way from a pristine install of that version,
+because a tree upgraded in place is not the build a user installs fresh.
+
+## The scout tree
+
+`ROMMBAT_SCOUT_ROOT` names a second tree the agent owns, which runs a RetroBat **prerelease** for
+a scout pass (the `version-adoption` skill) and nothing else. It is rebuilt for each scout, the
+same way as the agent tree but from `./tools/retrobat-install.ps1 -Version <tag>`, and the agent
+may build, deploy to, pair, sync and drive it without asking. `Use-ScoutTree` points every
+function at it, guards included, until `Use-AgentTree` points them back; `Test-HandsOnEnv` then
+checks that the tree is **not** at the floor. Only one ES runs at a time, so stop one tree's ES
+before starting the other's.
+
 ## Functions
 
 | Function                                      | Does                                                                                                |
@@ -49,6 +63,7 @@ Invoke-Agent sync
 | `Save-Screenshot <name> [-Window <proc>]`     | A PNG under `probe-output/handson-<date>/`, path returned for the Read tool                         |
 | `Assert-TakeoverAllowed [-WhilePlaying]`      | Throws when the session is not Active or ES, an emulator or RomMBat is running                      |
 | `Show-AgentBanner`, `Hide-AgentBanner`        | Put up, or take down, the "agent is driving" strip across the top of the screen                     |
+| `Use-ScoutTree`, `Use-AgentTree`              | Point every function at the scout tree, or back at the agent tree                                   |
 
 The UI's keys are its desk map: `Up`, `Down`, `Left`, `Right`, `Enter` (A), `Escape` (B),
 `Backspace` (L1), `Tab` (X), `F5` (Start).

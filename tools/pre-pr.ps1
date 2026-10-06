@@ -140,6 +140,7 @@ else {
 Invoke-Gate docs {
     & $needPython
     & $python -m unittest discover -s tools/docs
+    if ($LASTEXITCODE -eq 0) { & $python -m unittest discover -s tools -p 'test_*.py' }
     if ($LASTEXITCODE -eq 0) { & $python tools/docs/check.py }
 }
 

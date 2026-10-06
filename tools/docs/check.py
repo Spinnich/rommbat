@@ -406,14 +406,37 @@ def version_key(core: str, suffix: str | None) -> tuple:
     return (tuple(numbers), not (suffix and PRERELEASE.match(suffix)))
 
 
-def floors() -> dict[str, tuple[str, tuple]]:
+def floor_entry(raw: str) -> tuple[str, tuple]:
+    core, _, suffix = raw.partition("-")
+    return (raw, version_key(core, suffix))
+
+
+def floors(overrides: dict[str, str] | None = None) -> dict[str, tuple[str, tuple]]:
+    """The floor in code, or a proposed one, so a scout can list what adopting it will owe."""
     result = {}
     for project, rel in FLOOR_SOURCES.items():
+        if overrides and project in overrides:
+            result[project] = floor_entry(overrides[project])
+            continue
         match = FLOOR.search(read_text(rel) or "")
         if not match:
             sys.exit(f"no ProductVersion Minimum in {rel}")
-        core, _, suffix = match.group(1).partition("-")
-        result[project] = (match.group(1), version_key(core, suffix))
+        result[project] = floor_entry(match.group(1))
+    return result
+
+
+def floor_overrides(argv: list[str]) -> dict[str, str]:
+    """Each --floor <project>=<version>, the project matched case-insensitively."""
+    names = {project.lower(): project for project in FLOOR_SOURCES}
+    result = {}
+    for i, arg in enumerate(argv):
+        if arg != "--floor":
+            continue
+        value = argv[i + 1] if i + 1 < len(argv) else ""
+        name, _, version = value.partition("=")
+        if name.lower() not in names or not re.fullmatch(r"\d+(\.\d+)+(-\S+)?", version):
+            sys.exit(f"--floor wants <project>=<version>, project one of {', '.join(FLOOR_SOURCES)}")
+        result[names[name.lower()]] = version
     return result
 
 
@@ -447,8 +470,8 @@ def fact_stamps(text: str):
         yield tuple(current)
 
 
-def run_stale() -> int:
-    floor = floors()
+def run_stale(overrides: dict[str, str] | None = None) -> int:
+    floor = floors(overrides)
     stale: list[str] = []
     unstamped: list[str] = []
     for rel in tracked_files():
@@ -518,7 +541,7 @@ def main(argv: list[str]) -> int:
     if "--hook" in argv:
         return run_hook()
     if "--stale" in argv:
-        return run_stale()
+        return run_stale(floor_overrides(argv))
     return run_tree(quiet="--quiet" in argv)
 
 

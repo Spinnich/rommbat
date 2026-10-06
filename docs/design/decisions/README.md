@@ -26,3 +26,4 @@ record exists where no skill or [architecture](../../architecture/README.md) fil
 | [interface-language](interface-language.md)                               | The interface stays English; the keyboard follows ES's language   |
 | [packaging-and-release](packaging-and-release.md)                         | The portable zip is the artefact, and who announces a release     |
 | [versioning](versioning.md)                                               | SemVer 2.0.0, what each part means, and the schemes rejected      |
+| [stable-only-floor](stable-only-floor.md)                                 | The floor names a stable; a prerelease is scouted, not adopted    |
