@@ -511,6 +511,31 @@ public sealed class SyncScreenTests : IDisposable
         resolve.Dispose();
     }
 
+    [Fact]
+    public async Task A_query_asks_before_it_stops_as_a_sync_does()
+    {
+        // A query of a large set takes minutes, and a stray press should not throw that time
+        // away, so its stop is a question like the sync screen's, with the safe answer first.
+        using var stub = Library(2);
+        Pair();
+        Seed("games", 2);
+
+        var resolve = new ResolveViewModel(_session, Set(), Connect(stub));
+
+        var confirm = Assert.IsType<ConfirmScreen>(resolve.Handle(NavAction.Back).Screen);
+        Assert.Same(resolve, confirm.Underneath);
+        Assert.Equal("Keep querying", confirm.Buttons[confirm.Selected].Label);
+        Assert.Contains("kept", confirm.Question, StringComparison.Ordinal);
+
+        // Keeping it changes nothing, and the run finishes on its own.
+        Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
+
+        await SettledAsync(resolve);
+        Assert.Equal("Finished", resolve.Outcome);
+
+        resolve.Dispose();
+    }
+
     // ------------------------------------------------------------------ the screen holds still
 
     [Fact]

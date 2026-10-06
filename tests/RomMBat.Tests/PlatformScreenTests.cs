@@ -140,8 +140,11 @@ public class PlatformScreenTests : IDisposable
         Assert.Equal("Use the automatic choice", menu.Rows[menu.Cursor].Label);
         navigator.Handle(NavAction.Accept);
 
-        var confirm = Assert.IsType<ListScreen>(navigator.Current);
-        Assert.EndsWith("?", confirm.Title, StringComparison.Ordinal);
+        var confirm = Assert.IsType<ConfirmScreen>(navigator.Current);
+        Assert.EndsWith("?", confirm.Question, StringComparison.Ordinal);
+        Assert.Same(chosen, confirm.Underneath);
+
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
 
         var row = _session.Store.PlatformMap.Find("arcade");
@@ -150,17 +153,13 @@ public class PlatformScreenTests : IDisposable
         Assert.Null(row!.Folder);
         Assert.False(row.IsUserChoice);
 
-        // Answered once. A second press finishes rather than running a change that has already
-        // happened, and the footer says Done on it.
+        // Answered once: the box says it happened rather than staying an offer over its own
+        // answer (#448), and its only button is Done, which closes it rather than running the
+        // change again.
+        Assert.StartsWith("Stopped choosing for Arcade.", confirm.Question, StringComparison.Ordinal);
         Assert.Equal(ListScreen.DoneLabel, Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Accept).Label);
-        Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
-
-        // And the pane says it happened, rather than still describing the drop it offered.
-        Assert.Equal("Done", Assert.Single(confirm.Rows).Label);
-
-        // As do the title and the footer, rather than an offer over its own answer (#448).
-        Assert.Equal("Stopped choosing for Arcade", confirm.Title);
         Assert.DoesNotContain(confirm.Hints, hint => hint.Action == NavAction.Back);
+        Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
     }
 
     [Fact]

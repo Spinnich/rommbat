@@ -240,13 +240,19 @@ That is EmulationStation's own grammar (RB-421 to RB-424). A screen lists its ve
 `ScreenAction`s; the navigator opens `ActionMenuScreen` on Start and runs the Alternate and Extra
 shortcuts from the same list, so the footer, the menu and the shortcuts cannot disagree. A verb
 keeps one shortcut everywhere (Sync on Alternate, Query on Extra), and a destructive one has
-none. An editor saves from its last row, and Back with unsaved changes asks through
-`ConfirmScreen`, ES's message box with the safe answer selected first, where ES selects YES.
+none. An editor saves from its last row, and Back with unsaved changes asks.
 
-**Two screens run minutes-long work, and both stop on Back and stay** so the screen can say what
-happened. The sync screen's stop removes the game it was in, so it asks first and says so; the
-resolve screen's loses nothing and stops at once. Both own their cancellation and are disposed
-when left.
+**Every confirmation is one `ConfirmScreen`**, ES's message box with the safe answer selected
+first, where ES selects YES, drawn in the shell's overlay over the screen it is about. A
+confirmation that needs a preview (a set's or a game's removal) carries it as details inside the
+box, filled by the box's own loader, and an answer that needs the preview stays disabled until it
+lands. One that acts in place (dropping an outbox entry, canceling a queued change, a platform's
+automatic choice) turns into its outcome with a single Done, as ES's own boxes report with OK.
+
+**Two screens run minutes-long work, and both ask before Back stops them**, then stay so the
+screen can say what happened. The sync screen's question says its stop removes the game it was
+in; the resolve screen's says what it found is kept. Both own their cancellation and are
+disposed when left.
 
 **A screen that has finished says so three times, because a full progress bar and a stalled one
 are the same picture.** The title turns past tense ("Queried 'X'", "Synced 'X'"), an outcome

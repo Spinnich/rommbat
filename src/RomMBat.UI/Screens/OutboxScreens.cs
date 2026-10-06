@@ -34,6 +34,9 @@ public static class OutboxScreens
 
         List<Func<IScreen>> destinations = [];
 
+        // Kept so each question draws over this list.
+        ListScreen? screen = null;
+
         IReadOnlyList<ListRow> Rows()
         {
             destinations.Clear();
@@ -49,7 +52,7 @@ public static class OutboxScreens
             {
                 var title = Title(entry, titles);
                 rows.Add(Refused(entry, title));
-                destinations.Add(() => DropOne(session, entry, title));
+                destinations.Add(() => DropOne(session, entry, title, screen));
             }
 
             if (failed.Count > 1)
@@ -58,7 +61,7 @@ public static class OutboxScreens
                     "Every refused entry",
                     $"{failed.Count} refused",
                     "Drop them all at once."));
-                destinations.Add(() => DropRefused(session));
+                destinations.Add(() => DropRefused(session, screen));
             }
 
             if (pending > 0)
@@ -67,13 +70,13 @@ public static class OutboxScreens
                     "Not sent yet",
                     $"{pending} waiting",
                     "These send by themselves on the next sync. Drop them only if their server is gone for good."));
-                destinations.Add(() => DropPending(session));
+                destinations.Add(() => DropPending(session, screen));
             }
 
             return rows;
         }
 
-        return new ListScreen(
+        screen = new ListScreen(
             "Outbox",
             Rows,
             index => ScreenCommand.Push(destinations[index]()),
@@ -86,6 +89,8 @@ public static class OutboxScreens
                 ? null
                 : "The server refused these and nothing will try them again. They exist only on this device.",
         };
+
+        return screen;
     }
 
     /// <summary>One entry the server refused, named after its game where the store knows it.</summary>
@@ -98,7 +103,7 @@ public static class OutboxScreens
                 : entry.LastError);
 
     /// <summary>Dropping one refused entry.</summary>
-    private static ListScreen DropOne(InstallSession session, OutboxEntry entry, string title) =>
+    private static ConfirmScreen DropOne(InstallSession session, OutboxEntry entry, string title, IScreen? underneath) =>
         Confirm(
             $"Drop this {Kind(entry.Kind)}?",
             $"{Capitalised(Kind(entry.Kind))} dropped",
@@ -109,10 +114,11 @@ public static class OutboxScreens
                     + "Nothing on the drive is deleted.",
                 false),
             () => session.Store.Outbox.DropFailed(entry.Id),
-            _ => "The server never received it, so it exists only on this device.");
+            _ => "The server never received it, so it exists only on this device.",
+            underneath);
 
     /// <summary>Dropping every refused entry.</summary>
-    private static ListScreen DropRefused(InstallSession session) =>
+    private static ConfirmScreen DropRefused(InstallSession session, IScreen? underneath) =>
         Confirm(
             "Drop every refused entry?",
             "Refused entries dropped",
@@ -124,14 +130,15 @@ public static class OutboxScreens
                 false),
             () => session.Store.Outbox.DropFailed(),
             dropped => $"{Entries(dropped)} dropped. The server never received them, so they exist only "
-                + "on this device.");
+                + "on this device.",
+            underneath);
 
     /// <summary>Dropping every unsent entry, for an install whose server is gone.</summary>
     /// <remarks>
     /// Said in terms of pairing, because that is how a person arrives here: pairing with a
     /// different server is refused while these name the old one's games.
     /// </remarks>
-    private static ListScreen DropPending(InstallSession session) =>
+    private static ConfirmScreen DropPending(InstallSession session, IScreen? underneath) =>
         Confirm(
             "Drop everything not sent yet?",
             "Unsent entries dropped",
@@ -143,57 +150,46 @@ public static class OutboxScreens
                     + "with another. Nothing on the drive is deleted.",
                 false),
             () => session.Store.Outbox.DropPending(),
-            dropped => $"{Entries(dropped)} dropped. They exist only on this device.");
+            dropped => $"{Entries(dropped)} dropped. They exist only on this device.",
+            underneath);
 
     /// <summary>
-    /// A pane of facts with one verb, in <c>QueuedChangeScreens.CancelConfirm</c>'s shape.
+    /// The question with what it would drop, and what dropping did once it is answered.
     /// </summary>
-    /// <param name="done">The title once something was dropped.</param>
-    /// <param name="after">What happened, given how many the store deleted, when that is any.</param>
-    private static ListScreen Confirm(
+    /// <param name="done">What happened, as the outcome's opening words.</param>
+    /// <param name="after">What it means, given how many the store deleted, when that is any.</param>
+    private static ConfirmScreen Confirm(
         string title,
         string done,
         ListRow before,
         Func<int> drop,
-        Func<int, string> after)
+        Func<int, string> after,
+        IScreen? underneath)
     {
-        int? dropped = null;
+        ConfirmScreen? box = null;
 
-        return new ListScreen(
+        box = new ConfirmScreen(
             title,
-            () =>
             [
-                dropped is { } count
-                    ? count == 0
-                        ? new ListRow("Nothing dropped", null, "Nothing was left to drop by the time it was chosen.", false)
-                        : new ListRow("Dropped", null, after(count), false)
-                    : before,
+                new ConfirmButton(
+                    "Drop",
+                    () =>
+                    {
+                        var dropped = drop();
+
+                        return box!.Answer(dropped == 0
+                            ? "Nothing dropped. Nothing was left to drop by the time it was chosen."
+                            : $"{done}. {after(dropped)}");
+                    }),
+                new ConfirmButton("Keep", () => ScreenCommand.Pop),
             ],
-            _ => ScreenCommand.Stay,
-            acceptLabel: "Drop",
-            backLabel: "Keep")
+            1,
+            underneath)
         {
-            Reading = true,
-            TitleWhen = () => dropped switch
-            {
-                null => title,
-                0 => "Nothing dropped",
-                _ => done,
-            },
-            OfferAcceptWhen = () => dropped is null,
-            BackLabelWhen = () => dropped is null ? "Keep" : "Done",
-
-            Verbs = (action, _) =>
-            {
-                if (action != NavAction.Accept || dropped is not null)
-                {
-                    return null;
-                }
-
-                dropped = drop();
-                return ScreenCommand.Stay;
-            },
+            Details = () => [before],
         };
+
+        return box;
     }
 
     private static string Title(OutboxEntry entry, IReadOnlyDictionary<int, GameMetadata> titles) =>

@@ -173,12 +173,14 @@ public sealed class SetsScreenTests : IDisposable
     {
         Seed("doomed");
 
-        var confirm = Assert.IsType<ListScreen>(SetsScreens.ConfirmDelete(_session, "doomed"));
+        var confirm = Assert.IsType<ConfirmScreen>(SetsScreens.ConfirmDelete(_session, "doomed"));
 
-        // Two answers, because deleting a set and keeping its games is a legitimate thing to
-        // want, and removal is a choice rather than a consequence. Both sentences are on the
-        // confirmation rather than on a screen afterwards, because a warning after the act is
-        // not a warning.
+        // Two ways to delete and one to keep it, kept selected first, because deleting a set and
+        // keeping its games is a legitimate thing to want, and removal is a choice rather than a
+        // consequence. Both sentences are on the confirmation rather than on a screen afterwards,
+        // because a warning after the act is not a warning.
+        Assert.Equal(["Delete with games", "Delete, keep games", "Keep it"], confirm.Buttons.Select(button => button.Label));
+        Assert.Equal("Keep it", confirm.Buttons[confirm.Selected].Label);
         Assert.Equal(2, confirm.Rows.Count);
         Assert.Contains(
             confirm.Rows,
@@ -195,11 +197,11 @@ public sealed class SetsScreenTests : IDisposable
     {
         Seed("doomed");
 
-        var confirm = Assert.IsType<ListScreen>(SetsScreens.ConfirmDelete(_session, "doomed"));
+        var confirm = Assert.IsType<ConfirmScreen>(SetsScreens.ConfirmDelete(_session, "doomed"));
 
-        // The second row, which is the one that keeps them. Reached by moving rather than by
-        // index, so a row added above it does not silently retarget this press.
-        confirm.Handle(NavAction.Down);
+        // The middle answer, which keeps them, one to the left of the selected Keep it.
+        confirm.Handle(NavAction.Left);
+        Assert.Equal("Delete, keep games", confirm.Buttons[confirm.Selected].Label);
 
         Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
         Assert.Empty(new SyncSetService(_session).List());
@@ -218,9 +220,10 @@ public sealed class SetsScreenTests : IDisposable
         navigator.Handle(NavAction.Accept);
         ActionMenuDriver.Choose(navigator, "Delete set");
 
-        // Down to "leave the games where they are", which is the answer that does not open a
-        // preview. The removal half has its own tests, because it is minutes of work.
-        navigator.Handle(NavAction.Down);
+        // Left to "Delete, keep games", which is the answer that does not open a preview. The
+        // removal half has its own tests, because it is minutes of work.
+        Assert.IsType<ConfirmScreen>(navigator.Current);
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
 
         // Back on the list, with the deleted set gone from it, not on a message screen whose
@@ -244,7 +247,7 @@ public sealed class SetsScreenTests : IDisposable
         Members(doomed, 1, 2);
         Members(wanted, 1);
 
-        var preview = Assert.IsType<ListScreen>(SetsScreens.ConfirmRemoval(_session, "doomed"));
+        var preview = Assert.IsType<ConfirmScreen>(SetsScreens.ConfirmRemoval(_session, "doomed"));
         await Wait(() => !preview.IsLoading);
 
         var shown = Render(preview);
@@ -261,7 +264,8 @@ public sealed class SetsScreenTests : IDisposable
             shown,
             text => text.Contains("Saves and save states are never removed", StringComparison.Ordinal));
 
-        // Nothing has happened yet. The preview is the screen, and the footer is what commits.
+        // Nothing has happened yet. The preview is the question's details, and its answer is
+        // what commits.
         Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "shared.sfc")));
         Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "only.sfc")));
         Assert.Equal(2, new SyncSetService(_session).List().Count);
@@ -279,10 +283,11 @@ public sealed class SetsScreenTests : IDisposable
         Members(doomed, 1, 2);
         Members(wanted, 1);
 
-        var preview = Assert.IsType<ListScreen>(SetsScreens.ConfirmRemoval(_session, "doomed"));
+        var preview = Assert.IsType<ConfirmScreen>(SetsScreens.ConfirmRemoval(_session, "doomed"));
         await Wait(() => !preview.IsLoading);
 
-        // Accept, not Start: a yes-or-no screen is answered with the confirm button now.
+        // Keep them is selected first; the removal is one to the left.
+        preview.Handle(NavAction.Left);
         var applying = Assert.IsType<ListScreen>(preview.Handle(NavAction.Accept).Screen);
         await Wait(() => !applying.IsLoading);
 
@@ -298,10 +303,10 @@ public sealed class SetsScreenTests : IDisposable
     /// Removing a set's games lands back on the sets list, not on three stale screens.
     /// </summary>
     /// <remarks>
-    /// Found on a hands-on pass. The set is gone by the time this screen is reached, so the
-    /// preview, the confirmation and the set's own detail all describe something that no longer
-    /// exists, and leaving them on the stack is four presses through three of them to get to
-    /// the list. The keep-the-games path is held to the same rule.
+    /// Found on a hands-on pass. The set is gone by the time this screen is reached, so its own
+    /// detail describes something that no longer exists, and leaving it on the stack is a
+    /// press through a stale screen to get to the list. The keep-the-games path is held to the
+    /// same rule.
     /// </remarks>
     [Fact]
     public async Task Removing_a_sets_games_lands_back_on_the_sets_list()
@@ -318,11 +323,16 @@ public sealed class SetsScreenTests : IDisposable
 
         navigator.Handle(NavAction.Accept);
         ActionMenuDriver.Choose(navigator, "Delete set");
+
+        // Delete with games is the leftmost of the three answers.
+        navigator.Handle(NavAction.Left);
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
 
-        var preview = Assert.IsType<ListScreen>(navigator.Current);
+        var preview = Assert.IsType<ConfirmScreen>(navigator.Current);
         await Wait(() => !preview.IsLoading);
 
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
         var applying = Assert.IsType<ListScreen>(navigator.Current);
         await Wait(() => !applying.IsLoading);
@@ -450,15 +460,18 @@ public sealed class SetsScreenTests : IDisposable
     {
         Seed("empty");
 
-        var confirm = Assert.IsType<ListScreen>(SetsScreens.ConfirmDelete(_session, "empty"));
+        var confirm = Assert.IsType<ConfirmScreen>(SetsScreens.ConfirmDelete(_session, "empty"));
 
-        // The removal answer first, which is where a person lands.
+        // The removal answer, which is the leftmost.
+        confirm.Handle(NavAction.Left);
+        confirm.Handle(NavAction.Left);
         var preview = confirm.Handle(NavAction.Accept).Screen;
 
-        if (preview is ListScreen loaded)
+        if (preview is ConfirmScreen loaded)
         {
             await Wait(() => !loaded.IsLoading);
 
+            loaded.Handle(NavAction.Left);
             var applying = loaded.Handle(NavAction.Accept);
             Assert.NotEqual(ScreenCommandKind.Stay, applying.Kind);
 
@@ -1357,6 +1370,10 @@ public sealed class SetsScreenTests : IDisposable
             {
                 await Wait(() => !loading.IsLoading, attempts: 1_000);
             }
+            else if (pushed is ConfirmScreen previewing)
+            {
+                await Wait(() => !previewing.IsLoading, attempts: 1_000);
+            }
         }
         finally
         {
@@ -1657,6 +1674,23 @@ public sealed class SetsScreenTests : IDisposable
 
             case MessageScreen message:
                 text.Add(message.Message);
+                break;
+
+            case ConfirmScreen confirm:
+                text.Add(confirm.Question);
+                text.AddRange(confirm.Buttons.Select(button => button.Label));
+
+                if (confirm.LoadProblem is { } failed)
+                {
+                    text.Add(failed);
+                }
+
+                foreach (var row in confirm.Rows)
+                {
+                    text.Add(row.Label);
+                    text.AddRange(new[] { row.Value, row.Detail }.OfType<string>());
+                }
+
                 break;
 
             default:

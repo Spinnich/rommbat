@@ -42,7 +42,10 @@ public static class BrowseScreens
         // one, and rows read once would go on saying what they said before the press.
         IReadOnlyList<ListRow> Rows() => DetailRows(session, game);
 
-        return new ListScreen(
+        // Kept so the removal question can draw over this screen.
+        ListScreen? screen = null;
+
+        screen = new ListScreen(
             game.DisplayName,
             Rows,
             _ => ScreenCommand.Stay,
@@ -65,10 +68,10 @@ public static class BrowseScreens
                     ? new[] { new ScreenAction("Put this game on the device", () => Install(session, game, connect, changed)) }
                     : [],
                 .. game.IsHere
-                    ? new[] { new ScreenAction("Take it off this device", () => ScreenCommand.Push(ConfirmRemoval(session, game, connect, changed))) }
+                    ? new[] { new ScreenAction("Take it off this device", () => ScreenCommand.Push(ConfirmRemoval(session, game, connect, changed, screen))) }
                     : [],
                 .. QueuedChangeScreens.CanConvert(session, game.RomId)
-                    ? new[] { new ScreenAction("Give it its own memory card", () => ScreenCommand.Push(QueuedChangeScreens.Convert(session, game.RomId, game.DisplayName))) }
+                    ? new[] { new ScreenAction("Give it its own memory card", () => ScreenCommand.Push(QueuedChangeScreens.Convert(session, game.RomId, game.DisplayName, screen))) }
                     : [],
             ],
             // No row means the page fell back, which an unreachable RomM and a refused page
@@ -88,6 +91,8 @@ public static class BrowseScreens
                 _ => null,
             },
         };
+
+        return screen;
     }
 
     /// <summary>
@@ -147,32 +152,38 @@ public static class BrowseScreens
     /// set is released so its own claim does not hold the game back against the person
     /// un-picking it; every other enabled set's claim still does, and says so.
     /// </remarks>
-    internal static ListScreen ConfirmRemoval(
+    internal static ConfirmScreen ConfirmRemoval(
         InstallSession session,
         BrowseGame game,
         Func<Uri, RomMConnection>? connect,
-        Action? changed)
+        Action? changed,
+        IScreen? underneath = null)
     {
         var games = new GameService(session);
 
         EvictionReport? report = null;
         IReadOnlyList<string> unvouchable = [];
 
-        return new ListScreen(
-            $"Take '{game.DisplayName}' off?",
-            () => RemovalRows(report, unvouchable),
-            _ => ScreenCommand.Stay,
-            acceptLabel: "Take it off this device",
-            backLabel: "Keep it")
-        {
-            Reading = true,
-            LoadingMessage = "Working out what can go...",
+        bool CanGo() => report is { } ready && ready.Plan.Selected.Count > 0;
 
-            // Accept, and only once the preview says something can go. A yes-or-no screen is
-            // answered with the confirm button, and this one had the hint on Start with no gate:
-            // the press walked through a second screen and removed nothing, where the preview
-            // had already said the game would stay.
-            OfferAcceptWhen = () => report is { } ready && ready.Plan.Selected.Count > 0,
+        // Only once the preview says something can go: an answer that removed nothing after the
+        // preview had said the game would stay is a press that appears to work and does not.
+        return new ConfirmScreen(
+            $"Take '{game.DisplayName}' off this device?",
+            [
+                new ConfirmButton(
+                    "Take it off",
+                    () => ScreenCommand.Replace(ApplyRemoval(session, game, report!, connect, changed)))
+                {
+                    EnabledWhen = CanGo,
+                },
+                new ConfirmButton("Keep it", () => ScreenCommand.Pop),
+            ],
+            1,
+            underneath)
+        {
+            Details = () => RemovalRows(report, unvouchable),
+            LoadingMessage = "Working out what can go...",
             Load = token =>
             {
                 var preview = games.PreviewRemoval(game.RomId);
@@ -182,12 +193,6 @@ public static class BrowseScreens
 
                 token.ThrowIfCancellationRequested();
                 return Task.FromResult<string?>(null);
-            },
-            Verbs = (action, _) => action switch
-            {
-                NavAction.Accept when report is { } ready && ready.Plan.Selected.Count > 0 =>
-                    ScreenCommand.Push(ApplyRemoval(session, game, ready, connect, changed)),
-                _ => null,
             },
         }.Started();
     }
@@ -250,11 +255,6 @@ public static class BrowseScreens
                 return null;
             },
 
-            // Back closes this screen and the preview under it, landing on the game's detail,
-            // which re-reads its rows. Popping one would leave the preview on the stack holding
-            // the report from before the removal, still offering to take off a game that is
-            // already gone. The set-side removal pops past its preview for the same reason.
-            OnBack = () => ScreenCommand.PopMany(2),
         }.Started();
     }
 

@@ -34,8 +34,8 @@ The set's screen shows what it holds, how much RomM says that weighs, how much i
 device with artwork, when it was last queried, and the games it skipped and why.
 
 **Querying only asks RomM what is in a set, and downloads nothing.** Syncing queries first and
-then downloads. Both need the server. Querying a large set takes minutes; press Back to stop,
-and the next query continues from where it stopped.
+then downloads. Both need the server. Querying a large set takes minutes; press Back and choose
+Stop to stop, and the next query continues from where it stopped.
 
 ## Limits on one set
 

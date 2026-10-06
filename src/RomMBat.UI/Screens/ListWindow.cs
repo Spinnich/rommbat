@@ -214,6 +214,16 @@ public static class ListWindow
         return new ListView(start, count, start, Math.Max(0, heights.Count - start - count));
     }
 
+    /// <summary>
+    /// How much room a confirmation's details have inside the box.
+    /// </summary>
+    /// <remarks>
+    /// Fixed, so the box is the same height loading, filled or scrolled, and its buttons never
+    /// move under the thumb. Five ordinary rows' worth, which leaves the question and the
+    /// buttons inside the content area of the smallest supported display.
+    /// </remarks>
+    public static double ConfirmDetailsBudget => BlockHeight(5, RowHeight);
+
     /// <summary>How tall a drawn window of rows is, rows and the gaps between them.</summary>
     public static double BlockHeight(int rows, double rowHeight, double spacing = RowSpacing) =>
         rows <= 0 ? 0 : (rows * rowHeight) + ((rows - 1) * spacing);

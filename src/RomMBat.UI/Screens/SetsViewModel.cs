@@ -153,7 +153,10 @@ public static class SetsScreens
         // is the same defect as a footer promising nothing where an action exists.
         var editable = SetEditorViewModel.ForExisting(session, detail.Set).NeedsFolderChoice;
 
-        return new ListScreen(
+        // Kept so the delete question can draw over this screen.
+        ListScreen? screen = null;
+
+        screen = new ListScreen(
             detail.Set.Name,
             Rows,
             _ => ScreenCommand.Stay,
@@ -176,7 +179,7 @@ public static class SetsScreens
                 .. editable
                     ? new[] { new ScreenAction("Change folder", () => ScreenCommand.Push(SetEditorViewModel.ForExisting(session, detail!.Set, connect))) }
                     : [],
-                new ScreenAction("Delete set", () => ScreenCommand.Push(ConfirmDelete(session, detail!.Set.Name, connect))),
+                new ScreenAction("Delete set", () => ScreenCommand.Push(ConfirmDelete(session, detail!.Set.Name, connect, screen))),
             ],
             // Every row here is a fact rather than a choice, so the cursor has nowhere to sit
             // and the accept hint was suppressed while Verbs went on handling the press. The
@@ -191,6 +194,8 @@ public static class SetsScreens
                 _ => null,
             },
         };
+
+        return screen;
     }
 
     private static List<ListRow> DetailRows(InstallSession session, SetDetail detail)
@@ -253,8 +258,8 @@ public static class SetsScreens
     /// Deleting, behind one confirmation, saying what each answer does before the press.
     /// </summary>
     /// <remarks>
-    /// <b>Two answers, because deleting a set and keeping its games is a legitimate thing to
-    /// want.</b> Removing is a choice here rather than an automatic consequence, which is #110's
+    /// <b>Two ways to delete, and a third answer that keeps it, because deleting a set and
+    /// keeping its games is a legitimate thing to want.</b> Removing is a choice here rather than an automatic consequence, which is #110's
     /// own rule.
     /// <para>
     /// <b>Dropping a set can remove games.</b> Eviction is not on the interface, on the ruling
@@ -269,48 +274,59 @@ public static class SetsScreens
     public static IScreen ConfirmDelete(
         InstallSession session,
         string name,
-        Func<Uri, RomMConnection>? connect = null)
+        Func<Uri, RomMConnection>? connect = null,
+        IScreen? underneath = null)
     {
         ArgumentNullException.ThrowIfNull(session);
 
-        return new ListScreen(
+        // Three answers, keeping it selected first. Taking the games off opens the preview of
+        // what would go in this box's place, so nothing goes before it has been seen.
+        return new ConfirmScreen(
             $"Delete '{name}'?",
             [
-                new ListRow(
-                    "Delete it and take its games off this device",
-                    null,
-                    "Shows what would go before anything goes. Saves and save states are never "
-                        + "removed, and a game another set still wants is kept."),
-                new ListRow(
-                    "Delete it and leave the games where they are",
-                    null,
-                    "The set is forgotten. Nothing on disk is touched and no game is removed."),
+                new ConfirmButton(
+                    "Delete with games",
+                    () => ScreenCommand.Replace(ConfirmRemoval(session, name, connect, underneath))),
+                new ConfirmButton(
+                    "Delete, keep games",
+                    () =>
+                    {
+                        new SyncSetService(session).Remove(name);
+
+                        // Back to the list, closing the detail screen underneath, whose set no
+                        // longer exists.
+                        return ScreenCommand.PopMany(2);
+                    }),
+                new ConfirmButton("Keep it", () => ScreenCommand.Pop),
             ],
-            index =>
-            {
-                if (index == 0)
-                {
-                    return ScreenCommand.Push(ConfirmRemoval(session, name, connect));
-                }
-
-                new SyncSetService(session).Remove(name);
-
-                // Back to the list, closing the detail screen underneath, whose set no longer
-                // exists. A message screen here would say the right sentence at the wrong
-                // moment and leave the only way onward being to quit RomMBat entirely.
-                return ScreenCommand.PopMany(2);
-            },
-            acceptLabel: "Choose",
-            backLabel: "Keep it");
+            2,
+            underneath)
+        {
+            Details = () =>
+            [
+                new ListRow(
+                    "With games",
+                    null,
+                    "Takes its games off this device. Shows what would go before anything goes. "
+                        + "Saves and save states are never removed, and a game another set still "
+                        + "wants is kept.",
+                    false),
+                new ListRow(
+                    "Keep games",
+                    null,
+                    "The set is forgotten. Nothing on disk is touched and no game is removed.",
+                    false),
+            ],
+        };
     }
 
     /// <summary>
     /// What deleting a set would take off the device, before it takes anything.
     /// </summary>
     /// <remarks>
-    /// <b>The preview is the screen rather than a flag.</b> <c>sync</c>'s <c>--dry-run</c> names
-    /// one command's flag; here the preview is simply what the user is looking at, and the
-    /// footer is what commits.
+    /// <b>The preview is the question's details rather than a flag.</b> <c>sync</c>'s
+    /// <c>--dry-run</c> names one command's flag; here the preview is simply what the user is
+    /// looking at, and the box's answer is what commits.
     /// <para>
     /// <b>The flush runs first, inside the load.</b> The commonest <see cref="SaveGuard"/>
     /// refusal is a save that has not reached the server, and flushing resolves it rather than
@@ -318,16 +334,16 @@ public static class SetsScreens
     /// state: an unsent save then holds its game back, which is the correct answer.
     /// </para>
     /// <para>
-    /// A <c>ListScreen</c> with a loader rather than a screen kind of its own. The work is two
-    /// scans and a plan, measured in seconds on a real install, and doing it on the drawing
-    /// thread is what made an earlier eviction preview freeze for four seconds with nothing on
-    /// screen saying why.
+    /// Loaded off the drawing thread by the box's own loader. The work is two scans and a plan,
+    /// measured in seconds on a real install, and on the drawing thread it freezes the screen
+    /// with nothing on it saying why.
     /// </para>
     /// </remarks>
     public static IScreen ConfirmRemoval(
         InstallSession session,
         string name,
-        Func<Uri, RomMConnection>? connect = null)
+        Func<Uri, RomMConnection>? connect = null,
+        IScreen? underneath = null)
     {
         ArgumentNullException.ThrowIfNull(session);
 
@@ -346,31 +362,26 @@ public static class SetsScreens
         IReadOnlyList<string> unvouchable = [];
         string? flushNote = null;
 
-        return new ListScreen(
+        // Offered as soon as the preview lands, whatever it says, because **the set goes either
+        // way**. Gating it on there being a game to remove made an empty set undeletable, and
+        // the same dead end met a set whose every game another set still claimed. What the user
+        // asked for is granted as far as it can be, and the details say what stayed and why.
+        return new ConfirmScreen(
             $"Remove the games in '{name}'?",
-            () => RemovalRows(report, unvouchable, flushNote),
-            _ => ScreenCommand.Stay,
-            acceptLabel: "Delete the set",
-            backLabel: "Keep them")
+            [
+                new ConfirmButton(
+                    "Delete the set",
+                    () => ScreenCommand.Replace(ApplyRemoval(session, name, report!)))
+                {
+                    EnabledWhen = () => report is not null,
+                },
+                new ConfirmButton("Keep them", () => ScreenCommand.Pop),
+            ],
+            1,
+            underneath)
         {
-            Reading = true,
+            Details = () => RemovalRows(report, unvouchable, flushNote),
             LoadingMessage = "Sending saves, then working out what can go...",
-
-            // Offered exactly when it works, and there was no hint here at all: the footer read
-            // "Keep them" and nothing else, so from the couch the only answer this screen
-            // appeared to have was the one that changes nothing.
-            // Accept, not Start. A screen that asks a yes-or-no question is answered with the
-            // confirm button, which is the model EmulationStation itself uses and the one a
-            // hands-on pass asked for. AlwaysOfferAccept is what lets a screen of facts offer
-            // it, since every row here is a fact and the cursor has nowhere choosable to sit.
-            //
-            // Offered as soon as the preview lands, whatever it says, because **the set goes
-            // either way**. Gating it on there being a game to remove made an empty set
-            // undeletable: a person picked "take its games off", got a screen with nothing to
-            // press, and had to know to back out and choose the other answer. The same dead end
-            // met a set whose every game another set still claimed. What the user asked for is
-            // granted as far as it can be, and the rows say what stayed and why.
-            OfferAcceptWhen = () => report is not null,
             Load = async token =>
             {
                 flushNote = await FlushBeforeRemovalAsync(session, connect, token).ConfigureAwait(false);
@@ -379,12 +390,6 @@ public static class SetsScreens
                 unvouchable = eviction.Unvouchable(romIds);
 
                 return null;
-            },
-            Verbs = (action, _) => action switch
-            {
-                NavAction.Accept when report is { } ready =>
-                    ScreenCommand.Push(ApplyRemoval(session, name, ready)),
-                _ => null,
             },
         }.Started();
     }
@@ -423,11 +428,10 @@ public static class SetsScreens
                 return null;
             },
 
-            // Back lands on the sets list, closing this screen, the preview, the confirmation
-            // and the set's own detail. The set is gone, so all four describe something that no
-            // longer exists, and leaving them on the stack would mean four presses through three
-            // stale screens to reach the list. The keep-the-games path pops for the same reason.
-            OnBack = () => ScreenCommand.PopMany(4),
+            // Back lands on the sets list, closing this screen and the set's own detail, which
+            // describes a set that no longer exists. The confirmation was replaced by this
+            // screen, so it is not on the stack. The keep-the-games path pops for the same reason.
+            OnBack = () => ScreenCommand.PopMany(2),
         }.Started();
     }
 

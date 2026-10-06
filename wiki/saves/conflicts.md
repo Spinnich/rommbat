@@ -12,8 +12,7 @@ until you decide. The main menu's Conflicts row counts how many are waiting.
 1. Choose Conflicts on the main menu, and open the save.
 2. The screen shows when the conflict was found, the save on this device, and the save on the
    server with when it last changed.
-3. Press Accept to choose which to keep, then choose Keep this device's save or Keep the
-   server's save.
+3. Press Accept, then choose This device's or The server's. Decide later is selected first.
 4. Confirm.
 
 Keeping this device's save sends it to RomM, and every other device takes it from there. RomM

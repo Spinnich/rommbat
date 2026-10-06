@@ -33,8 +33,8 @@ A collection or a filter sync set does not need it, because RomMBat asks RomM fo
 
 RomMBat names a platform or collection set after what you chose, so you type nothing. It then
 asks RomM which games are in the set straight away, which on a large library can take a few
-minutes. Press Back to stop early: what it found so far is kept, and the next query carries on
-from there. When it finishes, press Accept to reach the set.
+minutes. Press Back and choose Stop to stop early: what it found so far is kept, and the next
+query carries on from there. When it finishes, press Accept to reach the set.
 
 ## Sync it
 

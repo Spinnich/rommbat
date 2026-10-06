@@ -130,7 +130,10 @@ public static class PlatformScreens
         // says without this screen being pressed.
         PlatformMapRow Current() => session.Store.PlatformMap.Find(platform.FsSlug) ?? platform;
 
-        return new ListScreen(
+        // Kept so the question draws over this screen.
+        ListScreen? screen = null;
+
+        screen = new ListScreen(
             platform.Label,
             () => DetailRows(Current()),
             _ => ScreenCommand.Stay,
@@ -149,7 +152,7 @@ public static class PlatformScreens
             [
                 new ScreenAction("Choose a folder", () => ScreenCommand.Push(FolderPicker(session, Current()))),
                 .. Current().IsUserChoice
-                    ? new[] { new ScreenAction("Use the automatic choice", () => ScreenCommand.Push(ClearConfirm(session, Current()))) }
+                    ? new[] { new ScreenAction("Use the automatic choice", () => ScreenCommand.Push(ClearConfirm(session, Current(), screen))) }
                     : [],
             ],
 
@@ -157,6 +160,8 @@ public static class PlatformScreens
                 ? ScreenCommand.Push(FolderPicker(session, Current()))
                 : null,
         };
+
+        return screen;
     }
 
     private static List<ListRow> DetailRows(PlatformMapRow platform)
@@ -255,52 +260,39 @@ public static class PlatformScreens
     }
 
     /// <summary>Dropping a choice so the automatic chain answers again.</summary>
-    private static ListScreen ClearConfirm(InstallSession session, PlatformMapRow platform)
+    private static ConfirmScreen ClearConfirm(InstallSession session, PlatformMapRow platform, IScreen? underneath)
     {
-        var cleared = false;
+        ConfirmScreen? box = null;
 
-        return new ListScreen(
+        box = new ConfirmScreen(
             $"Stop choosing for {platform.Label}?",
-            () =>
             [
-                cleared
-                    ? new ListRow(
-                        "Done",
-                        null,
-                        "The next time RomMBat resolves this platform it works the folder out "
-                            + "again. Until then it has none.",
-                        false)
-                    : new ListRow(
-                        "Your choice is dropped",
-                        platform.Folder ?? "none",
-                        "RomMBat works the folder out again from RomM's own name and its bundled "
-                            + "table. Games already downloaded stay where they are.",
-                        false),
+                new ConfirmButton(
+                    "Drop it",
+                    () =>
+                    {
+                        session.Store.PlatformMap.ClearOverride(platform.FsSlug, DateTimeOffset.UtcNow);
+
+                        return box!.Answer(
+                            $"Stopped choosing for {platform.Label}. The next time RomMBat resolves this "
+                                + "platform it works the folder out again. Until then it has none.");
+                    }),
+                new ConfirmButton("Back", () => ScreenCommand.Pop),
             ],
-            _ => ScreenCommand.Stay,
-            // Constant, not a ternary over cleared: the constructor's labels are read once,
-            // with the flag still false. OfferAcceptWhen is what withdraws the hint.
-            acceptLabel: "Drop it",
-            backLabel: "Back")
+            1,
+            underneath)
         {
-            Reading = true,
-            TitleWhen = () => cleared
-                ? $"Stopped choosing for {platform.Label}"
-                : $"Stop choosing for {platform.Label}?",
-            OfferAcceptWhen = () => !cleared,
-            BackLabelWhen = () => cleared ? "Done" : "Back",
-
-            Verbs = (action, _) =>
-            {
-                if (action != NavAction.Accept || cleared)
-                {
-                    return null;
-                }
-
-                session.Store.PlatformMap.ClearOverride(platform.FsSlug, DateTimeOffset.UtcNow);
-                cleared = true;
-                return ScreenCommand.Stay;
-            },
+            Details = () =>
+            [
+                new ListRow(
+                    "Your choice is dropped",
+                    platform.Folder ?? "none",
+                    "RomMBat works the folder out again from RomM's own name and its bundled table. "
+                        + "Games already downloaded stay where they are.",
+                    false),
+            ],
         };
+
+        return box;
     }
 }

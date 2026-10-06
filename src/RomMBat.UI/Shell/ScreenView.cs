@@ -1188,11 +1188,17 @@ internal static class ScreenView
     }
 
     /// <summary>
-    /// The question and its row of answers, each answer the same size selected or not.
+    /// The question, its details when it has any, and its row of answers, each answer the same
+    /// size selected or not.
     /// </summary>
+    /// <remarks>
+    /// The details area is a fixed height whenever the box has details at all, loading, filled,
+    /// scrolled or empty, so the buttons never move under the thumb as a preview lands.
+    /// </remarks>
     private static Border ConfirmPanel(ConfirmScreen confirm)
     {
         var stack = new StackPanel { Spacing = 22 };
+        var hasDetails = confirm.Details is not null && !confirm.IsAnswered;
 
         stack.Children.Add(new TextBlock
         {
@@ -1201,6 +1207,11 @@ internal static class ScreenView
             FontSize = 22,
             TextWrapping = TextWrapping.Wrap,
         });
+
+        if (hasDetails)
+        {
+            stack.Children.Add(ConfirmDetails(confirm));
+        }
 
         var buttons = new StackPanel
         {
@@ -1211,6 +1222,7 @@ internal static class ScreenView
 
         for (var index = 0; index < confirm.Buttons.Count; index++)
         {
+            var button = confirm.Buttons[index];
             var selected = index == confirm.Selected;
 
             buttons.Children.Add(new Border
@@ -1223,8 +1235,8 @@ internal static class ScreenView
                 MinWidth = 160,
                 Child = new TextBlock
                 {
-                    Text = confirm.Buttons[index].Label,
-                    Foreground = selected ? Brushes.Black : Ink,
+                    Text = button.Label,
+                    Foreground = selected ? Brushes.Black : button.Enabled ? Ink : Muted,
                     FontSize = 20,
                     HorizontalAlignment = HorizontalAlignment.Center,
                 },
@@ -1240,8 +1252,49 @@ internal static class ScreenView
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(12),
             Padding = new Thickness(32, 26, 32, 26),
-            Width = PopupWidth,
+
+            // Wider with details, which are a pane of facts drawn at the status screen's
+            // measures, and fixed either way so the box cannot breathe as it fills.
+            Width = hasDetails ? ListWidth + 64 : PopupWidth,
             Child = stack,
+        };
+    }
+
+    /// <summary>A confirmation's details: the loading line, the problem, or a window of facts.</summary>
+    private static Border ConfirmDetails(ConfirmScreen confirm)
+    {
+        var area = new StackPanel { Spacing = ListWindow.StatusLineSpacing };
+
+        if (confirm.IsLoading || confirm.LoadProblem is not null)
+        {
+            area.Children.Add(new TextBlock
+            {
+                Text = confirm.IsLoading ? confirm.LoadingMessage : confirm.LoadProblem,
+                Foreground = confirm.IsLoading ? Muted : Warn,
+                FontSize = 19,
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+        else
+        {
+            var window = confirm.Window;
+
+            area.Children.Add(More(window.Above, "above"));
+
+            for (var index = window.Start; index < window.Start + window.Count; index++)
+            {
+                var row = confirm.Rows[index];
+                area.Children.Add(Row(new StatusRow(row.Label, row.Value ?? string.Empty, row.Detail)));
+            }
+
+            area.Children.Add(More(window.Below, "below"));
+        }
+
+        return new Border
+        {
+            Height = ListWindow.ConfirmDetailsBudget + 40,
+            ClipToBounds = true,
+            Child = area,
         };
     }
 

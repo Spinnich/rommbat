@@ -25,11 +25,15 @@ They follow EmulationStation's own: Start opens a menu there too, and Accept pic
 **Accept never changes a value.** It opens a list to choose from. To step through choices in
 place, use Left and Right.
 
-**Back never saves or deletes anything, and never stops a sync without asking.** Leaving a
-screen with unsaved changes asks whether to discard them, and stopping a sync asks first, because
-the game it is downloading is removed. Stopping a query does not ask, because nothing is lost: the
-next query carries on from where it stopped. In every such question
-the answer that changes nothing is selected, so pressing Accept or Back straight away is safe.
+**Back never saves, deletes or stops anything without asking.** Leaving a screen with
+unsaved changes asks whether to discard them, and stopping a sync or a query asks first.
+
+**Every question looks the same:** a box over the screen it is about, with its answers in a row.
+Left and Right choose an answer, Accept gives it, and Back always gives the answer that changes
+nothing. That answer is selected when the box opens, so pressing Accept or Back straight away is
+safe. When there is something to read first, such as which games a delete would take off, it is
+in the box above the answers, and Up and Down scroll it. Once you answer, the box says what
+happened, and Done closes it.
 
 When a screen has finished its work, its footer says Done, and Accept or Back leaves it.
 

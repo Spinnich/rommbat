@@ -754,9 +754,12 @@ public sealed class BrowseScreenTests : IDisposable
         var depth = navigator.Depth;
 
         ActionMenuDriver.Choose(navigator, "Take it off this device");
-        var preview = Assert.IsType<ListScreen>(navigator.Current);
+        var preview = Assert.IsType<ConfirmScreen>(navigator.Current);
+        Assert.Same(detail, preview.Underneath);
         await Wait(() => !preview.IsLoading);
 
+        // Keep it is selected first; taking it off is one to the left.
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
         var applying = Assert.IsType<ListScreen>(navigator.Current);
         await Wait(() => !applying.IsLoading);
@@ -838,9 +841,10 @@ public sealed class BrowseScreenTests : IDisposable
         using var detail = Assert.IsType<ListScreen>(navigator.Current);
 
         ActionMenuDriver.Choose(navigator, "Take it off this device");
-        using var preview = Assert.IsType<ListScreen>(navigator.Current);
+        using var preview = Assert.IsType<ConfirmScreen>(navigator.Current);
         await Wait(() => !preview.IsLoading);
 
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
         var applying = Assert.IsType<ListScreen>(navigator.Current);
         await Wait(() => !applying.IsLoading);

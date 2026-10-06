@@ -22,13 +22,15 @@ and the outbox are Core's.
 - **No primary flow needs a mouse.**
 - A physical keyboard drives it at a desk, and is not a supported user flow: arrows move, Enter
   is A, Escape is B, Backspace or PageUp is L1, PageDown is R1, Tab is the left face button, Q
-  the top one, F5 is Start.
+  the top one, F5 is Start. A connected controller is read through the same `es_input.cfg` a
+  real install uses.
 - **Start is the menu, never a verb.** A screen lists its verbs as `ScreenAction`s and the
   navigator owns Start and the shortcuts; drive one in a test through `Navigator.Press` or
   `Navigator.Run`, because the screen's own `Handle` no longer sees them. Accept confirms or
-  moves on, and Back never commits: an editor saves from its last row, and anything Back would
-  lose is asked through `ConfirmScreen`. A connected controller is read
-  through the same `es_input.cfg` a real install uses.
+  moves on, and Back never commits: an editor saves from its last row.
+- **Every confirmation is a `ConfirmScreen`**, with the safe answer selected first and given by
+  Back. A preview goes in its `Details` and `Load`; an answer that acts in place ends in
+  `Answer(outcome)`. Never build a confirmation from a `ListScreen`.
 - **Reference `Avalonia.Win32`, `Avalonia.Skia` and `Avalonia.HarfBuzz`, never
   `Avalonia.Desktop`.** The last pulls in a package that fails `-warnaserror`. Without
   `UseHarfBuzz` the app builds clean and throws at startup; `TextShapingTests` guards it.

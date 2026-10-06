@@ -58,11 +58,14 @@ public static class QueuedChangeScreens
             ];
         }
 
-        return new ListScreen(
+        // Kept so the question draws over this list.
+        ListScreen? screen = null;
+
+        screen = new ListScreen(
             "Queued changes",
             Rows,
             index => shown[index].IsOutstanding
-                ? ScreenCommand.Push(CancelConfirm(session, shown[index]))
+                ? ScreenCommand.Push(CancelConfirm(session, shown[index], screen))
                 : ScreenCommand.Stay,
             acceptLabel: "Cancel this change",
             backLabel: "Back")
@@ -72,6 +75,8 @@ public static class QueuedChangeScreens
                 + "are looking at this.",
             Note = () => Note(session),
         };
+
+        return screen;
     }
 
     /// <summary>The line above the rows, which says why anything is waiting at all.</summary>
@@ -116,52 +121,41 @@ public static class QueuedChangeScreens
     /// set up from the console lands, and the row does not say enough on its own for a mispress
     /// to be obviously wrong.
     /// </remarks>
-    private static ListScreen CancelConfirm(InstallSession session, PendingConfig change)
+    private static ConfirmScreen CancelConfirm(InstallSession session, PendingConfig change, IScreen? underneath)
     {
-        var cancelled = false;
+        ConfirmScreen? box = null;
 
-        return new ListScreen(
+        box = new ConfirmScreen(
             "Cancel this change?",
-            () =>
             [
-                cancelled
-                    ? new ListRow(
-                        "Canceled",
-                        null,
-                        "Nothing was written and nothing will be. The setting stays as it is.",
-                        false)
-                    : new ListRow(
-                        change.FsName,
-                        change.System,
-                        // The stored reason is a phrase, not a sentence, because the list
-                        // row prints it after the system's name.
-                        $"Queued: {change.Reason.TrimEnd('.')}. Nothing has been written yet, so "
-                            + "canceling leaves the setting exactly as it is now.",
-                        false),
+                new ConfirmButton(
+                    "Cancel it",
+                    () =>
+                    {
+                        session.Store.PendingConfig.Cancel(change.System, change.FsName, change.SettingKey);
+
+                        return box!.Answer(
+                            "Change canceled. Nothing was written and nothing will be. The setting stays as it is.");
+                    }),
+                new ConfirmButton("Keep it queued", () => ScreenCommand.Pop),
             ],
-            _ => ScreenCommand.Stay,
-            acceptLabel: "Cancel it",
-            backLabel: "Keep it queued")
+            1,
+            underneath)
         {
-            Reading = true,
-            TitleWhen = () => cancelled ? "Change canceled" : "Cancel this change?",
-            OfferAcceptWhen = () => !cancelled,
-
-            // Once it is canceled there is nothing left to keep, and Back is the only way out.
-            BackLabelWhen = () => cancelled ? "Done" : "Keep it queued",
-
-            Verbs = (action, _) =>
-            {
-                if (action != NavAction.Accept || cancelled)
-                {
-                    return null;
-                }
-
-                session.Store.PendingConfig.Cancel(change.System, change.FsName, change.SettingKey);
-                cancelled = true;
-                return ScreenCommand.Stay;
-            },
+            Details = () =>
+            [
+                new ListRow(
+                    change.FsName,
+                    change.System,
+                    // The stored reason is a phrase, not a sentence, because the list row prints
+                    // it after the system's name.
+                    $"Queued: {change.Reason.TrimEnd('.')}. Nothing has been written yet, so "
+                        + "canceling leaves the setting exactly as it is now.",
+                    false),
+            ],
         };
+
+        return box;
     }
 
     /// <summary>
@@ -212,7 +206,7 @@ public static class QueuedChangeScreens
     /// thing a person needs to know while they can still decline.
     /// </para>
     /// </remarks>
-    public static IScreen Convert(InstallSession session, int romId, string title)
+    public static IScreen Convert(InstallSession session, int romId, string title, IScreen? underneath = null)
     {
         ArgumentNullException.ThrowIfNull(session);
 
@@ -222,84 +216,63 @@ public static class QueuedChangeScreens
         // queue, so previewing an apply would describe a refusal about something it never does.
         var preview = converter.PreviewQueue(romId);
 
-        ConversionResult? queued = null;
+        ConfirmScreen? box = null;
 
-        return new ListScreen(
+        // Offered only while the converter says it would work.
+        box = new ConfirmScreen(
             $"Give '{title}' its own memory card?",
-            () =>
             [
-                queued is { } done
-                    ? done.Ok
-                        // Not done.Detail, which is the console's line and names the raw
-                        // es_settings.cfg key.
-                        ? new ListRow(
-                            "Queued",
-                            null,
-                            "RomMBat makes the change when you next quit EmulationStation. Until "
-                                + "then nothing is written, and Queued changes can cancel it.",
-                            false)
-                        : new ListRow("Not queued", null, done.Detail, false)
-                    : new ListRow(
-                        "What changes",
-                        null,
-                        // A ready preview's detail is the console's line, naming the raw key;
-                        // a refusal's is the reason, which is worth showing as it is.
-                        preview.Status == ConversionStatus.Ready
-                            ? "This game gets a memory card of its own, which RomMBat syncs like "
-                                + "any other save."
-                            : preview.Detail,
-                        false),
+                new ConfirmButton(
+                    "Queue it",
+                    () =>
+                    {
+                        var queued = converter.Queue(romId);
+
+                        // Not the console's line on success, which names the raw es_settings.cfg
+                        // key; a refusal's is the reason, which is worth showing as it is.
+                        return box!.Answer(queued.Ok
+                            ? $"Memory card change queued for '{title}'. RomMBat makes the change when "
+                                + "you next quit EmulationStation. Until then nothing is written, and "
+                                + "Queued changes can cancel it."
+                            : $"Nothing queued for '{title}'. {queued.Detail}");
+                    })
+                {
+                    EnabledWhen = () => preview.Status == ConversionStatus.Ready,
+                },
+                new ConfirmButton("Leave it alone", () => ScreenCommand.Pop),
+            ],
+            1,
+            underneath)
+        {
+            Details = () =>
+            [
+                new ListRow(
+                    "What changes",
+                    null,
+                    // A ready preview's detail is the console's line, naming the raw key; a
+                    // refusal's is the reason, which is worth showing as it is.
+                    preview.Status == ConversionStatus.Ready
+                        ? "This game gets a memory card of its own, which RomMBat syncs like any "
+                            + "other save."
+                        : preview.Detail,
+                    false),
 
                 // Core's warning stops short of how to undo it, because the console's answer is
                 // a flag; once the change is applied, undoing it is the console's alone.
-                .. (queued is null && preview.Warning is { } warning)
+                .. preview.Warning is { } warning
                     ? new[] { new ListRow("Worth knowing", null, warning, false) }
                     : [],
 
-                .. queued is null
-                    ?
-                    [
-                        new ListRow(
-                            "When",
-                            "on quitting",
-                            "Nothing is written now. RomMBat holds the change and makes it when "
-                                + "you next quit EmulationStation, which is the only time it can.",
-                            false),
-                    ]
-                    : Array.Empty<ListRow>(),
+                new ListRow(
+                    "When",
+                    "on quitting",
+                    "Nothing is written now. RomMBat holds the change and makes it when you next "
+                        + "quit EmulationStation, which is the only time it can.",
+                    false),
             ],
-            _ => ScreenCommand.Stay,
-            acceptLabel: "Queue it",
-            backLabel: "Leave it alone")
-        {
-            Reading = true,
-
-            TitleWhen = () => queued switch
-            {
-                null => $"Give '{title}' its own memory card?",
-                { Ok: true } => $"Memory card change queued for '{title}'",
-                _ => $"Nothing queued for '{title}'",
-            },
-
-            // The offer is gone once the change is queued, so leaving is finishing rather than
-            // declining.
-            BackLabelWhen = () => queued is null ? "Leave it alone" : "Done",
-
-            // Offered once, and only while the converter still says it would work. A second
-            // press would replace the row it just wrote, which reads as nothing happening.
-            OfferAcceptWhen = () => queued is null && preview.Status == ConversionStatus.Ready,
-
-            Verbs = (action, _) =>
-            {
-                if (action != NavAction.Accept || queued is not null)
-                {
-                    return null;
-                }
-
-                queued = converter.Queue(romId);
-                return ScreenCommand.Stay;
-            },
         };
+
+        return box;
     }
 
     private static string Moment(DateTimeOffset? moment) =>

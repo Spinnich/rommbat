@@ -106,13 +106,18 @@ public class ConflictScreenTests : IDisposable
         var reassurance = detail.Rows.Single(r => r.Label == "Either way");
         Assert.Contains("nothing is deleted", reassurance.Value!, StringComparison.OrdinalIgnoreCase);
 
-        // Neither side is one press: the confirm button opens the choice, the choice opens a
-        // confirmation, and only that acts. The commonest mispress asks a question.
-        var sides = Assert.IsType<ListScreen>(Navigator.Press(detail, NavAction.Accept).Screen);
-        Assert.Equal(2, sides.Rows.Count);
+        // Neither side is one press: the confirm button opens the choice, with deciding later
+        // selected, a side opens its own confirmation, and only that acts.
+        var sides = Assert.IsType<ConfirmScreen>(Navigator.Press(detail, NavAction.Accept).Screen);
+        Assert.Equal(3, sides.Buttons.Count);
+        Assert.Equal("Decide later", sides.Buttons[sides.Selected].Label);
+        Assert.Equal(ScreenCommandKind.Pop, sides.Handle(NavAction.Accept).Kind);
 
-        var confirm = Assert.IsType<ListScreen>(sides.Handle(NavAction.Accept).Screen);
-        Assert.Equal("Keep this device's save?", confirm.Title);
+        sides.Handle(NavAction.Left);
+        sides.Handle(NavAction.Left);
+        var confirm = Assert.IsType<ConfirmScreen>(sides.Handle(NavAction.Accept).Screen);
+        Assert.Equal("Keep this device's save?", confirm.Question);
+        Assert.Equal("Back", confirm.Buttons[confirm.Selected].Label);
         Assert.Single(_session.Store.SaveConflicts.ListOpen());
     }
 
@@ -280,9 +285,12 @@ public class ConflictScreenTests : IDisposable
 
         var navigator = new Navigator(ConflictScreens.Detail(session, opened, null, () => pairing));
 
-        // Choose, keep this device's save, then confirm it.
+        // Choose, move to this device's save and pick it, then move to Send it and confirm.
         navigator.Handle(NavAction.Accept);
+        navigator.Handle(NavAction.Left);
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
 
         var applying = Assert.IsType<ListScreen>(navigator.Current);

@@ -204,6 +204,79 @@ public sealed class ControlGrammarTests
     }
 
     [Fact]
+    public async Task A_confirmation_with_a_preview_cannot_be_answered_until_the_preview_lands()
+    {
+        var release = new TaskCompletionSource();
+        var ran = 0;
+        var rows = new List<ListRow>();
+
+        var box = new ConfirmScreen(
+            "Remove these?",
+            [
+                new ConfirmButton("Remove", () =>
+                {
+                    ran++;
+                    return ScreenCommand.Pop;
+                })
+                {
+                    EnabledWhen = () => rows.Count > 0,
+                },
+                new ConfirmButton("Keep them", () => ScreenCommand.Pop),
+            ],
+            1)
+        {
+            Details = () => rows,
+            LoadingMessage = "Working out what can go...",
+            Load = async token =>
+            {
+                await release.Task.WaitAsync(token);
+                rows.Add(new ListRow("It goes", "1 KB", "Saves are never removed.", false));
+                return null;
+            },
+        }.Started();
+
+        // While it loads the risky answer cannot be reached, so neither button nor a stray
+        // press can act on a preview nobody has seen.
+        Assert.True(box.IsLoading);
+        box.Handle(NavAction.Left);
+        Assert.Equal("Keep them", box.Buttons[box.Selected].Label);
+        Assert.Empty(box.Rows);
+
+        release.SetResult();
+
+        for (var attempt = 0; attempt < 200 && box.IsLoading; attempt++)
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        Assert.Equal("It goes", Assert.Single(box.Rows).Label);
+
+        box.Handle(NavAction.Left);
+        Assert.Equal("Remove", box.Buttons[box.Selected].Label);
+        box.Handle(NavAction.Accept);
+        Assert.Equal(1, ran);
+
+        box.Dispose();
+    }
+
+    [Fact]
+    public void An_answered_confirmation_says_what_happened_and_offers_only_done()
+    {
+        ConfirmScreen? box = null;
+
+        box = ConfirmScreen.YesNo("Drop it?", "Drop", () => box!.Answer("Dropped. It exists only here."), "Keep");
+
+        box.Handle(NavAction.Left);
+        Assert.Equal(ScreenCommandKind.Stay, box.Handle(NavAction.Accept).Kind);
+
+        Assert.True(box.IsAnswered);
+        Assert.Equal("Dropped. It exists only here.", box.Question);
+        Assert.Equal(ListScreen.DoneLabel, Assert.Single(box.Buttons).Label);
+        Assert.Equal(ScreenCommandKind.Pop, box.Handle(NavAction.Accept).Kind);
+        Assert.Equal(ScreenCommandKind.Pop, box.Handle(NavAction.Back).Kind);
+    }
+
+    [Fact]
     public void A_finished_screen_leaves_on_the_confirm_button_and_says_done_there()
     {
         var finished = new ListScreen("Finished", [new ListRow("It happened", null, null, false)], _ => ScreenCommand.Stay, string.Empty, ListScreen.DoneLabel)
