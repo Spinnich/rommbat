@@ -101,6 +101,17 @@ class name, the log says nothing more, and there is no timeout: three launchers 
 seven hours later. `tools/m0-probes/probe2-install-emulator.ps1` answers it by pressing Enter on
 the one visible top-level window the launcher owns.
 
+## RB-420. A zip the launcher extracted ends on an untitled "keep the uncompressed game?" modal
+
+Verified: RetroBat 8.3.0-beta, 2026-10-06. How: launched `gba` under `nosgba` on a `.zip` through `emulatorLauncher`, closed NO\$GBA with `WM_CLOSE`, and watched the windows the launcher raised.
+For an emulator that cannot read an archive, the launcher extracts the game to
+`roms\.uncompressed\<system>\<zip>\` and starts the emulator on the extracted file. After the
+emulator exits, it shows _"Do you want to keep the uncompressed game for further use?"_ with Yes
+and No, Yes focused. It looks like RB-50's dialog: no title, a `MainWindowHandle` of 0, and no
+timeout. The launcher stays running until the dialog is answered, so a game can look as if it never
+ended. Right, then Enter answers No, which deletes `roms\.uncompressed`. NO\$GBA itself exits on
+`WM_CLOSE`.
+
 ## RB-374. BizHawk crashes when `emulatorLauncher` is run without `-core`
 
 Verified: RetroBat 8.2.0, 2026-08-08. How: launched `bizhawk` with and without `-core`, then read `Bizhawk.Controllers.cs`.
