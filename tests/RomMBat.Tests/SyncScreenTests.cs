@@ -539,6 +539,126 @@ public sealed class SyncScreenTests : IDisposable
     // ------------------------------------------------------------------ the screen holds still
 
     [Fact]
+    public async Task Every_state_a_sync_passes_through_draws_the_same_slots_at_the_same_heights()
+    {
+        // #490. Each line was added only once it had a value and the body is centered, so the
+        // screen jumped between games and again when the run ended. Recorded from a real run,
+        // one game of which fails, so the walk includes a problem as well as the end.
+        using var stub = Library(3);
+        Pair();
+        Seed("games", 3);
+        stub.Content[stub.Library[1].Id] = new byte[2048];
+
+        var seen = new System.Collections.Concurrent.ConcurrentQueue<SyncSnapshot>();
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+
+        seen.Enqueue(sync.State);
+        sync.Invalidated += (_, _) => seen.Enqueue(sync.State);
+
+        await SettledAsync(sync);
+        seen.Enqueue(sync.State);
+
+        // The walk is only evidence if it went through the states that used to move.
+        Assert.Contains(seen, state => state.Game is not null);
+        Assert.Contains(seen, state => state.Stage == SyncStage.Working && state.Game is null);
+        Assert.Contains(seen, state => state.Problems.Count > 0);
+        Assert.Contains(seen, state => state.Outcome is not null);
+
+        Assert.Single(seen.Select(state => Shape(state.Layout)).Distinct());
+
+        sync.Dispose();
+    }
+
+    [Theory]
+    [InlineData(SyncStage.Working)]
+    [InlineData(SyncStage.Done)]
+    [InlineData(SyncStage.Stopped)]
+    [InlineData(SyncStage.Incomplete)]
+    [InlineData(SyncStage.Blocked)]
+    [InlineData(SyncStage.Refused)]
+    [InlineData(SyncStage.NotPaired)]
+    [InlineData(SyncStage.Rejected)]
+    public void A_sync_lays_out_the_same_slots_in_every_stage_full_or_empty(SyncStage stage)
+    {
+        // The states a stub run cannot reach on demand: every stage, with every field empty and
+        // with every field set, a cap and a hold included.
+        var empty = new SyncSnapshot(stage, "Starting.");
+        var full = new SyncSnapshot(
+            stage,
+            "Some games could not be fetched: RomM refused them, or what arrived could not be "
+                + "verified or written here. Syncing again may not fix it, so check the problems listed.",
+            Pass: "Fetching games...",
+            Game: "A game with a name long enough to be trimmed rather than wrapped onto a second line",
+            Done: 3,
+            Total: 40,
+            BudgetUsed: 1_000_000,
+            BudgetCap: 2_000_000,
+            Blocked: 2,
+            TransferredBytes: 500,
+            TotalBytes: 1000,
+            GameTransferred: 10,
+            GameTotal: 20,
+            BytesPerSecond: 4096,
+            Problems: [.. Enumerable.Range(1, 30).Select(index => new string('x', index * 9))]);
+
+        var expected = Shape(new SyncSnapshot(SyncStage.Working, "Starting.").Layout);
+
+        Assert.Equal(expected, Shape(empty.Layout));
+        Assert.Equal(expected, Shape(full.Layout));
+    }
+
+    [Fact]
+    public async Task Every_state_a_query_passes_through_draws_the_same_slots_at_the_same_heights()
+    {
+        // The same rule as the sync screen: the outcome word, the set line and the bar used to
+        // arrive as they got values, and each one moved the rest.
+        using var stub = Library(3);
+        Pair();
+        Seed("games", 3);
+
+        var seen = new System.Collections.Concurrent.ConcurrentQueue<IReadOnlyList<ProgressSlot>>();
+        var resolve = new ResolveViewModel(_session, Set(), Connect(stub));
+
+        seen.Enqueue(resolve.Layout);
+        resolve.Invalidated += (_, _) => seen.Enqueue(resolve.Layout);
+
+        await SettledAsync(resolve);
+        seen.Enqueue(resolve.Layout);
+
+        Assert.Contains(seen, layout => layout.Single(slot => slot.Name == "outcome").Text.Length == 0);
+        Assert.Contains(seen, layout => layout.Single(slot => slot.Name == "outcome").Text.Length > 0);
+        Assert.Single(seen.Select(Shape).Distinct());
+
+        resolve.Dispose();
+    }
+
+    [Fact]
+    public void The_problems_box_keeps_the_newest_that_fit_inside_its_lines()
+    {
+        // Long and short together, so the box is filled by line rather than by count.
+        IReadOnlyList<string> problems =
+        [
+            "the oldest, which falls off",
+            new string('a', 250),
+            "short",
+            new string('b', 150),
+            "newest",
+        ];
+
+        var kept = ProgressLayout.Fit(problems);
+
+        // 2 + 1 + 2 + 1 is six, and the oldest would be a seventh. The long one is given two
+        // lines, not three, so one sentence cannot take the box.
+        Assert.Equal([problems[1], "short", problems[3], "newest"], kept.Select(line => line.Text));
+        Assert.Equal([2, 1, 2, 1], kept.Select(line => line.Lines));
+        Assert.True(kept.Sum(line => line.Lines) <= ProgressLayout.ProblemLines);
+    }
+
+    /// <summary>What a layout reserves, without what it says.</summary>
+    private static string Shape(IReadOnlyList<ProgressSlot> layout) =>
+        string.Join(" | ", layout.Select(slot => $"{slot.Name}:{slot.Style}:{slot.Lines}"));
+
+    [Fact]
     public void A_progress_line_keeps_its_unit_and_its_width_as_it_fills()
     {
         // A hands-on pass on a set of small ROMs reported the text vibrating, which it called
@@ -592,8 +712,8 @@ public sealed class SyncScreenTests : IDisposable
         await SettledAsync(sync);
 
         Assert.True(
-            sync.State.Problems.Count > SyncViewModel.ProblemsShown,
-            $"the fixture produced only {sync.State.Problems.Count} problems");
+            ProgressLayout.Fit(sync.State.Problems).Count < sync.State.Problems.Count,
+            $"the fixture produced only {sync.State.Problems.Count} problems, and all of them fit");
 
         var offer = Assert.Single(sync.Actions, action => action.Label.StartsWith("See all", StringComparison.Ordinal));
         Assert.Contains(
@@ -855,7 +975,7 @@ public sealed class SyncScreenTests : IDisposable
         var sync = new SyncViewModel(_session, Set(), Connect(stub));
         await SettledAsync(sync);
 
-        Assert.True(sync.State.Problems.Count <= SyncViewModel.ProblemsShown);
+        Assert.Equal(sync.State.Problems.Count, ProgressLayout.Fit(sync.State.Problems).Count);
         Assert.Empty(sync.Actions);
         Assert.DoesNotContain(sync.Hints, hint => hint.Action == NavAction.Start);
 
@@ -1184,11 +1304,10 @@ public sealed class SyncScreenTests : IDisposable
         switch (screen)
         {
             case SyncViewModel sync:
-                yield return sync.State.Detail;
-
-                foreach (var text in new[] { sync.State.Pass, sync.State.Game, sync.State.Counted, sync.State.Budget })
+                // Read from the layout, because the renderer draws that and nothing else.
+                foreach (var slot in sync.State.Layout)
                 {
-                    if (text is not null)
+                    foreach (var text in new[] { slot.Text, slot.Right, slot.Heading }.Where(text => text.Length > 0))
                     {
                         yield return text;
                     }

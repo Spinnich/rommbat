@@ -41,8 +41,12 @@ internal static class ScreenView
         ListScreen list => List(list),
         SetEditorViewModel editor => Editor(editor.Rows, editor.Cursor, editor.Window, editor.Problem),
         BudgetViewModel budget => Editor(budget.Rows, budget.Cursor, budget.Window, null),
-        ResolveViewModel resolve => Resolve(resolve),
-        SyncViewModel sync => Sync(sync),
+        ResolveViewModel resolve => Progress(resolve.Layout),
+
+        // Read once, into the layout: the snapshot is published from whichever thread is doing
+        // the transfer, so two reads could draw a game name from one moment beside a count from
+        // another.
+        SyncViewModel sync => Progress(sync.State.Layout),
 
         // The same body a ListScreen draws, given the same things. Browse is a list with a pager
         // behind it rather than a different picture, and a second copy of this in the file most
@@ -52,7 +56,8 @@ internal static class ScreenView
             note: browse.Note,
             isLoading: browse.IsLoading,
             loadingMessage: browse.LoadingMessage,
-            empty: "Nothing matched. Search for something else, or widen the platform."),
+            empty: "Nothing matched. Search for something else, or widen the platform.",
+            pager: true),
 
         _ => new TextBlock { Text = screen.Title, Foreground = Ink },
     };
@@ -403,11 +408,15 @@ internal static class ScreenView
     /// </remarks>
     private static StackPanel List(ListScreen list) => List(
         list,
-        list.Note?.Invoke(),
+
+        // Empty rather than null once a screen has a note at all, so the slot is kept when it
+        // has nothing to say.
+        list.Note is { } note ? note() ?? string.Empty : null,
         list.IsLoading,
         list.LoadingMessage,
         list.LoadProblem ?? list.EmptyMessage,
-        list.Progress);
+        list.Progress,
+        list.Counts);
 
     /// <summary>
     /// The list body, given only what it draws.
@@ -426,7 +435,9 @@ internal static class ScreenView
         bool isLoading,
         string? loadingMessage,
         string? empty,
-        LoadProgress? progress = null)
+        LoadProgress? progress = null,
+        bool counts = false,
+        bool pager = false)
     {
         var rows = screen.Rows;
         var stack = new StackPanel
@@ -443,22 +454,40 @@ internal static class ScreenView
             Width = ListWidth,
         };
 
-        if (!string.IsNullOrEmpty(note))
+        // Reserved on every screen that has one, empty or not, and cut at its budget. Browse
+        // blanks its note while a page loads, and a note that came and went moved the rows
+        // under it with every page turned (#490).
+        if (note is not null)
         {
             stack.Children.Add(new TextBlock
             {
                 Text = note,
                 Foreground = Muted,
                 FontSize = 17,
-                MaxWidth = 900,
+                LineHeight = NoteLine,
+                Height = ListWindow.NoteLines * NoteLine,
+                MaxLines = ListWindow.NoteLines,
+                Width = 900,
                 TextWrapping = TextWrapping.Wrap,
+                TextTrimming = TextTrimming.CharacterEllipsis,
                 Margin = new Thickness(0, 0, 0, 6),
             });
         }
 
+        // Under the note, so a pager can hold it at the height of a full page. Browse swaps a
+        // page of rows for one loading line on every page turned, and the body is centered, so
+        // the note and the frame jumped each time.
+        var body = new StackPanel
+        {
+            Spacing = stack.Spacing,
+            Height = pager ? ListWindow.PagerHeight : double.NaN,
+        };
+
+        stack.Children.Add(body);
+
         if (isLoading)
         {
-            stack.Children.Add(new TextBlock
+            body.Children.Add(new TextBlock
             {
                 Text = loadingMessage ?? "Working...",
                 Foreground = Muted,
@@ -472,31 +501,19 @@ internal static class ScreenView
             // Only when the work can count itself. A bar over a single request would be a
             // fiction; a bar over five thousand filesystem checks is the difference between a
             // screen that is working and one that has hung, which is what a hands-on pass said
-            // of this one.
-            if (progress is { } far)
+            // of this one. Once it can, the track and the count are drawn from the start of the
+            // load rather than from its first report, so the message does not jump up when the
+            // first one lands.
+            if (counts)
             {
-                stack.Children.Add(new Border
-                {
-                    Background = Panel,
-                    CornerRadius = new CornerRadius(6),
-                    Height = 18,
-                    Width = SyncColumn,
-                    Margin = new Thickness(0, 14, 0, 6),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Child = new Border
-                    {
-                        Background = Accent,
-                        CornerRadius = new CornerRadius(6),
-                        Width = Math.Max(6, SyncColumn * far.Fraction),
-                        HorizontalAlignment = HorizontalAlignment.Left,
-                    },
-                });
+                body.Children.Add(Bar(progress?.Fraction, 14));
 
-                stack.Children.Add(new TextBlock
+                body.Children.Add(new TextBlock
                 {
-                    Text = far.Counted,
+                    Text = progress?.Counted ?? string.Empty,
                     Foreground = Muted,
                     FontSize = 17,
+                    Height = 24,
                     TextAlignment = TextAlignment.Center,
                     HorizontalAlignment = HorizontalAlignment.Center,
                 });
@@ -507,7 +524,7 @@ internal static class ScreenView
 
         if (rows.Count == 0)
         {
-            stack.Children.Add(new TextBlock
+            body.Children.Add(new TextBlock
             {
                 Text = empty ?? "Nothing here.",
                 Foreground = Muted,
@@ -530,14 +547,14 @@ internal static class ScreenView
         // Both markers always, empty when there is nothing to say. Adding and removing them as
         // the cursor reaches an end changed the height of the whole block, and the block is
         // centered, so the list visibly resized and shifted while being scrolled.
-        stack.Children.Add(More(window.Above, "above"));
+        body.Children.Add(More(window.Above, "above"));
 
         for (var index = window.Start; index < window.Start + window.Count; index++)
         {
-            stack.Children.Add(ListItem(rows[index], index == screen.Cursor, screen.Reading));
+            body.Children.Add(ListItem(rows[index], index == screen.Cursor, screen.Reading));
         }
 
-        stack.Children.Add(More(window.Below, "below"));
+        body.Children.Add(More(window.Below, "below"));
 
         return stack;
     }
@@ -558,7 +575,7 @@ internal static class ScreenView
 
             // Reserved whether or not it says anything, so the block does not change height as
             // the cursor reaches an end.
-            Height = 20,
+            Height = ListWindow.MoreHeight,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
 
@@ -691,6 +708,9 @@ internal static class ScreenView
     /// </remarks>
     private const double ListWidth = 980;
 
+    /// <summary>One line of a list's note, at 17px.</summary>
+    private const double NoteLine = 23;
+
     /// <summary>
     /// A form whose values are stepped rather than typed.
     /// </summary>
@@ -791,350 +811,224 @@ internal static class ScreenView
     }
 
     /// <summary>
-    /// A resolve while it runs.
-    /// </summary>
-    /// <remarks>
-    /// <b>The count is the point of the screen.</b> A platform resolve measured 8m 15s against
-    /// a live instance, and one that cannot show movement is, from a sofa, the same screen as
-    /// a hung one. The bar appears only once the server has said how big the scope is, because
-    /// before that it would sit at zero and look stuck.
-    /// </remarks>
-    private static StackPanel Resolve(ResolveViewModel resolve)
-    {
-        var stack = new StackPanel
-        {
-            Spacing = 22,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            MaxWidth = 900,
-        };
-
-        if (resolve.Outcome is { } finished)
-        {
-            stack.Children.Add(Outcome(finished));
-        }
-
-        stack.Children.Add(new TextBlock
-        {
-            Text = resolve.Detail,
-            Foreground = Ink,
-            FontSize = 21,
-            MaxWidth = 860,
-            TextWrapping = TextWrapping.Wrap,
-            TextAlignment = TextAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        });
-
-        if (resolve.Progressing is { } where)
-        {
-            stack.Children.Add(new TextBlock
-            {
-                Text = where,
-                Foreground = Ink,
-                FontSize = 21,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            });
-        }
-
-        if (resolve.Counted is { } counted)
-        {
-            stack.Children.Add(new TextBlock
-            {
-                Text = counted,
-                Foreground = Muted,
-                FontSize = 24,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            });
-        }
-
-        if (resolve.Progress?.Fraction is { } fraction)
-        {
-            stack.Children.Add(new Border
-            {
-                Background = Panel,
-                CornerRadius = new CornerRadius(6),
-                Height = 18,
-                Width = SyncColumn,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Child = new Border
-                {
-                    Background = Accent,
-                    CornerRadius = new CornerRadius(6),
-                    Width = Math.Max(6, SyncColumn * fraction),
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                },
-            });
-        }
-
-        return stack;
-    }
-
-    /// <summary>
-    /// The fixed width every line of the sync screen is laid out in.
+    /// The fixed width every line of a progress screen is laid out in.
     /// </summary>
     /// <remarks>
     /// <b>A centered <c>TextBlock</c> is as wide as its text, so it re-centers whenever the text
-    /// changes width.</b> This screen rebuilds up to eight times a second and almost every line
-    /// on it is a number, so each redraw nudged the whole column sideways. A hands-on pass on a
-    /// set of small ROMs called it double vision. Giving every volatile line the bar's own width
-    /// and centering the text inside it makes the box still and lets only the glyphs change.
+    /// changes width.</b> The sync screen rebuilds up to eight times a second and almost every
+    /// line on it is a number, so each redraw nudged the whole column sideways. A hands-on pass
+    /// on a set of small ROMs called it double vision. Giving every volatile line the bar's own
+    /// width and centering the text inside it makes the box still and lets only the glyphs
+    /// change.
     /// </remarks>
     private const double SyncColumn = 620;
 
+    /// <summary>How wide a sentence or a problem on a progress screen may run.</summary>
+    private const double ProgressText = 860;
+
     /// <summary>
-    /// A sync, which is the busiest screen here and the only one that spends the user's disk.
+    /// A sync or a query, drawn as the slots its view model lays out.
     /// </summary>
     /// <remarks>
+    /// <b>Every slot at its reserved height, whether or not it has anything to say.</b> The body
+    /// is centered, so a line that appeared or wrapped moved everything around it, and the
+    /// screen jumped between games and again when the run ended (#490). Which slots there are,
+    /// and how many lines each is given, is <see cref="ProgressLayout"/>'s; this draws them.
+    /// <para>
     /// <b>Fixed fields that update in place, plus problems that accumulate.</b> A live tail of
     /// forty games in three minutes is unreadable from a sofa and the count already says how
-    /// many went by; what cannot be reconstructed afterwards is what failed, so that is what
-    /// is kept on screen.
-    /// <para>
-    /// <b>Read once, into a local.</b> The value is published from whatever thread is doing the
-    /// transfer, so reading the property twice while building this could draw a game name from
-    /// one moment beside a count from another.
+    /// many went by; what cannot be reconstructed afterwards is what failed, so that is what is
+    /// kept on screen.
     /// </para>
     /// </remarks>
-    private static StackPanel Sync(SyncViewModel sync)
+    private static StackPanel Progress(IReadOnlyList<ProgressSlot> slots)
     {
-        var state = sync.State;
-
         var stack = new StackPanel
         {
             Spacing = 18,
             HorizontalAlignment = HorizontalAlignment.Center,
-            MaxWidth = 900,
+            Width = 900,
         };
 
-        if (state.Outcome is { } finished)
+        foreach (var slot in slots)
         {
-            stack.Children.Add(Outcome(finished));
-        }
-
-        stack.Children.Add(new TextBlock
-        {
-            Text = state.Detail,
-            Foreground = Ink,
-            FontSize = 21,
-            MaxWidth = 860,
-            TextWrapping = TextWrapping.Wrap,
-            TextAlignment = TextAlignment.Center,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        });
-
-        if (state.Pass is { } pass)
-        {
-            stack.Children.Add(new TextBlock
+            stack.Children.Add(slot.Style switch
             {
-                Text = pass,
-                Foreground = Accent,
-                FontSize = 15,
-                HorizontalAlignment = HorizontalAlignment.Center,
+                SlotStyle.Bar => Bar(slot.Fraction, 0),
+                SlotStyle.Split => Split(slot),
+                SlotStyle.Problems => Problems(slot),
+                _ => SlotText(slot),
             });
-        }
-
-        if (state.Game is { } game)
-        {
-            stack.Children.Add(new TextBlock
-            {
-                Text = game,
-                Foreground = Ink,
-                FontSize = 24,
-                Width = SyncColumn,
-                TextAlignment = TextAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            });
-        }
-
-        // The game's own progress as text, not a second bar. On a set of small ROMs a per-game
-        // bar fills and empties several times a second, which a hands-on pass reported as
-        // flashing rather than as progress.
-        if (state.GameProgress is { } inGame)
-        {
-            stack.Children.Add(new TextBlock
-            {
-                Text = inGame,
-                Foreground = Muted,
-                FontSize = 15,
-                Width = SyncColumn,
-                TextAlignment = TextAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            });
-        }
-
-        if (state.Counted is { } counted)
-        {
-            stack.Children.Add(new TextBlock
-            {
-                Text = counted,
-                Foreground = Muted,
-                FontSize = 21,
-                Width = SyncColumn,
-                TextAlignment = TextAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            });
-        }
-
-        // One bar, for the run, measured in bytes. Games are not the same size, so a bar over
-        // the count of them moves in lurches that mean nothing: forty cartridges and one disc
-        // are both "1 of 2".
-        if (state.Fraction is { } fraction)
-        {
-            stack.Children.Add(new Border
-            {
-                Background = Panel,
-                CornerRadius = new CornerRadius(6),
-                Height = 18,
-                Width = 620,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Child = new Border
-                {
-                    Background = Accent,
-                    CornerRadius = new CornerRadius(6),
-                    Width = Math.Max(6, 620 * fraction),
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                },
-            });
-        }
-
-        if (state.Transferred is { } transferred)
-        {
-            // Two anchored halves rather than one centered line. The rate and the total change
-            // independently, and a single centered string moves both of them whenever either
-            // changes width. Here the transferred count grows leftwards from a fixed edge and
-            // the rate grows rightwards from another, so neither pushes the other.
-            var line = new Grid
-            {
-                Width = SyncColumn,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                ColumnDefinitions = new ColumnDefinitions("*,*"),
-            };
-
-            var moved = new TextBlock
-            {
-                Text = transferred,
-                Foreground = Muted,
-                FontSize = 15,
-                TextAlignment = TextAlignment.Right,
-                Margin = new Thickness(0, 0, 18, 0),
-            };
-
-            Grid.SetColumn(moved, 0);
-            line.Children.Add(moved);
-
-            if (state.Speed is { } speed)
-            {
-                var rate = new TextBlock
-                {
-                    Text = speed,
-                    Foreground = Muted,
-                    FontSize = 15,
-                    TextAlignment = TextAlignment.Left,
-                    Margin = new Thickness(18, 0, 0, 0),
-                };
-
-                Grid.SetColumn(rate, 1);
-                line.Children.Add(rate);
-            }
-
-            stack.Children.Add(line);
-        }
-
-        // On this screen because this is where it is being spent.
-        if (state.Budget is { } budget)
-        {
-            stack.Children.Add(new TextBlock
-            {
-                Text = $"Disk used  {budget}",
-                Foreground = Muted,
-                FontSize = 15,
-                Width = SyncColumn,
-                TextAlignment = TextAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            });
-        }
-
-        // Beside the budget, because that is what took them, and with no offer to fix it.
-        if (state.Held is { } held)
-        {
-            stack.Children.Add(new TextBlock
-            {
-                Text = held,
-                Foreground = Muted,
-                FontSize = 15,
-                Width = SyncColumn,
-                TextAlignment = TextAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            });
-        }
-
-        if (state.Problems.Count > 0)
-        {
-            stack.Children.Add(Problems(state.Problems));
         }
 
         return stack;
     }
 
+    /// <summary>A size, a color and a line height for each style of text slot.</summary>
+    private static (double Size, double Line, IBrush Ink, double Width) Look(SlotStyle style) => style switch
+    {
+        // The outcome in the accent color above the sentence, in the treatment the problems
+        // heading uses, so it reads as a label on the screen rather than one more line of
+        // detail. A finished bar and a stalled one are the same picture; this word is the
+        // difference.
+        SlotStyle.Outcome => (15, 20, Accent, SyncColumn),
+        SlotStyle.Detail => (21, 28, Ink, ProgressText),
+        SlotStyle.Pass => (15, 20, Accent, SyncColumn),
+        SlotStyle.Lead => (24, 32, Ink, SyncColumn),
+        SlotStyle.Count => (21, 28, Muted, SyncColumn),
+        _ => (15, 20, Muted, SyncColumn),
+    };
+
+    private static TextBlock SlotText(ProgressSlot slot)
+    {
+        var (size, line, ink, width) = Look(slot.Style);
+
+        return new TextBlock
+        {
+            Text = slot.Style == SlotStyle.Outcome ? slot.Text.ToUpperInvariant() : slot.Text,
+            Foreground = ink,
+            FontSize = size,
+            LineHeight = line,
+            Width = width,
+
+            // Reserved whether or not there is text, and cut at the budget, so neither an empty
+            // slot nor a long sentence changes the height of the block.
+            Height = slot.Lines * line,
+            MaxLines = slot.Lines,
+            TextWrapping = slot.Lines > 1 ? TextWrapping.Wrap : TextWrapping.NoWrap,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+    }
+
     /// <summary>
-    /// What went wrong, oldest first, bounded to what fits.
+    /// A progress bar, or its empty track while how far is not known.
+    /// </summary>
+    /// <remarks>
+    /// The track always, because a bar that appeared once the size was known pushed everything
+    /// under it down. The run's bar is measured in bytes: games are not the same size, so a bar
+    /// over the count of them moves in lurches that mean nothing, forty cartridges and one disc
+    /// both being "1 of 2".
+    /// </remarks>
+    private static Border Bar(double? fraction, double above) =>
+        new()
+        {
+            Background = Panel,
+            CornerRadius = new CornerRadius(6),
+            Height = 18,
+            Width = SyncColumn,
+            Margin = new Thickness(0, above, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Child = fraction is { } far
+                ? new Border
+                {
+                    Background = Accent,
+                    CornerRadius = new CornerRadius(6),
+                    Width = Math.Max(6, SyncColumn * far),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                }
+                : null,
+        };
+
+    /// <summary>
+    /// Two anchored halves rather than one centered line.
+    /// </summary>
+    /// <remarks>
+    /// The rate and the total change independently, and a single centered string moves both of
+    /// them whenever either changes width. Here the transferred count grows leftwards from a
+    /// fixed edge and the rate grows rightwards from another, so neither pushes the other.
+    /// </remarks>
+    private static Grid Split(ProgressSlot slot)
+    {
+        var line = new Grid
+        {
+            Width = SyncColumn,
+            Height = 20,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            ColumnDefinitions = new ColumnDefinitions("*,*"),
+        };
+
+        var moved = new TextBlock
+        {
+            Text = slot.Text,
+            Foreground = Muted,
+            FontSize = 15,
+            TextAlignment = TextAlignment.Right,
+            Margin = new Thickness(0, 0, 18, 0),
+        };
+
+        Grid.SetColumn(moved, 0);
+        line.Children.Add(moved);
+
+        var rate = new TextBlock
+        {
+            Text = slot.Right,
+            Foreground = Muted,
+            FontSize = 15,
+            TextAlignment = TextAlignment.Left,
+            Margin = new Thickness(18, 0, 0, 0),
+        };
+
+        Grid.SetColumn(rate, 1);
+        line.Children.Add(rate);
+
+        return line;
+    }
+
+    /// <summary>
+    /// What went wrong, the newest that fit, in a box of a fixed height.
     /// </summary>
     /// <remarks>
     /// <b>The newest are kept when there are too many.</b> A run that fails every game produces
     /// one line each, and the first six of forty identical sentences are the least useful six:
     /// the count says how many there were and the tail says what was happening most recently.
     /// <para>
-    /// <b>The rest are reachable, which they were not.</b> A hands-on pass hit twenty-seven
-    /// problems and could read six, with no press that offered the other twenty-one. The count
-    /// is <see cref="SyncViewModel.ProblemsShown"/> so the footer's offer and this cut cannot
-    /// drift apart.
+    /// <b>The rest are reachable.</b> A hands-on pass hit twenty-seven problems and could read
+    /// six, with no press that offered the other twenty-one. Which fit is
+    /// <see cref="ProgressLayout.Fit"/>, which the sync screen's offer reads too, so the box and
+    /// the offer cannot drift apart.
     /// </para>
     /// </remarks>
-    private static StackPanel Problems(IReadOnlyList<string> problems)
+    private static StackPanel Problems(ProgressSlot slot)
     {
-        var stack = new StackPanel { Spacing = 6, MaxWidth = 860 };
+        const double Line = 20;
 
-        stack.Children.Add(new TextBlock
+        var lines = new StackPanel
         {
-            Text = problems.Count == 1 ? "PROBLEM" : $"PROBLEMS ({problems.Count})",
-            Foreground = Accent,
-            FontSize = 13,
-        });
+            Height = slot.Lines * Line,
+            Width = ProgressText,
+        };
 
-        foreach (var problem in problems.Skip(Math.Max(0, problems.Count - SyncViewModel.ProblemsShown)))
+        foreach (var item in slot.Items)
         {
-            stack.Children.Add(new TextBlock
+            lines.Children.Add(new TextBlock
             {
-                Text = problem,
+                Text = item.Text,
                 Foreground = Muted,
                 FontSize = 15,
-                MaxWidth = 860,
+                LineHeight = Line,
+                Height = item.Lines * Line,
+                MaxLines = item.Lines,
                 TextWrapping = TextWrapping.Wrap,
+                TextTrimming = TextTrimming.CharacterEllipsis,
             });
         }
 
-        return stack;
-    }
+        var box = new StackPanel { Spacing = 6, Width = ProgressText };
 
-    /// <summary>
-    /// That the work on this screen has stopped happening, said in as many words.
-    /// </summary>
-    /// <remarks>
-    /// <b>A finished progress bar and a stalled one are the same picture.</b> A hands-on pass
-    /// sat on a resolve at 107 of 107 under a full bar and could not tell whether the last game
-    /// had hung. Drawn in the accent color above the sentence, in the same treatment the
-    /// problems heading already uses, so it reads as a label on the screen rather than as one
-    /// more line of detail. The word itself comes from the view model, because which one
-    /// applies is a fact about the outcome.
-    /// </remarks>
-    private static TextBlock Outcome(string word) =>
-        new()
+        box.Children.Add(new TextBlock
         {
-            Text = word.ToUpperInvariant(),
+            Text = slot.Heading,
             Foreground = Accent,
-            FontSize = 15,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
+            FontSize = 13,
+            Height = 18,
+        });
+
+        box.Children.Add(lines);
+
+        return box;
+    }
 
     /// <summary>
     /// The screen a popup was opened from, dimmed, drawn exactly where it was.

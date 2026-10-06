@@ -1700,12 +1700,8 @@ public sealed class SetsScreenTests : IDisposable
                 break;
 
             case ResolveViewModel resolve:
-                text.Add(resolve.Detail);
-
-                if (resolve.Counted is { } counted)
-                {
-                    text.Add(counted);
-                }
+                // Read from the layout, because the renderer draws that and nothing else.
+                text.AddRange(resolve.Layout.Select(slot => slot.Text).Where(slot => slot.Length > 0));
 
                 break;
 

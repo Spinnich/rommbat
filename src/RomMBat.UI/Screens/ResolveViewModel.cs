@@ -185,6 +185,33 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
                 ? string.Create(CultureInfo.CurrentCulture, $"{started.Offset:N0} games looked at")
                 : null;
 
+    /// <summary>
+    /// Everything the screen draws, as the same slots in every stage.
+    /// </summary>
+    /// <remarks>
+    /// <b>The count is the point of the screen.</b> A platform resolve measured 8m 15s against
+    /// a live instance, and one that cannot show movement is, from a sofa, the same screen as a
+    /// hung one. The bar is the empty track until the server has said how big the scope is,
+    /// because a fraction before that would sit at zero and look stuck. Read once, because the
+    /// walk publishes from the thread pool.
+    /// </remarks>
+    public IReadOnlyList<ProgressSlot> Layout
+    {
+        get
+        {
+            var progress = _progress;
+
+            return
+            [
+                new("outcome", SlotStyle.Outcome, 1) { Text = Outcome ?? string.Empty },
+                new("detail", SlotStyle.Detail, ProgressLayout.DetailLines) { Text = Detail },
+                new("set", SlotStyle.Lead, 1) { Text = Progressing ?? string.Empty },
+                new("count", SlotStyle.Count, 1) { Text = Counted ?? string.Empty },
+                new("bar", SlotStyle.Bar, 1) { Fraction = progress?.Fraction },
+            ];
+        }
+    }
+
     public IReadOnlyList<FooterHint> Hints => Stage switch
     {
         // Says what the press leads to, as the sync screen's does. The question it opens says

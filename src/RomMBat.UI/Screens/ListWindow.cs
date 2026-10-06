@@ -47,6 +47,22 @@ public static class ListWindow
 
     public const double RowSpacing = 14;
 
+    /// <summary>The line above or below a window that counts what is off it, drawn empty or not.</summary>
+    public const double MoreHeight = 20;
+
+    /// <summary>Lines a list's note is given, reserved whether or not it says anything.</summary>
+    public const int NoteLines = 2;
+
+    /// <summary>
+    /// How tall a pager's rows are drawn, full page or not.
+    /// </summary>
+    /// <remarks>
+    /// A full window of ordinary rows between its two markers. Held while a page loads, so
+    /// turning one does not collapse the block to a single line and back.
+    /// </remarks>
+    public static double PagerHeight =>
+        (2 * MoreHeight) + (2 * RowSpacing) + BlockHeight(Capacity, RowHeight);
+
     /// <summary>
     /// A row on a list that is read rather than chosen from, whose detail is a whole sentence.
     /// </summary>
