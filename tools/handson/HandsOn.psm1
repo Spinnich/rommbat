@@ -508,7 +508,7 @@ function Stop-Game {
     }
     if (-not $launcher.HasExited) {
         $shot = Save-Screenshot 'stop-game-stalled'
-        $hint = if (-not $emulatorRan -and (Get-LauncherDialog)) { 'no emulator ran and a launcher prompt is up, which Wait-Emulator answers' }
+        $hint = if (-not $emulatorRan -and (Get-LauncherDialog)) { 'a launcher prompt is up with no emulator running. Read the screenshot: Wait-Emulator answers an install prompt Yes, and a keep-uncompressed prompt wants No (Right, Enter)' }
         elseif ($Force) { 'end it from the pad or ask the maintainer' } else { 'Stop-Game -Force ends the emulator, losing a save it has not written; or end it from the pad' }
         throw "The game is still running after $TimeoutSec s; $hint. Screenshot: $shot"
     }
@@ -579,8 +579,8 @@ function Show-AgentBanner {
         Puts "agent is driving" across the top of the screen, or keeps it there, for anyone who
         switches into the session. It takes no input or focus.
     .DESCRIPTION
-        Send-Key, Start-ES, Start-RomMBatUI and Stop-Game call it, so the strip is up whenever the
-        kit acts. It goes away by itself 3 min after the kit last called it, or on Hide-AgentBanner.
+        Send-Key, Start-ES, Start-EmulatorLauncher, Start-RomMBatUI and Stop-Game call it, so the
+        strip is up whenever the kit acts. It goes away by itself 3 min after the kit last called it, or on Hide-AgentBanner.
         An emulator in exclusive full screen can draw over it.
     #>
     Set-Content -LiteralPath $script:BannerHeartbeat -Value (Get-Date -Format 'o') -NoNewline
