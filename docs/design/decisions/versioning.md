@@ -40,9 +40,8 @@ prerelease.
 
 - **Grout's `RomM.N` scheme** (`v5.3.1.2`). RomMBat has two floors, RomM and RetroBat, and a
   version string can encode only one. The RomM floor moves with every RomM stable, so upstream
-  would be choosing RomMBat's majors and RomMBat's own breaking changes would never show. RomM
-  prerelease adoption gives strings like `5.3.0-alpha.2.1`, and four-part versions do not sort
-  as SemVer.
+  would be choosing RomMBat's majors and RomMBat's own breaking changes would never show. And a
+  four-part version does not sort as SemVer.
 - **CalVer.** It says nothing about compatibility.
 
 Compatibility is read from the guide's [compatibility table](../../../wiki/reference/compatibility.md)

@@ -30,10 +30,14 @@ comments: they are this pass's starting list.
 
 ## 2. Branch
 
-After `git fetch origin`, run
+**A scout makes no branch.** It commits nothing, and a finding that needs code goes on its own
+issue's branch through `/start-issue`. Work from the main checkout, captures in the scratchpad.
+
+**An adoption** branches after `git fetch origin`. If `git worktree list` already shows
+`.claude/worktrees/upstream-<project>-<line>` (`upstream-romm-5.4`), an earlier adopt run made it:
+`cd` into it and carry on. Otherwise run
 `git worktree add -b upstream-<project>-<line> .claude/worktrees/upstream-<project>-<line> origin/main`
-(`upstream-romm-5.4`) and `cd` into it once, as `/start-issue` does and for the same reasons. A
-scout needs no branch until a finding needs code, and that code goes on its own issue's branch.
+and `cd` into it once, as `/start-issue` does and for the same reasons.
 
 ## 3. Run the track
 
