@@ -380,6 +380,11 @@ internal static class ScreenView
                     $"{requirement.Name} (missing {string.Join(", ", missing)})",
                     15));
             }
+
+            if (pairing.DeviceCheck is { } check)
+            {
+                stack.Children.Add(Labelled(check.IsWarning ? "Warning" : "Device check", check.Message, 15));
+            }
         }
 
         return stack;

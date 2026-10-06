@@ -22,6 +22,31 @@ public sealed record PairingCompletion(
     public bool IsPaired => Outcome == PairingOutcome.Approved;
 }
 
+/// <summary>What reading the device list back after pairing showed.</summary>
+public enum DeviceCheckOutcome
+{
+    /// <summary>The token works and this install is exactly one device in RomM.</summary>
+    OneDevice,
+
+    /// <summary>Not attempted, because <c>devices.read</c> was not granted.</summary>
+    Skipped,
+
+    /// <summary>The list was read, and this device appears in it zero times or more than once.</summary>
+    Mismatch,
+
+    /// <summary>The list could not be read: no usable token, a refusal, or no answer.</summary>
+    Unverified,
+}
+
+/// <summary>The device check that follows a successful pairing.</summary>
+/// <param name="Outcome">What the check showed.</param>
+/// <param name="Message">Ready to show the user.</param>
+public sealed record DeviceCheck(DeviceCheckOutcome Outcome, string Message)
+{
+    /// <summary>True when the user should be told something may be wrong.</summary>
+    public bool IsWarning => Outcome is DeviceCheckOutcome.Mismatch or DeviceCheckOutcome.Unverified;
+}
+
 /// <summary>
 /// Device pairing, from generating the identity to writing the token down.
 /// </summary>
@@ -191,6 +216,70 @@ public sealed class PairingService
             result.Token.Device_id,
             expiresAt,
             BuildSummary(scopes, expiresAt));
+    }
+
+    /// <summary>
+    /// Confirms the stored token works and that this install shows up as one device, not two.
+    /// </summary>
+    /// <param name="connectAuthenticated">Opens a connection to the paired origin carrying a token.</param>
+    /// <remarks>
+    /// The whole point of pairing on a stored GUID rather than a MAC address is that moving
+    /// the drive updates the existing device. This is the check that proves it, and it never
+    /// undoes the pairing: whatever it finds, the token is already written down.
+    /// </remarks>
+    public async Task<DeviceCheck> VerifyDeviceAsync(
+        PairingCompletion completion,
+        Func<string, RomMConnection> connectAuthenticated,
+        string? passphrase = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(completion);
+        ArgumentNullException.ThrowIfNull(connectAuthenticated);
+
+        if (!completion.Scopes.Has(RomMScopes.DevicesRead))
+        {
+            return new DeviceCheck(
+                DeviceCheckOutcome.Skipped,
+                "Skipping the device check: devices.read was not granted.");
+        }
+
+        string token;
+        try
+        {
+            token = UnlockToken(passphrase);
+        }
+        catch (TokenUnlockException ex)
+        {
+            return new DeviceCheck(DeviceCheckOutcome.Unverified, ex.Message);
+        }
+
+        using var authenticated = connectAuthenticated(token);
+
+        try
+        {
+            var devices = await authenticated.ListDevicesAsync(cancellationToken).ConfigureAwait(false);
+            if (!devices.IsSuccess || devices.Value is null)
+            {
+                return new DeviceCheck(
+                    DeviceCheckOutcome.Unverified,
+                    $"Could not read the device list back: {devices.Message}");
+            }
+
+            var matching = devices.Value.Count(device =>
+                string.Equals(device.Id, completion.RomMDeviceId, StringComparison.Ordinal));
+
+            return matching == 1
+                ? new DeviceCheck(
+                    DeviceCheckOutcome.OneDevice,
+                    "Verified: the token works and this install is one device in RomM.")
+                : new DeviceCheck(
+                    DeviceCheckOutcome.Mismatch,
+                    $"Expected exactly one matching device in RomM, found {matching}.");
+        }
+        catch (RomMUnreachableException ex)
+        {
+            return new DeviceCheck(DeviceCheckOutcome.Unverified, $"Could not verify the pairing, {ex.Message}");
+        }
     }
 
     /// <summary>

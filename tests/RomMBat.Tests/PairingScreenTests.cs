@@ -122,7 +122,7 @@ public class PairingScreenTests
         using var pairing = new PairingViewModel(
             session,
             Origin,
-            _ => new RomMConnection(new RomMClientOptions { Origin = Origin }, stub));
+            (_, _) => new RomMConnection(new RomMClientOptions { Origin = Origin }, stub));
 
         Assert.True(
             await WaitForAsync(pairing, stage => stage == PairingStage.WaitingForApproval),
@@ -159,7 +159,7 @@ public class PairingScreenTests
         var pairing = new PairingViewModel(
             session,
             Origin,
-            _ => new RomMConnection(new RomMClientOptions { Origin = Origin }, stub));
+            (_, _) => new RomMConnection(new RomMClientOptions { Origin = Origin }, stub));
 
         Assert.True(
             await WaitForAsync(pairing, stage => stage == PairingStage.WaitingForApproval),
@@ -173,6 +173,44 @@ public class PairingScreenTests
         // Disposed twice, because the shell disposes a screen it pops and a test disposes it
         // again. The source itself is deliberately never disposed, so neither call throws.
         pairing.Dispose();
+    }
+
+    [Fact]
+    public async Task A_paired_screen_runs_the_device_check_with_the_stored_token()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+
+        using var stub = new StubRomMServer();
+        stub.ThenApproved(RomM.Client.RomMScopes.Requested, "device-77");
+        stub.DeviceIds.Add("device-77");
+
+        var tokens = new List<string?>();
+        using var pairing = new PairingViewModel(
+            session,
+            Origin,
+            (_, token) =>
+            {
+                lock (tokens)
+                {
+                    tokens.Add(token);
+                }
+
+                return new RomMConnection(new RomMClientOptions { Origin = Origin, AccessToken = token }, stub);
+            });
+
+        Assert.True(
+            await WaitForAsync(pairing, _ => pairing.DeviceCheck is not null),
+            "the paired screen never ran the device check");
+
+        Assert.Equal(PairingStage.Paired, pairing.Stage);
+        Assert.Equal(RomMBat.Core.Identity.DeviceCheckOutcome.OneDevice, pairing.DeviceCheck!.Outcome);
+
+        // The pairing itself goes out bare, and only the check carries the token it produced.
+        lock (tokens)
+        {
+            Assert.Equal([null, "rmm_" + new string('a', 64)], tokens);
+        }
     }
 
     [Fact]
