@@ -487,8 +487,7 @@ public sealed class OnScreenKeyboard : IScreen
     private ScreenCommand Commit()
     {
         // Committing an empty string would ask most callers to make sense of nothing. A search
-        // is the exception: empty is how it is cleared, and refusing it left a term that could
-        // only be replaced, never removed.
+        // is the exception: empty is how it is cleared, or a term could only ever be replaced.
         if (Text.Length == 0 && !AllowEmpty)
         {
             return ScreenCommand.Stay;

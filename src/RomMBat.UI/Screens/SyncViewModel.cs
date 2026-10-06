@@ -512,7 +512,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     /// </remarks>
     private void Stop()
     {
-        if (_stopping)
+        // A run that ended while the stop question was open has nothing to stop, and saying
+        // "Stopping" over it would misreport how it ended.
+        if (_stopping || _state.Stage != SyncStage.Working)
         {
             return;
         }

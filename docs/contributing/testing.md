@@ -43,10 +43,12 @@ await Settled(browse);                                      // poll IsLoading
 
 var navigator = new Navigator(browse);
 navigator.Handle(NavAction.Accept);                         // open the game
-navigator.Handle(NavAction.Start);                          // install it
+navigator.Handle(NavAction.Accept);                         // install it
 ```
 
-A confirm screen answers `Accept`, not `Start`. A screen of facts has no cursor and scrolls by an
+A confirm screen answers `Accept`, not `Start`, and Start only ever opens a screen's actions
+menu: drive an action with `Navigator.Press` or `Navigator.Run`, since a screen's own `Handle`
+never sees Start or a shortcut. A screen of facts has no cursor and scrolls by an
 offset, so assert on `Window.Start`, since `Cursor` is always `-1` there. With no `connect`
 factory and no pairing, browse lists what the tree holds, so the offline half needs only seeded
 `local_file` rows; `BrowseViewModel.Note` says which of the two it is showing.

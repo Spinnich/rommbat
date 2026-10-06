@@ -139,8 +139,7 @@ public sealed class ControlGrammarTests
     [Fact]
     public void A_message_inside_the_app_closes_back_to_its_screen_on_either_button()
     {
-        // It used to leave RomMBat on every button, so the confirm button on "this game cannot
-        // be put on this device" closed the app.
+        // The confirm button on "this game cannot be put on this device" must not close the app.
         foreach (var press in new[] { NavAction.Accept, NavAction.Back })
         {
             var message = new MessageScreen("Refused", "Why.");

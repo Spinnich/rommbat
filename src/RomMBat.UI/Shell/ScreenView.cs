@@ -1142,8 +1142,8 @@ internal static class ScreenView
     /// <remarks>
     /// As EmulationStation draws its menus and its message box (RB-423, RB-424): what the
     /// question is about stays in view. Drawn as the body on its own, with the popup in the
-    /// shell's overlay, because a popup sharing the body's layout made the screen behind it
-    /// jump when it opened.
+    /// shell's overlay, because a popup sharing the body's layout would move the screen behind
+    /// it when it opened.
     /// </remarks>
     private static Control Dimmed(IScreen underneath)
     {

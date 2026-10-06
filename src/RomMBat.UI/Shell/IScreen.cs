@@ -34,8 +34,8 @@ public enum ScreenCommandKind
     /// <remarks>
     /// <b>For the actions menu, whose choices belong to the screen it covers.</b> An action
     /// written as "open the editor" means open it over the set, not over the menu, so the menu
-    /// leaves first and the action runs against what is then on top. Pushing from the menu
-    /// left it underneath the screen it opened, and backing out of that reopened the menu.
+    /// leaves first and the action runs against what is then on top, and backing out of what it
+    /// opened lands on the set rather than on the menu again.
     /// </remarks>
     Dismiss,
 }
@@ -154,9 +154,8 @@ public interface IScreen
 /// </param>
 /// <remarks>
 /// <b>Start opens the menu and never commits anything itself</b>, which is EmulationStation's
-/// model: Start is MENU there, and the bottom button picks inside it (RB-423). A screen's verbs
-/// used to sit on Start, so a press of the button ES uses to open a menu saved, created or
-/// installed.
+/// model: Start is MENU there, and the bottom button picks inside it (RB-423). A press of the
+/// button ES uses to open a menu must never save, create or install.
 /// </remarks>
 public sealed record ScreenAction(string Label, Func<ScreenCommand> Run)
 {

@@ -169,6 +169,32 @@ public sealed class SyncScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task A_stop_chosen_after_the_run_finished_changes_nothing()
+    {
+        // The question covers the screen, which stops redrawing underneath it, so a run can
+        // finish while it is open. Choosing Stop then must not relabel a finished run as
+        // stopping (R1.5 on #495).
+        using var stub = Library(1);
+        Pair();
+        Seed("games", 1);
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        var confirm = Assert.IsType<ConfirmScreen>(sync.Handle(NavAction.Back).Screen);
+
+        await SettledAsync(sync);
+        var finished = sync.State;
+        Assert.Equal(SyncStage.Done, finished.Stage);
+
+        confirm.Handle(NavAction.Left);
+        confirm.Handle(NavAction.Accept);
+
+        Assert.Equal(finished.Stage, sync.State.Stage);
+        Assert.Equal(finished.Detail, sync.State.Detail);
+
+        sync.Dispose();
+    }
+
+    [Fact]
     public async Task A_stopped_run_still_writes_the_gamelist_for_what_finished()
     {
         // Found by a hands-on pass, and it is the defect this stage would most have deserved to

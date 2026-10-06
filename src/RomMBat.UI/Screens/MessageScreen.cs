@@ -8,10 +8,9 @@ namespace RomMBat.UI.Screens;
 /// </summary>
 /// <remarks>
 /// <b>Two uses, and they leave differently.</b> Inside the app it is a refusal a screen pushed,
-/// and both the bottom and right buttons close it back to that screen. It was built for the
-/// first use only, where every button left RomMBat, and was then pushed as an in-app message,
-/// so pressing the confirm button on "this game cannot be put on this device" closed the whole
-/// app. <see cref="Fatal"/> is the other use: what a refusal looks like when there is no
+/// and both the bottom and right buttons close it back to that screen, because the confirm
+/// button on "this game cannot be put on this device" must not close the whole app.
+/// <see cref="Fatal"/> is the other use: what a refusal looks like when there is no
 /// console, for the three states <see cref="Core.InstallSession"/> refuses on (no tree, a
 /// RetroBat below the floor, a store written by a newer build), where there is nothing to go
 /// back to.

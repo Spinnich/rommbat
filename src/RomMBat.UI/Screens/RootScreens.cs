@@ -10,9 +10,9 @@ namespace RomMBat.UI.Screens;
 /// The first screen, and the way to everything else.
 /// </summary>
 /// <remarks>
-/// <b>Every verb is a row, because there are more verbs than buttons.</b> Accept, Start, Extra
-/// and Alternate hold four, and conflicts, platforms, queued changes and the outbox are four
-/// more. A list grows by a row where a footer cannot grow by a button, and a row can say what it
+/// <b>Every verb is a row, because there are more verbs than buttons.</b> Accept, Alternate
+/// and Extra hold three, Start is the menu, and conflicts, platforms, queued changes and the
+/// outbox are four more. A list grows by a row where a footer cannot grow by a button, and a row can say what it
 /// is for in words rather than in a glyph a person has to have learned.
 /// <para>
 /// <b>The count that motivates a verb belongs on its own row.</b> A number a user has to know
