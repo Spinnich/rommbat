@@ -870,7 +870,7 @@ internal static class ScreenView
     /// The fixed width every line of the sync screen is laid out in.
     /// </summary>
     /// <remarks>
-    /// <b>A centered <c>TextBlock</c> is as wide as its text, so it re-centres whenever the text
+    /// <b>A centered <c>TextBlock</c> is as wide as its text, so it re-centers whenever the text
     /// changes width.</b> This screen rebuilds up to eight times a second and almost every line
     /// on it is a number, so each redraw nudged the whole column sideways. A hands-on pass on a
     /// set of small ROMs called it double vision. Giving every volatile line the bar's own width

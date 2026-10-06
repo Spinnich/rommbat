@@ -147,7 +147,7 @@ which still resolved 228, and 17:32:32Z: one flush that sent nothing, then the r
 downloads. Nothing in `RomM.Client` writes a collection either. Its one user-side write is
 `now_playing: false`, and `RomUserData` has no favorite field. The ROM had been a member since
 the set's first sync, 2026-09-12 18:03Z, origin `synced`, and the maintainer does not recall
-favouriting it. How it came to be a favorite, and why it stopped, is unexplained.
+favoriting it. How it came to be a favorite, and why it stopped, is unexplained.
 
 **Step 9 still passes on `quickerNES`**, because the step is about the re-sync: `0 downloaded, 0
 written`, `all 1 unchanged`, `gamelist.xml` identical either side. The departed game kept its

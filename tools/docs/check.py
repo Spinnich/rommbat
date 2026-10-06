@@ -86,7 +86,7 @@ GENERIC_DRY_RUN = re.compile(r"(?<![-`\w])dry-run(?!`)")
 # are American too.
 BRITISH_SPELLING = re.compile(
     r"(?<![\w.$])(?<!--)(?:"
-    r"behaviours?|colours?|favour(?:s|ed|ing|ites?)?|flavours?|honour(?:s|ed|ing)?|candour"
+    r"behaviours?|colours?|favour(?:s|ed|ing|ites?|ited|iting)?|flavours?|honour(?:s|ed|ing)?|candour"
     r"|neighbour(?:s|ing)?|licences?|defences?|centres?|centred|centring|catalogues?|analogue"
     r"|artefacts?|judgement|acknowledgement|(?:un)?cancell(?:ed|ing)|(?:mis|un)?labelled"
     r"|journalled|marshalled|modelled|travelled|totalling|whilst|amongst"
@@ -94,7 +94,7 @@ BRITISH_SPELLING = re.compile(
     r"|uninitial|local|material|normal|denormal|unnormal|optim|organ|reorgan|parameter"
     r"|parenthes|plural|quant|random|recogn|unrecogn|relativ|sanit|summar|synthes|real|util"
     r"|priorit|custom|minim|maxim|author|synchron|special|standard|visual|token|stabil"
-    r"|central|emphas|critic|apolog)is(?:e|es|ed|ing|er|ers|ation|ations|able)"
+    r"|central|emphas|critic|apolog)is(?:e|es|ed|ing|er|ers|ation|ations|able|ably)"
     r")(?!\w)",
     re.IGNORECASE,
 )

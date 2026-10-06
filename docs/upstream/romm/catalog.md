@@ -238,7 +238,7 @@ Verified: RomM 5.3.0-alpha.2, 2026-09-16, and 5.3.1, 2026-09-28. How: `tools/rom
 All 29 this account lists are public, owned by another account and filter on `favorite`. Each
 advertises between 6 and 594 ROMs and pages back 0. `refresh_smart_collection` stores
 `rom_count` and `rom_ids` as its owner computed them, and `smart_collection_id` applies the
-criteria as the caller, who has favourited none of them. RomMBat's picker shows no count for a
+criteria as the caller, who has favorited none of them. RomMBat's picker shows no count for a
 smart collection, and a resolve's `total` is its size.
 
 ## RM-14. A rescan can change a platform's `fs_slug` case, and the platform keeps its id

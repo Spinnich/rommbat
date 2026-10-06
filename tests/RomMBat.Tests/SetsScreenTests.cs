@@ -1138,7 +1138,7 @@ public sealed class SetsScreenTests : IDisposable
         var row = MoveTo(editor, "Favorite");
 
         // It was a yes-or-no toggle, so it could say "favorites only" and nothing else. RomM
-        // offers all three and "games I have not favourited" is a real thing to sync.
+        // offers all three and "games I have not favorited" is a real thing to sync.
         Assert.Equal("either", editor.Rows[row].Value);
 
         Assert.Equal(ScreenCommandKind.Stay, editor.Handle(NavAction.Accept).Kind);
