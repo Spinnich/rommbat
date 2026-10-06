@@ -218,6 +218,20 @@ the SA-1's internal RAM** as `<rom>.iram` beside the `.ram`, as it writes a DSP-
 cartridge, and `libretro`/`bsnes-jg` names its clock so it joins no rom. Evidence is under
 `R:\rommbat-evidence\snes\edge\`.
 
+**Then the maintainer raced Super Mario Kart on all fifteen rows**, on 2026-10-06, one Time Trial
+on Mario Circuit 1 per row from ES over RDP, with each row picked by `snes.emulator` and
+`snes.core` in `es_settings.cfg` and confirmed from `emulatorLauncher.log`. **Every row ran the
+DSP-1 through a full race.** The rows that share the `.srm` showed the records the rows before had
+set, and ares, BizHawk and jgenesis were each seeded from the latest file before their launch.
+Each row's save went up through the quit pass and read back `in step`, ares's `.dram` with its
+`.ram`. Every row changed the save from the one before except BizHawk's `Snes9x` core, which
+rewrote it unchanged: the game keeps five times per course, so a run outside them changes
+nothing, and the bytes cannot tell that from a save that did not land.
+
+**The new slots went up and came back.** The clock and SA-1 files the boots wrote were sent with
+`flush`, deleted, and brought back by `saves restore --apply`, each to its own path and byte for
+byte: `libretro`, `mednafen`, `ares` and `jgenesis` `:battery:rtc`, and `ares:battery:iram`.
+
 ## What the pass turned up that is not a row
 
 - **jgenesis closed once, 3.5 s into a launch from ES, with exit code 1**, and did not do so again.
@@ -238,10 +252,9 @@ cartridge, and `libretro`/`bsnes-jg` names its clock so it joins no rom. Evidenc
 
 - **Nothing about `snes` under any build but these.** Every row was measured on RetroBat 8.2.1 and
   RomM `5.3.0`.
-- **Nothing about the edge-case games' saves driven through a sync.** The five were booted and
-  closed, which shows what each row writes and names; no one saved in them, and nothing they wrote
-  was uploaded or restored.
-- **Nothing about a DSP game past its title screen**, on any row.
+- **Nothing about a played save on four of the edge-case games.** Kirby's Dream Land 3, Yoshi's
+  Island, New Horizons and Super Shell Monsters Story II were booted and closed, not played; their
+  clock and SA-1 files went up and came back from what those boots wrote.
 - **Nothing about a coprocessor this pass did not boot**: the Cx4, S-DD1, SPC7110, OBC1 and the
   DSP chips past DSP-1.
 - **Nothing about a `.smc`.** Every ROM in the set is a `.sfc`; a `.smc` can carry a 512-byte copier
