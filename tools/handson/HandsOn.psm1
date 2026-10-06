@@ -180,6 +180,9 @@ function Test-HandsOnEnv {
         $results["desktop session is Active ($(Get-SessionState))"] = (Get-SessionState) -eq 'Active'
         $busy = @(Get-TakeoverBlockers)
         $results["nothing else has the screen$(if ($busy.Count) { ': ' + ($busy -join ', ') })"] = $busy.Count -eq 0
+        # A launch stalled on a prompt looks like a game still loading.
+        $waiting = (Get-LauncherDialog) -and -not @(Get-EmulatorProcess).Count
+        $results["no emulatorLauncher prompt waiting$(if ($waiting) { ': read it with Save-Screenshot' })"] = -not $waiting
     }
 
     foreach ($entry in $results.GetEnumerator()) {
@@ -341,9 +344,103 @@ function Start-Game {
         Launches a game through ES, which runs the game-start and game-end hooks the way a
         player's launch does. -Path is the game's path as /systems/<system>/games lists it.
     #>
-    param([Parameter(Mandatory)] [string] $Path)
+    param([Parameter(Mandatory)] [string] $Path, [switch] $NoWait)
     $null = Invoke-ES '/launch' -Body $Path
     Write-Host "Launched $Path"
+    if (-not $NoWait) { $null = Wait-Emulator }
+}
+
+function Start-EmulatorLauncher {
+    <#
+    .SYNOPSIS
+        Boots one row through emulatorLauncher directly, without ES, and waits for the emulator.
+    .DESCRIPTION
+        For a boot nobody plays: a scout's smoke, a certification's launch check. No ES means no
+        hooks run, so it records no play session; Start-Game is the launch that does. Pass -Core
+        for any emulator that has one, because bizhawk crashes without it (savestates.md). -Rom is
+        a file name under roms/<system>/, or a full path.
+    #>
+    param(
+        [Parameter(Mandatory)] [string] $System,
+        [Parameter(Mandatory)] [string] $Emulator,
+        [string] $Core,
+        [Parameter(Mandatory)] [string] $Rom,
+        [int] $TimeoutSec = 300
+    )
+    Assert-TakeoverAllowed
+    Show-AgentBanner
+    $root = Get-AgentRoot
+    $romPath = if ([IO.Path]::IsPathRooted($Rom)) { $Rom } else { Join-Path $root "roms\$System\$Rom" }
+    if (-not (Test-Path -LiteralPath $romPath)) { throw "No ROM at $romPath" }
+    $arguments = "-system $System -emulator $Emulator$(if ($Core) { " -core $Core" }) -rom `"$romPath`""
+    Start-Process -FilePath (Join-Path $root 'emulationstation\emulatorLauncher.exe') -ArgumentList $arguments `
+        -WorkingDirectory (Join-Path $root 'emulationstation') | Out-Null
+    Write-Host "Launched $System/$Emulator$(if ($Core) { "/$Core" }) on $(Split-Path $romPath -Leaf)"
+    $null = Wait-Emulator -TimeoutSec $TimeoutSec
+}
+
+function Get-EmulatorProcess {
+    # Every emulator runs from <tree>\emulators\, and RomMBat's own folder there holds none.
+    $prefix = (Get-AgentRoot).TrimEnd('\', '/') + '\emulators\'
+    @(Get-Process | Where-Object {
+            $_.Path -and $_.Path.StartsWith($prefix, 'OrdinalIgnoreCase') -and
+            -not $_.Path.StartsWith("${prefix}rommbat\", 'OrdinalIgnoreCase')
+        })
+}
+
+function Get-LauncherDialog {
+    <#
+    .SYNOPSIS
+        The handle of a window emulatorLauncher has up on the tree, or $null.
+    .DESCRIPTION
+        emulatorLauncher's prompts, "not installed, install now?" before a launch and "keep the
+        uncompressed game?" after one, are full-screen windows with no title, and the process's
+        MainWindowHandle stays 0, so Get-MainWindow cannot see them. They are found by the
+        launcher's pid. Neither times out (savestates.md). Which one is up follows from whether
+        an emulator has run yet: Wait-Emulator answers the first and Stop-Game the second.
+    #>
+    $launcher = Get-AgentProcess emulatorLauncher | Select-Object -First 1
+    if (-not $launcher) { return $null }
+    [HandsOn.Windows]::VisibleOf([uint32]$launcher.Id) | Select-Object -First 1
+}
+
+function Wait-Emulator {
+    <#
+    .SYNOPSIS
+        Waits for a launch to reach a running emulator, answering Yes to emulatorLauncher's
+        "install now?" on the way, and returns the emulator's process.
+    .DESCRIPTION
+        The agent may install an emulator on its own trees (certify.md). A launcher window that
+        stays up with no emulator running is that prompt; it is screenshotted before the answer,
+        and the path printed, so the record shows what was accepted. A launcher that exits with
+        no emulator started failed to launch, and emulationstation\emulatorLauncher.log says why.
+    #>
+    param([int] $TimeoutSec = 300)
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    $launcherSeen = $false
+    $dialogSince = $null
+    $answered = $false
+    while ((Get-Date) -lt $deadline) {
+        $emulator = Get-EmulatorProcess | Select-Object -First 1
+        if ($emulator) { Write-Host "Running: $($emulator.Name)"; return $emulator }
+
+        if (Get-AgentProcess emulatorLauncher) { $launcherSeen = $true }
+        elseif ($launcherSeen) { throw 'emulatorLauncher exited without starting an emulator; emulationstation\emulatorLauncher.log says why.' }
+
+        $dialog = if (-not $answered) { Get-LauncherDialog }
+        if (-not $dialog) { $dialogSince = $null }
+        elseif (-not $dialogSince) { $dialogSince = Get-Date }
+        elseif (((Get-Date) - $dialogSince).TotalSeconds -ge 2) {
+            $shot = Save-Screenshot 'launcher-install-prompt'
+            Write-Host "emulatorLauncher is asking to install the emulator; answering Yes. Screenshot: $shot"
+            Set-WindowFocus $dialog
+            Send-Key Enter -HoldMs 80
+            $answered = $true
+        }
+        Start-Sleep -Milliseconds 500
+    }
+    $shot = Save-Screenshot 'launch-stalled'
+    throw "No emulator running after $TimeoutSec s. Screenshot: $shot"
 }
 
 function Stop-Game {
@@ -354,9 +451,15 @@ function Stop-Game {
     .DESCRIPTION
         /emukill does nothing while a game runs (RB-35). Closing the emulator's window
         (WM_CLOSE) lets it flush its save; ares can outlast 15 s on that (passes.md), so Escape,
-        the QuitEmulator key, follows. emulatorLauncher is never killed: it does the mirror.
+        the QuitEmulator key, follows. emulatorLauncher is never killed: it does the mirror. After
+        a zip it extracted, it asks whether to keep the uncompressed game; the answer is No, which
+        leaves roms\ as RomMBat synced it.
+
+        An emulator that ignores both is ended by -Force, which loses a save it had not yet
+        written, so it is opt-in. A launcher still up after its emulator has gone is a prompt,
+        not a deaf emulator.
     #>
-    param([int] $TimeoutSec = 30)
+    param([int] $TimeoutSec = 30, [switch] $Force)
     $launcher = Get-AgentProcess emulatorLauncher | Select-Object -First 1
     if (-not $launcher) { return }
     Show-AgentBanner
@@ -366,7 +469,18 @@ function Stop-Game {
 
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     $escapeSent = $false
-    while (-not $launcher.HasExited -and (Get-Date) -lt $deadline) {
+    $forced = $false
+    $dialogSince = $null
+    $declined = $false
+    while (-not $launcher.HasExited) {
+        if ((Get-Date) -ge $deadline) {
+            $running = @(Get-EmulatorProcess)
+            if (-not $Force -or $forced -or -not $running.Count) { break }
+            Write-Warning "$($running.Name -join ', ') ignored WM_CLOSE and Escape; ending it. A save it had not written is lost."
+            $running | Stop-Process -Force
+            $forced = $true
+            $deadline = (Get-Date).AddSeconds($TimeoutSec)
+        }
         Start-Sleep -Milliseconds 500
         $launcher.Refresh()
         if (-not $escapeSent -and (Get-Date) -gt $deadline.AddSeconds(-$TimeoutSec / 2)) {
@@ -374,8 +488,25 @@ function Stop-Game {
             if ($window) { Set-WindowFocus $window.MainWindowHandle; Send-Key Escape }
             $escapeSent = $true
         }
+
+        # With the emulator gone, a launcher window that stays up is the keep-uncompressed prompt.
+        $dialog = if (-not $declined -and -not @(Get-EmulatorProcess).Count) { Get-LauncherDialog }
+        if (-not $dialog) { $dialogSince = $null }
+        elseif (-not $dialogSince) { $dialogSince = Get-Date }
+        elseif (((Get-Date) - $dialogSince).TotalSeconds -ge 2) {
+            $shot = Save-Screenshot 'launcher-keep-prompt'
+            Write-Host "emulatorLauncher is asking to keep the uncompressed game; answering No. Screenshot: $shot"
+            Set-WindowFocus $dialog
+            Send-Key Right -HoldMs 80
+            Send-Key Enter -HoldMs 80
+            $declined = $true
+        }
     }
-    if (-not $launcher.HasExited) { throw "The game is still running after $TimeoutSec s; end it from the pad or ask the maintainer." }
+    if (-not $launcher.HasExited) {
+        $shot = Save-Screenshot 'stop-game-stalled'
+        $hint = if ($Force) { 'end it from the pad or ask the maintainer' } else { 'Stop-Game -Force ends the emulator, losing a save it has not written; or end it from the pad' }
+        throw "The game is still running after $TimeoutSec s; $hint. Screenshot: $shot"
+    }
     Write-Host 'Game ended'
 }
 
@@ -400,6 +531,20 @@ if (-not ('HandsOn.Native' -as [type])) {
 [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
 [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
 [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+'@
+}
+
+if (-not ('HandsOn.Windows' -as [type])) {
+    Add-Type -Namespace HandsOn -Name Windows -UsingNamespace System.Collections.Generic -MemberDefinition @'
+private delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
+[DllImport("user32.dll")] private static extern bool EnumWindows(EnumProc proc, IntPtr lParam);
+[DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hWnd);
+[DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+public static IntPtr[] VisibleOf(uint pid) {
+    var found = new List<IntPtr>();
+    EnumWindows((h, l) => { uint owner; GetWindowThreadProcessId(h, out owner); if (owner == pid && IsWindowVisible(h)) found.Add(h); return true; }, IntPtr.Zero);
+    return found.ToArray();
+}
 '@
 }
 
@@ -595,5 +740,5 @@ Add-Type -AssemblyName System.Windows.Forms
 
 Export-ModuleMember -Function Get-HandsOnEnv, Get-AgentRoot, Use-ScoutTree, Use-AgentTree, Test-HandsOnEnv, Assert-TakeoverAllowed, Show-AgentBanner, Hide-AgentBanner,
     Publish-ToAgentTree, Invoke-Agent, Connect-AgentTree,
-    Invoke-ES, Start-ES, Stop-ES, Start-Game, Stop-Game, Get-ESGames,
+    Invoke-ES, Start-ES, Stop-ES, Start-Game, Stop-Game, Get-ESGames, Start-EmulatorLauncher, Wait-Emulator, Get-LauncherDialog,
     Send-Key, Save-Screenshot, Start-RomMBatUI, Stop-RomMBatUI

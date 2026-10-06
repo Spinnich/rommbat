@@ -57,7 +57,9 @@ before starting the other's.
 | `Connect-AgentTree [-Repair]`                 | Pairs headlessly, approving with the approver token for exactly the scopes requested                |
 | `Start-ES`, `Stop-ES`                         | Start RetroBat and wait for ES's API; end any game, quit, wait for the process to exit              |
 | `Get-ESGames <system>`, `Start-Game <path>`   | List a system through ES, and launch through it so the hooks run as for a player                    |
-| `Stop-Game`                                   | WM_CLOSE to the emulator, then Escape. `/emukill` does nothing while a game runs (RB-35)            |
+| `Start-EmulatorLauncher`                      | Boot one row through `emulatorLauncher` without ES, so no hooks: `-System -Emulator -Core -Rom`     |
+| `Wait-Emulator`, `Get-LauncherDialog`         | Wait for the emulator, answering "install now?"; the handle of a launcher prompt, or nothing       |
+| `Stop-Game [-Force]`                          | WM_CLOSE, then Escape, then No to "keep the uncompressed game?". `-Force` ends a deaf emulator     |
 | `Start-RomMBatUI`, `Stop-RomMBatUI`           | The deployed `RomMBat.exe` on the tree, standalone                                                  |
 | `Send-Key <key> [-Window <proc>] [-HoldMs n]` | `keybd_event` with the scan code. `Ctrl+F2` for a chord. The UI needs `-HoldMs 60`                  |
 | `Save-Screenshot <name> [-Window <proc>]`     | A PNG under `probe-output/handson-<date>/`, path returned for the Read tool                         |
@@ -70,20 +72,29 @@ The UI's keys are its desk map: `Up`, `Down`, `Left`, `Right`, `Enter` (A), `Esc
 
 ## Rules the functions enforce
 
-- **The screen is taken only when it is free.** `Start-ES` and `Start-RomMBatUI` refuse while ES,
-  `emulatorLauncher` or RomMBat is running, from any tree, because the maintainer may be playing
-  over RDP on this machine. Ask them instead.
+- **The screen is taken only when it is free.** `Start-ES`, `Start-EmulatorLauncher` and
+  `Start-RomMBatUI` refuse while ES, `emulatorLauncher` or RomMBat is running, from any tree,
+  because the maintainer may be playing over RDP on this machine. Ask them instead.
 - **The kit says when it is driving.** The maintainer plays in the same session the kit drives,
   and switching into the RDP window to check on a pass is input Windows cannot tell from play, so
   the kit does not read input to decide. The agent says in chat before it starts driving and when
   it hands the session back, and the kit shows a red strip across the top of the screen while it
-  acts: `Send-Key`, `Start-ES`, `Start-RomMBatUI`, `Stop-Game` and
+  acts: `Send-Key`, `Start-ES`, `Start-EmulatorLauncher`, `Start-RomMBatUI`, `Stop-Game` and
   `Assert-TakeoverAllowed -WhilePlaying` put it up. It is topmost, click-through and never takes
   focus, `Save-Screenshot` hides it for a full-screen capture, and it goes away 3 min after the
   kit last acted, or on `Hide-AgentBanner`. An emulator in exclusive full screen can draw over it.
 - **A disconnected session cannot be driven.** With no RDP client attached, screenshots come back
   black and keys go nowhere. `Test-HandsOnEnv -Gui` reports the state; record the GUI half as
   unproven rather than sending keys blind.
+- **emulatorLauncher's prompts are answered, not waited out.** A first launch of an emulator
+  RetroBat downloads on demand asks "install now?", and an emulator that cannot read a zip ends
+  on "keep the uncompressed game?". Neither has a title or a timeout, and neither is a window
+  `-Window` can find. `Start-Game` and `Start-EmulatorLauncher` wait for the emulator through
+  `Wait-Emulator`, which answers Yes to the first, and `Stop-Game` answers No to the second, so
+  `roms/` stays as RomMBat synced it. Each screenshots the prompt first and prints the path.
+  `Test-HandsOnEnv -Gui` fails while one waits unanswered, because a stalled launch otherwise
+  looks like a slow one. `Stop-Game` never kills an emulator unless given `-Force`, because that
+  loses a save it has not written.
 - **Look before the next key.** Take a screenshot after each key whose effect matters, and read
   it. A key sent during a fade or a load is lost without an error.
 - **A game the maintainer plays is launched from the pad, not with `Start-Game`.** A `/launch`

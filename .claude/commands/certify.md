@@ -51,8 +51,8 @@ Nothing here needs an emulator running or a person present.
    save-affecting options each exposes in `es_features.cfg` (memory card type, pak, clock).
    A `--hands-on` pass keeps only the rows and options that write the changed shape.
 2. Check `emulators/` holds an executable for each. One that does not is installed by ES on the
-   first launch, which the agent may accept on its own tree. Its modal has no timeout, so
-   screenshot after each launch until the emulator's window is up.
+   first launch, which the agent may accept on its own tree. Its modal has no timeout;
+   `Start-Game` and `Start-EmulatorLauncher` answer it through `Wait-Emulator` (`tools/handson/`).
 3. Run steps 1 and 3, and the inventory half of step 2, for the whole system now.
 4. Recommend the test games by `platform-certification`'s "Choosing test games". Research the
    library and the web, build the coverage table, and put the set to the maintainer as one
