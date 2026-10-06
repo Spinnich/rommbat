@@ -1921,6 +1921,15 @@ public sealed class SaveSync
 
                 stem = $"{rom.FileName}#{member.MemberStem}.{member.Hash}";
             }
+            else if (rule.NamedAfter == BatteryNaming.ArchiveMember)
+            {
+                if (ContentHasher.OnlyMemberStem(_install.Resolve(rom.Path)) is not { } member)
+                {
+                    return (null, TargetProblem.Unnameable);
+                }
+
+                stem = $"{rom.FileName}#{member}";
+            }
             else
             {
                 // A rom-named file that carries a port, as mednafen_psx_hw's <rom>.1.mcr does.

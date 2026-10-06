@@ -1488,6 +1488,35 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_bsnes_jg_clock_downloads_under_the_zip_and_the_member_inside_it()
+    {
+        // libretro/bsnes-jg names an S-RTC clock for RetroArch's archive#member path, with the
+        // member's stem and no hash, and it uploads as libretro:battery:member.rtc (RB-417).
+        using var fixture = SyncFixture.Create();
+        const string Rom = "Super Shell Monsters Story II (Japan) [n]";
+        fixture.AddGame(200300, "snes", Rom, ".zip", ".srm", "the cores' save");
+        File.Delete(fixture.Resolve($"roms/snes/{Rom}.zip"));
+        using (var archive = System.IO.Compression.ZipFile.Open(fixture.Resolve($"roms/snes/{Rom}.zip"), System.IO.Compression.ZipArchiveMode.Create))
+        using (var stream = archive.CreateEntry("Super Shell Monsters Story II (Japan).sfc").Open())
+        {
+            stream.Write(NesBody("SHELL MONSTERS"));
+        }
+
+        fixture.Scan();
+
+        fixture.SeedServerSave(200300, "libretro:battery:member.rtc", Rom, "rtc", "bsnes-jg's clock", emulator: "libretro");
+        fixture.Stub.UnsolicitedDownloads.Add((200300, "libretro:battery:member.rtc"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(
+            "bsnes-jg's clock",
+            File.ReadAllText(fixture.Resolve($"saves/snes/{Rom}.zip#Super Shell Monsters Story II (Japan).rtc")));
+        Assert.False(File.Exists(fixture.Resolve($"saves/snes/{Rom}.rtc")));
+    }
+
+    [Fact]
     public async Task A_mednafen_save_for_a_rom_that_cannot_be_hashed_is_refused_rather_than_misnamed()
     {
         using var fixture = SyncFixture.Create();

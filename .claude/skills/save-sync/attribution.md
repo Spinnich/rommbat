@@ -11,7 +11,8 @@ Loading refuses two rules claiming one extension in one directory, and one emula
 rules on a system, because either is two saves in one slot. The one exception to the second is
 class B: an emulator may hold two rules on a system when one is class B and no extension is in
 both, because then no two files share a slot. `gba` is the measured case, `libretro`'s `.srm`
-beside mednafen_gba's `libretro:battery:sav`. The table replaced one extension
+beside mednafen_gba's `libretro:battery:sav`. Both class B with different `slot_qualifier`s
+also passes, since the qualifier sits in the slot: `snes`'s two `libretro` `.rtc` rules. The table replaced one extension
 list plus one `loose_emulator`, which is the trap #152 recorded: adding mesen's loose `.sav`
 would have given it `libretro:battery` and collided with libretro's `.srm` for the same ROM.
 On `nes`, jgenesis (`jgenesis/nes/`), mesen standalone (loose `.sav`), mednafen and ares
@@ -39,7 +40,9 @@ clear, the three measured ones included.
 `named_after: "archive member and content md5"` is narrower still,
 `<rom>.zip#<member>.<md5>.sav` for mednafen_gba (RB-290), and the loader asks rules narrowest
 first and refuses two of one narrowness. The ROM's own name may hold a `#`, so the match anchors
-on the first `.zip#` or `.7z#`. On `gba` that is three owners for one loose `.sav` extension:
+on the first `.zip#` or `.7z#`. `named_after: "archive member"` drops the hash,
+`<rom>.zip#<member>.rtc` for bsnes-jg on `snes`, and ranks between the two; a restore names it
+from a zip holding one file. On `gba` that is three owners for one loose `.sav` extension:
 mednafen_gba's `#` name, mednafen's hashed one, and the plain one, which mGBA, Mesen and mednafen
 all open and which uploads as `mgba:battery`. **mednafen refuses mGBA's 131,088 B file** (finding
 289), so a device where mGBA standalone ran cannot play the game under mednafen until it moves;
@@ -91,7 +94,8 @@ ares keeps an SA-1 cartridge's internal RAM as `<rom>.iram`, `ares:battery:iram`
 a save that keeps the slot it had: the loose `<rom>.rtc` the cores and standalone Snes9x write, as
 `libretro:battery:rtc`, mednafen's `<rom>.<md5>.rtc` as `mednafen:battery:rtc`, and ares's and
 jgenesis's as `ares:battery:rtc` and `jgenesis:battery:rtc`. `libretro`/`bsnes-jg` names its clock
-`<rom>.zip#<member>.rtc`, which joins no rom, and BizHawk's Snes9x core appends the clock to the
+`<rom>.zip#<member>.rtc`, a 16 B clock beside the cores' 20 B `<rom>.rtc`, which takes
+`libretro:battery:member.rtc` through the rule's `slot_qualifier`, and BizHawk's Snes9x core appends the clock to the
 shared `.SaveRAM` (RB-417). `libretro`/`mednafen_snes` leaves an empty `<rom>.rtc` for a game with
 no clock, and `empty_not_a_save` in `save_rules.json` passes over an empty one per system and
 extension (RB-319). Zelda writes

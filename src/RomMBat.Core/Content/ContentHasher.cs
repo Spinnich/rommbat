@@ -129,6 +129,37 @@ public static class ContentHasher
         Path.GetExtension(path).Equals(".zip", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
+    /// The stem of the one file inside a zip, or null for a ROM that is not a zip, a zip holding
+    /// anything else, or one that will not open.
+    /// </summary>
+    /// <remarks>
+    /// <c>libretro</c>/<c>bsnes-jg</c> names an S-RTC clock after it, behind RetroArch's
+    /// <c>archive#member</c> path (RB-417). A zip of several files would leave the core's pick
+    /// to guess, so it answers null rather than naming a file the core may not open.
+    /// </remarks>
+    public static string? OnlyMemberStem(string absolutePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(absolutePath);
+
+        if (!LooksLikeZip(absolutePath))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var archive = ZipFile.OpenRead(absolutePath);
+            var entries = archive.Entries.Where(entry => !string.IsNullOrEmpty(entry.Name)).ToList();
+
+            return entries.Count == 1 ? Path.GetFileNameWithoutExtension(entries[0].Name) : null;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// True for an archive format RetroBat accepts that the base class library cannot read.
     /// </summary>
     /// <remarks>

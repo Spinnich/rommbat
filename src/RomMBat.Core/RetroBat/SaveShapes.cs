@@ -59,6 +59,15 @@ public enum BatteryNaming
     /// unnameable.
     /// </summary>
     ArchiveMemberAndContentMd5,
+
+    /// <summary>
+    /// The ROM file's name with its extension, <c>#</c>, and the stem of the file inside the
+    /// archive, with no hash. <c>libretro</c>/<c>bsnes-jg</c> is the measured case: an S-RTC
+    /// cartridge's clock is <c>&lt;rom&gt;.zip#&lt;member&gt;.rtc</c> beside the loose
+    /// <c>&lt;rom&gt;.rtc</c> the other cores write (RB-417). A restore reads the member out of a
+    /// zip holding one file, so any other ROM is unnameable.
+    /// </summary>
+    ArchiveMember,
 }
 
 /// <summary>Which files in one directory are one emulator's battery saves.</summary>
@@ -173,6 +182,18 @@ public sealed partial record BatteryRule(
     /// </remarks>
     public bool FromRoot { get; init; }
 
+    /// <summary>
+    /// What a class B slot carries before the extension, so the slot is
+    /// <c>{Emulator}:battery:{qualifier}.{extension}</c>, or null for the bare extension.
+    /// </summary>
+    /// <remarks>
+    /// It keeps two rules of one emulator apart on one extension. <c>libretro</c> on <c>snes</c> is
+    /// the measured case: snes9x's <c>&lt;rom&gt;.rtc</c> is <c>libretro:battery:rtc</c> and
+    /// bsnes-jg's <c>&lt;rom&gt;.zip#&lt;member&gt;.rtc</c>, a clock of another format, is
+    /// <c>libretro:battery:member.rtc</c>, so a restore names each file the way its core opens it.
+    /// </remarks>
+    public string? SlotQualifier { get; init; }
+
     /// <summary>Every emulator whose launch can have written one of these files.</summary>
     public IEnumerable<string> Writers => AlsoWrittenBy.Prepend(Emulator);
 
@@ -238,7 +259,12 @@ public sealed partial record BatteryRule(
             return $"{Emulator}:battery:{qualifier}";
         }
 
-        return Content.SaveScanner.SlotFor(Emulator, shapeClass, Path.GetExtension(fileName));
+        var slot = Content.SaveScanner.SlotFor(Emulator, shapeClass, Path.GetExtension(fileName));
+        var prefix = $"{Emulator}:battery:";
+
+        return SlotQualifier is { } word && slot.StartsWith(prefix, StringComparison.Ordinal)
+            ? $"{prefix}{word}.{slot[prefix.Length..]}"
+            : slot;
     }
 
     /// <summary>The stem suffix a save under this slot is written with, or empty for none.</summary>
@@ -285,6 +311,7 @@ public sealed partial record BatteryRule(
             {
                 BatteryNaming.RomFileAndContentMd5 => ContentMd5Suffix().IsMatch(stem),
                 BatteryNaming.ArchiveMemberAndContentMd5 => ArchiveMemberStem().IsMatch(stem),
+                BatteryNaming.ArchiveMember => ArchiveStem().IsMatch(stem),
                 _ => true,
             };
     }
@@ -299,6 +326,8 @@ public sealed partial record BatteryRule(
             BatteryNaming.RomFileAndContentMd5 when ContentMd5Suffix().IsMatch(stem) => stem[..^33],
             BatteryNaming.ArchiveMemberAndContentMd5 when ArchiveMemberStem().Match(stem) is { Success: true } match =>
                 Path.GetFileNameWithoutExtension(match.Groups["archive"].Value),
+            BatteryNaming.ArchiveMember when ArchiveStem().Match(stem) is { Success: true } match =>
+                Path.GetFileNameWithoutExtension(match.Groups["archive"].Value),
             _ => stem,
         };
     }
@@ -310,8 +339,9 @@ public sealed partial record BatteryRule(
     internal int Specificity => NamedAfter switch
     {
         BatteryNaming.ArchiveMemberAndContentMd5 => 0,
-        BatteryNaming.RomFileAndContentMd5 => 1,
-        _ => 2,
+        BatteryNaming.ArchiveMember => 1,
+        BatteryNaming.RomFileAndContentMd5 => 2,
+        _ => 3,
     };
 
     /// <summary>True when every file the rule claims takes its own slot, one per extension.</summary>
@@ -322,6 +352,9 @@ public sealed partial record BatteryRule(
 
     [GeneratedRegex(@"^(?<archive>.+?\.(?:zip|7z))#(?<member>.+)\.[0-9a-f]{32}$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex ArchiveMemberStem();
+
+    [GeneratedRegex(@"^(?<archive>.+?\.(?:zip|7z))#(?<member>.+)$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex ArchiveStem();
 
     /// <summary>
     /// True when a binding key is one of this rule's file names, which is how a display-name save
@@ -365,8 +398,24 @@ public sealed partial record BatteryRule(
 
         var prefix = $"{Emulator}:battery:";
 
-        return slot.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-            && Carries($".{slot[prefix.Length..]}");
+        if (!slot.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var extension = slot[prefix.Length..];
+
+        if (SlotQualifier is { } qualifier)
+        {
+            if (!extension.StartsWith($"{qualifier}.", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            extension = extension[(qualifier.Length + 1)..];
+        }
+
+        return Carries($".{extension}");
     }
 
     internal bool Overlaps(BatteryRule other) =>
@@ -876,8 +925,18 @@ public sealed class SaveShapes
                     pair => pair.Value,
                     StringComparer.Ordinal),
                 FromRoot = entry.FromRoot,
+                SlotQualifier = Blank(entry.SlotQualifier),
             })
             .ToList();
+
+        // A qualifier names a per-extension slot, which only class B has.
+        if (parsed.FirstOrDefault(rule => rule.SlotQualifier is not null
+            && (!rule.IsSlottedPerExtension || rule.StemSuffixes.Count > 0)) is { } qualified)
+        {
+            throw new InvalidOperationException(
+                $"save_rules.json gives {qualified.Emulator} a slot_qualifier, which needs a class B rule "
+                    + "with no stem_suffixes.");
+        }
 
         // Only a rule that hashes its name has a plain name it opens first, and only on its systems.
         if (parsed.FirstOrDefault(rule => rule.RefusesPlain.Count > 0
@@ -912,10 +971,13 @@ public sealed class SaveShapes
                 }
 
                 // One emulator may hold two rules on a system only where class B gives every file
-                // its own slot and no extension is in both, so no two files meet in one slot.
+                // its own slot and no extension is in both, or both are class B and a qualifier
+                // keeps the shared extension's slots apart, so no two files meet in one slot.
                 if (string.Equals(first.Emulator, second.Emulator, StringComparison.OrdinalIgnoreCase)
                     && !((first.IsSlottedPerExtension || second.IsSlottedPerExtension)
-                        && !first.Extensions.Overlaps(second.Extensions)))
+                        && !first.Extensions.Overlaps(second.Extensions))
+                    && !(first.IsSlottedPerExtension && second.IsSlottedPerExtension
+                        && !string.Equals(first.SlotQualifier, second.SlotQualifier, StringComparison.OrdinalIgnoreCase)))
                 {
                     throw new InvalidOperationException(
                         $"save_rules.json gives {first.Emulator} two battery rules on one system, "
@@ -946,6 +1008,7 @@ public sealed class SaveShapes
         "display name" => BatteryNaming.DisplayName,
         "rom file and content md5" => BatteryNaming.RomFileAndContentMd5,
         "archive member and content md5" => BatteryNaming.ArchiveMemberAndContentMd5,
+        "archive member" => BatteryNaming.ArchiveMember,
         _ => throw new InvalidOperationException(
             $"save_rules.json names a battery save after '{value}', which this build cannot join."),
     };
@@ -1172,5 +1235,8 @@ public sealed class SaveShapes
 
         [JsonPropertyName("from_root")]
         public bool FromRoot { get; init; }
+
+        [JsonPropertyName("slot_qualifier")]
+        public string? SlotQualifier { get; init; }
     }
 }
