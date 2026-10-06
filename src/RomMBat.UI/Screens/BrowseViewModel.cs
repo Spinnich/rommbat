@@ -42,7 +42,7 @@ namespace RomMBat.UI.Screens;
 /// accident.
 /// </para>
 /// </remarks>
-public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDisposable
+public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IActionScreen, IDisposable
 {
     private readonly InstallSession _session;
     private readonly Func<Uri, RomMConnection>? _connect;
@@ -246,7 +246,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
                 hints.Add(new FooterHint(NavAction.Accept, "Open this game"));
             }
 
-            hints.Add(new FooterHint(NavAction.Start, "Search"));
+            hints.AddRange(ScreenAction.Hints(Actions));
 
             // No platform verb. Choosing one is how this screen is reached now, so a picker
             // here pops back to the screen already underneath and is a second Back button
@@ -256,6 +256,14 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
             return hints;
         }
     }
+
+    /// <summary>
+    /// Search, on the left face button where EmulationStation's game list has it (RB-421).
+    /// </summary>
+    public IReadOnlyList<ScreenAction> Actions =>
+    [
+        new ScreenAction("Search", () => ScreenCommand.Push(SearchKeyboard())) { Shortcut = NavAction.Alternate },
+    ];
 
     public ScreenCommand Handle(NavAction action)
     {
@@ -272,7 +280,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
         // they are waiting for is already running.
         //
         // This is the cursor half only. Refusing to start a second fetch is Fetch's own job,
-        // because listing the actions here left the search path out: Start opens the keyboard,
+        // because listing the actions here left the search path out: search opens the keyboard,
         // whose typed callback fetches with no check at all, so a search submitted while a page
         // was still in flight raced it and the later answer won regardless of which was asked
         // for second. #118.
@@ -318,9 +326,6 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
                     opened.Games[state.Cursor],
                     _connect,
                     Reload));
-
-            case NavAction.Start:
-                return ScreenCommand.Push(SearchKeyboard());
 
             case NavAction.Back:
                 return ScreenCommand.Pop;
@@ -374,7 +379,11 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
                 Fetch(0);
                 return new TypedResult(null);
             },
-            _session.EmulationStationLanguage());
+            _session.EmulationStationLanguage())
+        {
+            // Empty is how a search is cleared, back to the whole platform.
+            AllowEmpty = true,
+        };
 
     /// <summary>
     /// Fetches one page and replaces what is held.

@@ -96,11 +96,11 @@ public static class ConflictScreens
     /// One conflict: what each side is, and the two verbs.
     /// </summary>
     /// <remarks>
-    /// <b>A pane of facts with two verbs on it, not a list of two choices.</b> Every row is
-    /// something to read before deciding, so the cursor has nowhere to sit, and the sides are on
-    /// <see cref="NavAction.Start"/> and <see cref="NavAction.Alternate"/> rather than on Accept:
-    /// a screen that put one side on the button that also confirms would make the commonest
-    /// mispress the destructive one.
+    /// <b>A pane of facts, then a choice, then a confirmation.</b> Every row here is something to
+    /// read before deciding, so the cursor has nowhere to sit, and the bottom button moves on to
+    /// the two sides. Neither side is ever one press: the choice is its own list and the side
+    /// chosen is confirmed after it, so the commonest mispress opens a question rather than
+    /// answering one.
     /// </remarks>
     public static IScreen Detail(
         InstallSession session,
@@ -117,23 +117,46 @@ public static class ConflictScreens
             open.Title ?? $"Game {conflict.RomId}",
             () => DetailRows(open),
             _ => ScreenCommand.Stay,
-            acceptLabel: string.Empty,
-            backLabel: "Back",
-            new FooterHint(NavAction.Start, "Keep this device's save"),
-            new FooterHint(NavAction.Alternate, "Keep the server's save"))
+            acceptLabel: "Choose which to keep",
+            backLabel: "Back")
         {
             Reading = true,
-            Verbs = (action, _) => action switch
-            {
-                NavAction.Start => ScreenCommand.Push(
-                    Confirm(session, conflict, ConflictResolution.KeepLocal, connect, pair)),
-
-                NavAction.Alternate => ScreenCommand.Push(
-                    Confirm(session, conflict, ConflictResolution.KeepServer, connect, pair)),
-
-                _ => null,
-            },
+            AlwaysOfferAccept = true,
+            Verbs = (action, _) => action == NavAction.Accept
+                ? ScreenCommand.Push(Sides(session, open, connect, pair))
+                : null,
         };
+    }
+
+    /// <summary>The two sides as a list of choices, each confirmed before it acts.</summary>
+    private static ListScreen Sides(
+        InstallSession session,
+        OpenConflict open,
+        Func<Uri, RomMConnection>? connect,
+        Func<IScreen>? pair)
+    {
+        var conflict = open.Conflict;
+
+        return new ListScreen(
+            "Which save do you keep?",
+            [
+                new ListRow(
+                    "Keep this device's save",
+                    null,
+                    "Sends it to RomM. The server's copy stays there as an earlier version."),
+                new ListRow(
+                    "Keep the server's save",
+                    null,
+                    "Fetches it here. This device's copy is kept in emulators/rommbat/replaced/."),
+            ],
+            index => ScreenCommand.Push(Confirm(
+                session,
+                conflict,
+                index == 0 ? ConflictResolution.KeepLocal : ConflictResolution.KeepServer,
+                connect,
+                pair)),
+            acceptLabel: "Choose",
+            backLabel: "Back");
     }
 
     /// <summary>What the detail screen shows about the two sides.</summary>
@@ -283,22 +306,18 @@ public static class ConflictScreens
                 return null;
             },
 
-            // A resolved conflict makes the confirmation, the detail screen and the list under
-            // them all describe something that is no longer open, so leaving lands on the list,
-            // which re-reads. An unresolved one leaves the same three screens correct, and the
-            // person is most likely to want the other side, which is one press back.
-            OnBack = () => outcome?.Resolved == true ? ScreenCommand.PopMany(3) : ScreenCommand.Pop,
+            // A resolved conflict makes the confirmation, the choice, the detail screen and the
+            // list under them all describe something that is no longer open, so leaving lands on
+            // the list, which re-reads. An unresolved one leaves them correct, and the person is
+            // most likely to want the other side, which is one press back.
+            OnBack = () => outcome?.Resolved == true ? ScreenCommand.PopMany(4) : ScreenCommand.Pop,
 
             // Pairing is the only thing a person can do about a token that will not unlock or
             // one the server has stopped accepting, and a screen that reported the refusal
             // without a route to it strands them. Offered only when that is what happened.
-            ExtraHints = () => Pairable(outcome) && pair is not null
-                ? [new FooterHint(NavAction.Start, "Pair with RomM")]
+            ActionList = () => Pairable(outcome) && pair is { } start
+                ? [new ScreenAction("Pair with RomM", () => ScreenCommand.Push(start()))]
                 : [],
-
-            Verbs = (action, _) => action == NavAction.Start && Pairable(outcome) && pair is { } start
-                ? ScreenCommand.Push(start())
-                : null,
         }.Started();
     }
 

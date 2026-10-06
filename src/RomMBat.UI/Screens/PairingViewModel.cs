@@ -122,7 +122,8 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
 
     public IReadOnlyList<FooterHint> Hints => Stage switch
     {
-        PairingStage.Paired => [new FooterHint(NavAction.Back, "Done")],
+        // Done on the bottom button, because moving on from a finished screen is progress.
+        PairingStage.Paired => [new FooterHint(NavAction.Accept, ListScreen.DoneLabel)],
         PairingStage.WaitingForApproval =>
         [
             new FooterHint(NavAction.Alternate, "New code"),
@@ -141,6 +142,7 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
         switch (action)
         {
             case NavAction.Back:
+            case NavAction.Accept when Stage == PairingStage.Paired:
                 return ScreenCommand.Pop;
 
             case NavAction.Alternate when Stage is PairingStage.WaitingForApproval

@@ -43,7 +43,7 @@ public sealed record LoadProgress(int Done, int Total)
 /// broken, and the alternative is a user paging back up through forty systems.
 /// </para>
 /// </remarks>
-public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveScreen, IDisposable
+public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveScreen, IActionScreen, IDisposable
 {
     private readonly Func<IReadOnlyList<ListRow>> _rows;
     private readonly Func<int, ScreenCommand> _choose;
@@ -148,6 +148,17 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// </remarks>
     public Func<string>? BackLabelWhen { get; init; }
 
+    /// <summary>What the footer says once a screen's work is over.</summary>
+    /// <remarks>
+    /// The one word a person learns to tell finished from running (<c>src/RomMBat.UI/CLAUDE.md</c>),
+    /// so it is also what decides that the confirm button leaves: moving on from a finished
+    /// screen is progress, and progress is the bottom button's even when it goes back a screen.
+    /// </remarks>
+    public const string DoneLabel = "Done";
+
+    /// <summary>True while the back hint reads <see cref="DoneLabel"/>.</summary>
+    private bool IsDone => BackLabel == DoneLabel;
+
     /// <summary>
     /// Which row is selected, and <b>never any of them on a reading list</b>.
     /// </summary>
@@ -235,6 +246,18 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// </para>
     /// </remarks>
     public Func<IReadOnlyList<FooterHint>>? ExtraHints { get; init; }
+
+    /// <summary>
+    /// The screen's verbs, listed in the menu Start opens, read on every draw.
+    /// </summary>
+    /// <remarks>
+    /// A function for the reason <see cref="ExtraHints"/> is one: which actions are available
+    /// depends on what the screen has loaded or done. The navigator runs Start and the
+    /// shortcuts, and the footer offers them, all from this one list.
+    /// </remarks>
+    public Func<IReadOnlyList<ScreenAction>>? ActionList { get; init; }
+
+    public IReadOnlyList<ScreenAction> Actions => ActionList?.Invoke() ?? [];
 
     /// <summary>
     /// The screen's own verbs, for the actions a list does not define.
@@ -465,9 +488,21 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
             {
                 hints.Add(new FooterHint(NavAction.Accept, _acceptLabel));
             }
+            else if (IsDone)
+            {
+                // Done is moving on, which is the bottom button's (RB-423), so the hint sits
+                // there. The right button still leaves too, unannounced, as ES's message box
+                // answers it without naming it (RB-424).
+                hints.Add(new FooterHint(NavAction.Accept, DoneLabel));
+            }
 
             hints.AddRange(ExtraHints is { } dynamic ? dynamic() : _extra);
-            hints.Add(new FooterHint(NavAction.Back, BackLabel));
+            hints.AddRange(ScreenAction.Hints(Actions));
+
+            if (!IsDone || offerAccept)
+            {
+                hints.Add(new FooterHint(NavAction.Back, BackLabel));
+            }
 
             return hints;
         }
@@ -540,6 +575,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
             }
 
             case NavAction.Back:
+            case NavAction.Accept when IsDone:
                 return OnBack is { } leave ? leave() : ScreenCommand.Pop;
 
             default:

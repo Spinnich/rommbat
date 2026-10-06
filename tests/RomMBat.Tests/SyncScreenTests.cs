@@ -101,7 +101,8 @@ public sealed class SyncScreenTests : IDisposable
         Assert.IsType<ListScreen>(navigator.Current);
         Assert.NotSame(list, navigator.Current);
 
-        navigator.Handle(NavAction.Start);
+        // On the same shortcut as the list's Sync everything.
+        navigator.Handle(NavAction.Alternate);
         var sync = Assert.IsType<SyncViewModel>(navigator.Current);
 
         await SettledAsync(sync);
@@ -149,16 +150,22 @@ public sealed class SyncScreenTests : IDisposable
 
         var sync = new SyncViewModel(_session, Set(), Connect(stub));
 
-        var command = sync.Handle(NavAction.Back);
+        // Asked first, with the answer that changes nothing selected, so a reflexive press of
+        // either button keeps the run going.
+        var confirm = Assert.IsType<ConfirmScreen>(sync.Handle(NavAction.Back).Screen);
+        Assert.Equal("Keep syncing", confirm.Buttons[confirm.Selected].Label);
 
-        Assert.Equal(ScreenCommandKind.Stay, command.Kind);
+        // Stop, which closes only the question: the screen stays so it can say what went.
+        confirm.Handle(NavAction.Left);
+        Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
 
         await SettledAsync(sync);
 
         Assert.Equal(SyncStage.Stopped, sync.State.Stage);
 
-        // A second Back leaves, which is the half that makes the first one bearable.
-        Assert.Equal(ScreenCommandKind.Pop, sync.Handle(NavAction.Back).Kind);
+        // Then either button leaves, and the confirm button is the one the footer names.
+        Assert.Equal(ListScreen.DoneLabel, Assert.Single(sync.Hints, hint => hint.Action == NavAction.Accept).Label);
+        Assert.Equal(ScreenCommandKind.Pop, sync.Handle(NavAction.Accept).Kind);
     }
 
     [Fact]
@@ -256,11 +263,13 @@ public sealed class SyncScreenTests : IDisposable
         var sync = new SyncViewModel(_session, Set(), Connect(stub));
 
         // "Stop for now" is honest on the resolve screen because nothing is lost there. This
-        // press drops a part-fetched game, and the label has to say so.
+        // press drops a part-fetched game, and the question it opens has to say so.
         var working = Assert.Single(sync.Hints);
-
         Assert.Equal(NavAction.Back, working.Action);
-        Assert.Contains("drop", working.Label, StringComparison.OrdinalIgnoreCase);
+
+        var confirm = Assert.IsType<ConfirmScreen>(sync.Handle(NavAction.Back).Screen);
+        Assert.Contains("removed", confirm.Question, StringComparison.OrdinalIgnoreCase);
+        confirm.Handle(NavAction.Back);
 
         await SettledAsync(sync);
     }
@@ -325,9 +334,9 @@ public sealed class SyncScreenTests : IDisposable
         await SettledAsync(sync);
 
         Assert.Equal(SyncStage.NotPaired, sync.State.Stage);
-        Assert.Contains(sync.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Contains(sync.Hints, hint => hint.Action == NavAction.Start);
 
-        Assert.Equal(ScreenCommandKind.Push, sync.Handle(NavAction.Accept).Kind);
+        Assert.Equal(ScreenCommandKind.Push, Navigator.Run(sync, "Pair with RomM").Kind);
         Assert.True(opened);
     }
 
@@ -369,8 +378,8 @@ public sealed class SyncScreenTests : IDisposable
         // And nothing telling them to try again, which is the sentence the live probe caught.
         Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.Ordinal);
 
-        Assert.Contains(sync.Hints, hint => hint.Action == NavAction.Accept);
-        Assert.Equal(ScreenCommandKind.Push, sync.Handle(NavAction.Accept).Kind);
+        Assert.Contains(sync.Hints, hint => hint.Action == NavAction.Start);
+        Assert.Equal(ScreenCommandKind.Push, Navigator.Run(sync, "Pair with RomM").Kind);
         Assert.True(opened);
     }
 
@@ -422,8 +431,8 @@ public sealed class SyncScreenTests : IDisposable
         Assert.StartsWith("Synced", sync.Title, StringComparison.Ordinal);
         Assert.Equal("Finished", sync.State.Outcome);
 
-        var back = Assert.Single(sync.Hints, hint => hint.Action == NavAction.Back);
-        Assert.Equal("Done", back.Label);
+        var done = Assert.Single(sync.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Equal(ListScreen.DoneLabel, done.Label);
 
         // The one rule a person has to learn: a stop means it is going, Done means it is over.
         Assert.DoesNotContain(sync.Hints, hint => hint.Label.Contains("Stop", StringComparison.Ordinal));
@@ -449,7 +458,7 @@ public sealed class SyncScreenTests : IDisposable
 
         Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
         Assert.Equal("Finished with problems", sync.State.Outcome);
-        Assert.Equal("Done", Assert.Single(sync.Hints, hint => hint.Action == NavAction.Back).Label);
+        Assert.Equal(ListScreen.DoneLabel, Assert.Single(sync.Hints, hint => hint.Action == NavAction.Accept).Label);
 
         sync.Dispose();
     }
@@ -471,7 +480,7 @@ public sealed class SyncScreenTests : IDisposable
 
         Assert.StartsWith("Queried", resolve.Title, StringComparison.Ordinal);
         Assert.Equal("Finished", resolve.Outcome);
-        Assert.Equal("Done", Assert.Single(resolve.Hints, hint => hint.Action == NavAction.Back).Label);
+        Assert.Equal(ListScreen.DoneLabel, Assert.Single(resolve.Hints, hint => hint.Action == NavAction.Accept).Label);
 
         resolve.Dispose();
     }
@@ -535,13 +544,13 @@ public sealed class SyncScreenTests : IDisposable
             sync.State.Problems.Count > SyncViewModel.ProblemsShown,
             $"the fixture produced only {sync.State.Problems.Count} problems");
 
-        var offer = Assert.Single(sync.Hints, hint => hint.Action == NavAction.Accept);
+        var offer = Assert.Single(sync.Actions, action => action.Label.StartsWith("See all", StringComparison.Ordinal));
         Assert.Contains(
             sync.State.Problems.Count.ToString(CultureInfo.CurrentCulture),
             offer.Label,
             StringComparison.Ordinal);
 
-        var opened = sync.Handle(NavAction.Accept);
+        var opened = Navigator.Run(sync, offer.Label);
         var all = Assert.IsType<ListScreen>(opened.Screen);
 
         Assert.Equal(ScreenCommandKind.Push, opened.Kind);
@@ -796,8 +805,8 @@ public sealed class SyncScreenTests : IDisposable
         await SettledAsync(sync);
 
         Assert.True(sync.State.Problems.Count <= SyncViewModel.ProblemsShown);
-        Assert.DoesNotContain(sync.Hints, hint => hint.Action == NavAction.Accept);
-        Assert.Equal(ScreenCommandKind.Stay, sync.Handle(NavAction.Accept).Kind);
+        Assert.Empty(sync.Actions);
+        Assert.DoesNotContain(sync.Hints, hint => hint.Action == NavAction.Start);
 
         sync.Dispose();
     }
@@ -826,7 +835,7 @@ public sealed class SyncScreenTests : IDisposable
         Seed("games", 1);
 
         var budget = new BudgetViewModel(_session);
-        var behind = budget.Handle(NavAction.Alternate);
+        var behind = Navigator.Run(budget, "Check the files behind these numbers");
 
         foreach (var text in Strings(budget).Concat(behind.Screen is { } pushed ? Strings(pushed) : []))
         {
@@ -854,7 +863,7 @@ public sealed class SyncScreenTests : IDisposable
         await SettledAsync(sync);
 
         Assert.True(sync.State.Blocked > 0, "the fixture did not reproduce a blocked run");
-        Assert.DoesNotContain(sync.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Empty(sync.Actions);
 
         Assert.Contains(
             sync.State.Problems,
@@ -955,8 +964,8 @@ public sealed class SyncScreenTests : IDisposable
         Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.Ordinal);
 
         // A sentence naming a remedy the footer does not offer is a dead end on a gamepad.
-        Assert.Contains(sync.Hints, hint => hint.Action == NavAction.Accept);
-        Assert.Equal(ScreenCommandKind.Push, sync.Handle(NavAction.Accept).Kind);
+        Assert.Contains(sync.Hints, hint => hint.Action == NavAction.Start);
+        Assert.Equal(ScreenCommandKind.Push, Navigator.Run(sync, "Pair with RomM").Kind);
         Assert.True(opened);
 
         sync.Dispose();
@@ -985,7 +994,7 @@ public sealed class SyncScreenTests : IDisposable
         Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.Ordinal);
 
         // Pairing would not fix a refusal that is not about access, so it is not offered.
-        Assert.DoesNotContain(sync.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.DoesNotContain(sync.Actions, action => action.Label == "Pair with RomM");
 
         sync.Dispose();
     }
@@ -1078,8 +1087,8 @@ public sealed class SyncScreenTests : IDisposable
         budget.Handle(NavAction.Right);
 
         Assert.True(budget.IsDirty);
-        Assert.DoesNotContain(budget.Hints, hint => hint.Action == NavAction.Alternate);
-        Assert.Equal(ScreenCommandKind.Stay, budget.Handle(NavAction.Alternate).Kind);
+        Assert.False(Assert.Single(budget.Actions, action => action.Label.StartsWith("Check", StringComparison.Ordinal)).Available);
+        Assert.Equal(ScreenCommandKind.Stay, Navigator.Press(budget, NavAction.Alternate).Kind);
     }
 
     // ------------------------------------------------------------------ responsiveness

@@ -192,7 +192,7 @@ public sealed record SyncSnapshot(
 /// is which words go on which line.
 /// </para>
 /// </remarks>
-public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
+public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDisposable
 {
     /// <summary>How long the transfer rate is averaged over.</summary>
     /// <remarks>
@@ -361,29 +361,35 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
 
     public IReadOnlyList<FooterHint> Hints => _state.Stage switch
     {
-        // Says what the press costs. "Stop for now" is honest on the resolve screen because
-        // nothing is lost there; this one drops the game it is in, and the label has to say so.
-        SyncStage.Working => [new FooterHint(NavAction.Back, "Stop, and drop the game in progress")],
+        // Says what the press leads to. The stop itself is confirmed, because it drops the game
+        // in progress, and the question says so.
+        SyncStage.Working => [new FooterHint(NavAction.Back, "Stop")],
 
-        _ when OffersPairing =>
-        [
-            new FooterHint(NavAction.Accept, "Pair with RomM"),
-            new FooterHint(NavAction.Back, "Done"),
-        ],
-
-        // Only once there are more than the screen shows. Offering it for two problems that are
-        // both already on screen is a press that appears to do nothing.
-        _ when _state.Problems.Count > ProblemsShown =>
-        [
-            new FooterHint(NavAction.Accept, $"See all {_state.Problems.Count} problems"),
-            new FooterHint(NavAction.Back, "Done"),
-        ],
-
-        // "Done" rather than "Back" once nothing is running. If the footer offers a stop the
-        // work is going, and if it says Done it is over: one rule, and the only one a person
-        // has to learn to know whether to keep waiting.
-        _ => [new FooterHint(NavAction.Back, "Done")],
+        // "Done" rather than "Back" once nothing is running, and on the bottom button, because
+        // moving on from a finished screen is progress. If the footer offers a stop the work is
+        // going, and if it says Done it is over: one rule, and the only one a person has to
+        // learn to know whether to keep waiting.
+        _ => [new FooterHint(NavAction.Accept, ListScreen.DoneLabel), .. ScreenAction.Hints(Actions)],
     };
+
+    /// <summary>
+    /// What a finished run offers beyond leaving: pairing again when that is the remedy, and
+    /// every problem once there are more than the screen shows.
+    /// </summary>
+    /// <remarks>
+    /// Nothing while it runs, so Start cannot open a menu over a transfer in progress. The
+    /// problems are offered only past <see cref="ProblemsShown"/>, because offering two that
+    /// are already on screen is a press that appears to do nothing.
+    /// </remarks>
+    public IReadOnlyList<ScreenAction> Actions => _state.Stage == SyncStage.Working
+        ? []
+        :
+        [
+            .. OffersPairing ? new[] { new ScreenAction("Pair with RomM", () => ScreenCommand.Push(_pair())) } : [],
+            .. _state.Problems.Count > ProblemsShown
+                ? new[] { new ScreenAction($"See all {_state.Problems.Count} problems", () => ScreenCommand.Push(AllProblems(_state.Problems))) }
+                : [],
+        ];
 
     /// <summary>
     /// How many problems the run screen itself shows.
@@ -448,18 +454,22 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     {
         switch (action)
         {
-            case NavAction.Accept when OffersPairing:
-                return ScreenCommand.Push(_pair());
-
-            case NavAction.Accept when _state.Problems.Count > ProblemsShown:
-                return ScreenCommand.Push(AllProblems(_state.Problems));
-
+            // Asked first, because a stop removes the game being downloaded, and the safe answer
+            // is the one selected. A yes closes the question and stays on this screen, which is
+            // the only place that can say which game went.
             case NavAction.Back when _state.Stage == SyncStage.Working:
-                // Stop and stay. The run removes the game it was in, and a screen that closed
-                // on the press could never say which one that was.
-                Stop();
-                return ScreenCommand.Stay;
+                return ScreenCommand.Push(ConfirmScreen.YesNo(
+                    "Stop syncing? The game downloading now is removed. Every game that finished stays.",
+                    "Stop",
+                    () =>
+                    {
+                        Stop();
+                        return ScreenCommand.Pop;
+                    },
+                    "Keep syncing",
+                    this));
 
+            case NavAction.Accept when _state.Stage != SyncStage.Working:
             case NavAction.Back:
                 return ScreenCommand.Pop;
 

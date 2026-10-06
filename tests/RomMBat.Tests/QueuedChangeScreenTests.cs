@@ -86,14 +86,13 @@ public class QueuedChangeScreenTests : IDisposable
         Assert.Empty(_session.Store.PendingConfig.ListOutstanding());
         Assert.Empty(_session.Store.PendingConfig.ListFinished());
 
-        // Answered once: a second press must not re-run a change that has already happened.
-        Assert.DoesNotContain(confirm.Hints, hint => hint.Action == NavAction.Accept);
-
-        // And the footer follows the screen. The label was a ternary in the constructor's
-        // argument, which is evaluated once with the flag still false, so the row read
-        // "Canceled" while Back went on offering to keep it queued.
-        var back = Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Back);
-        Assert.Equal("Done", back.Label);
+        // Answered once: a second press finishes rather than re-running a change that has
+        // already happened. And the footer follows the screen: the label was a ternary in the
+        // constructor's argument, evaluated once with the flag still false, so the row read
+        // "Canceled" while the footer went on offering to keep it queued.
+        var done = Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Equal(ListScreen.DoneLabel, done.Label);
+        Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
 
         // And the pane follows it, rather than still describing the change it just canceled.
         Assert.Equal("Canceled", Assert.Single(confirm.Rows).Label);
@@ -198,7 +197,7 @@ public class QueuedChangeScreenTests : IDisposable
         Assert.Single(_session.Store.PendingConfig.ListOutstanding());
         Assert.Equal("Memory card change queued for 'Armored Core 3'", convert.Title);
         Assert.Equal("Queued", Assert.Single(convert.Rows).Label);
-        Assert.Equal("Done", Assert.Single(convert.Hints, hint => hint.Action == NavAction.Back).Label);
+        Assert.Equal(ListScreen.DoneLabel, Assert.Single(convert.Hints, hint => hint.Action == NavAction.Accept).Label);
 
         Assert.All(Text(convert), text =>
         {

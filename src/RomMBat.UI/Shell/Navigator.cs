@@ -58,8 +58,63 @@ public sealed class Navigator
             return false;
         }
 
-        var command = Current.Handle(action);
+        Apply(Press(Current, action));
 
+        Changed?.Invoke(this, EventArgs.Empty);
+
+        return !HasExited;
+    }
+
+    /// <summary>
+    /// What a press on <paramref name="screen"/> asks for, with Start and the shortcuts
+    /// answered first for every screen that lists actions.
+    /// </summary>
+    /// <remarks>
+    /// Before the screen sees the press, so a screen cannot bind a verb of its own to Start
+    /// again and the footer, the menu and the shortcut all read from one list.
+    /// <para>
+    /// Public and static so a test drives a screen through exactly this, rather than through
+    /// its <c>Handle</c>, which no longer sees Start or a shortcut on a screen with actions.
+    /// </para>
+    /// </remarks>
+    public static ScreenCommand Press(IScreen screen, NavAction action)
+    {
+        ArgumentNullException.ThrowIfNull(screen);
+
+        if (screen is IActionScreen offering)
+        {
+            var actions = offering.Actions;
+
+            if (action == NavAction.Start && actions.Count > 0)
+            {
+                return ScreenCommand.Push(new Screens.ActionMenuScreen(screen, actions));
+            }
+
+            if (actions.FirstOrDefault(candidate => candidate.Available && candidate.Shortcut == action) is { } shortcut)
+            {
+                return shortcut.Run();
+            }
+        }
+
+        return screen.Handle(action);
+    }
+
+    /// <summary>Runs the screen's action of that name, as picking it from the menu would.</summary>
+    /// <exception cref="InvalidOperationException">No such action, or it is unavailable now.</exception>
+    public static ScreenCommand Run(IScreen screen, string label)
+    {
+        ArgumentNullException.ThrowIfNull(screen);
+
+        var action = (screen as IActionScreen)?.Actions.FirstOrDefault(candidate => candidate.Label == label)
+            ?? throw new InvalidOperationException($"'{screen.Title}' offers no action '{label}'.");
+
+        return action.Available
+            ? action.Run()
+            : throw new InvalidOperationException($"'{label}' is unavailable: {action.Unavailable}");
+    }
+
+    private void Apply(ScreenCommand command)
+    {
         switch (command.Kind)
         {
             case ScreenCommandKind.Stay:
@@ -110,13 +165,31 @@ public sealed class Navigator
                 HasExited = true;
                 break;
 
+            case ScreenCommandKind.Dismiss when _screens.Count > 1:
+            {
+                (_screens[^1] as IDisposable)?.Dispose();
+                _screens.RemoveAt(_screens.Count - 1);
+                _repeat.CarryNothingOver();
+
+                var follow = command.Follow?.Invoke() ?? ScreenCommand.Stay;
+
+                // An action that acts in place has changed what the screen shows, and a
+                // ListScreen re-reads its rows only when told, as its own verbs' Stay does.
+                if (follow.Kind == ScreenCommandKind.Stay)
+                {
+                    (Current as IReturnAware)?.Returned();
+                }
+                else
+                {
+                    Apply(follow);
+                }
+
+                break;
+            }
+
             default:
                 break;
         }
-
-        Changed?.Invoke(this, EventArgs.Empty);
-
-        return !HasExited;
     }
 
     /// <summary>

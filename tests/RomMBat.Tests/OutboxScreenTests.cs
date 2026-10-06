@@ -78,9 +78,10 @@ public class OutboxScreenTests : IDisposable
         Assert.Equal(1, _session.Store.Outbox.PendingCount());
         Assert.NotEqual(refused, other);
 
-        // Answered once, and Back now finishes rather than declining.
-        Assert.DoesNotContain(confirm.Hints, hint => hint.Action == NavAction.Accept);
-        Assert.Equal("Done", Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Back).Label);
+        // Answered once: the confirm button now finishes, as Back does, rather than dropping
+        // again, and the footer says Done on it.
+        Assert.Equal(ListScreen.DoneLabel, Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Accept).Label);
+        Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
         Assert.Equal("Save dropped", confirm.Title);
     }
 

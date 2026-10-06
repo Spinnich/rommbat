@@ -61,32 +61,41 @@ public static class SetsScreens
             Rows,
             index => ScreenCommand.Push(Detail(session, sets[index].Set.Name, connect, pair)),
             acceptLabel: "Open",
-            backLabel: "Back",
-            new FooterHint(NavAction.Start, "New set"),
-            new FooterHint(NavAction.Alternate, "Sync everything"),
-            new FooterHint(NavAction.Extra, "Query every set"))
+            backLabel: "Back")
         {
             EmptyMessage = "No sync sets yet. A set is what this device keeps: a platform, a "
                 + "collection, or a search. How much room they may use together is set under "
                 + "disk space.",
-            Verbs = (action, _) => action switch
+            ActionList = () =>
             {
-                NavAction.Start => ScreenCommand.Push(SetEditorViewModel.ForNew(session, connect)),
+                var none = sets.Count == 0 ? "There are no sets yet." : null;
 
-                // Syncing is what the sets are for, so it is the first-tier verb here and
-                // resolving moves to the second. A sync re-resolves every set on the way past
-                // anyway, so the two are not a choice a person has to make: resolving alone is
-                // for finding out what a set holds without spending disk on it.
-                NavAction.Alternate when sets.Count > 0 =>
-                    ScreenCommand.Push(Sync(session, [.. sets.Select(summary => summary.Set)], connect, pair)),
+                return
+                [
+                    new ScreenAction("New set", () => ScreenCommand.Push(SetEditorViewModel.ForNew(session, connect))),
 
-                // Every set at once, because doing them one at a time is the hassle a person
-                // notices first. SetResolveService already walks a list; nothing new is needed
-                // except somewhere to press.
-                NavAction.Extra when sets.Count > 0 =>
-                    ScreenCommand.Push(Resolve(session, [.. sets.Select(summary => summary.Set)], connect)),
+                    // Syncing is what the sets are for, so it is the first-tier verb here and
+                    // resolving moves to the second. A sync re-resolves every set on the way past
+                    // anyway, so the two are not a choice a person has to make: resolving alone
+                    // is for finding out what a set holds without spending disk on it.
+                    new ScreenAction(
+                        "Sync everything",
+                        () => ScreenCommand.Push(Sync(session, [.. sets.Select(summary => summary.Set)], connect, pair)))
+                    {
+                        Shortcut = NavAction.Alternate,
+                        Unavailable = none,
+                    },
 
-                _ => null,
+                    // Every set at once, because doing them one at a time is the hassle a person
+                    // notices first.
+                    new ScreenAction(
+                        "Query every set",
+                        () => ScreenCommand.Push(Resolve(session, [.. sets.Select(summary => summary.Set)], connect)))
+                    {
+                        Shortcut = NavAction.Extra,
+                        Unavailable = none,
+                    },
+                ];
             },
         };
     }
@@ -149,11 +158,26 @@ public static class SetsScreens
             Rows,
             _ => ScreenCommand.Stay,
             acceptLabel: "Change folder",
-            backLabel: "Back",
-            new FooterHint(NavAction.Start, "Sync now"),
-            new FooterHint(NavAction.Extra, "Query this set"),
-            new FooterHint(NavAction.Alternate, "Delete set"))
+            backLabel: "Back")
         {
+            // The same shortcuts as the list's, so Sync and Query sit on the same buttons on both
+            // screens. Delete has none: a destructive verb is two presses into the menu, never
+            // one beside the confirm button.
+            ActionList = () =>
+            [
+                new ScreenAction("Sync now", () => ScreenCommand.Push(Sync(session, [detail!.Set], connect, pair)))
+                {
+                    Shortcut = NavAction.Alternate,
+                },
+                new ScreenAction("Query this set", () => ScreenCommand.Push(Resolve(session, [detail!.Set], connect)))
+                {
+                    Shortcut = NavAction.Extra,
+                },
+                .. editable
+                    ? new[] { new ScreenAction("Change folder", () => ScreenCommand.Push(SetEditorViewModel.ForExisting(session, detail!.Set, connect))) }
+                    : [],
+                new ScreenAction("Delete set", () => ScreenCommand.Push(ConfirmDelete(session, detail!.Set.Name, connect))),
+            ],
             // Every row here is a fact rather than a choice, so the cursor has nowhere to sit
             // and the accept hint was suppressed while Verbs went on handling the press. The
             // edit worked and the footer never said so.
@@ -164,9 +188,6 @@ public static class SetsScreens
             {
                 NavAction.Accept when editable =>
                     ScreenCommand.Push(SetEditorViewModel.ForExisting(session, detail!.Set, connect)),
-                NavAction.Start => ScreenCommand.Push(Sync(session, [detail!.Set], connect, pair)),
-                NavAction.Extra => ScreenCommand.Push(Resolve(session, [detail!.Set], connect)),
-                NavAction.Alternate => ScreenCommand.Push(ConfirmDelete(session, detail!.Set.Name, connect)),
                 _ => null,
             },
         };

@@ -32,6 +32,8 @@ internal static class ScreenView
 
     public static Control Build(IScreen screen) => screen switch
     {
+        ActionMenuScreen menu => Popup(menu.Underneath, MenuPanel(menu)),
+        ConfirmScreen confirm => Popup(confirm.Underneath, ConfirmPanel(confirm)),
         StatusViewModel status => Status(status),
         OnScreenKeyboard keyboard => Keyboard(keyboard),
         PairingViewModel pairing => Pairing(pairing),
@@ -1133,6 +1135,122 @@ internal static class ScreenView
             FontSize = 15,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
+
+    /// <summary>
+    /// A popup over the screen it was opened from, which stays visible and dimmed.
+    /// </summary>
+    /// <remarks>
+    /// As EmulationStation draws its menus and its message box (RB-423, RB-424): what the
+    /// question is about stays in view, so the popup does not have to repeat it.
+    /// </remarks>
+    private static Grid Popup(IScreen? underneath, Control panel)
+    {
+        var grid = new Grid();
+
+        if (underneath is not null)
+        {
+            var behind = Build(underneath);
+            behind.Opacity = 0.25;
+            behind.IsHitTestVisible = false;
+            grid.Children.Add(behind);
+        }
+
+        panel.HorizontalAlignment = HorizontalAlignment.Center;
+        panel.VerticalAlignment = VerticalAlignment.Center;
+        grid.Children.Add(panel);
+
+        return grid;
+    }
+
+    /// <summary>The actions menu: the same rows a list draws, in a panel of fixed width.</summary>
+    private static Border MenuPanel(ActionMenuScreen menu)
+    {
+        var stack = new StackPanel { Spacing = ListWindow.RowSpacing };
+        var window = menu.Window;
+
+        stack.Children.Add(More(window.Above, "above"));
+
+        for (var index = window.Start; index < window.Start + window.Count; index++)
+        {
+            stack.Children.Add(ListItem(menu.Rows[index], index == menu.Cursor));
+        }
+
+        stack.Children.Add(More(window.Below, "below"));
+
+        return new Border
+        {
+            Background = PopupPanel,
+            BorderBrush = Muted,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(24, 12, 24, 12),
+            Width = PopupWidth,
+            Child = stack,
+        };
+    }
+
+    /// <summary>
+    /// The question and its row of answers, each answer the same size selected or not.
+    /// </summary>
+    private static Border ConfirmPanel(ConfirmScreen confirm)
+    {
+        var stack = new StackPanel { Spacing = 22 };
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = confirm.Question,
+            Foreground = Ink,
+            FontSize = 22,
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 14,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+
+        for (var index = 0; index < confirm.Buttons.Count; index++)
+        {
+            var selected = index == confirm.Selected;
+
+            buttons.Children.Add(new Border
+            {
+                Background = selected ? Accent : Panel,
+                BorderBrush = selected ? Ink : Panel,
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(22, 10, 22, 10),
+                MinWidth = 160,
+                Child = new TextBlock
+                {
+                    Text = confirm.Buttons[index].Label,
+                    Foreground = selected ? Brushes.Black : Ink,
+                    FontSize = 20,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                },
+            });
+        }
+
+        stack.Children.Add(buttons);
+
+        return new Border
+        {
+            Background = PopupPanel,
+            BorderBrush = Muted,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(32, 26, 32, 26),
+            Width = PopupWidth,
+            Child = stack,
+        };
+    }
+
+    /// <summary>How wide a popup is, fixed so it cannot breathe as its cursor moves.</summary>
+    private const double PopupWidth = 760;
+
+    private static readonly IBrush PopupPanel = new SolidColorBrush(Color.FromRgb(0x24, 0x24, 0x24));
 
     /// <summary>A screen whose only content is one sentence about work in progress.</summary>
     private static StackPanel Working(string detail)

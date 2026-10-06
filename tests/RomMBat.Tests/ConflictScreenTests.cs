@@ -106,13 +106,14 @@ public class ConflictScreenTests : IDisposable
         var reassurance = detail.Rows.Single(r => r.Label == "Either way");
         Assert.Contains("nothing is deleted", reassurance.Value!, StringComparison.OrdinalIgnoreCase);
 
-        // Two verbs, and neither of them is Accept: a screen that put a side on the button that
-        // also confirms would make the commonest mispress the destructive one.
-        var hints = detail.Hints.Select(hint => hint.Action).ToList();
+        // Neither side is one press: the confirm button opens the choice, the choice opens a
+        // confirmation, and only that acts. The commonest mispress asks a question.
+        var sides = Assert.IsType<ListScreen>(Navigator.Press(detail, NavAction.Accept).Screen);
+        Assert.Equal(2, sides.Rows.Count);
 
-        Assert.Contains(NavAction.Start, hints);
-        Assert.Contains(NavAction.Alternate, hints);
-        Assert.DoesNotContain(NavAction.Accept, hints);
+        var confirm = Assert.IsType<ListScreen>(sides.Handle(NavAction.Accept).Screen);
+        Assert.Equal("Keep this device's save?", confirm.Title);
+        Assert.Single(_session.Store.SaveConflicts.ListOpen());
     }
 
     [Fact]
@@ -279,19 +280,23 @@ public class ConflictScreenTests : IDisposable
 
         var navigator = new Navigator(ConflictScreens.Detail(session, opened, null, () => pairing));
 
-        // Keep this device's save, then confirm it.
-        navigator.Handle(NavAction.Start);
+        // Choose, keep this device's save, then confirm it.
+        navigator.Handle(NavAction.Accept);
+        navigator.Handle(NavAction.Accept);
         navigator.Handle(NavAction.Accept);
 
         var applying = Assert.IsType<ListScreen>(navigator.Current);
 
         await WaitFor(() => applying.Rows.Count > 0);
 
-        var hint = Assert.Single(applying.Hints, h => h.Action == NavAction.Start);
-        Assert.Equal("Pair with RomM", hint.Label);
+        Assert.Contains(applying.Actions, action => action.Label == "Pair with RomM");
 
-        // And it goes somewhere, rather than naming a verb that does nothing.
+        // And it goes somewhere, rather than naming a verb that does nothing: the menu, then
+        // the pick, which closes the menu and opens pairing over the result.
         navigator.Handle(NavAction.Start);
+        Assert.IsType<ActionMenuScreen>(navigator.Current);
+
+        navigator.Handle(NavAction.Accept);
         Assert.Same(pairing, navigator.Current);
     }
 

@@ -247,7 +247,7 @@ public sealed class BrowseScreenTests : IDisposable
         await WaitFor(() => stub.RomPagesRequested == before + 1);
 
         // And a search submitted without waiting for it, which is the path that had no guard.
-        var keyboard = Assert.IsType<OnScreenKeyboard>(browse.Handle(NavAction.Start).Screen);
+        var keyboard = Assert.IsType<OnScreenKeyboard>(Navigator.Press(browse, NavAction.Alternate).Screen);
 
         // A character first: Commit refuses an empty string, so a test that pressed straight
         // through never reached the search path at all and passed against the unfixed code.
@@ -578,7 +578,7 @@ public sealed class BrowseScreenTests : IDisposable
         var detail = Assert.IsType<ListScreen>(navigator.Current);
 
         // One press on the detail screen, and the sync opens over the set the game just joined.
-        navigator.Handle(NavAction.Start);
+        navigator.Handle(NavAction.Accept);
 
         var sync = Assert.IsType<SyncViewModel>(navigator.Current);
         await SyncSettled(sync);
@@ -622,7 +622,7 @@ public sealed class BrowseScreenTests : IDisposable
         await Settled(browse);
 
         navigator.Handle(NavAction.Accept);
-        navigator.Handle(NavAction.Start);
+        navigator.Handle(NavAction.Accept);
 
         using var sync = Assert.IsType<SyncViewModel>(navigator.Current);
         await SyncSettled(sync);
@@ -662,7 +662,7 @@ public sealed class BrowseScreenTests : IDisposable
         await Settled(browse);
 
         navigator.Handle(NavAction.Accept);
-        navigator.Handle(NavAction.Start);
+        navigator.Handle(NavAction.Accept);
 
         using var sync = Assert.IsType<SyncViewModel>(navigator.Current);
         await SyncSettled(sync);
@@ -694,7 +694,7 @@ public sealed class BrowseScreenTests : IDisposable
         await Settled(browse);
 
         navigator.Handle(NavAction.Accept);
-        navigator.Handle(NavAction.Start);
+        navigator.Handle(NavAction.Accept);
 
         var sync = Assert.IsType<SyncViewModel>(navigator.Current);
         await SyncSettled(sync);
@@ -716,7 +716,7 @@ public sealed class BrowseScreenTests : IDisposable
         navigator.Handle(NavAction.Accept);
         var detail = Assert.IsType<ListScreen>(navigator.Current);
 
-        navigator.Handle(NavAction.Start);
+        navigator.Handle(NavAction.Accept);
 
         // A sentence, not a pass. The message names what did not happen rather than leaving a
         // person to work out why a progress screen finished instantly.
@@ -753,7 +753,7 @@ public sealed class BrowseScreenTests : IDisposable
         var detail = Assert.IsType<ListScreen>(navigator.Current);
         var depth = navigator.Depth;
 
-        navigator.Handle(NavAction.Alternate);
+        ActionMenuDriver.Choose(navigator, "Take it off this device");
         var preview = Assert.IsType<ListScreen>(navigator.Current);
         await Wait(() => !preview.IsLoading);
 
@@ -816,7 +816,7 @@ public sealed class BrowseScreenTests : IDisposable
 
         navigator.Handle(NavAction.Accept);
         using var detail = Assert.IsType<ListScreen>(navigator.Current);
-        navigator.Handle(NavAction.Start);
+        navigator.Handle(NavAction.Accept);
 
         using var sync = Assert.IsType<SyncViewModel>(navigator.Current);
         await SyncSettled(sync);
@@ -837,7 +837,7 @@ public sealed class BrowseScreenTests : IDisposable
         navigator.Handle(NavAction.Accept);
         using var detail = Assert.IsType<ListScreen>(navigator.Current);
 
-        navigator.Handle(NavAction.Alternate);
+        ActionMenuDriver.Choose(navigator, "Take it off this device");
         using var preview = Assert.IsType<ListScreen>(navigator.Current);
         await Wait(() => !preview.IsLoading);
 

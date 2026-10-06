@@ -46,29 +46,29 @@ public static class BrowseScreens
             game.DisplayName,
             Rows,
             _ => ScreenCommand.Stay,
-            acceptLabel: string.Empty,
+            acceptLabel: "Put this game on the device",
             backLabel: "Back")
         {
             Reading = true,
 
-            // Each verb offered exactly when it works, which the fixed pair got wrong offline:
-            // the note said the game could not be installed from here and the footer went on
-            // promising it, because there is no server row behind an offline page to pick from.
-            // Found by the sweep, one screen over from the three a hands-on pass had just met.
-            ExtraHints = () =>
+            // The bottom button installs, as it launches a game in EmulationStation: it is the
+            // one thing a person opening a game here most likely came to do. Offered exactly when
+            // it works, which a fixed hint got wrong offline: there is no server row behind an
+            // offline page to pick from.
+            OfferAcceptWhen = () => game.Row is not null,
+
+            // Taking it off has no shortcut, as no destructive verb does. The memory card is
+            // offered only where the shape allows it, which SaveConverter answers.
+            ActionList = () =>
             [
                 .. game.Row is not null
-                    ? new[] { new FooterHint(NavAction.Start, "Put this game on the device") }
+                    ? new[] { new ScreenAction("Put this game on the device", () => Install(session, game, connect, changed)) }
                     : [],
                 .. game.IsHere
-                    ? new[] { new FooterHint(NavAction.Alternate, "Take it off this device") }
+                    ? new[] { new ScreenAction("Take it off this device", () => ScreenCommand.Push(ConfirmRemoval(session, game, connect, changed))) }
                     : [],
-
-                // The third verb, and the only screen with a game in hand, which is what
-                // queueing a per-game memory card needs. Offered only where the shape allows
-                // it, which SaveConverter answers and this does not work out for itself.
                 .. QueuedChangeScreens.CanConvert(session, game.RomId)
-                    ? new[] { new FooterHint(NavAction.Extra, "Give it its own memory card") }
+                    ? new[] { new ScreenAction("Give it its own memory card", () => ScreenCommand.Push(QueuedChangeScreens.Convert(session, game.RomId, game.DisplayName))) }
                     : [],
             ],
             // No row means the page fell back, which an unreachable RomM and a refused page
@@ -82,14 +82,8 @@ public static class BrowseScreens
                 // The pick writes the member row and the sync opens over the set it joined,
                 // which is the shape SetEditorViewModel already uses for create-then-resolve
                 // and the reason ReplaceThenOpen exists.
-                NavAction.Start when game.Row is not null =>
+                NavAction.Accept when game.Row is not null =>
                     Install(session, game, connect, changed),
-
-                NavAction.Alternate when game.IsHere =>
-                    ScreenCommand.Push(ConfirmRemoval(session, game, connect, changed)),
-
-                NavAction.Extra when QueuedChangeScreens.CanConvert(session, game.RomId) =>
-                    ScreenCommand.Push(QueuedChangeScreens.Convert(session, game.RomId, game.DisplayName)),
 
                 _ => null,
             },

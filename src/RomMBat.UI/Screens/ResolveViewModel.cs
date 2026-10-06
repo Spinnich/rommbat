@@ -191,10 +191,10 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         // work is thrown away, and it is not: the walk resumes where it stopped.
         ResolveStage.Working => [new FooterHint(NavAction.Back, "Stop for now")],
 
-        // "Done" rather than "Back" once there is nothing left running, which is the rule the
-        // pairing screen already followed and these two did not: if the footer offers a stop
-        // the work is going, and if it says Done it is over.
-        _ => [new FooterHint(NavAction.Back, "Done")],
+        // "Done" rather than "Back" once there is nothing left running: if the footer offers a
+        // stop the work is going, and if it says Done it is over. On the bottom button, because
+        // moving on from a finished screen is progress.
+        _ => [new FooterHint(NavAction.Accept, ListScreen.DoneLabel)],
     };
 
     public ScreenCommand Handle(NavAction action)
@@ -208,12 +208,12 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
                 // canceled the walk. The stopped summary was written to a screen that had
                 // already left the stack.
                 //
-                // The sync screen answers Back the same way and has to, since its stop removes
-                // a part-fetched game. Two minutes-long screens with two different rules for
-                // the same press is a rule a user has to learn twice.
+                // Not asked first, unlike the sync screen's stop: nothing is lost here, since the
+                // next resolve continues from where this one stopped.
                 Stop();
                 return ScreenCommand.Stay;
 
+            case NavAction.Accept when Stage != ResolveStage.Working:
             case NavAction.Back:
                 return ScreenCommand.Pop;
 

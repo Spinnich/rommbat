@@ -134,42 +134,35 @@ public static class PlatformScreens
             platform.Label,
             () => DetailRows(Current()),
             _ => ScreenCommand.Stay,
-            acceptLabel: string.Empty,
+            acceptLabel: "Choose a folder",
             backLabel: "Back")
         {
             Reading = true,
 
-            // Both verbs here, because ExtraHints replaces the constructor's hints rather than
-            // adding to them: a Start hint passed there and an ExtraHints that answered only
-            // Alternate would leave the first verb working with nothing in the footer naming it.
-            //
+            // Choosing a folder is what this screen is for, so it is the bottom button's, and
+            // a screen of facts offers it through AlwaysOfferAccept since no row is choosable.
+            AlwaysOfferAccept = true,
+
             // The second verb only exists for a row somebody chose. Offering "use the automatic
             // one" on a row that is already the automatic one is a press that does nothing.
-            ExtraHints = () => Current().IsUserChoice
-                ?
-                [
-                    new FooterHint(NavAction.Start, "Choose a folder"),
-                    new FooterHint(NavAction.Alternate, "Use the automatic choice"),
-                ]
-                : [new FooterHint(NavAction.Start, "Choose a folder")],
+            ActionList = () =>
+            [
+                new ScreenAction("Choose a folder", () => ScreenCommand.Push(FolderPicker(session, Current()))),
+                .. Current().IsUserChoice
+                    ? new[] { new ScreenAction("Use the automatic choice", () => ScreenCommand.Push(ClearConfirm(session, Current()))) }
+                    : [],
+            ],
 
-            Verbs = (action, _) => action switch
-            {
-                NavAction.Start => ScreenCommand.Push(FolderPicker(session, Current())),
-
-                NavAction.Alternate when Current().IsUserChoice =>
-                    ScreenCommand.Push(ClearConfirm(session, Current())),
-
-                _ => null,
-            },
+            Verbs = (action, _) => action == NavAction.Accept
+                ? ScreenCommand.Push(FolderPicker(session, Current()))
+                : null,
         };
     }
 
     private static List<ListRow> DetailRows(PlatformMapRow platform)
     {
-        // Unavailable, because every row is a fact rather than a choice. The verbs are on
-        // Start and Alternate, and an available row here would put an Accept in the footer that
-        // does nothing.
+        // Unavailable, because every row is a fact rather than a choice. The screen's own verbs
+        // are the bottom button's and the menu's, not a row's.
         var rows = new List<ListRow>
         {
             new("Folder", platform.Folder ?? "none", Describe(platform.ResolvedBy), false),
