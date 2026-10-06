@@ -71,10 +71,9 @@ The UI's keys are its desk map: `Up`, `Down`, `Left`, `Right`, `Enter` (A), `Esc
   unproven rather than sending keys blind.
 - **Look before the next key.** Take a screenshot after each key whose effect matters, and read
   it. A key sent during a fade or a load is lost without an error.
-- **A game the maintainer plays is launched from the pad, not with `Start-Game`.** A `Start-Game`
-  made before the pad had touched ES reached `emulatorLauncher` with no `-p1` arguments, and the
-  pad did nothing in the game; the same game launched from the pad carried them. Set the row, leave
-  ES on its menu, and let the maintainer launch it. `Start-Game` is for launches the agent drives
-  with `Send-Key`.
+- **A game the maintainer plays is launched from the pad, not with `Start-Game`.** A `/launch`
+  made before the pad has touched ES carries no pad, so the pad does nothing in the game
+  (RB-419). Set the row, leave ES on its menu, and let the maintainer launch it. `Start-Game` is
+  for launches the agent drives with `Send-Key`.
 - **Evidence stays local.** Screenshots go under `probe-output/`, which git ignores. The PR's
   Hands-on section names the paths and says what each showed.
