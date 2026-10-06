@@ -148,9 +148,28 @@ public sealed class SetEditorViewModel : IScreen, IActionScreen
     /// <summary>The rows as they read when the editor opened, which is what "unsaved" is against.</summary>
     private readonly string _opened;
 
-    /// <summary>Every row's label and value, which together are everything the editor would save.</summary>
+    /// <summary>
+    /// Everything the editor would save, and nothing it merely draws.
+    /// </summary>
+    /// <remarks>
+    /// Read from the values rather than the rows, because the rows change without anyone
+    /// editing: the facet values arrive from RomM while the editor is open, and a facet the
+    /// library has no values for leaves the list.
+    /// </remarks>
     private string Snapshot() =>
-        string.Join('|', BuildRows().Select(row => $"{row.Label}={row.Value}"));
+        string.Join(
+            '|',
+            [
+                _name,
+                _scope.ToString(),
+                _platformValue ?? string.Empty,
+                _collectionValue ?? string.Empty,
+                _folder ?? string.Empty,
+                _searchTerm ?? string.Empty,
+                .. FilterFacet.Multi.Select(facet =>
+                    $"{facet}:{_logic[facet]}:{string.Join(',', _facets[facet].Order(StringComparer.Ordinal))}"),
+                .. FilterFacet.Properties.Select(property => $"{property}:{_properties[property]}"),
+            ]);
 
     /// <summary>True once anything differs from how the editor opened.</summary>
     public bool IsDirty => Snapshot() != _opened;

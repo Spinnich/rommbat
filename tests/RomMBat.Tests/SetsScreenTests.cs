@@ -607,6 +607,28 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     [Fact]
+    public void Loading_what_a_filter_can_match_is_not_a_change()
+    {
+        // The facet values arrive from RomM while the editor is open, and a facet the library
+        // has no values for leaves the rows. Nothing about the set changed, so leaving must not
+        // ask whether to discard anything (R4.3 on #495).
+        var made = new SyncSetService(_session).Add(
+            new SetDraft { Name = "filtered", Scope = CatalogScopeKind.Filter, Filter = new CatalogFilter() },
+            Now);
+
+        var editor = SetEditorViewModel.ForExisting(_session, made.Set!);
+        var before = editor.Rows.Count;
+
+        var library = Library();
+        library[FilterFacet.Genres] = [];
+        editor._facetValues = library;
+
+        Assert.NotEqual(before, editor.Rows.Count);
+        Assert.False(editor.IsDirty);
+        Assert.Equal(ScreenCommandKind.Pop, editor.Handle(NavAction.Back).Kind);
+    }
+
+    [Fact]
     public void Saving_is_a_row_the_confirm_button_presses()
     {
         SeedPlatform(4, "snes");
