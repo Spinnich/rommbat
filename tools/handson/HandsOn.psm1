@@ -484,7 +484,7 @@ function Stop-Game {
         if ((Get-Date) -ge $deadline) {
             $running = @(Get-EmulatorProcess)
             if (-not $Force -or $forced -or -not $running.Count) { break }
-            Write-Warning "$($running.Name -join ', ') ignored WM_CLOSE and Escape; ending it. A save it had not written is lost."
+            Write-Warning "$($running.Name -join ', ') did not close; ending it. A save it had not written is lost."
             $running | Stop-Process -Force
             $forced = $true
             $deadline = (Get-Date).AddSeconds($TimeoutSec)
