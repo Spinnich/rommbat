@@ -231,7 +231,7 @@ public sealed class SaveScanner
                         system,
                         string.Empty,
                         UnsyncableReason.UnknownShape,
-                        $"{extension} is not an extension RomMBat recognises as a save",
+                        $"{extension} is not an extension RomMBat recognizes as a save",
                         1,
                         Named(file));
                     continue;
@@ -1232,7 +1232,7 @@ public sealed class SaveScanner
     /// <para>
     /// <b>A row found one file at a time names its files.</b> A count and a reason cannot be
     /// acted on: a hands-on pass had to read the code to learn which two files "shape not
-    /// recognised" meant (#152). The first few go into the detail, so the report needs no
+    /// recognized" meant (#152). The first few go into the detail, so the report needs no
     /// column and a row covering a thousand files stays one readable line.
     /// </para>
     /// </remarks>

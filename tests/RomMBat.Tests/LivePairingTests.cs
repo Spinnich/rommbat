@@ -68,7 +68,7 @@ public sealed class LivePairingTests : IAsyncDisposable
     /// <para>
     /// Its own token rather than a test's: teardown runs after the test that created the
     /// litter has finished, so <c>TestContext.Current.CancellationToken</c> is either gone or
-    /// already cancelled and would abandon the cleanup rather than bound it.
+    /// already canceled and would abandon the cleanup rather than bound it.
     /// </para>
     /// </remarks>
     public async ValueTask DisposeAsync()
@@ -179,7 +179,7 @@ public sealed class LivePairingTests : IAsyncDisposable
         Assert.True(first.IsPaired);
 
         // The install now moves to a different location, exactly as a drive letter change
-        // would look, and pairs again on the identity that travelled with it.
+        // would look, and pairs again on the identity that traveled with it.
         using var moved = tree.CopyToNewLocation();
         var movedInstall = moved.Install();
         using var movedStore = LocalStore.Open(movedInstall);

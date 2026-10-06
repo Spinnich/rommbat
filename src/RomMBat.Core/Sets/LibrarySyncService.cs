@@ -427,7 +427,7 @@ public sealed class LibrarySyncService
             using var emulationStation = new EmulationStationClient();
 
             // Not on the run's token, and this is the whole of "a stopped sync ends with a
-            // correct tree rather than with work postponed". Handing the cancelled token here
+            // correct tree rather than with work postponed". Handing the canceled token here
             // made the pass throw the instant it started, so a stop left every finished game on
             // disk and invisible to EmulationStation, which is worse than not having fetched it.
             // Found by a hands-on pass: the first game of a set landed on the drive and never

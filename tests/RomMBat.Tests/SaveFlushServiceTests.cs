@@ -64,7 +64,7 @@ public sealed class SaveFlushServiceTests
 
         var report = await fixture.RunAsync(fixture.Connect());
 
-        // Partial rather than Unreachable, which is inherited behaviour rather than a choice.
+        // Partial rather than Unreachable, which is inherited behavior rather than a choice.
         // All three sending passes absorb RomMUnreachableException per item and report it, so
         // the outer catch FlushCommand carries never fires for them. Recorded as what it is.
         Assert.Equal(FlushState.Partial, report.State);
@@ -176,7 +176,7 @@ public sealed class SaveFlushServiceTests
         var afterFirst = fixture.Stub.RequestLog.Count;
 
         // Cleared, so the second pass negotiates for real rather than being told to upload
-        // again. Leaving it set asserts the stub's content dedup, not the client's behaviour.
+        // again. Leaving it set asserts the stub's content dedup, not the client's behavior.
         fixture.StopWantingUpload(42);
 
         var second = await fixture.RunAsync(fixture.Connect());

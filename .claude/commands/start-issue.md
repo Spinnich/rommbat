@@ -20,7 +20,7 @@ the thing and was told not to fix it yet. Its quoted code has often moved. Read 
 (`gh issue view $ISSUE --comments`), any PR it came from, and the code on `origin/main`.
 
 **A verdict cites the code on main today**, quoted as `file:line`, or the commit that changed it.
-Never rule from the issue's own text. Two failures are symmetric: fixing behaviour the code no
+Never rule from the issue's own text. Two failures are symmetric: fixing behavior the code no
 longer has, and closing a live defect because it is old or awkward.
 
 | Verdict       | Means                                                          | Evidence                                                    | Then                                 |
@@ -32,7 +32,7 @@ longer has, and closing a live defect because it is old or awkward.
 | KEEP-BLOCKED  | Settling it needs a measurement or hardware this session lacks | Exactly what would settle it, and whether you could take it | Ask                                  |
 
 A CLOSE-FIXED close is `gh issue close $ISSUE --reason completed --comment "<commit and one or two
-sentences>"`. Check whether that commit left a doc describing the old behaviour; if so, the doc
+sentences>"`. Check whether that commit left a doc describing the old behavior; if so, the doc
 fix is this issue's work and the verdict is FIX.
 
 Every other non-FIX verdict goes to the maintainer as one multiple-choice question, verdict and

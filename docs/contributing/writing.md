@@ -21,7 +21,11 @@ evidence". People read that shape well too. This page is the house style for eve
   When every paragraph opens in bold, nothing stands out.
 - **Short files, one topic each, descriptive names.** Headings are stable anchors other files
   link to, so rename one only with its links.
-- **English only**, outside localisation files.
+- **American English only**, outside localization files: US spelling and vocabulary in docs,
+  comments, commit messages and anything a user reads (behavior, color, canceled, labeled,
+  license, catalog, artifact, and -ize rather than -ise). A quotation from upstream keeps its
+  own spelling, and so does an identifier or a persisted value until something deliberately
+  renames it.
 
 ## By layer
 
@@ -46,7 +50,7 @@ ordinary English and is fine.
 Anything sent to the RomM team, an upstream tracker or any other outside reader holds only
 verified claims: measured on a certified `(system, emulator, core)` row, read in upstream source,
 or measured live against the server. Verify an unverified point first and add it afterwards;
-never send it labelled preliminary, which hands the checking to someone else. Evidence from an
+never send it labeled preliminary, which hands the checking to someone else. Evidence from an
 uncertified platform becomes a verification task, not a line in the document.
 
 ## Markdown traps
@@ -73,6 +77,7 @@ the tree.
 | `summary:` and `read-when:` frontmatter on every file under `docs/`                                    | Reported    |
 | History phrasing, such as `The move to` or `Superseded`                                                | Fails       |
 | Generic `dry-run`                                                                                      | Reported    |
+| A British spelling from the checker's list, outside code and quotation marks                           | Fails       |
 | A `$` in prose written `\$`, or `&#36;` under `wiki/`, which MkDocs does not unescape                  | Fails       |
 
 A reported rule becomes a failing one once the tree meets it. The context ceiling stays reported,

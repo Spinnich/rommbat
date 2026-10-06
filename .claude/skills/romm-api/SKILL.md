@@ -11,7 +11,7 @@ version. The floor tracks the newest RomM stable and never a prerelease (`versio
 the pin moves with it and the two are one decision. The published docs at docs.romm.app have drifted from the server on exactly the
 payloads this client needs most, so never code from them.
 
-- The pin, the generator, and why the schema is normalised first:
+- The pin, the generator, and why the schema is normalized first:
   `src/RomM.Client/openapi/README.md`. Regenerate only when deliberately moving the pin.
 - **`SocketsHttpHandler.ConnectTimeout` is set explicitly on every handler** (2 s
   interactive). Nothing sets it by default and an unreachable LAN host stalls 21 s.
@@ -73,7 +73,7 @@ Token expiry is the **approver's** choice, not the client's: `expires_in` is a f
 back off `/token` and stores it.
 
 The code is **8 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`**, not 8 digits. I, L, O,
-0 and 1 are excluded. The server normalises hyphens, spaces and case, so display it
+0 and 1 are excluded. The server normalizes hyphens, spaces and case, so display it
 grouped (`ABCD-EFGH`).
 
 Pending state is Redis-only with a hard 600s TTL: show a countdown and a one-button
@@ -147,12 +147,12 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 These cross every area. The rest are in [library.md](library.md#traps) (catalog, downloads,
 media, metadata, firmware) and [saves.md](saves.md#traps) (saves, states, play sessions, a 409).
 
-- **RomM serialises a play session's datetimes without a zone and stores UTC, and
+- **RomM serializes a play session's datetimes without a zone and stores UTC, and
   `System.Text.Json` reads a zone-less value as local.** So a plain `DateTimeOffset` property is
   wrong by the machine's own offset, silently, and reads as right on a UTC machine, which is what
   CI is. The other `GET` routes RB-260 read carry `+00:00`. **Put
   `[JsonConverter(typeof(UtcTimestampConverter))]` on any `DateTimeOffset` read off the
-  server**, which honours an offset where one is present, so it is
+  server**, which honors an offset where one is present, so it is
   safe whether or not the field names a zone. `RomRow.UpdatedAtUtc` does the same by hand because
   its raw field is a string. The stub serves every timestamp zone-less for this reason; a stub
   writing an offset lets the broken client pass.

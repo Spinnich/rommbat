@@ -2,7 +2,7 @@
 """Rewrite OpenAPI 3.1 nullable idioms into the 3.0 form NSwag understands.
 
 RomM serves OpenAPI 3.1, where an optional string is `anyOf: [{type: string},
-{type: "null"}]`. NSwag's 3.1 support does not recognise that as nullability and
+{type: "null"}]`. NSwag's 3.1 support does not recognize that as nullability and
 emits an empty placeholder class per occurrence, so `expires_at` arrives as a
 class named `Expires_at4` instead of `string?`.
 

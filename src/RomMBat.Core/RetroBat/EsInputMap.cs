@@ -142,7 +142,7 @@ public sealed class EsInputMap
     /// The configuration for a running joystick, matched on its GUID.
     /// </summary>
     /// <remarks>
-    /// Normalises both sides, because the same pad has two GUID spellings. See
+    /// Normalizes both sides, because the same pad has two GUID spellings. See
     /// <see cref="NormalizeGuid"/>.
     /// </remarks>
     /// <returns>Null when EmulationStation has never been shown this pad.</returns>

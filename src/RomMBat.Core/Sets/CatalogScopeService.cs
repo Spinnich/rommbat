@@ -62,7 +62,7 @@ public static class FilterFacet
     public static IReadOnlyList<string> Properties { get; } =
     [
         "Matched",
-        "Favourite",
+        "Favorite",
         "Has versions",
         "Playable in browser",
         "Missing from disk",
@@ -85,7 +85,7 @@ public static class FilterFacet
     public static IReadOnlySet<string> DependOnTheServer { get; } =
         new HashSet<string>(StringComparer.Ordinal)
         {
-            "Favourite",
+            "Favorite",
             "Missing from disk",
             "Has saves",
             "Has save states",
@@ -106,7 +106,7 @@ public static class FilterFacet
         MetadataProviders => "metadata_providers",
         Tags => "tags",
         "Matched" => "matched",
-        "Favourite" => "favorite",
+        "Favorite" => "favorite",
         "Has versions" => "duplicate",
         "Playable in browser" => "playable",
         "Missing from disk" => "missing",
@@ -228,7 +228,7 @@ public sealed class CatalogScopeService
 
                 // No count. `rom_count` is stored and computed as the owner, while paging applies
                 // the criteria as the caller, so a public collection filtering on `favorite`
-                // lists another account's favourites and resolves to what this one has marked.
+                // lists another account's favorites and resolves to what this one has marked.
                 // Measured: 29 of 29 advertised between 6 and 594 and paged back 0.
                 CatalogScopeKind.SmartCollection => From(
                     await _connection.ListSmartCollectionsAsync(cancellationToken).ConfigureAwait(false),
@@ -354,7 +354,7 @@ public sealed class CatalogScopeService
     /// <remarks>
     /// <c>filter_values</c> describes the library, and a status nobody has assigned yet is
     /// still one you can filter for. Straight off <c>RomUserStatus</c> in the pinned schema,
-    /// which enumerates them; a live probe cannot corroborate it, because an unrecognised
+    /// which enumerates them; a live probe cannot corroborate it, because an unrecognized
     /// status returns zero rows rather than the whole library and so looks exactly like a real
     /// status nobody has used.
     /// </remarks>
@@ -369,7 +369,7 @@ public sealed class CatalogScopeService
     /// enumeration</b>, and the server <b>silently ignores</b> a value it does not know, which
     /// makes a wrong entry here worse than a missing one: the user picks a provider and is
     /// handed the whole library. So these were probed one at a time against a live 5.2.0
-    /// instance, where a recognised value narrows the total and an unrecognised one leaves it
+    /// instance, where a recognized value narrows the total and an unrecognized one leaves it
     /// alone. RB-236.
     /// <para>
     /// Deriving them from <c>SimpleRomSchema</c>'s <c>*_id</c> fields would have been wrong:

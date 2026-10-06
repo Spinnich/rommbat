@@ -1,6 +1,6 @@
 ---
 name: offline-and-portable
-description: Offline-first behaviour and portable-install constraints - the outbox, relative paths, clock skew, filesystem limits, token storage. Use when touching local state, the sync flush, file paths, or anything that must survive being unplugged or moved.
+description: Offline-first behavior and portable-install constraints - the outbox, relative paths, clock skew, filesystem limits, token storage. Use when touching local state, the sync flush, file paths, or anything that must survive being unplugged or moved.
 ---
 
 # Offline and portable
@@ -14,7 +14,7 @@ files beside it, by section:
 
 | Section                                                                                                                                                           | File                           |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| [Offline-first](transfers.md#offline-first): cancelled transfers, the `.part` rule and the `partial/` sweep                                                       | [transfers.md](transfers.md)   |
+| [Offline-first](transfers.md#offline-first): canceled transfers, the `.part` rule and the `partial/` sweep                                                        | [transfers.md](transfers.md)   |
 | [Offline-first](store.md#offline-first): the shared SQLite connection and `TreeLock`                                                                              | [store.md](store.md)           |
 | [Offline-first](offline-ui.md#offline-first): which set and mapping operations work with the server off                                                           | [offline-ui.md](offline-ui.md) |
 | [Browsing and removing, offline](offline-ui.md#browsing-and-removing-offline)                                                                                     | [offline-ui.md](offline-ui.md) |
@@ -61,7 +61,7 @@ the source of truth; the network is optional, probed with a short-timeout
 - **Conflicts are normal, not exceptional.** Default `keep_both`, never silently overwrite,
   always copy aside first. Keeping both means keeping the local side **local**: uploading it
   would make it the newest row in the slot and tell every other device to take it, which is an
-  unresolved conflict resolving itself in favour of whoever synced last. The conflict is
+  unresolved conflict resolving itself in favor of whoever synced last. The conflict is
   persisted and waits for a person to pick a side, with `saves resolve` or the UI's conflict
   screens.
 - **Exit `Offline` (5) means unreachable and nothing else.** It is the one code that tells a

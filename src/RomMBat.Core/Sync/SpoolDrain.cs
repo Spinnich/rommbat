@@ -22,7 +22,7 @@ public sealed record SpoolDrainOutcome(int Ingested, int Malformed, int Unreadab
 /// Turns what the hooks spooled into journal rows.
 /// </summary>
 /// <remarks>
-/// <b>This is the only place a hook's absolute rom path is relativised</b>, which is the
+/// <b>This is the only place a hook's absolute rom path is relativized</b>, which is the
 /// boundary CLAUDE.md rule 1 names as mandatory work. The hook writes its arguments verbatim,
 /// because it does not know the ROM index and has no business guessing; the drain has the root
 /// and can do it properly.

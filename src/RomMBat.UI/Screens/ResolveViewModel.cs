@@ -38,8 +38,8 @@ public enum ResolveStage
 /// <list type="bullet">
 /// <item>It shows a count that moves. A screen that cannot show progress is, from a sofa,
 /// indistinguishable from a hung one, and eight minutes is long enough to convince anyone.</item>
-/// <item>It can be cancelled, because nobody holds a controller for eight minutes.</item>
-/// <item>Cancelling <b>resumes</b>. <see cref="SetResolveService"/> records the offset exactly
+/// <item>It can be canceled, because nobody holds a controller for eight minutes.</item>
+/// <item>Canceling <b>resumes</b>. <see cref="SetResolveService"/> records the offset exactly
 /// as an unreachable server does, so the next resolve continues rather than starting again. A
 /// cancel that threw the paging away would make the feature worse than not having it.</item>
 /// </list>
@@ -48,7 +48,7 @@ public enum ResolveStage
 /// it is disposed when it is left, so <see cref="ILiveScreen"/> has more than one implementer.
 /// </para>
 /// <para>
-/// <b>The source is cancelled and never disposed.</b> A run still unwinding can register on
+/// <b>The source is canceled and never disposed.</b> A run still unwinding can register on
 /// that token and would take an <see cref="ObjectDisposedException"/> on a background thread
 /// where nobody sees it.
 /// </para>
@@ -205,7 +205,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
                 // Stop and stay; a second Back leaves. #107: this screen already composed a
                 // sentence naming the set that was interrupted, and nothing could ever display
                 // it, because Back popped the screen and Dispose was the only thing that
-                // cancelled the walk. The stopped summary was written to a screen that had
+                // canceled the walk. The stopped summary was written to a screen that had
                 // already left the stack.
                 //
                 // The sync screen answers Back the same way and has to, since its stop removes
@@ -245,12 +245,12 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
 
         _disposed = true;
 
-        // Cancelled, never disposed. A walk still unwinding registers on this token.
+        // Canceled, never disposed. A walk still unwinding registers on this token.
         _run.Cancel();
 
         // Then wait, briefly, for it to finish writing what it found. The screen underneath is
         // rebuilt the moment this returns, and without the wait it was rebuilt before the
-        // cancelled walk had recorded, so it showed the counts from before the resolve ran.
+        // canceled walk had recorded, so it showed the counts from before the resolve ran.
         //
         // This is not a network wait: the walk breaks out of its loop and performs two SQLite
         // writes. The bound is here because a screen that cannot be left is worse than one that

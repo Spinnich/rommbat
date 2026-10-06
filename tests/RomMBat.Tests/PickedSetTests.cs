@@ -19,7 +19,7 @@ namespace RomMBat.Tests;
 /// <b>A hand-picked set is a set.</b> That is the whole claim of this file, and it is why the
 /// alternatives were refused: an id list inside a <c>filter</c> scope overloads one column with
 /// two meanings, and an unmanaged download outside every set means storing "this orphan is
-/// deliberate" and teaching the planner to recognise it, which is a set by another name with
+/// deliberate" and teaching the planner to recognize it, which is a set by another name with
 /// none of a set's machinery.
 /// </remarks>
 public sealed class PickedSetTests : IDisposable
@@ -206,7 +206,7 @@ public sealed class PickedSetTests : IDisposable
     {
         // psx has a bundled layout, so a resolve takes a multi-disc game held as one RomM game
         // and lands it as a folder with an .m3u. The pick refused every multi-file game, which
-        // left the well-organised shape of a multi-disc title the one a single press could not
+        // left the well-organized shape of a multi-disc title the one a single press could not
         // install. Its size is the total of files that land apart, so the one-file limit does
         // not apply to it either.
         Map(2, "psx");

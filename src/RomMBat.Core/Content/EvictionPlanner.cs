@@ -127,7 +127,7 @@ public sealed record EvictionPlan
 /// <remarks>
 /// <b>Two rules override every ordering.</b> A file RomMBat did not download is never removed:
 /// an adopted file is the user's own, and deleting it would be destroying data the app was only
-/// ever asked to catalogue. And a game with unflushed local saves is never removed, whatever
+/// ever asked to catalog. And a game with unflushed local saves is never removed, whatever
 /// the budget says, which <see cref="SaveGuard"/> answers and fails closed on.
 /// <para>
 /// The order within what is left is departed first, then orphaned, then the lowest-ranked
@@ -137,7 +137,7 @@ public sealed record EvictionPlan
 /// </para>
 /// <para>
 /// <b>The <c>keep_favourites</c> policy is inert and deliberately not pretended otherwise.</b>
-/// RomM has no <c>is_favorite</c> property on a ROM: favourites are membership of a collection,
+/// RomM has no <c>is_favorite</c> property on a ROM: favorites are membership of a collection,
 /// which cannot be answered offline and is not carried on the membership row. "Keep the last N
 /// played" is inert too, though its input exists: the <c>journal</c> table keeps every
 /// <c>game-start</c> with its <c>recorded_at_utc</c>, and this planner does not read it. A

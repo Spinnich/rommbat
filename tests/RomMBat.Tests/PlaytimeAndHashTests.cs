@@ -33,7 +33,7 @@ public class PlaytimeAndHashTests
         Assert.Equal(forward, reversed);
         Assert.Equal(forward, LogicalContentHash.Fold(entries));
 
-        // Case is normalised, so two implementations disagreeing on hex casing still agree.
+        // Case is normalized, so two implementations disagreeing on hex casing still agree.
         Assert.Equal(
             forward,
             LogicalContentHash.Fold(entries.Select(entry => (entry.Item1, entry.Item2.ToUpperInvariant()))));

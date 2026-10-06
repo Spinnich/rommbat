@@ -11,9 +11,9 @@ public class CatalogScopeServiceTests
     public async Task A_smart_collection_is_offered_without_the_count_the_server_stores_for_its_owner()
     {
         // Measured on 5.3.0-alpha.2: collection 29 listed rom_count 594 and paged back a total of
-        // 0 for an account that had marked none of the owner's favourites.
+        // 0 for an account that had marked none of the owner's favorites.
         using var stub = new StubRomMServer();
-        stub.SmartCollections.Add((29, "Favourites", 594));
+        stub.SmartCollections.Add((29, "Favorites", 594));
         using var connection = new RomMConnection(
             new RomMClientOptions { Origin = new Uri("https://romm.test"), AccessToken = "rmm_test" },
             stub);
@@ -24,7 +24,7 @@ public class CatalogScopeServiceTests
         Assert.False(values.IsRefused);
         var option = Assert.Single(values.Options);
         Assert.Equal("29", option.Value);
-        Assert.Equal("Favourites", option.Label);
+        Assert.Equal("Favorites", option.Label);
         Assert.Null(option.Detail);
     }
 }

@@ -6,7 +6,7 @@ read-when: Before adding a migration, a table or a column, or touching the store
 # The local store
 
 **One connection, gated.** Every store class shares a single `SqliteConnection`, which is not
-thread-safe, and access is serialised inside the process by a re-entrant gate taken when a
+thread-safe, and access is serialized inside the process by a re-entrant gate taken when a
 command is created and released when it is disposed. **Closing the connection takes that same
 gate, and is the second place that takes it.** The race is real because a sync writes from a
 background thread for minutes while the drawing thread reads the same connection on every

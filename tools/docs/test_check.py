@@ -180,6 +180,40 @@ class BareDollarTest(unittest.TestCase):
         self.assertEqual(self.errors("ISSUE = $1.\n", ".claude/commands/x.md"), [])
 
 
+class SpellingTest(unittest.TestCase):
+    def reports(self, text: str) -> list[str]:
+        findings = check.Findings()
+        check.check_file("docs/x.md", text, findings, None)
+        return [e for e in findings.errors if "American English" in e]
+
+    def test_british_spelling_fails(self) -> None:
+        self.assertEqual(
+            self.reports("The behaviour is well-organised.\n"),
+            [
+                "docs/x.md:1: behaviour; the house style is American English",
+                "docs/x.md:1: organised; the house style is American English",
+            ],
+        )
+
+    def test_american_ise_words_pass(self) -> None:
+        self.assertEqual(self.reports("Advertise, exercise, a premise, otherwise, emphasis.\n"), [])
+
+    def test_blockquotes_curly_quotes_and_link_targets_pass(self) -> None:
+        self.assertEqual(
+            self.reports(
+                "> The colour is set here.\n"
+                "It says “centre”, per [the page](https://example.org/colour-settings).\n"
+            ),
+            [],
+        )
+
+    def test_quotations_code_and_flags_pass(self) -> None:
+        self.assertEqual(
+            self.reports('It answers "Session is already CANCELLED", `ExitCode.Cancelled` and --favourite.\n'),
+            [],
+        )
+
+
 class FactIdTest(unittest.TestCase):
     def test_letter_suffix_is_one_id(self) -> None:
         self.assertEqual(check.FACT_ID.findall("RB-9b and RB-92b, not RB-9"), [

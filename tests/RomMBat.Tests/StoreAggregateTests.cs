@@ -13,7 +13,7 @@ namespace RomMBat.Tests;
 /// The two aggregates that replaced per-game store reads, and the rules they had to keep.
 /// </summary>
 /// <remarks>
-/// <b>#111 is a change of cost, not of behaviour</b>, so what these assert is that the answers
+/// <b>#111 is a change of cost, not of behavior</b>, so what these assert is that the answers
 /// are the same ones the loops gave. Each includes the case that would be easiest to get wrong
 /// by writing the SQL from the summary instead of from the code: adopted files count towards
 /// what a set occupies and not towards the budget, and those are two different queries.
@@ -89,7 +89,7 @@ public sealed class StoreAggregateTests : IDisposable
     /// thread, each taking and releasing the store gate.
     /// <para>
     /// Measured separately at 5,000 members on the development machine: the per-member loop
-    /// 111 ms, a parameterised <c>IN</c> over the same ids 95 ms, and the subquery this now
+    /// 111 ms, a parameterized <c>IN</c> over the same ids 95 ms, and the subquery this now
     /// uses 1 ms. The middle number is why the obvious rewrite was not the one taken.
     /// </para>
     /// </remarks>

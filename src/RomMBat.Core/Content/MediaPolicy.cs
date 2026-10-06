@@ -172,7 +172,7 @@ public static class MediaPolicy
     /// <para>
     /// <b>Do not read EmulationStation's defaults as RetroBat's.</b> The template overrides them
     /// before a user ever sees the menu, and reading the upstream source alone gets the stock
-    /// behaviour backwards. Measured on RetroBat 8.2.1, a fresh install beside a used one.
+    /// behavior backwards. Measured on RetroBat 8.2.1, a fresh install beside a used one.
     /// </para>
     /// <para>
     /// <b>This is why RomMBat's own default cannot be the fallback.</b> That is what it was, and

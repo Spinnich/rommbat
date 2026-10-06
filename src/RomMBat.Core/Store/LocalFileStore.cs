@@ -361,7 +361,7 @@ public sealed class LocalFileStore
     }
 
     /// <summary>
-    /// What RomMBat downloaded, in bytes, without materialising a row.
+    /// What RomMBat downloaded, in bytes, without materializing a row.
     /// </summary>
     /// <remarks>
     /// <b>The figure the disk budget is arithmetic over.</b> Not
@@ -439,7 +439,7 @@ public sealed class LocalFileStore
             return 0;
         }
 
-        // Parameterised one id at a time rather than joined into the text, because a set can
+        // Parameterized one id at a time rather than joined into the text, because a set can
         // hold thousands and building SQL out of values is how an injection gets in even when
         // every value is an integer today.
         var names = romIds.Select((_, index) => "$r" + index.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();

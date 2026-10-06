@@ -6,7 +6,7 @@
 .DESCRIPTION
   PPSSPP showed the shape of the answer: the emulator writes under its own naming, and
   RetroBat mirrors that into the declared path a moment later, live, leaving a .txt sidecar
-  holding the native basename. This generalises that measurement to any emulator.
+  holding the native basename. This generalizes that measurement to any emulator.
 
   Rather than guessing where an emulator writes natively, the probe **snapshots the whole
   saves/<system> subtree** and diffs it, so the native location discovers itself. Three

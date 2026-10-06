@@ -28,7 +28,7 @@ public sealed class EsMenuGamelistTests
     public void The_stock_file_is_the_one_gamelist_that_carries_a_BOM_and_CRLF()
     {
         // Pinned because the writer's whole convention-preserving branch exists for it, and a
-        // fixture quietly normalised by an editor would make every assertion below vacuous.
+        // fixture quietly normalized by an editor would make every assertion below vacuous.
         var bytes = File.ReadAllBytes(Fixture);
 
         Assert.Equal([0xEF, 0xBB, 0xBF], bytes[..3]);

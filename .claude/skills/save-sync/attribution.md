@@ -211,7 +211,7 @@ mtime. The binding is cached in `game_id_binding` keyed on the **file name**
 - **The cache is an answer, not a short cut.** A title is not unique to a ROM, and if two
   regions share one, BizHawk keeps one file for both. Re-asking the routes is what lets a launch
   of the second ROM disagree with the binding the first taught, which fails closed as contested
-  until `saves bind` settles it. A binding a person made is honoured as the settlement.
+  until `saves bind` settles it. A binding a person made is honored as the settlement.
 - **Two sidecars naming one title for two ROMs is contested too, not first-wins.** The class C
   sidecar index is first-wins because two ROMs sharing a game code are a revision pair; two ROMs
   sharing a title share a **file**.
@@ -297,7 +297,7 @@ all of them: under `mame` the key _is_ the ROM basename, so that join needs no r
 never cached.
 
 1. **Correlate with the launch journal.** A save directory touched inside a known launch
-   window belongs to that rom. Cache the learned binding. This generalises to every odd case
+   window belongs to that rom. Cache the learned binding. This generalizes to every odd case
    and needs no format parsing.
 
    **Do not source that window from the `game-start` hook's arguments.** The hook is never
@@ -357,7 +357,7 @@ directory entries skipped, confirmed live by `s5-archive-content-hash.py` (RB-30
 so the fold is the local change detector and the wire value.
 
 **A restore is checked against the server's value, and the server's value is over raw names.**
-`hash_zip_contents` folds `entry.filename` as stored, and extraction normalises every name through
+`hash_zip_contents` folds `entry.filename` as stored, and extraction normalizes every name through
 `RelativePath`, so a peer's zip naming `./SAVEDATA/X/DATA.BIN` or using backslashes folds
 differently once unpacked. `SaveArchive.ServerHashOf` reads the archive itself and is what
 `SaveUnitTransfer.Restore` compares; the fold over what landed is still what the row records. A
@@ -371,7 +371,7 @@ the fold was a different function, so every class C `uploaded_content_hash` reco
 changed once, and negotiate answers `no_op` for it since the hash now matches. `SaveSync.HoldsHead`
 records it as sent rather than uploading, for every shape. When the head is not the row this
 device last exchanged, `SettleOnHeadAsync` acknowledges it first, with no transfer. **Skipping
-the acknowledgement breaks the next edit.** Measured at 5.3.0 (`s4-older-mtime.py` M6): with this
+the acknowledgment breaks the next edit.** Measured at 5.3.0 (`s4-older-mtime.py` M6): with this
 device's row gone and a peer's row holding the same bytes, negotiate answers `no_op (Content is
 identical)`, the next edit's upload is refused 409 "Slot has a newer save since your last sync",
 and after `POST /api/saves/{id}/downloaded` for the peer's row the same upload lands. The

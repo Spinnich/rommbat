@@ -92,7 +92,7 @@ public sealed class EmulationStationClient : IDisposable
     /// </summary>
     /// <remarks>
     /// Called immediately after writing, because ES holds a stale in-memory model until asked
-    /// and serialises that model over the file when it exits. Writing without reloading is
+    /// and serializes that model over the file when it exits. Writing without reloading is
     /// what loses the edit.
     /// </remarks>
     public async Task<EsCallResult> ReloadGamesAsync(CancellationToken cancellationToken = default)
@@ -106,7 +106,7 @@ public sealed class EmulationStationClient : IDisposable
     /// </summary>
     /// <remarks>
     /// <c>/systems</c> rather than <c>/systems/{name}/games</c>: the first is a few KB and
-    /// carries <c>totalGames</c>, the second serialises the whole library and reached 99 MB
+    /// carries <c>totalGames</c>, the second serializes the whole library and reached 99 MB
     /// at 100,000 entries, which loads ES down enough to distort anything measured around it.
     /// </remarks>
     public async Task<(EsCallResult Result, IReadOnlyList<EsReportedSystem> Systems)> ListSystemsAsync(

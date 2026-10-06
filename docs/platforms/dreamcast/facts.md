@@ -7,11 +7,11 @@ read-when: Before certifying a `dreamcast` row or changing how RomMBat handles a
 
 Facts RomMBat relies on, one per heading. [The upstream reference](../../upstream/README.md) says what an entry holds and how IDs are kept.
 
-## RB-9. Characterised: four port-keyed files shared by all games, but `flycast_vmupergame` converts them, for port 1
+## RB-9. Characterized: four port-keyed files shared by all games, but `flycast_vmupergame` converts them, for port 1
 
 Plan says: Dreamcast VMU handling is unverified (L870)
 
-Measurement says: Characterised: four port-keyed files shared by all games, **but `flycast_vmupergame` converts them**, for port 1 only
+Measurement says: Characterized: four port-keyed files shared by all games, **but `flycast_vmupergame` converts them**, for port 1 only
 
 ## RB-49. Confirmed live, but the per-game VMU is named for the disc serial (`T40217N_vmu_save_A1.bin`), not the rom
 
@@ -63,7 +63,7 @@ Four results, and the second one is the awkward one:
 
 1. **The per-game `es_settings.cfg` key reaches a standalone emulator's generated config.**
    The override was proven on a libretro key; this shows the same mechanism driving
-   `PerGameVmu` in Flycast's own `emu.cfg`, so it generalises past RetroArch.
+   `PerGameVmu` in Flycast's own `emu.cfg`, so it generalizes past RetroArch.
 2. **The per-game VMU is named after the disc's product number, not the rom file.**
    `T40217N` is Bangai-O's Dreamcast serial (`T-40217N` with the hyphen dropped); the rom is
    `Bangai-O (USA).chd`, and its name appears nowhere in the path. **So this is not the clean

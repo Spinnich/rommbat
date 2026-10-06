@@ -27,7 +27,7 @@ namespace RomMBat.Agent.Commands;
 /// hooks make.</b> A hook is invisible; a menu entry adds an item to the user's own front end.
 /// It is installed anyway because it is the only route to RomMBat that does not need a
 /// terminal, and a user who never opens one is exactly who it is for. What that costs is owed
-/// back in candour: every path is named, and <c>menu uninstall</c> takes all of it out again.
+/// back in candor: every path is named, and <c>menu uninstall</c> takes all of it out again.
 /// </para>
 /// <para>
 /// <c>--dry-run</c> and <c>--offline</c> both work with the server unreachable: the plan is

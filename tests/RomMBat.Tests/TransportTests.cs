@@ -76,7 +76,7 @@ public class TransportTests
         using var source = new CancellationTokenSource();
         source.Cancel();
 
-        var cancelled = new TaskCanceledException("cancelled");
+        var cancelled = new TaskCanceledException("canceled");
 
         var classified = RomMTransportErrors.Classify(cancelled, Origin, source.Token);
 

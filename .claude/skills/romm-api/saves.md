@@ -46,7 +46,7 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   "nobody has synced this". With `device_id` set it lists every device that has a record, the
   queried one first, and gives the queried device an `is_current: false` entry when it has never
   synced the save. `device_id` never narrows which saves are listed (RM-18).
-- **`origin_device_id`** names the device that uploaded a save, which is how you recognise
+- **`origin_device_id`** names the device that uploaded a save, which is how you recognize
   your own upload coming back (RM-18).
 - **`POST /api/play-sessions` takes an envelope**, `{device_id, sessions: [...]}`, with
   `device_id` outside the entries; a bare array is a 422. It answers a per-index result array
@@ -116,7 +116,7 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   `<name> [YYYY-MM-DD_HH-MM-SS]<ext>`; a state comes back exactly as sent.
 - **A zero-byte `screenshotFile` is accepted and stored** as a real screenshot row, so the
   client has to refuse the empty case itself.
-- **`emulator` is not sanitised.** It becomes a directory segment in the stored asset's
+- **`emulator` is not sanitized.** It becomes a directory segment in the stored asset's
   `file_path`, and a value containing `/` became two segments. Never send one.
 - **`POST /api/sync/negotiate` volunteers slots the client did not submit**, so negotiating
   with an **empty** `saves` array is the inventory pass a fresh device needs. It answers a
@@ -138,5 +138,5 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   close landed. A 403 there otherwise reads as a clean sync with the session left open (#90), so
   a refused close sets `SaveSyncOutcome.SessionLeftOpen` and the flush ends `Partial`, with the
   403 naming `devices.write` (#148).
-- **There is no `is_favorite` and no `playtime` on rom props.** Favourites are collection
+- **There is no `is_favorite` and no `playtime` on rom props.** Favorites are collection
   membership; playtime lives in play sessions.

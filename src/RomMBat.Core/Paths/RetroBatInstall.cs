@@ -113,8 +113,8 @@ public sealed class RetroBatInstall
     /// </summary>
     /// <remarks>
     /// The boundary this exists for is the ES hooks, which receive an <b>absolute</b> rom
-    /// path in their first argument. Relativising there is mandatory work, not an
-    /// optimisation.
+    /// path in their first argument. Relativizing there is mandatory work, not an
+    /// optimization.
     /// </remarks>
     /// <exception cref="ArgumentException">The path is outside the RetroBat tree.</exception>
     public RelativePath Relativize(string absolutePath)

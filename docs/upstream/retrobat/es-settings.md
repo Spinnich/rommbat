@@ -20,7 +20,7 @@ Verified: RetroBat 8.2.0, 2026-08-08. How: six `es_settings.cfg` cases on `ports
 | E    | `ports.smooth=1` + `ports["gong"].smooth=0`          | `gong.libretro` | `true`         |
 | F    | `ports.smooth=1` + `ports["gong.libretro"].smooth=0` | `gong.libretro` | `false`        |
 
-`emulatorlauncher` honours the per-game key, it outranks the system key (C), and it reaches no
+`emulatorlauncher` honors the per-game key, it outranks the system key (C), and it reaches no
 other rom (D). A key built from the stem is ignored with no error (E against F), so `EsSettingsFile.PerGameKey` builds it from
 RomM's `fs_name` and refuses a name with no extension. ES writes the key with its quotes escaped,
 `ports[&quot;2048.libretro&quot;].smooth`.
@@ -33,7 +33,7 @@ that game's element in `gamelist.xml`. The fourteen keys, in `PerGameKey`'s form
 ES rewrite and were never read: every launch ran the system-level `nes.emulator` and `nes.core`.
 ES picks the emulator before `emulatorlauncher` runs, so RB-358's chain covers feature keys only.
 
-## RB-178. ES serialises the model it loaded at startup, so a key written while it runs is discarded
+## RB-178. ES serializes the model it loaded at startup, so a key written while it runs is discarded
 
 Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. How: wrote keys before ES started and forced a rewrite; then, on `K:`, merged two keys in atomically under a running ES and read the file after its next write.
 A key present when ES starts survives its rewrites, including a nonsense per-game key ES cannot

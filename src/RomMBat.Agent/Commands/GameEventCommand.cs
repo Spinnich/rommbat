@@ -51,7 +51,7 @@ internal static class GameEventCommand
 
             if (argument is not null && context.Install.Contains(argument))
             {
-                // Relativising at this boundary is mandatory work, not an optimisation: the
+                // Relativizing at this boundary is mandatory work, not an optimization: the
                 // hook is handed an absolute path and no absolute path is ever persisted.
                 romPath = context.Install.Relativize(argument);
             }

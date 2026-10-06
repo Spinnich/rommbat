@@ -3,7 +3,7 @@
 Seen on a real install while restoring a save from a backup: the file's content differed from
 what this device had last uploaded, its mtime was older than the server row's `updated_at`, and
 the flush moved nothing in either direction. This asks the server directly, so the answer
-separates negotiate's behaviour from the client's.
+separates negotiate's behavior from the client's.
 
 Six cases against one ROM and throwaway slots:
 

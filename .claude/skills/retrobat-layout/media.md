@@ -71,7 +71,7 @@ name the tag each one feeds, so these are not new media:
 from the currently selected `Scraper`, guarding each on `isMediaSupported(...)`, and when the
 stored value is not in the new scraper's list it calls `selectFirstItem()` and writes it on
 close. Switching SCRAPE FROM therefore rewrites a source the user never touched. Read the
-value, map what is recognised, fall back on anything else, and **ignore `Scraper`**: RomM is
+value, map what is recognized, fall back on anything else, and **ignore `Scraper`**: RomM is
 not one of the scrapers it names. RB-241.
 
 **Three of the remaining switches map onto real RomM fields and two are dead.** `ScrapeBezel`,
@@ -86,7 +86,7 @@ already there makes the setting mean two different things depending on which way
 and nothing else reclaims it: eviction works on whole games under budget pressure and has no
 notion of a kind. Only `FileOrigin.Synced` goes; a user's own scrape at the same name is theirs.
 
-**RomMBat honours the two that exist, as the default rather than as an override.** A hands-on
+**RomMBat honors the two that exist, as the default rather than as an override.** A hands-on
 pass turned video off in RetroBat's scraper and RomMBat carried on downloading it, which is two
 switches that look like they should agree and do not. `MediaPolicy.Read(settings, install)`
 reads them; an explicit `media.kinds` still wins, because that is what somebody typed. This is
@@ -115,7 +115,7 @@ delete one RomMBat did not create.
 **After writing, call `GET http://127.0.0.1:1234/reloadgames`.** ES keeps a
 stale in-memory model until asked to reload, and rewrites `gamelist.xml` from that model when
 it exits. Write-then-reload makes the edit stick and takes effect immediately; write without
-reloading and ES can serialise its stale copy over you. ES writes no `<game>` entry for a rom
+reloading and ES can serialize its stale copy over you. ES writes no `<game>` entry for a rom
 it has no metadata for, and **does not list a `<game>` whose `<path>` names a file that is not
 on disk**, so a stale entry is inert rather than a phantom game.
 
@@ -123,7 +123,7 @@ on disk**, so a stale entry is inert rather than a phantom game.
 **drops every XML comment**, at document level and inside a `<game>` alike; moves the entry it
 changed to the end; rewrites that entry's children into its own order
 (`path,name,desc,genre,rating,releasedate,developer,publisher,players,favorite,playcount,lastplayed,gametime,lang,region,...`);
-and prunes `<hidden>false</hidden>` as a default, the same behaviour it has on
+and prunes `<hidden>false</hidden>` as a default, the same behavior it has on
 `es_settings.cfg`. Unknown elements and attributes do survive. When it has no reason, it
 leaves the file **byte-identical, mtime included**, so a no-churn assertion is meaningful but
 has to be made about the file ES left behind.
@@ -131,7 +131,7 @@ has to be made about the file ES left behind.
 **`/reloadgames` returns in 1-2 ms and does the work afterwards**, so its response is not a
 completion signal. Time to the change being visible was 269 ms for a 200-entry list and
 1.1 s for 100,000. Poll `/systems` (a few KB, carries `totalGames`) rather than
-`/systems/<system>/games`, which serialises the whole library.
+`/systems/<system>/games`, which serializes the whole library.
 
 **And it is ignored outright while a game is running**, 200 in 1 ms with nothing reloaded,
 exactly as `/quit` and `/emukill` are. Reload again after the game ends rather than treating

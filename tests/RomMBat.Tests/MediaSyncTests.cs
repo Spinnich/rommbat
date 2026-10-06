@@ -501,7 +501,7 @@ public sealed class MediaSyncTests : IDisposable
     public async Task A_users_own_scrape_is_never_taken_back_when_a_kind_is_turned_off()
     {
         // The fence. Adopted means the user's own file at exactly the name RomMBat would use,
-        // and RomMBat's setting is not a licence to delete what it did not download.
+        // and RomMBat's setting is not a license to delete what it did not download.
         using var stub = Library(1);
         using var store = LocalStore.Open(_tree.Install());
 

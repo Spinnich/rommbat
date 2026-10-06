@@ -72,7 +72,7 @@ That is the mechanism #155 is about, and it works when it is not racing a launch
 ## What a download records
 
 **Both class A writers record the save they took in `save_slot`**, the plain download and
-keep-server alike, which is how a superseded row returning to the head of a slot is recognised
+keep-server alike, which is how a superseded row returning to the head of a slot is recognized
 (#157). Driven on this row with `Destiny of an Emperor (USA)`: keep-server left `save_slot` naming
 the save it took, and a plain download moved it to the newer save. Recorded in RM-4; it is not a
 re-run of any certification step.

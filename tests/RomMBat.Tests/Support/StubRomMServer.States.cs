@@ -7,7 +7,7 @@ namespace RomMBat.Tests.Support;
 /// The save-state half of the stub.
 /// </summary>
 /// <remarks>
-/// <b>Three behaviours are modelled because they were measured against a live RomM, and a stub
+/// <b>Three behaviors are modeled because they were measured against a live RomM, and a stub
 /// that smoothed any of them over would let the matching client bug through.</b>
 /// <para>
 /// <c>POST /api/states</c> is an <b>upsert keyed on <c>(rom_id, file_name)</c></b>: three posts
@@ -51,7 +51,7 @@ internal sealed partial class StubRomMServer
     /// </summary>
     /// <remarks>
     /// Stands for any reason the server stores the image and does not link it. The naming reason
-    /// is modelled separately and always on, in <see cref="Binds"/>; this switch covers the rest,
+    /// is modeled separately and always on, in <see cref="Binds"/>; this switch covers the rest,
     /// so the client's report of it stays tested whatever the name.
     /// </remarks>
     public bool DropScreenshots { get; set; }
@@ -175,7 +175,7 @@ internal sealed partial class StubRomMServer
 
         // Not renamed. A save at this point would be "<name> [timestamp]<ext>".
         file_name = state.FileName,
-        // <b>RomM strips parenthesised groups as tags, not only bracketed ones.</b> Measured
+        // <b>RomM strips parenthesized groups as tags, not only bracketed ones.</b> Measured
         // live: "Legend of Zelda, The (USA) (Rev 1) [libretro.nestopia].state1" comes back as
         // "Legend of Zelda, The", losing the region and revision. A stub that echoed the stem
         // would let a caller build a destination the emulator never looks at and still pass.

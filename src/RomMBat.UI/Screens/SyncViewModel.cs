@@ -477,7 +477,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
 
         _disposed = true;
 
-        // Cancelled, never disposed. A run still unwinding registers on this token, and
+        // Canceled, never disposed. A run still unwinding registers on this token, and
         // disposing it would raise ObjectDisposedException on a thread nobody is watching.
         _run.Cancel();
 

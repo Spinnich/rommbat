@@ -19,7 +19,7 @@ Avoid two emulators:
   because FBNeo expects its own file names.
 
 A few Game Gear cartridges are really Master System games, held as a `.sms` inside the zip. RetroArch's
-PicoDrive core plays those in the wrong colours; the other emulators that start
+PicoDrive core plays those in the wrong colors; the other emulators that start
 them play them correctly.
 
 ## BIOS

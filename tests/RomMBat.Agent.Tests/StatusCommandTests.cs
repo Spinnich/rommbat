@@ -37,7 +37,7 @@ public sealed class StatusCommandTests
     {
         // The endpoint promises no order and the stub serves none, so a caller taking the first
         // row is wrong on a server that answers oldest first. The timestamps carry no zone,
-        // which is how RomM serialises a play session while storing UTC (RB-260), so a client
+        // which is how RomM serializes a play session while storing UTC (RB-260), so a client
         // reading them as local is out by the machine's own offset and right only where the
         // offset is zero.
         using var server = CannedRomMServer.Serving(

@@ -126,7 +126,7 @@ $ rommbat-agent bios mastersystem
 ```
 
 **Exit 0. Both files RetroBat lists are hashless**, so RomMBat can neither find them in RomM nor
-recognise them on disk, and says so. That is the fourth of step 3's states for both; present,
+recognize them on disk, and says so. That is the fourth of step 3's states for both; present,
 fetched and not in the library do not apply. `mastersystem` is one of the 29 systems with no
 joinable entry.
 
@@ -208,7 +208,7 @@ The maintainer chose to record it so rather than redrive three rows.
   (`[2026-09-24_15-26-38]`) and holding 8,191 B, `b98e4e38...`: PicoDrive's 32 KB save as Genesis
   Plus GX, which EmulatorJS runs, trims it. The quit flush found the local `.srm` unchanged since it
   was last in step and the server's newer, took the server's, and kept the file it displaced in
-  `emulators/rommbat/replaced/`. Same save data, and the right behaviour.
+  `emulators/rommbat/replaced/`. Same save data, and the right behavior.
 - **Every flush refused one save that is not `mastersystem`'s**: rom 189465 on `megadrive`, where
   the server holds the four bytes `null` another client wrote in July (RB-276).
 - **ES rewrote `gamelist.xml` on its own exit**, so step 9 compares against a copy taken after the

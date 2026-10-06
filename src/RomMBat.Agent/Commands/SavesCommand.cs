@@ -681,7 +681,7 @@ internal static class SavesCommand
     /// isn't one.
     /// </summary>
     /// <remarks>
-    /// Cancelling leaves no row, because nothing was written and there is nothing for the UI
+    /// Canceling leaves no row, because nothing was written and there is nothing for the UI
     /// to report later. An applied change is untouched by this and is undone the ordinary way.
     /// </remarks>
     private static string? CancelQueued(AgentContext context, int romId)
@@ -1148,7 +1148,7 @@ internal static class SavesCommand
                     + $"(learned from {Describe(binding.LearnedFrom)})");
         }
 
-        // Contested ones are listed rather than summarised, because each needs a person to
+        // Contested ones are listed rather than summarized, because each needs a person to
         // settle it and the command that does is per key. Capped all the same: a report nobody
         // can scroll through is a report nobody reads.
         var contested = bindings.Where(entry => !entry.IsResolved).ToList();
@@ -1186,7 +1186,7 @@ internal static class SavesCommand
     private static string Describe(UnsyncableReason reason) => reason switch
     {
         UnsyncableReason.NotInThisVersion => "not in this release",
-        UnsyncableReason.UnknownShape => "shape not recognised",
+        UnsyncableReason.UnknownShape => "shape not recognized",
         UnsyncableReason.SharedContainer => "shared by several games",
         UnsyncableReason.Unattributed => "no matching ROM",
         UnsyncableReason.ManagedElsewhere => "RetroBat is also copying these",

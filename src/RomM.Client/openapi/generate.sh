@@ -17,7 +17,7 @@ trap 'rm -f "$NORMALIZED"' EXIT
 python3 normalize.py "$PINNED" "$NORMALIZED"
 
 # nswag.json reads its input from $(SchemaPath) so the pinned file stays the
-# thing under version control and the normalised copy stays a build artefact.
+# thing under version control and the normalized copy stays a build artifact.
 dotnet nswag run nswag.json "/variables:SchemaPath=$NORMALIZED"
 
 # NSwag disables CS1573 and CS1591 in its own header but not CS1570 or CS1572, and

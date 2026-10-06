@@ -12,12 +12,12 @@ namespace RomMBat.UI.Screens;
 /// </summary>
 /// <remarks>
 /// <b>A user who queued a change from the console can change their mind from the couch.</b> The
-/// status screen says a change is waiting; this cancels it. Cancelling is the whole of the write
+/// status screen says a change is waiting; this cancels it. Canceling is the whole of the write
 /// half here, because the only other thing that can happen to a queued row is being applied, and
 /// that cannot happen while this interface is on screen.
 /// <para>
 /// <b>The UI can never write <c>es_settings.cfg</c> itself, and there is no arrangement under
-/// which it can.</b> EmulationStation loads that file at startup and serialises its own model
+/// which it can.</b> EmulationStation loads that file at startup and serializes its own model
 /// over anything written afterwards, and RomMBat is launched from the ES menu, so it runs under
 /// a live ES every single time. Queueing is not a convenience here, it is the only mechanism,
 /// which is why "waiting for you to quit EmulationStation" is the permanent honest answer rather
@@ -126,7 +126,7 @@ public static class QueuedChangeScreens
             [
                 cancelled
                     ? new ListRow(
-                        "Cancelled",
+                        "Canceled",
                         null,
                         "Nothing was written and nothing will be. The setting stays as it is.",
                         false)
@@ -136,7 +136,7 @@ public static class QueuedChangeScreens
                         // The stored reason is a phrase, not a sentence, because the list
                         // row prints it after the system's name.
                         $"Queued: {change.Reason.TrimEnd('.')}. Nothing has been written yet, so "
-                            + "cancelling leaves the setting exactly as it is now.",
+                            + "canceling leaves the setting exactly as it is now.",
                         false),
             ],
             _ => ScreenCommand.Stay,
@@ -144,10 +144,10 @@ public static class QueuedChangeScreens
             backLabel: "Keep it queued")
         {
             Reading = true,
-            TitleWhen = () => cancelled ? "Change cancelled" : "Cancel this change?",
+            TitleWhen = () => cancelled ? "Change canceled" : "Cancel this change?",
             OfferAcceptWhen = () => !cancelled,
 
-            // Once it is cancelled there is nothing left to keep, and Back is the only way out.
+            // Once it is canceled there is nothing left to keep, and Back is the only way out.
             BackLabelWhen = () => cancelled ? "Done" : "Keep it queued",
 
             Verbs = (action, _) =>
@@ -203,7 +203,7 @@ public static class QueuedChangeScreens
     /// </summary>
     /// <remarks>
     /// <b>Queued, never written.</b> There is no apply path from here and there cannot be one:
-    /// EmulationStation serialises its own model over anything written to
+    /// EmulationStation serializes its own model over anything written to
     /// <c>es_settings.cfg</c> while it is running, and this interface only ever runs while it
     /// is. The console has <c>--apply</c> because it can be run with ES closed.
     /// <para>

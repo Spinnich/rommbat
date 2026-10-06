@@ -204,6 +204,6 @@ public sealed class BiosCommandTests
     }
 }
 
-/// <summary>Serialises every test that redirects the console.</summary>
+/// <summary>Serializes every test that redirects the console.</summary>
 [CollectionDefinition("agent-console", DisableParallelization = true)]
 public sealed class ConsoleRedirectingTests;

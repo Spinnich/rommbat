@@ -161,8 +161,8 @@ public sealed class GamelistDocument
     /// How many entries name a path that is not one of <paramref name="paths"/>.
     /// </summary>
     /// <remarks>
-    /// Matched through the same normalisation <see cref="Contains"/> uses, so an entry another
-    /// writer spelled <c>Game.zip</c> is recognised as one of <paramref name="paths"/> when the
+    /// Matched through the same normalization <see cref="Contains"/> uses, so an entry another
+    /// writer spelled <c>Game.zip</c> is recognized as one of <paramref name="paths"/> when the
     /// caller spells it <c>./Game.zip</c>. Comparing the raw strings instead would report an
     /// entry this class had just updated as somebody else's. An entry carrying no
     /// <c>&lt;path&gt;</c> at all is counted as neither.

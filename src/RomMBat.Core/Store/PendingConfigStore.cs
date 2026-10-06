@@ -74,13 +74,13 @@ public sealed record PendingConfig
 /// </summary>
 /// <remarks>
 /// <b>This exists because the UI can never write <c>es_settings.cfg</c> itself.</b> ES loads
-/// that file at startup and serialises its own model over anything written afterwards, and the
+/// that file at startup and serializes its own model over anything written afterwards, and the
 /// UI is launched from the ES menu, so it runs under a live ES every single time. Queueing is
 /// the only way a per-game setting is reachable from the interface RomMBat ships.
 /// <para>
 /// <b>The result outlives the apply on purpose.</b> Nothing is watching when
 /// <c>background quit</c> drains this: the UI exited before the quit hook fired. A row deleted
-/// on success would leave the next session unable to tell "applied" from "cancelled" from
+/// on success would leave the next session unable to tell "applied" from "canceled" from
 /// "never queued". So a finished row keeps its outcome, and only a cancellation deletes,
 /// because nothing happened and there is nothing to report.
 /// </para>
@@ -206,7 +206,7 @@ public sealed class PendingConfigStore
         Query($"{SelectColumns} WHERE applied_at_utc IS NOT NULL ORDER BY applied_at_utc DESC, id DESC LIMIT {limit};");
 
     /// <summary>
-    /// Drops an outstanding change, which is what cancelling one means.
+    /// Drops an outstanding change, which is what canceling one means.
     /// </summary>
     /// <remarks>
     /// No tombstone, and it is the one case that deletes rather than recording an outcome:

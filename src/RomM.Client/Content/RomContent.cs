@@ -49,7 +49,7 @@ public sealed record RomContentResult
     /// <summary>The <c>ETag</c> to record, so a later attempt can resume against it.</summary>
     public string? Validator { get; init; }
 
-    /// <summary>True when the server honoured the range and the transfer continued where it stopped.</summary>
+    /// <summary>True when the server honored the range and the transfer continued where it stopped.</summary>
     public bool Resumed { get; init; }
 
     /// <summary>

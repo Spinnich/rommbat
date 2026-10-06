@@ -35,7 +35,7 @@ ROW = re.compile(r"^\| `(?P<tag>[^`]+)` \|", re.MULTILINE)
 @dataclass(frozen=True)
 class Release:
     tag: str
-    version: str  # normalised: beta_8.3.0 reads as 8.3.0-beta
+    version: str  # normalized: beta_8.3.0 reads as 8.3.0-beta
     prerelease: bool
     published: str
 

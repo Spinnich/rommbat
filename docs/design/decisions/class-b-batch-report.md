@@ -10,7 +10,7 @@ upload**, GameCube's several `.gci` per game code included. There is no second r
 
 So `batch_key`'s only genuine caller is class B's siblings, and class B is not in the outbox.
 Rather than retrofit the proven upload path onto a queue it does not use, RomMBat delivers
-the behaviour the column was a proxy for: `SaveSync` already holds every sibling of a slot in one
+the behavior the column was a proxy for: `SaveSync` already holds every sibling of a slot in one
 map, so a partial result is grouped by `(rom_id, base slot)` and reported as one batch. The column
 stays unwritten and is kept, because a future queued-upload design would want it back and the
 schema is already shipped. Until then a sibling that fails is simply retried by the

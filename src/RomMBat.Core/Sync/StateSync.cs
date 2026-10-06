@@ -233,7 +233,7 @@ public sealed class StateSync
     /// <remarks>
     /// <c>libretro.snes9x</c> rather than <c>libretro</c>, mirroring RetroBat's own
     /// <c>saves/&lt;system&gt;/libretro.&lt;core&gt;/</c> naming, so the server's own tree reads
-    /// the way the local one does. Measured, the server does not sanitise this field and a value
+    /// the way the local one does. Measured, the server does not sanitize this field and a value
     /// carrying a separator becomes two path segments there; the schema's CHECK on
     /// <c>local_state.emulator</c> is what keeps one out.
     /// </remarks>
@@ -438,7 +438,7 @@ public sealed class StateSync
             }
 
             // <b>The stem comes from the ROM on disk, never from the server's name.</b> RomM's
-            // `file_name_no_tags` strips anything parenthesised as a tag: measured, "Legend of
+            // `file_name_no_tags` strips anything parenthesized as a tag: measured, "Legend of
             // Zelda, The (USA) (Rev 1)" comes back as "Legend of Zelda, The", and a state written
             // under that name reads as simply absent. <b>The slot comes from the name that was
             // sent</b>, read through this emulator's template, because only libretro-shaped names

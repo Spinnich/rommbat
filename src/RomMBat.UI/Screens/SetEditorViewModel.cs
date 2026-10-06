@@ -68,7 +68,7 @@ public sealed class SetEditorViewModel : IScreen
     /// <remarks>
     /// Null is "do not filter on this", which is not the same as false. A two-state toggle
     /// could only ever say yes or nothing; RomM's own interface offers all three, and "games I
-    /// have not favourited" is a real thing to sync.
+    /// have not favorited" is a real thing to sync.
     /// </remarks>
     private readonly Dictionary<string, bool?> _properties =
         FilterFacet.Properties.ToDictionary(property => property, _ => (bool?)null, StringComparer.Ordinal);

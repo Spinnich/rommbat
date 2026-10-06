@@ -210,7 +210,7 @@ public sealed class GamelistTests : IDisposable
 
         var first = document.Render();
 
-        // What an XML parser hands back has already had its line endings normalised, so a
+        // What an XML parser hands back has already had its line endings normalized, so a
         // value written with CRLF would differ from the value read back and rewrite forever.
         var reloaded = GamelistDocument.Empty();
         reloaded.Apply(new GamelistEntry("./Game.zip", [new("desc", "One\nTwo\nThree")]));

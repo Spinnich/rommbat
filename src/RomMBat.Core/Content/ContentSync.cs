@@ -849,7 +849,7 @@ public sealed class ContentSync
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException)
         {
-            // The close pays for the write cache, which is the behaviour this avoids when it can.
+            // The close pays for the write cache, which is the behavior this avoids when it can.
         }
     }
 

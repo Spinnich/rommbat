@@ -58,7 +58,7 @@ public sealed record GameSyncOutcome
     /// True when the user stopped the run.
     /// </summary>
     /// <remarks>
-    /// Returned rather than thrown, so a stop is an ordinary way out: a cancelled resolve that
+    /// Returned rather than thrown, so a stop is an ordinary way out: a canceled resolve that
     /// threw would lose the membership the walk had accumulated. Same rule here: everything this
     /// pass did before the press is real and is reported.
     /// </remarks>
@@ -233,7 +233,7 @@ public sealed class GameSync
             {
                 // Stopped inside this game's transfer, so this game is the one that goes.
                 // Returned rather than rethrown: everything the pass already did is real, and
-                // throwing would discard that work, as a cancelled resolve's would.
+                // throwing would discard that work, as a canceled resolve's would.
                 RollBack(game, progress, problems, ref rolledBack, Resume.Discard);
                 stopped = true;
                 break;

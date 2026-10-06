@@ -26,7 +26,7 @@ public sealed record BiosRequirement(string System, string Folder, string? Md5, 
     /// </summary>
     /// <remarks>
     /// 181 of the 355 entries, across 50 systems, and 29 systems have nothing else. Such a
-    /// file can be neither found in RomM nor recognised on disk, so it is reported as
+    /// file can be neither found in RomM nor recognized on disk, so it is reported as
     /// unverifiable and never as missing from the user's library.
     /// </remarks>
     public bool IsUnverifiable => Md5 is null;

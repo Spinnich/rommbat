@@ -61,7 +61,7 @@ depth**: a hook sits at `.emulationstation/scripts/<event>/`, so three levels up
 four. The agent is four levels up plus `emulators\rommbat\`. Do not rely on the working
 directory; it differs by hook form.
 
-**The hook behaviour is measured; do not assume the Batocera convention.** See
+**The hook behavior is measured; do not assume the Batocera convention.** See
 RB-346 to RB-352. The load-bearing results:
 
 - **Hooks do not block game launch.** The launcher starts ~30 ms after the hook fires,

@@ -36,7 +36,7 @@ public sealed record ConflictResolutionOutcome(bool Resolved, string Message)
 /// overwrite is what gets past that refusal, and it is correct only once a person has chosen
 /// which side to keep. That is exactly why the flush never does it automatically: uploading
 /// unasked would make the local side newest and tell every other device to take it,
-/// resolving the conflict silently in favour of whoever synced last.
+/// resolving the conflict silently in favor of whoever synced last.
 /// </para>
 /// <para>
 /// <b>What it does not do is replace the server's row in place.</b> Measured on the live
@@ -632,7 +632,7 @@ public sealed class SaveConflictResolver
     /// instead: see <see cref="Release"/>.
     /// <para>
     /// <b>The row itself stays, resolved.</b> Migration 007 keeps decided rows so <c>saves</c> can
-    /// say what was chosen and so a slot that conflicts again is recognised as one already
+    /// say what was chosen and so a slot that conflicts again is recognized as one already
     /// settled rather than as a brand new conflict taking another copy aside. Only the pointer to
     /// the pruned file is cleared.
     /// </para>

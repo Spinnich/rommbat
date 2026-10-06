@@ -461,7 +461,7 @@ public class StateDiscoveryTests
     [Fact]
     public void Eviction_refuses_a_rom_whose_save_state_has_never_gone_up()
     {
-        // A state is save data by any reading a user would recognise, and it is worthless once
+        // A state is save data by any reading a user would recognize, and it is worthless once
         // its ROM is gone. The battery save here is fully in step, so the state is the only
         // thing holding the ROM.
         using var tree = StateTree.Create();

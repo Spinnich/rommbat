@@ -91,7 +91,7 @@ public sealed class MenuAndBackgroundTests
     [InlineData("")]
     public async Task Background_refuses_any_event_that_is_not_start_or_quit(string hookEvent)
     {
-        // Defence in depth on the rule-4 boundary. The hook already starts nothing for these,
+        // Defense in depth on the rule-4 boundary. The hook already starts nothing for these,
         // and if something ever does, the pass itself says no and names the rule.
         using var tree = TempRetroBatTree.Create();
 

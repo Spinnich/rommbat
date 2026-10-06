@@ -117,7 +117,7 @@ public static class SaveArchive
             var target = Path.Combine(destination, safe.Value.Replace('/', Path.DirectorySeparatorChar));
 
             // Belt and braces. RelativePath already refuses a climb, and this catches anything a
-            // future normalisation change might let through, because the cost of being wrong is
+            // future normalization change might let through, because the cost of being wrong is
             // writing over a file outside the save tree.
             var full = Path.GetFullPath(target);
             var root = Path.GetFullPath(destination);
@@ -165,7 +165,7 @@ public static class SaveArchive
     /// </summary>
     /// <remarks>
     /// <b>Not <see cref="HashOfExtracted"/>, which folds the names after
-    /// <see cref="RelativePath"/> has normalised them.</b> A zip another client wrote can name an
+    /// <see cref="RelativePath"/> has normalized them.</b> A zip another client wrote can name an
     /// entry <c>./SAVEDATA/X/DATA.BIN</c> or with backslashes, and <c>hash_zip_contents</c> takes
     /// <c>entry.filename</c> as it is, so only the raw name reproduces the server's value.
     /// Directory entries are skipped on both sides.

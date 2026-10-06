@@ -123,7 +123,7 @@ and states have no `/track`, no `/downloaded` and no part in negotiate. So a sta
 unverified, "is it in step" is answerable only from a hash the client recorded itself, and
 RomMBat says so on the restore preview and after.
 
-## RB-247. `file_name_no_tags` strips every trailing bracketed and parenthesised group
+## RB-247. `file_name_no_tags` strips every trailing bracketed and parenthesized group
 
 Verified: RomM 5.3.1, 2026-09-29. How: posted `Legend of Zelda, The (USA) (Rev 1) [libretro.nestopia].state1` and a slotted `Phantasy Star (Brazil).srm`; read `compute_file_name_no_tags`.
 The state read back `Legend of Zelda, The`, and the save `Phantasy Star`, losing region and
@@ -189,7 +189,7 @@ Verified: RomM 5.3.1, 2026-09-29. How: ran `s4-older-mtime.py` case M6.
 With this device's row deleted and a peer's row 555 holding the same bytes at the head,
 negotiate answered `no_op`, "Content is identical", on 555. An upload of an edit was refused 409;
 after `POST /api/saves/555/downloaded` the same upload landed. `SaveSync.SettleOnHeadAsync`
-makes that acknowledgement, with no transfer.
+makes that acknowledgment, with no transfer.
 
 ## RB-327. RomM's browser player can rewrite a save another emulator made, in a format of its own
 

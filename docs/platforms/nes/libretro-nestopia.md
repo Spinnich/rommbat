@@ -27,7 +27,7 @@ setting says nothing about the default, which is why the record names how the ro
 Three further `nes.*` keys were set at the same time and are recorded because they are part of
 the configuration this row was measured under: `nes.nestopia_nospritelimit = 1`,
 `nes.video_driver = vulkan`, `nes.xbox_layout = 1`. `nes.ungroup` was **removed** rather than set
-to false, which is EmulationStation pruning a switch turned off, the behaviour RB-238
+to false, which is EmulationStation pruning a switch turned off, the behavior RB-238
 describes.
 
 ## Checklist
@@ -134,7 +134,7 @@ restored 1 save(s) and 1 state(s), failed 0, 20.1 KB, with 1 screenshot(s)
 makes necessary: RomM can answer a libretro slot with another slot's image, and a restore that
 merely produces a `.png` would not notice. Slots 3 and 4 were saved on the same frame and share
 one image, `d75aca69...`; slot 2's is its own. What came back is `ecd1d57f...`, so the link is to
-this state and not to a neighbour.
+this state and not to a neighbor.
 
 **States carry no `content_hash` at all.** The state object has no such field, where the save has
 one that matched. So a state cannot be verified on download the way a save can, and RomMBat has
@@ -235,8 +235,8 @@ write agrees, at `<playcount>4</playcount>` and `<lastplayed>20260920T102345</la
 
 | Field             | Session 265           | Matches                           |
 | ----------------- | --------------------- | --------------------------------- |
-| `start_time`      | `2026-09-20T14:21:42` | `game-start`, journalled at .517  |
-| `end_time`        | `2026-09-20T14:23:45` | `game-end`, journalled at .327    |
+| `start_time`      | `2026-09-20T14:21:42` | `game-start`, journaled at .517   |
+| `end_time`        | `2026-09-20T14:23:45` | `game-end`, journaled at .327     |
 | `duration_ms`     | `122809`              | the 123 s between them            |
 | `device_id`       | `cf1cc550-...`        | `status`'s **`romm device`** line |
 | `sync_session_id` | `null`                | -                                 |

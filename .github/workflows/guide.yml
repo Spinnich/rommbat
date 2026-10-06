@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 # A newer push supersedes a PR's build, but a run on main is left to finish, so a deploy
-# already under way is never cancelled by the next merge.
+# already under way is never canceled by the next merge.
 concurrency:
   group: guide-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

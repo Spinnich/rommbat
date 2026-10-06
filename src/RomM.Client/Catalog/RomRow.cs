@@ -226,7 +226,7 @@ public sealed record RomRow
     [JsonPropertyName("languages")]
     public IReadOnlyList<string> Languages { get; init; } = [];
 
-    /// <summary>The display name a user would recognise, falling back to the file name.</summary>
+    /// <summary>The display name a user would recognize, falling back to the file name.</summary>
     public string DisplayName => string.IsNullOrWhiteSpace(Name) ? FsName : Name;
 
     /// <summary>What a set orders by when ordering by name.</summary>
@@ -342,7 +342,7 @@ public sealed record RomScreenScraperMetadata
 /// large game had no filter values at all.
 /// <para>
 /// Ignoring <c>items</c> outright is better than widening one field: this call wants the
-/// sidecar, the row is an artefact of where the sidecar lives, and a shape that reads nothing
+/// sidecar, the row is an artifact of where the sidecar lives, and a shape that reads nothing
 /// cannot be broken by the next field the schema gets wrong.
 /// </para>
 /// </remarks>

@@ -11,7 +11,7 @@ the card routes do not need one:
                                     container #82 is about, and a zip holding one
 
 Also: whether an identical upload deduplicates (source says the upload route does not), and
-what a `.gci` zip reports, since the streaming claim summarises cards by `.gci` game code.
+what a `.gci` zip reports, since the streaming claim summarizes cards by `.gci` game code.
 
 Writes to the instance. The card, and every version with it, is deleted before it exits.
 

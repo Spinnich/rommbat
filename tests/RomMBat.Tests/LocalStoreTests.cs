@@ -66,7 +66,7 @@ public class LocalStoreTests
     /// Columns that hold a single name and must never be handed a path at all.
     /// </summary>
     /// <remarks>
-    /// The neighbouring half of the same rule. These are not relative paths, so
+    /// The neighboring half of the same rule. These are not relative paths, so
     /// <see cref="RelativePath"/> does not guard them, and a path smuggled into one would
     /// still end up concatenated into a real location later. Each carries a CHECK rejecting
     /// both separators and a drive colon.
@@ -1036,7 +1036,7 @@ public class LocalStoreTests
             SizeBytes = 1025,
 
             // Upper case on purpose: RomM lower-cases its hashes and nothing guarantees the
-            // next writer will, so the store normalises rather than trusting the caller.
+            // next writer will, so the store normalizes rather than trusting the caller.
             Md5Hash = "DD768E2EECC95EB27E8CAE274570E04C",
             HashScope = HashScope.ArchiveContent,
             VerifiedBy = VerifiedBy.Md5,
@@ -1117,7 +1117,7 @@ public class LocalStoreTests
                     + "VALUES ('dreamcast', 'id-' || abs(random()), $path, 'journal', '2026-01-01T00:00:00Z');",
 
             // The other path column carries a valid value for the same reason content_download
-            // does, and relative_path is UNIQUE, so the fixed one is randomised.
+            // does, and relative_path is UNIQUE, so the fixed one is randomized.
             "local_save" => column == "relative_path"
                 ? "INSERT INTO local_save (relative_path, system, emulator, shape_class, slot, scanned_at_utc) "
                     + "VALUES ($path, 'saturn', 'libretro', 'A', 'libretro:battery:bcr', '2026-01-01T00:00:00Z');"
@@ -1127,7 +1127,7 @@ public class LocalStoreTests
                     + "'libretro:battery:bcr', $path, '2026-01-01T00:00:00Z');",
 
             // Three path columns on one table, so the two not under test carry valid values and
-            // relative_path is randomised where it is not the one being probed.
+            // relative_path is randomized where it is not the one being probed.
             "local_state" => column switch
             {
                 "relative_path" =>
@@ -1285,7 +1285,7 @@ public class LocalStoreTests
                 """,
 
             // Measured live: the server writes `emulator` into the stored state's file_path as
-            // a directory segment and does not sanitise it, so a value carrying a separator
+            // a directory segment and does not sanitize it, so a value carrying a separator
             // becomes two segments there. The client refuses it before that can happen.
             ("local_state", "emulator") =>
                 """
@@ -1380,7 +1380,7 @@ public class LocalStoreTests
     public async Task A_second_thread_cannot_use_the_connection_while_a_command_is_open()
     {
         // One SqliteConnection is shared by every store class and it is not thread-safe.
-        // Unserialised, the failure is not a clean exception:
+        // Unserialized, the failure is not a clean exception:
         // two threads mutating one connection's prepared-statement list threw "Collection was
         // modified" out of SqliteCommand.Dispose during a full test run.
         //
@@ -1498,7 +1498,7 @@ public class LocalStoreTests
     {
         // A smoke test rather than the guard above: it exercises the shape the sync screen
         // actually creates, a background writer against a foreground reader, and would notice a
-        // gate that serialised nothing at all. It is not evidence on its own, for the reason
+        // gate that serialized nothing at all. It is not evidence on its own, for the reason
         // recorded above.
         using var tree = TempRetroBatTree.Create();
         using var store = LocalStore.Open(tree.Install());
@@ -1538,13 +1538,13 @@ public class LocalStoreTests
     /// Closing the connection waits for a reader on another thread instead of racing it.
     /// </summary>
     /// <remarks>
-    /// Every command serialises through <c>StoreGate</c> and disposal did not, so
+    /// Every command serializes through <c>StoreGate</c> and disposal did not, so
     /// <c>SqliteConnection.Close</c> walked its prepared-statement list while a background reader
     /// was still mutating it and threw out of <c>Dispose</c>, as either "Collection was modified"
     /// or an <c>ObjectDisposedException</c> naming <c>SQLitePCL.sqlite3_stmt</c>. This asserts
     /// only that the close does not throw, because which of the two lands is a coin toss. It
     /// surfaced as the screen sweeps failing only when both test projects ran together, because a
-    /// screen's loader is cancelled on dispose and not waited for, so under load it is still
+    /// screen's loader is canceled on dispose and not waited for, so under load it is still
     /// running when the session closes.
     /// </remarks>
     [Fact]

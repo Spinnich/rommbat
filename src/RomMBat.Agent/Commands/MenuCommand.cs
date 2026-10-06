@@ -10,7 +10,7 @@ namespace RomMBat.Agent.Commands;
 /// the hooks make.</b> A hook adds a file beside the existing scripts and changes nothing a
 /// user sees; a menu entry adds a visible item to their front end. It is installed anyway
 /// because it is the only route to RomMBat that does not need a terminal, and the whole point
-/// of the entry is a user who never opens one. What that buys is owed back in candour: the
+/// of the entry is a user who never opens one. What that buys is owed back in candor: the
 /// install names every path it wrote, and <c>menu uninstall</c> takes all of it out.
 /// </remarks>
 internal static class MenuCommand

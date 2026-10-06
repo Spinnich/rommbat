@@ -3,9 +3,9 @@
 
 Two classes of check. An error fails the run: a relative link or anchor that does not
 resolve, an em-dash, a fact ID (`RB-<n>` for RetroBat, `RM-<n>` for RomM) cited but defined
-nowhere, history phrasing, or a Markdown file over its line budget. A report is printed and does
-not fail: the always-loaded context ceiling, missing frontmatter, legacy "finding N" citations,
-and generic use of `dry-run`. Reports exist for rules the tree does not meet yet, or,
+nowhere, history phrasing, a British spelling in prose, or a Markdown file over its line
+budget. A report is printed and does not fail: the always-loaded context ceiling, missing
+frontmatter, legacy "finding N" citations, and generic use of `dry-run`. Reports exist for rules the tree does not meet yet, or,
 for the context ceiling, a rule that counts the maintainer's local MEMORY.md, which CI never sees.
 
 Usage:
@@ -81,6 +81,23 @@ FACT_HEADING = re.compile(r"^#{2,6}\s+((?:RB|RM)-\d+[a-z]?)\.\s")
 LEGACY_CITATION = re.compile(r"\bfindings? \d+", re.IGNORECASE)
 # `dry-run` names sync's flag and nothing else; a generic preview is a "preview".
 GENERIC_DRY_RUN = re.compile(r"(?<![-`\w])dry-run(?!`)")
+# The house style is American English. A list, not a dictionary: these are the British forms
+# the tree has actually used, and -ise is matched by stem because "advertise" and "exercise"
+# are American too.
+BRITISH_SPELLING = re.compile(
+    r"(?<![\w.$])(?<!--)(?:"
+    r"behaviours?|colours?|favour(?:s|ed|ing|ites?|ited|iting)?|flavours?|honour(?:s|ed|ing)?|candour"
+    r"|neighbour(?:s|ing)?|licences?|defences?|centres?|centred|centring|catalogues?|analogue"
+    r"|artefacts?|judgement|acknowledgement|(?:un)?cancell(?:ed|ing)|(?:mis|un)?labelled"
+    r"|journalled|marshalled|modelled|travelled|totalling|whilst|amongst"
+    r"|(?:capital|categor|character|deserial|serial|unserial|final|general|ideal|initial"
+    r"|uninitial|local|material|normal|denormal|unnormal|optim|organ|reorgan|parameter"
+    r"|parenthes|plural|quant|random|recogn|unrecogn|relativ|sanit|summar|synthes|real|util"
+    r"|priorit|custom|minim|maxim|author|synchron|special|standard|visual|token|stabil"
+    r"|central|emphas|critic|apolog)is(?:e|es|ed|ing|er|ers|ation|ations|able|ably)"
+    r")(?!\w)",
+    re.IGNORECASE,
+)
 # Prettier pairs a prose $ with the next one, even one inside a later code span, as inline math
 # and strips the spaces around the code spans between them. NO$GBA is the usual source.
 BARE_DOLLAR = re.compile(r"(?<!\\)\$")
@@ -94,7 +111,7 @@ IMAGE_LINK = re.compile(r"!\[(?:[^\]\\]|\\.)*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*
 REFERENCE_DEF = re.compile(r"^\s{0,3}\[(?!\^)[^\]]+\]:\s*<?(\S+?)>?(?:\s|$)")
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 # The guide's attr_list heading id, `## Game Boy {#gb}`, which replaces the slug in MkDocs.
-# Honoured under wiki/ only.
+# Honored under wiki/ only.
 HEADING_ID = re.compile(r"\{\s*#([\w-]+)[^}]*\}\s*$")
 HTML_ANCHOR = re.compile(r"<a\s+(?:[^>]*\s)?(?:id|name)=\"([^\"]+)\"", re.IGNORECASE)
 CODE_SPAN = re.compile(r"(`+)(.+?)\1")
@@ -211,7 +228,7 @@ def anchors_of(rel: str) -> set[str]:
         anchors.update(a.lower() for a in HTML_ANCHOR.findall(line))
         heading = HEADING.match(line)
         if heading:
-            # Only MkDocs honours the id; GitHub renders it as text and keeps the slug.
+            # Only MkDocs honors the id; GitHub renders it as text and keeps the slug.
             explicit = rel.startswith("wiki/") and HEADING_ID.search(heading.group(2))
             if explicit:
                 anchors.add(explicit.group(1).lower())
@@ -295,6 +312,15 @@ def check_file(rel: str, text: str, findings: Findings, defined_facts: set[str] 
         if GENERIC_DRY_RUN.search(re.sub(r"\"[^\"]*\"", "", line)):
             dry_run += 1
             findings.report("dry-run", f"{rel}:{number}: generic dry-run; say preview")
+        # A quotation, straight, curly or blockquoted, keeps its source's spelling, and so does
+        # a link target. A dotted or --flag word is a name.
+        if not re.match(r"\s{0,3}>", line):
+            unquoted = re.sub(r"\"[^\"]*\"|“[^”]*”|\]\([^)]*\)", "", line)
+            spelled = BRITISH_SPELLING.findall(unquoted)
+        else:
+            spelled = []
+        for word in spelled:
+            findings.errors.append(f"{rel}:{number}: {word}; the house style is American English")
         if defined_facts is not None and not FACT_HEADING.match(line):
             for prefix, digits in FACT_ID.findall(line):
                 if f"{prefix}-{digits}" not in defined_facts:

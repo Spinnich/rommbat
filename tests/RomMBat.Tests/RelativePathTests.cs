@@ -129,8 +129,8 @@ public class RelativePathTests
     [Fact]
     public void The_hook_boundary_relativises_the_absolute_rom_path_ES_passes()
     {
-        // ES hands game-start an absolute rom path in its first argument, so relativising at
-        // that boundary is mandatory work rather than an optimisation.
+        // ES hands game-start an absolute rom path in its first argument, so relativizing at
+        // that boundary is mandatory work rather than an optimization.
         using var tree = TempRetroBatTree.Create();
         var install = tree.Install();
 

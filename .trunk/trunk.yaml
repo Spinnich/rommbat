@@ -33,7 +33,7 @@ lint:
     - linters: [ALL]
       paths:
         - reference/**
-    # Verbatim licence text.
+    # Verbatim license text.
     - linters: [ALL]
       paths:
         - LICENSE

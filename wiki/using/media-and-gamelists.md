@@ -17,7 +17,7 @@ most of it.
 
 EmulationStation reads each system's games from a `gamelist.xml` file in its folder, such as
 `roms\snes\gamelist.xml`. RomMBat adds its games to that file and leaves everything else in it
-alone, so entries you scraped yourself, your favourites and your play counts stay.
+alone, so entries you scraped yourself, your favorites and your play counts stay.
 
 After a sync, RomMBat asks EmulationStation to reload its lists, so new games appear without a
 restart. EmulationStation holds that reload until you leave RomMBat, and then the games are

@@ -31,7 +31,7 @@ public static class PairingCode
             : normalized;
     }
 
-    /// <summary>Applies the server's own normalisation: strip hyphens and spaces, uppercase.</summary>
+    /// <summary>Applies the server's own normalization: strip hyphens and spaces, uppercase.</summary>
     public static string Normalize(string userCode)
     {
         ArgumentNullException.ThrowIfNull(userCode);

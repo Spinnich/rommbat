@@ -8,7 +8,7 @@ effort: low
 
 1. `gh issue list --state open --limit 200 --json number,title,milestone,labels,createdAt` and
    `gh pr list --state open --json number,headRefName,body`. Drop an issue an open PR already
-   names (`Fixes #`, `Closes #`, or `issue-<n>-` in the branch), and one labelled
+   names (`Fixes #`, `Closes #`, or `issue-<n>-` in the branch), and one labeled
    `needs-decision`.
 2. Rank what is left:
    1. an `upstream` issue whose releases table lists a **stable**, because adopting it is due

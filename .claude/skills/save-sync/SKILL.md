@@ -114,7 +114,7 @@ whose per-game key is not set, on every flush that reaches the end of negotiatio
 itself: that is a setting in the player's own file, and the player's call.
 
 **GameCube can be moved the wrong way, and the menu makes it easy.** `dolphin_slotA` is
-labelled **SAVE FORMAT** with two choices: `8`, the GCI folder that is class C, and `1`, one
+labeled **SAVE FORMAT** with two choices: `8`, the GCI folder that is class C, and `1`, one
 shared raw `SRAM.<REGION>.raw` that is class D. So GameCube is class C only at the default, and
 a user who picked the tidier-sounding option has a shared card the class C scan finds nothing
 in, which `saves` names as a shared container. **Slot B is already there**: RetroBat only ever writes `SlotB` when
@@ -141,7 +141,7 @@ bare stem is ignored silently and the emulator keeps writing to the shared conta
 
 **A shared container has no `rom_id` by definition, so `SaveGuard` cannot answer for it.** The
 same is true of a class C unit whose attribution failed and left a null one. When a person
-removes a game, the honest behaviour is to **name the container and let them decide**, never to
+removes a game, the honest behavior is to **name the container and let them decide**, never to
 claim safety.
 
 - **Nothing is deleted either way.** Removal walks `local_file`, whose seven kinds hold no

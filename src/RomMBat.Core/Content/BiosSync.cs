@@ -109,7 +109,7 @@ public sealed class BiosSync
     /// <param name="connection">
     /// Null when the server was not asked. An offline plan carries no <see cref="BiosAction.Download"/>
     /// step, because nothing was asked about the library, but it can still carry adoptions:
-    /// recognising a file the user copied in by hand is local work and does not need a server.
+    /// recognizing a file the user copied in by hand is local work and does not need a server.
     /// </param>
     public BiosSync(
         RetroBatInstall install,

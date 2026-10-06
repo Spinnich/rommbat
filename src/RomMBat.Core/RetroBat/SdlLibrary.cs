@@ -178,7 +178,7 @@ internal static class SdlLibrary
     /// <summary>SDL_TRUE while the device behind an open handle is still present.</summary>
     /// <remarks>
     /// A handle to a pad that has gone away does not fail: every button reads released and
-    /// every axis reads centred, so a lost controller is indistinguishable from a still one
+    /// every axis reads centered, so a lost controller is indistinguishable from a still one
     /// without asking.
     /// </remarks>
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]

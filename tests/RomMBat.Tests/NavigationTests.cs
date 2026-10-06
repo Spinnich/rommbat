@@ -63,7 +63,7 @@ public class NavigationTests
             Press(navigator, "down", ref clock);
         }
 
-        Assert.Fail($"The root menu has no row labelled '{label}'.");
+        Assert.Fail($"The root menu has no row labeled '{label}'.");
     }
 
     [Fact]
@@ -408,7 +408,7 @@ public class NavigationTests
     [Fact]
     public void Every_cell_of_every_layout_belongs_to_exactly_one_key()
     {
-        // A span that overlaps its neighbour or stops short leaves the cursor somewhere it can
+        // A span that overlaps its neighbor or stops short leaves the cursor somewhere it can
         // sit and do nothing, which is the one way a transcription slip could pass silently.
         foreach (var layout in Enum.GetValues<KeyboardLayout>())
         {

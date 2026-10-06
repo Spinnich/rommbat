@@ -15,7 +15,7 @@ public sealed class SaveUnitMismatchException(string message) : Exception(messag
 /// <param name="ContentHash">
 /// The logical fold over what actually landed, which is what a later scan compares the tree
 /// against. It is also the server's digest, except for a row in the pre-5.2.0 form or an
-/// archive whose entry names another client wrote unnormalised.
+/// archive whose entry names another client wrote unnormalized.
 /// </param>
 public sealed record SaveUnitRestoreResult(string ContentHash, IReadOnlyList<string> Entries, RelativePath? CopiedAside);
 

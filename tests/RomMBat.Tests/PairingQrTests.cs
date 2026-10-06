@@ -41,7 +41,7 @@ public class PairingQrTests
     {
         var matrix = PairingQrCode.Build("https://romm.example.lan/pair/device?user_code=K7M2PQRS");
 
-        // Top-left finder: a 7x7 dark border with a light ring and a 3x3 dark centre.
+        // Top-left finder: a 7x7 dark border with a light ring and a 3x3 dark center.
         const int offset = PairingQrCode.QuietZone;
 
         Assert.True(matrix.IsDark(offset, offset));

@@ -175,7 +175,7 @@ public sealed class SaveUnitTransferTests : IDisposable
     [Fact]
     public void A_restore_is_checked_against_the_entry_names_as_another_client_wrote_them()
     {
-        // RomM folds entry.filename as stored, and extraction normalises the name, so a zip
+        // RomM folds entry.filename as stored, and extraction normalizes the name, so a zip
         // naming "./ULES01513SYSDATA/DATA.BIN" is checked against the raw name's fold.
         var install = _tree.Install();
 

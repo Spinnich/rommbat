@@ -52,7 +52,7 @@ public class SpoolCompatibilityTests
     [Fact]
     public void A_file_that_is_not_this_format_at_all_is_still_discarded()
     {
-        // "Ignore what you do not recognise" is only safe inside one grammar. A different
+        // "Ignore what you do not recognize" is only safe inside one grammar. A different
         // family is a different format, and leaving those would grow the spool without bound.
         using var fixture = SpoolTree.Create();
 

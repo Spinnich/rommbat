@@ -8,7 +8,7 @@ namespace RomM.Client;
 /// Reads a RomM timestamp that carries no zone as the UTC it is.
 /// </summary>
 /// <remarks>
-/// <b>RomM serialises a play session's datetimes without an offset and stores UTC</b>
+/// <b>RomM serializes a play session's datetimes without an offset and stores UTC</b>
 /// (RB-260), and <c>System.Text.Json</c> reads a zone-less value as <b>local</b> time. So a
 /// plain <c>DateTimeOffset</c> property is wrong by the machine's own offset, silently, and
 /// reads as right on a UTC machine.
@@ -17,7 +17,7 @@ namespace RomM.Client;
 /// field is a string. This is the form for a field that should simply be an instant.
 /// </para>
 /// <para>
-/// A value that does carry an offset is honoured, so this is safe on any field whether or not
+/// A value that does carry an offset is honored, so this is safe on any field whether or not
 /// the server names a zone.
 /// </para>
 /// </remarks>

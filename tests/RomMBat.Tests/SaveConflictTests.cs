@@ -342,7 +342,7 @@ public class SaveConflictTests
     public async Task A_decided_conflict_keeps_its_row_and_stops_pointing_at_the_pruned_copy()
     {
         // Migration 007 keeps decided rows so `saves` can say what was chosen, and so a slot that
-        // conflicts again is recognised as one already settled. Pruning the copy aside must not
+        // conflicts again is recognized as one already settled. Pruning the copy aside must not
         // delete the row with it, microseconds after the resolution was written.
         using var fixture = ConflictFixture.Create();
         await fixture.ConflictAsync(TestContext.Current.CancellationToken);

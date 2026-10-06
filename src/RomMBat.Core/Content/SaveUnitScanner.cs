@@ -228,10 +228,10 @@ public sealed class SaveUnitScanner
         Safe(() => Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories));
 
     /// <summary>
-    /// Enumerates, materialised, and answers nothing rather than throwing.
+    /// Enumerates, materialized, and answers nothing rather than throwing.
     /// </summary>
     /// <remarks>
-    /// Materialised because a lazy enumeration throws partway through the caller's loop, where
+    /// Materialized because a lazy enumeration throws partway through the caller's loop, where
     /// the try/catch is not. A tree that cannot be read makes its units invisible, which leaves
     /// them unattributed and unuploaded, which is the direction that loses nothing.
     /// </remarks>

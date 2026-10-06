@@ -144,7 +144,7 @@ public sealed record PlatformOption(
 /// has no value to supply and cannot trip #78. The agent still maps <c>--value</c> onto
 /// <see cref="ScopeValue"/>, and a filter draft still ignores it, which is that defect exactly
 /// and is preserved here rather than fixed: it is filed, and fixing it while passing would
-/// change the agent's behaviour inside a refactor whose whole claim is that it did not.
+/// change the agent's behavior inside a refactor whose whole claim is that it did not.
 /// </remarks>
 public sealed record SetDraft
 {
@@ -212,7 +212,7 @@ public sealed record SetEdit
 /// line on stderr or a row on a screen.
 /// <para>
 /// <b>Nothing here takes <see cref="TreeLock"/>, and that is a decision.</b> Every write on
-/// this type is a row in SQLite, which is in WAL mode, and the tree lock serialises writers of
+/// this type is a row in SQLite, which is in WAL mode, and the tree lock serializes writers of
 /// <i>files in the tree</i>. Taking it to add a set definition would be the speculative acquire
 /// that makes a concurrent <c>background quit</c> flush skip its upload and report success. A
 /// test asserts that a set can be defined while a background pass holds the lock.
@@ -353,7 +353,7 @@ public sealed class SyncSetService
     /// </para>
     /// <para>
     /// <b>A subquery rather than an id list, because the obvious rewrite was measured and
-    /// barely helped.</b> Passing the membership to a parameterised <c>IN</c> is 95 ms at
+    /// barely helped.</b> Passing the membership to a parameterized <c>IN</c> is 95 ms at
     /// 5,000 members against the loop's 111 ms, where the subquery is 1 ms.
     /// </para>
     /// </remarks>

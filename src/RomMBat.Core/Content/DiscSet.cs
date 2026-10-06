@@ -36,8 +36,8 @@ public sealed record DiscMarker(string BaseTitle, int Number, string Tail);
 /// files carry a disc marker and every one of them writes it <c>(Disc N)</c> with N numeric,
 /// spread over <c>psx</c>, <c>saturn</c>, <c>dreamcast</c>, <c>gamecube</c>, <c>3do</c> and
 /// <c>ps2</c>. No <c>(Disk</c>, <c>(CD</c> or <c>(Side</c> appears. The other forms are matched
-/// anyway, because recognising a marker this library does not use costs a conversion that was
-/// never offered, and failing to recognise one costs a save.
+/// anyway, because recognizing a marker this library does not use costs a conversion that was
+/// never offered, and failing to recognize one costs a save.
 /// </para>
 /// <para>
 /// On the same install <c>ps2</c> is 302 single-disc titles against 7 sets of two, with

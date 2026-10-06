@@ -1,11 +1,11 @@
 # Transfers and partials
 
-Part of the [offline-and-portable](SKILL.md) skill. What a cancelled or dropped transfer leaves behind, and how `partial/` is kept clean.
+Part of the [offline-and-portable](SKILL.md) skill. What a canceled or dropped transfer leaves behind, and how `partial/` is kept clean.
 
 ## Offline-first
 
-- **A cancelled transfer's partial is truncated before its handle is closed, and this is a
-  measurement about slow drives rather than about tidiness.** Cancelling a download is instant.
+- **A canceled transfer's partial is truncated before its handle is closed, and this is a
+  measurement about slow drives rather than about tidiness.** Canceling a download is instant.
   What is not instant is closing the handle over a large part-written file, because that waits
   for the drive's write cache: measured on the live install, stopping 10.9 s into a PS2-sized
   download spent **20.1 s** in `FileStream.DisposeAsync` alone, and the file was deleted a
@@ -22,7 +22,7 @@ Part of the [offline-and-portable](SKILL.md) skill. What a cancelled or dropped 
   deleted the `.part` and the `local_file` download row on both. A 929 MB image that lost the
   LAN at 800 MB was therefore rolled back correctly and made unresumable silently, since no file
   had been removed and no `GameRolledBack` event fired to say so. The rollback now takes the
-  bytes and leaves the partial unless the user cancelled. **A size-mismatch test cannot catch
+  bytes and leaves the partial unless the user canceled. **A size-mismatch test cannot catch
   this**, because `ContentSync` deletes the partial itself on a verification failure and the two
   paths then look identical from outside: it needs a transfer the server drops.
 
@@ -50,7 +50,7 @@ Part of the [offline-and-portable](SKILL.md) skill. What a cancelled or dropped 
   writes** (`bios-<32 hex>.part`, `save-<int>.part`, `resolve-<int>.part`, `state-<int>.part`,
   `unit-<32 hex>` with an optional `.zip`), because a prefix match makes `partial/save-notes.txt`
   a candidate. **A new producer owes `Classify` a branch in the same change**: the sweep leaves
-  what it does not recognise alone, so an unlisted name is not reclaimed by anything, ever, and
+  what it does not recognize alone, so an unlisted name is not reclaimed by anything, ever, and
   is invisible to the budget because a partial has no `local_file` row.
 
 - **`partial/unit-<guid>/` is live state, not litter, so the sweep holds the tree lock.** It is

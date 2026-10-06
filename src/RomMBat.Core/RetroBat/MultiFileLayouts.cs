@@ -87,7 +87,7 @@ public sealed class MultiFileLayouts
     public MultiFileLayout? For(string? system) =>
         system is not null && _systems.TryGetValue(system, out var layout) ? layout : null;
 
-    /// <summary>Reads a table from JSON, refusing anything it cannot honour.</summary>
+    /// <summary>Reads a table from JSON, refusing anything it cannot honor.</summary>
     public static MultiFileLayouts Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);

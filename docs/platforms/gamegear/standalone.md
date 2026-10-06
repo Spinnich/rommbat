@@ -79,7 +79,7 @@ Every one is on the server, rom 272855, jgenesis's being the black-screen sessio
 The agent's own launches through `emulatorLauncher` showed the same, with and without a seed in place,
 and so did its boot launch the night before, whose screenshot was black although its write looked
 normal. **Run by hand with `--hardware GameGear`**, the title reads `gg - ...` and the game plays in
-colour. No ES option sets the flag (RB-410), so the row as a user gets it cannot be played.
+color. No ES option sets the flag (RB-410), so the row as a user gets it cannot be played.
 
 **Its saves were measured anyway, from that run by hand, as evidence for when RetroBat launches it
 right.** The maintainer played on the keyboard, since a run outside `emulatorLauncher` gets none of

@@ -201,6 +201,6 @@ public class OutboxScreenTests : IDisposable
             navigator.Handle(NavAction.Down);
         }
 
-        Assert.Fail($"No selectable row is labelled '{label}'.");
+        Assert.Fail($"No selectable row is labeled '{label}'.");
     }
 }

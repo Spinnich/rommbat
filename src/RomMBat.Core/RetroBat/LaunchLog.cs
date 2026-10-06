@@ -13,7 +13,7 @@ namespace RomMBat.Core.RetroBat;
 /// plan's <c>{emulator}:{core}:{slot}</c> state slot is not usable as written.
 /// </param>
 /// <param name="IsMenuLaunch">
-/// True for an <c>es_menu</c> entry, which is how RomMBat's own launch is recognised. Those
+/// True for an <c>es_menu</c> entry, which is how RomMBat's own launch is recognized. Those
 /// fire a <c>game-end</c> with no <c>game-start</c>, and attributing one to whatever ran last
 /// is the naive failure this flag exists to prevent.
 /// </param>
@@ -67,7 +67,7 @@ public sealed record LaunchLogPosition(
 /// invoked for <c>-updatestores</c> and similar, so the discriminator is <c>-rom</c>.</item>
 /// <item><b>The rom path carries whatever drive letter the install had at the time.</b> 295 of
 /// 424 read <c>D:\RetroBat</c> and 129 <c>E:\RetroBat</c>, in one log for one install that
-/// moved. Relativising by stripping the current root would discard 70% of the history, so the
+/// moved. Relativizing by stripping the current root would discard 70% of the history, so the
 /// path is cut at its <c>roms\</c> or <c>system\</c> segment instead.</item>
 /// <item><b><c>-rom</c> is not a fixed shape.</b> Unquoted once in 424, and not the final flag
 /// 19 times with <c>-core</c> written after it 5 times, so neither a quoted-only regex nor a

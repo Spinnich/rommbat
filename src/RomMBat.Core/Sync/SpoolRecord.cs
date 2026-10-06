@@ -6,7 +6,7 @@ namespace RomMBat.Core.Sync;
 /// <param name="Arguments">
 /// The hook's arguments exactly as EmulationStation passed them, uninterpreted. For
 /// <c>game-start</c> that is an <b>absolute</b> rom path, its basename and the gamelist
-/// display name; for the other three events it is empty. The hook does not relativise the
+/// display name; for the other three events it is empty. The hook does not relativize the
 /// path, because the ingest side is where the root, the ROM index and the launch log all
 /// already are, and a value the hook could not interpret is better carried verbatim than
 /// guessed at.

@@ -160,7 +160,7 @@ public static class InventoryScreens
                 + "are forgotten, the limit is that much smaller than it looks.",
             false));
 
-        // The shape of it, so a person can recognise "I cleared that folder by hand" rather
+        // The shape of it, so a person can recognize "I cleared that folder by hand" rather
         // than being handed one number they have no way to place.
         rows.AddRange(found.Folders.Take(8).Select(entry => new ListRow(
             entry.Folder,

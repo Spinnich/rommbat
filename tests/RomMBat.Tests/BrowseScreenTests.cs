@@ -481,7 +481,7 @@ public sealed class BrowseScreenTests : IDisposable
         using var browse = new BrowseViewModel(_session, Connect(stub));
         await Settled(browse);
 
-        // The name is the label on both, because that is what a person recognises, and the
+        // The name is the label on both, because that is what a person recognizes, and the
         // release under it is what tells them apart.
         Assert.Equal(2, browse.Rows.Count);
         Assert.Equal(browse.Rows[0].Label, browse.Rows[1].Label);
@@ -494,7 +494,7 @@ public sealed class BrowseScreenTests : IDisposable
     }
 
     /// <summary>
-    /// An arcade row keeps the name it is recognised by, and shows the romset underneath.
+    /// An arcade row keeps the name it is recognized by, and shows the romset underneath.
     /// </summary>
     /// <remarks>
     /// <b>The half that stops the file name being the label.</b> Measured on the live library:
@@ -923,7 +923,7 @@ public sealed class BrowseScreenTests : IDisposable
     [Fact]
     public async Task A_fetch_reaching_for_a_connection_after_the_screen_closed_opens_none()
     {
-        // #126. Cancelling does not stop the open, so a fetch arriving after Dispose built a
+        // #126. Canceling does not stop the open, so a fetch arriving after Dispose built a
         // fresh connection into a field nothing would ever dispose again.
         using var stub = Library(1);
         Pair();

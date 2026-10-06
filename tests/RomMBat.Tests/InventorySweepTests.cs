@@ -45,7 +45,7 @@ public sealed class InventorySweepTests : IDisposable
         Assert.Equal(2, report.Missing.Count);
         Assert.Equal(12_000, report.MissingBytes);
 
-        // Grouped worst first, so a person can recognise "I cleared that folder by hand"
+        // Grouped worst first, so a person can recognize "I cleared that folder by hand"
         // rather than being handed one number they have no way to place.
         Assert.Equal("fbneo", report.Folders[0].Folder);
     }

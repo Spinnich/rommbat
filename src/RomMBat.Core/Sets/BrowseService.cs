@@ -47,7 +47,7 @@ public sealed record BrowseGame(
     /// <para>
     /// <b>Both halves are needed and both were measured</b>, 750 rows a platform on the live
     /// library. Every arcade file name is a romset code with no tags at all, <c>10yard.zip</c>
-    /// and <c>1943kai.zip</c>, and 87.3% differ from the display name, so a list labelled by file
+    /// and <c>1943kai.zip</c>, and 87.3% differ from the display name, so a list labeled by file
     /// name is unreadable there and the title has to be the label. And 69 megadrive and 67 psx
     /// display names are shared by two or more rows, about one in eleven, so the title alone
     /// picks the wrong dump often enough to matter and the file name has to be under it.

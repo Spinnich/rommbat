@@ -29,7 +29,7 @@ on `megadrive` (RB-283). NO\$GBA read the raw 131,072 B seed and wrote it back i
 compressed format, 3,583 B headed `NocashGbaBackup`, and rewrote it on a later launch with no save
 made. **No state can be synced**: `F8` is NO\$GBA's Write Snapshot, and it opens a Save As dialog
 in the user's `Documents` folder rather than writing anywhere fixed, so where a state lands is the
-user's choice each time and no rule can find it. The dialog was cancelled. There is no pad mapping
+user's choice each time and no rule can find it. The dialog was canceled. There is no pad mapping
 for it either. **Its pad maps Start and Select differently from every other
 row**, as the maintainer found: `NO$GBA.INI` numbers them 3 and 4, and `emulatorLauncher` writes no
 mapping for it. RB-286.

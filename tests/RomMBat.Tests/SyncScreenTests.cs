@@ -171,7 +171,7 @@ public sealed class SyncScreenTests : IDisposable
         // has postponed work, which is exactly what "a stopped sync ends with a correct tree"
         // says it must not do.
         //
-        // Deterministic because Immediate reports inline: cancelling while the first game's
+        // Deterministic because Immediate reports inline: canceling while the first game's
         // artwork is being fetched means the second game's transfer throws at its first
         // cancellation check.
         using var stub = Library(2);
@@ -547,7 +547,7 @@ public sealed class SyncScreenTests : IDisposable
         Assert.Equal(ScreenCommandKind.Push, opened.Kind);
         Assert.Equal(sync.State.Problems.Count, all.Rows.Count);
 
-        // The first one too, which the run screen drops in favour of the newest few.
+        // The first one too, which the run screen drops in favor of the newest few.
         Assert.Equal(sync.State.Problems[0], all.Rows[0].Detail);
 
         // Nothing to choose, so no row promises a press that does nothing.
@@ -714,7 +714,7 @@ public sealed class SyncScreenTests : IDisposable
 
             Assert.True(
                 drawn <= fits,
-                $"{screen.GetType().Name} draws {window.Count} rows totalling {drawn}px against "
+                $"{screen.GetType().Name} draws {window.Count} rows totaling {drawn}px against "
                     + $"the {fits}px known to fit");
         }
 

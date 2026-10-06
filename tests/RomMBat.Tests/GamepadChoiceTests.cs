@@ -102,7 +102,7 @@ public class GamepadChoiceTests
     public void The_keyboard_row_never_claims_a_controller()
     {
         // es_input.cfg carries the keyboard as deviceGUID="-1". No SDL joystick reports that,
-        // and a normalisation that ever made one match would hand the reader 17 key bindings
+        // and a normalization that ever made one match would hand the reader 17 key bindings
         // to look for on a pad.
         Assert.NotNull(Map.Keyboard);
 

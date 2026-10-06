@@ -1300,7 +1300,7 @@ public sealed class SaveSync
     /// <b>An <c>upload</c> of bytes the server already holds is not an upload.</b> Nestopia
     /// rewrites its <c>.srm</c> with identical bytes on every launch, which moves the mtime and
     /// nothing else. Negotiate compares the hash first and answers <c>no_op</c> for that (case M4
-    /// of <c>tools/romm-5.3-probes/s4-older-mtime.py</c>, RB-259), so this is defence rather
+    /// of <c>tools/romm-5.3-probes/s4-older-mtime.py</c>, RB-259), so this is defense rather
     /// than a live fix. A server that asked for the upload would dedup it into the same row
     /// without moving its <c>updated_at</c> and ask again on every flush, silently, and the guard
     /// costs one comparison against a value the operation already carries.
@@ -2020,7 +2020,7 @@ public sealed class SaveSync
     /// class D container can: it is one file whose name is the ROM's stem, and the shape
     /// declares where it goes, so a device that has never run the game can still be handed it.
     /// <para>
-    /// Recognised from the slot, which is <c>{emulator}:{slot}</c> as the shape declares it, and
+    /// Recognized from the slot, which is <c>{emulator}:{slot}</c> as the shape declares it, and
     /// never from the extension. Only the shape knows that a <c>.ps2</c> under <c>ps2</c> is a
     /// memory card rather than something an emulator happens to have left there.
     /// </para>

@@ -19,7 +19,7 @@ public static class RetroBatVersion
     /// <remarks>
     /// Tracks the newest RetroBat stable rather than the oldest one that happens to work:
     /// RomMBat adopts a new stable within one release and moves the floor with it, so the
-    /// behaviour the measurements describe is the behaviour of the install in front of the
+    /// behavior the measurements describe is the behavior of the install in front of the
     /// user. 8.2.1 is the floor because 8.2.0's Flycast save-state watcher pointed at the
     /// wrong directory (emulatorlauncher#1336).
     /// </remarks>

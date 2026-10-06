@@ -37,7 +37,7 @@ C# failed with CS1010.
 write bytes (`read_bytes`, `write_bytes`) when patching repo files.
 
 Most paths are protected: `.gitattributes` sets `* text=auto eol=lf`, so a CRLF working copy of
-a `.cs` or `.md` file normalises in the index. `reference/**` and `tests/**/fixtures/**` are
+a `.cs` or `.md` file normalizes in the index. `reference/**` and `tests/**/fixtures/**` are
 `-text`, stored byte for byte, so a CRLF there reaches a Linux checkout intact. A CRLF
 `reference/refresh.sh` fails with `env: 'bash\r': No such file or directory`, or as
 `bash refresh.sh` with `set: pipefail: invalid option name`. `trunk check` passes with it in

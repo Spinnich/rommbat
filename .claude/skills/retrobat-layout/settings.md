@@ -12,7 +12,7 @@ option instead. Precedence (`emulatorlauncher/Program.cs`):
 es_settings.cfg -> global.<key> -> <system>.<key> -> <system>["<rom filename>"].<key>
 ```
 
-That last form is a real per-game override, measured (RB-358): `emulatorlauncher` honours it, it
+That last form is a real per-game override, measured (RB-358): `emulatorlauncher` honors it, it
 outranks the system key, and it affects only its own rom. **Write the rom filename with its
 extension** (`ps2["Game (USA).iso"].pcsx2_slot1_memory`). A bare stem is ignored **silently**,
 so build the key from `fs_name` and never from a stripped name.
@@ -81,7 +81,7 @@ slot B cards for all three regions as shared containers, so `saves` reports them
 rather than as unread files. RB-193.
 
 **Never write this file while EmulationStation is running. The write is discarded.** ES loads
-`es_settings.cfg` at startup and serialises that model on every write, so a key present at load
+`es_settings.cfg` at startup and serializes that model on every write, so a key present at load
 survives (ones ES cannot understand included) and **a key that appears afterwards does not**.
 Driven with ES up: two custom keys merged in atomically and confirmed on disk were gone after
 ES's next write. `Language` proves it is not a merge, because ES added that key itself at
@@ -120,7 +120,7 @@ Timed across three sessions from `GET /quit`:
 
 So the exit write comes **first**, with 200 to 630 ms to spare, and nothing writes the file
 again afterwards. The hook still fires while ES is alive, for another 48 to 68 ms, and that
-window is inside the load-and-serialise window a key is discarded in. **Poll for the process,
+window is inside the load-and-serialize window a key is discarded in. **Poll for the process,
 not for the hook.** It is cheap: 10 ms, one poll, on a real session.
 
 **`start` is inside the discard window, not outside it.** ES's launch write lands 1.6 to 4.9 s

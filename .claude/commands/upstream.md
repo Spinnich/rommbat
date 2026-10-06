@@ -49,7 +49,7 @@ and `cd` into it once, as `/start-issue` does and for the same reasons.
   needs a pad goes to the maintainer as a play sheet, the way `/certify` does it, and only for
   the rows the mapping says are touched.
 
-A behaviour nobody has recorded is a new finding, filed the way `docs/upstream/README.md` says.
+A behavior nobody has recorded is a new finding, filed the way `docs/upstream/README.md` says.
 
 ## 4. Record and ship
 

@@ -131,7 +131,7 @@ public class PairingScreenTests
         Assert.Equal("K7M2-PQRS", pairing.DisplayCode);
 
         // AwaitApprovalAsync returns only on approval, denial, a server error or the old code's
-        // own expiry. Uncancelled, whichever of those arrived would be written over the fresh
+        // own expiry. Uncanceled, whichever of those arrived would be written over the fresh
         // code this press is about to put on screen, or would save a second pairing.
         var superseded = pairing.CurrentRun;
 

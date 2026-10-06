@@ -83,7 +83,7 @@ table carries, because `gb`, `gbc`, `gba`, `lynx`, `gamegear`, `ngp`, `ngpc`, `w
 manufacturer allowlist of Atari, Bandai, NEC, Nintendo, Sega, SNK and Sony drops the whole of
 generation 2 on top of that, since RetroBat attributes those to Coleco, Emerson, Fairchild,
 Mattel, MB and "Magnavox - Philips". `<manufacturer>`, `<hardware>` and `<release>` are worth
-reading when a new system appears, but the wave a system belongs in is a judgement about what it
+reading when a new system appears, but the wave a system belongs in is a judgment about what it
 introduces, and it is hand-maintained.
 
 ### Every emulator and core a supported platform declares

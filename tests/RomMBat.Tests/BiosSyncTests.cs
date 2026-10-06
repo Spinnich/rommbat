@@ -258,7 +258,7 @@ public sealed class BiosSyncTests : IDisposable
     {
         // 174 of the 348 requirements, and 28 systems have nothing else. Reporting these as
         // "not in your library" would send a user looking for a file RomMBat could not
-        // recognise if they already had it.
+        // recognize if they already had it.
         using var stub = new StubRomMServer();
         stub.Platforms.Add(new StubPlatform(1, "mastersystem", "mastersystem", "Master System"));
 
@@ -736,7 +736,7 @@ public sealed class BiosSyncTests : IDisposable
     [Fact]
     public async Task An_adoption_is_recorded_with_the_server_never_asked()
     {
-        // Principle 1. Recognising a file already on the disk is local work, so a pass that can
+        // Principle 1. Recognizing a file already on the disk is local work, so a pass that can
         // only adopt does not need a connection to do it.
         var bytes = Content("psxonpsp660.bin");
 

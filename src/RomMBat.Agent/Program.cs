@@ -121,7 +121,7 @@ internal static class Program
         catch (OperationCanceledException)
         {
             Console.Error.WriteLine();
-            Console.Error.WriteLine("Cancelled.");
+            Console.Error.WriteLine("Canceled.");
             return ExitCode.Cancelled;
         }
         catch (RomMUnreachableException ex)

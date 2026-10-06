@@ -17,7 +17,7 @@ public static class CatalogFilterJson
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
     };
 
-    /// <summary>Serialises a filter for storage.</summary>
+    /// <summary>Serializes a filter for storage.</summary>
     public static string Write(CatalogFilter filter)
     {
         ArgumentNullException.ThrowIfNull(filter);

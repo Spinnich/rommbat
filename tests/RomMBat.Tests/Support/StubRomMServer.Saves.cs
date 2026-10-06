@@ -8,7 +8,7 @@ namespace RomMBat.Tests.Support;
 /// The save, sync-session and play-session half of the stub.
 /// </summary>
 /// <remarks>
-/// Three behaviours here are modelled rather than stubbed away, because the client's
+/// Three behaviors here are modeled rather than stubbed away, because the client's
 /// correctness is defined against them: the server renames an upload and hands back the
 /// untagged stem, identical content into one slot reuses the row, and a play session repeated
 /// inside the same second comes back as a duplicate. A stub that skipped any of the three
@@ -63,7 +63,7 @@ internal sealed partial class StubRomMServer
     /// </summary>
     /// <remarks>
     /// The new-device restore: the server holds a save for a game this device has never played,
-    /// so nothing local names it and it cannot appear in the request. Modelled because the
+    /// so nothing local names it and it cannot appear in the request. Modeled because the
     /// client has to have somewhere to put such a save, and every other download test seeds a
     /// local one first.
     /// </remarks>
@@ -86,7 +86,7 @@ internal sealed partial class StubRomMServer
     /// No live instance has been seen answering <c>conflict</c> for an unsubmitted slot, but
     /// nothing rules it out either: negotiate volunteers slots the client never named
     /// (RB-151), so the unsubmitted half of this is real and only
-    /// the action is unobserved. Modelled because the client's answer to it was a
+    /// the action is unobserved. Modeled because the client's answer to it was a
     /// <c>save_conflict.local_path</c> insert with an empty path, which fails the column's CHECK
     /// and takes the whole flush down rather than the one operation.
     /// </remarks>
@@ -101,7 +101,7 @@ internal sealed partial class StubRomMServer
     /// </remarks>
     public IList<int> Acknowledged { get; } = [];
 
-    /// <summary>When set, every acknowledgement answers this status and is not recorded.</summary>
+    /// <summary>When set, every acknowledgment answers this status and is not recorded.</summary>
     public HttpStatusCode? FailAcknowledge { get; set; }
 
     /// <summary>
@@ -375,7 +375,7 @@ internal sealed partial class StubRomMServer
             // document, so a client reading it as an object gets null and shows nothing.
             //
             // overwrite=true is what gets past it, which is why it is correct only after
-            // somebody has chosen a side and why the stub honours it here rather than refusing
+            // somebody has chosen a side and why the stub honors it here rather than refusing
             // unconditionally. What it does NOT do is replace the row: see below.
             return Detail(HttpStatusCode.Conflict, "Slot has a newer save since your last sync");
         }
@@ -599,7 +599,7 @@ internal sealed partial class StubRomMServer
     /// <remarks>
     /// <b>The <c>device_id</c> filter is exact and the rows carry the RomM-side id</b>, so
     /// asking with the local one answers 200 with an empty array, which is what makes an empty
-    /// answer say nothing at all. Modelled rather than ignored because a stub that served every
+    /// answer say nothing at all. Modeled rather than ignored because a stub that served every
     /// row whatever was asked for could not catch a caller filtering by the wrong id.
     /// <para>
     /// Deliberately unordered, matching the endpoint, so a caller that takes the first row
@@ -638,7 +638,7 @@ internal sealed partial class StubRomMServer
                 rom_id = row.RomId,
                 sync_session_id = (int?)null,
                 save_slot = row.SaveSlot,
-                // Zone-less, which is how the real server serialises a play session (RB-260),
+                // Zone-less, which is how the real server serializes a play session (RB-260),
                 // and it stores UTC. A stub writing an offset here would let a client that
                 // reads these as local time pass, and that client is wrong by the machine's
                 // own offset on every row.

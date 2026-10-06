@@ -19,8 +19,8 @@ namespace RomMBat.Tests;
 /// resolve screen has a cancel on it, and a cancel that threw away the paging already done
 /// would make the feature worse than not having it.
 /// <para>
-/// So a cancelled walk records its offset exactly as an unreachable server does, and the next
-/// resolve continues from there. That is the whole difference between cancelling and losing
+/// So a canceled walk records its offset exactly as an unreachable server does, and the next
+/// resolve continues from there. That is the whole difference between canceling and losing
 /// eight minutes.
 /// </para>
 /// </remarks>
@@ -335,7 +335,7 @@ public sealed class SetResolveServiceTests : IDisposable
         // missing everything before the cancel: the offset survives and the work does not.
         var (games, _) = _session.Store.SyncSets.MemberTotals(set.Id);
 
-        Assert.True(games > 0, "a cancelled walk kept none of the games it had already read");
+        Assert.True(games > 0, "a canceled walk kept none of the games it had already read");
         Assert.Equal(500, games);
     }
 

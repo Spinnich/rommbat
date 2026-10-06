@@ -288,7 +288,7 @@ public class SaveConverterTests
         var key = "ps2[\"Armored Core 3 (USA).chd\"].pcsx2_slot1_memory";
         fixture.SetSetting(key, "standard");
 
-        // RomMBat is allowed to take over a value it recognises as the stock one only when it
+        // RomMBat is allowed to take over a value it recognizes as the stock one only when it
         // recorded writing it, so simulate the recorded case by converting from a prior record.
         fixture.Store.SaveConversions.Record(new SaveConversion
         {
@@ -413,7 +413,7 @@ public class SaveConverterTests
             moved.Store.Saves.List()
                 .Select(save => (save.Path.Value, save.ShapeClass, save.ContentHash, save.RomId)));
 
-        // The override travelled as written, because its key is a rom filename and not a path.
+        // The override traveled as written, because its key is a rom filename and not a path.
         Assert.Equal(settingsBefore, moved.Settings().Settings.ToList());
         Assert.Equal(
             "game",

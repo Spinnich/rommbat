@@ -150,7 +150,7 @@ switching strands existing saves inside the old container unless migrated; and p
 cards break games that legitimately read a prequel's save.
 
 **"Auto" in the ES menu means the key is absent**, not that a value is set: `es_features.cfg`
-declares three choices for `pcsx2_slot1_memory` and no `auto`, and ES synthesises AUTO for any
+declares three choices for `pcsx2_slot1_memory` and no `auto`, and ES synthesizes AUTO for any
 unset feature. Two things follow. Reverting has to restore **absence** rather than a plausible
 stock value, or the user lands somewhere they never were, which is why the conversion record
 stores absent and present-with-a-value as different states. And after a conversion the
@@ -158,7 +158,7 @@ system-scoped menu still reads Auto while the per-game key silently outranks it,
 menu shows no sign that a game has been converted**.
 
 **Never write `es_settings.cfg` while EmulationStation is running.** It loads the file at
-startup and serialises that model on every write, so a key that appears afterwards is
+startup and serializes that model on every write, so a key that appears afterwards is
 discarded, merged and atomic or not. See `retrobat-layout`. Refuse, say why, and re-read after
 writing rather than trusting the rename.
 

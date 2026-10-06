@@ -34,7 +34,7 @@ binaries. Nothing in the tree escalates CS8602, so without `-warnaserror` it is 
 Debug or Release. Grep the output for `error` rather than trusting the summary line.
 
 **`dotnet test` here is Microsoft.Testing.Platform, not VSTest**, opted in through
-`global.json`, and it takes a different set of options. An option it does not recognise is
+`global.json`, and it takes a different set of options. An option it does not recognize is
 forwarded to the test module, which refuses it and reports **`Zero tests ran` with exit code
 5**, naming neither the option nor the problem. `--nologo` does exactly this. **Read a zero-test
 run as a bad command line, not as a broken environment**, and never as a pass.

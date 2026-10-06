@@ -20,7 +20,7 @@ through four stages and retires only at the last:
 3. **In a release**: the tag that first carries the fix, read from the release and its commits,
    not assumed from dates.
 4. **Adopted**: RomMBat's floor has moved to that release, a hands-on pass has seen the fixed
-   behaviour on a real install, and the workaround is out of the code and the docs. Only then does
+   behavior on a real install, and the workaround is out of the code and the docs. Only then does
    the entry move to [Retired](#retired), with the date and the pass that proved it.
 
 A **won't fix** retires straight away when nothing in RomMBat depends on it changing, and its
@@ -66,7 +66,7 @@ NVIDIA's Photo mode overlay claimed the combination first.
 
 It was filed as `RetroBat-Official/retrobat#249` because
 `RetroBat-Official/emulationstation` is a fork of `batocera-linux/batocera-emulationstation`
-with **issues disabled**, so there was nowhere else for an ES-behaviour report to go.
+with **issues disabled**, so there was nowhere else for an ES-behavior report to go.
 
 **It was filed before its mechanism was known.** It described a `.bat` hook not running when
 the display name contains a space. Probe 7b showed ES fires the event correctly and the fault
@@ -157,6 +157,6 @@ now a permanent property of the launcher rather than a workaround waiting on a f
 
 **Re-check every open issue here before each release**, because a fix upstream does not just
 close a ticket, it changes what RomMBat should do. No workaround comes out until the fix is in a
-release RomMBat's compatibility gate accepts and a hands-on pass has seen the fixed behaviour: a
+release RomMBat's compatibility gate accepts and a hands-on pass has seen the fixed behavior: a
 changelog line is evidence that upstream believes it is fixed, not evidence of what lands on
 disk.

@@ -36,7 +36,7 @@ before each launch. Blame `emulatorLauncher` only once the emulator run by hand 
 
 **`gb` is fourth: all fourteen rows certified at `5.3.0` on 2026-09-22**, in one afternoon, on
 the same seeding. Six `libretro` cores and Mesen share the loose `.srm`, so those seven needed no
-copying. **A boot write is not recognisably blank on every system** (RB-294): Mesen flushes
+copying. **A boot write is not recognizably blank on every system** (RB-294): Mesen flushes
 random bytes, and a game that uses cartridge RAM as scratch space leaves real-looking ones, so
 move every boot write out before a flush. **Bring in a clock cartridge if the set has none**:
 a filter set with `--folder` put Pokemon Silver into `gb`, and it showed where each row keeps a

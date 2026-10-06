@@ -418,7 +418,7 @@ public class SaveStateSchemaTests
         Assert.Equal(7, template.Match("Rayman (USA)_state07.bigpstate")?.Slot);
 
         // Three digits cannot be produced by {{slot2d}}, so a name shaped like the declared
-        // upper bound is not a state this rule recognises.
+        // upper bound is not a state this rule recognizes.
         Assert.Null(template.Match("Rayman (USA)_state999.bigpstate"));
 
         // The other end. Two digits reach 00, which the declaration excludes, and the slot is
@@ -732,7 +732,7 @@ public class SaveStateSchemaTests
     [Fact]
     public void An_emulator_with_no_file_template_is_dropped()
     {
-        // With no filename rule there is nothing to recognise a state by, and defaulting one is
+        // With no filename rule there is nothing to recognize a state by, and defaulting one is
         // how a client uploads a file that is not a save state.
         var xml = """
             <savestates>

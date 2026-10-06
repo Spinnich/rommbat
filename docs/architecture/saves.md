@@ -117,7 +117,7 @@ Three rules that are not obvious:
   exchanged, since the server refuses the next upload against a stale device record (RB-309,
   probe case M6). RB-259 has the server's other answers, from `s4-older-mtime.py`. A second guard answers an
   `upload` of bytes the server already holds as a no-op; negotiate settles that case on the hash
-  itself (probe case M4), so the guard is cheap defence against a silent upload on every
+  itself (probe case M4), so the guard is cheap defense against a silent upload on every
   flush. #206.
 
   **A `download` over a local save the server has never seen is recorded as a conflict**, the

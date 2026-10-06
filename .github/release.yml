@@ -1,5 +1,5 @@
 # Groups a release's generated notes by each merged PR's type label. A PR lands in the first
-# category that matches, so a platform PR also labelled enhancement reads under Platforms.
+# category that matches, so a platform PR also labeled enhancement reads under Platforms.
 # The label set, and who applies it, is in CONTRIBUTING.md.
 changelog:
   exclude:

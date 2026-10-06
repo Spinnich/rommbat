@@ -100,7 +100,7 @@ internal static class AgentRunner
     /// </summary>
     /// <remarks>
     /// Without it <c>StateScanner.LoadSchema</c> answers null and no state is ever recorded, so
-    /// a command whose behaviour turns on the state scan cannot be driven at all.
+    /// a command whose behavior turns on the state scan cannot be driven at all.
     /// </remarks>
     public static void WriteEsSaveStates(TempRetroBatTree tree) =>
         CopyFixture(tree, "es_savestates.template.cfg", "es_savestates.cfg");

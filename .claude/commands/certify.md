@@ -37,7 +37,7 @@ English releases for anything they have to navigate.
 
 ## The issue
 
-Every system still to certify has one open issue, labelled `platform`, titled
+Every system still to certify has one open issue, labeled `platform`, titled
 `Certify <SYSTEM>: every (emulator, core) row at the current floor`, under its wave's milestone,
 with the rows as a task list. Find it with
 `gh issue list --label platform --state open --search "Certify <SYSTEM>: in:title"`. If there is
@@ -78,7 +78,7 @@ Row by row, in the sheet's order:
   lands rather than waiting to be told.
 - When a key's effect cannot be seen, take a screenshot rather than sending keys blind.
 - Confirm what ran from `emulationstation/emulatorLauncher.log`, not from configuration.
-- Record each step's result as you go. A behaviour nobody has recorded is a new finding, filed
+- Record each step's result as you go. A behavior nobody has recorded is a new finding, filed
   the way `platform-certification` says.
 
 A row that cannot pass is recorded with its reason. That is a result, not a gap.

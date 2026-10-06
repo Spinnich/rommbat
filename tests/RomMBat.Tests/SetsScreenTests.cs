@@ -409,7 +409,7 @@ public sealed class SetsScreenTests : IDisposable
     /// <remarks>
     /// Every confirmation that acts in place is a verb over a flag its row factory reads. While
     /// only a chosen row re-read, the footer moved to Done and the pane went on describing the
-    /// thing that had just been cancelled, dropped or queued.
+    /// thing that had just been canceled, dropped or queued.
     /// </remarks>
     [Fact]
     public void A_verb_that_stays_put_re_reads_the_rows()
@@ -1135,10 +1135,10 @@ public sealed class SetsScreenTests : IDisposable
     public void A_property_cycles_through_three_states_rather_than_two()
     {
         var editor = FilterEditor();
-        var row = MoveTo(editor, "Favourite");
+        var row = MoveTo(editor, "Favorite");
 
-        // It was a yes-or-no toggle, so it could say "favourites only" and nothing else. RomM
-        // offers all three and "games I have not favourited" is a real thing to sync.
+        // It was a yes-or-no toggle, so it could say "favorites only" and nothing else. RomM
+        // offers all three and "games I have not favorited" is a real thing to sync.
         Assert.Equal("either", editor.Rows[row].Value);
 
         Assert.Equal(ScreenCommandKind.Stay, editor.Handle(NavAction.Accept).Kind);
@@ -1191,7 +1191,7 @@ public sealed class SetsScreenTests : IDisposable
         var labels = editor.Rows.Select(row => row.Label).ToList();
 
         Assert.Equal("Platform", editor.Rows[labels.IndexOf(FilterFacet.Genres)].Value);
-        Assert.Equal("yes", editor.Rows[labels.IndexOf("Favourite")].Value);
+        Assert.Equal("yes", editor.Rows[labels.IndexOf("Favorite")].Value);
     }
 
     [Fact]
@@ -1308,7 +1308,7 @@ public sealed class SetsScreenTests : IDisposable
             list.Handle(NavAction.Down);
         }
 
-        Assert.Fail($"no row labelled '{label}' among [{string.Join(", ", list.Rows.Select(r => r.Label))}]");
+        Assert.Fail($"no row labeled '{label}' among [{string.Join(", ", list.Rows.Select(r => r.Label))}]");
         return -1;
     }
 
@@ -1325,7 +1325,7 @@ public sealed class SetsScreenTests : IDisposable
             editor.Handle(NavAction.Down);
         }
 
-        Assert.Fail($"no row labelled '{label}' among [{string.Join(", ", editor.Rows.Select(r => r.Label))}]");
+        Assert.Fail($"no row labeled '{label}' among [{string.Join(", ", editor.Rows.Select(r => r.Label))}]");
         return -1;
     }
 

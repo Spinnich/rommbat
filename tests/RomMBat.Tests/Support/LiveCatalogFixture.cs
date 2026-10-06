@@ -59,7 +59,7 @@ public sealed class LiveCatalogFixture : IAsyncLifetime
     /// <remarks>
     /// <b>Its own token, not <c>TestContext.Current.CancellationToken</c>.</b> A fixture's
     /// <c>InitializeAsync</c> runs outside any test, so <c>TestContext.Current</c> there is the
-    /// fixture's context rather than a test's and cancelling a test would not reach it. The
+    /// fixture's context rather than a test's and canceling a test would not reach it. The
     /// bound is what matters: <see cref="PairingService.CompleteAsync"/> is a long poll against
     /// a real server, and an approval that never arrives hangs the whole class without one.
     /// </remarks>

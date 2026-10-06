@@ -16,7 +16,7 @@ running time never delays a launch.
 
 ## RB-197. A hook runs during the launch, not inside it
 
-Verified: RetroBat 8.2.0, 2026-08-24. How: joined 23 journalled `game-start` records to the launcher log's `[Startup]` stamps.
+Verified: RetroBat 8.2.0, 2026-08-24. How: joined 23 journaled `game-start` records to the launcher log's `[Startup]` stamps.
 The launcher's `[Startup]` line lands a median 24 ms after the hook's record (20 of 23 between 12
 and 44 ms). Against the hook's own ~60 ms start, ES spawned it before the launcher began and did
 not wait. The launcher then takes 0.5 s to 2.8 s to reach `[Running]`. A spawn costs contention,
@@ -53,7 +53,7 @@ Verified: RetroBat 8.2.0, 2026-08-08. How: a hook echoing its arguments, on game
 are empty. Batocera documents `$3` as the system; on RetroBat it is the display name. The
 launcher's `[Startup]` line in `emulationstation/emulatorLauncher.log` carries `-system`,
 `-emulator`, `-core` and `-rom` with a millisecond stamp, so RomMBat takes launch facts from that
-log. The hook spools `$1` verbatim, and the drain relativises it before anything is journalled
+log. The hook spools `$1` verbatim, and the drain relativizes it before anything is journaled
 (rule 1).
 
 ## RB-349. `game-end` gets no arguments, and can fire with no `game-start`
@@ -74,8 +74,8 @@ discards the paired `game-start` with it.
 ## RB-222. RomMBat's own launch never becomes a play session
 
 Verified: RetroBat 8.2.1, 2026-08-26. How: two RomMBat sessions from the ES menu, then a PS2 game, outbox read after.
-Both RomMBat sessions journalled `discarded` and added no outbox row; the PS2 game straight after
-journalled `correlated` and its `play_session` was sent. Both rom paths were journalled relative
+Both RomMBat sessions journaled `discarded` and added no outbox row; the PS2 game straight after
+journaled `correlated` and its `play_session` was sent. Both rom paths were journaled relative
 to the root.
 
 ## RB-63. `game-selected` and `system-selected` fire on every cursor move
@@ -95,7 +95,7 @@ emulator still closes the journal record, though `game-end` cannot say how the g
 
 Verified: RetroBat 8.2.0, 2026-08-08. How: seven launches, then a crossover that swapped two entries' `<name>`.
 `game-start` produced no record for any game whose `<name>` held a space and a record for every
-game whose name did not, and the behaviour followed the name across the swap. ES fires the event
+game whose name did not, and the behavior followed the name across the swap. ES fires the event
 in every case (RB-395); the `.bat` is what never starts. Nearly every scraped name holds a space.
 Filed upstream as [#2196](../issues.md#rb-342-2196-the-es-hook-bug-moved-repository).
 

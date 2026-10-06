@@ -131,7 +131,7 @@ public sealed class EsHooks
     /// </summary>
     /// <param name="sourceExecutable">
     /// The hook to copy. Defaults to the shipped one beside the agent, and is overridable so a
-    /// test can install a stand-in rather than a 12.8 MB publish artefact.
+    /// test can install a stand-in rather than a 12.8 MB publish artifact.
     /// </param>
     public EsHookOutcome Install(string? sourceExecutable = null)
     {
@@ -233,7 +233,7 @@ public sealed class EsHooks
 
             // Size then content. The files are 12.8 MB and this runs once per sync, so the read
             // is worth it: a hook left over from a previous build is exactly the case where
-            // sizes match and behaviour does not.
+            // sizes match and behavior does not.
             using var first = a.OpenRead();
             using var second = b.OpenRead();
 

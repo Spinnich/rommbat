@@ -554,7 +554,7 @@ public static class SetsScreens
         Func<Uri, RomMConnection>? connect) =>
         new ResolveViewModel(session, sets, connect);
 
-    /// <summary>The scope, with a platform's id shown as the name a person recognises.</summary>
+    /// <summary>The scope, with a platform's id shown as the name a person recognizes.</summary>
     private static string ScopeValue(InstallSession session, SyncSetDefinition set)
     {
         var text = SyncSetStore.ScopeText(set.Scope);

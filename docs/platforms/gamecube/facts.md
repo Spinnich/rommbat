@@ -37,7 +37,7 @@ What was measured: **Neither can be, by construction rather than by intent.** `S
 
 The claim being checked: GameCube is class C (`save_shapes.json`)
 
-What was measured: **Class C in slot A only, and only at the default.** `dolphin_slotA` is labelled **SAVE FORMAT** in the ES menu, `GCI FOLDER` (8) against `MEMORY CARD` (1); at 1 the container becomes one shared raw `SRAM.<REGION>.raw`, which is class D, the inverse of what conversion does for PS2. **Slot B is worse: RetroBat never rewrites it**, leaving Dolphin's stock relative default, so `SlotB = 1` points at top-level `saves/dolphin/User/GC/SRAM.EUR.raw`, which Dolphin then region-substitutes. A 16 MB `SRAM.USA.raw` appeared there during a GameCube launch on `K:`, and `E:` has carried one since August. Both are outside every container `save_shapes.json` declares, and `NANDRootPath` points into the same tree even for a GameCube launch
+What was measured: **Class C in slot A only, and only at the default.** `dolphin_slotA` is labeled **SAVE FORMAT** in the ES menu, `GCI FOLDER` (8) against `MEMORY CARD` (1); at 1 the container becomes one shared raw `SRAM.<REGION>.raw`, which is class D, the inverse of what conversion does for PS2. **Slot B is worse: RetroBat never rewrites it**, leaving Dolphin's stock relative default, so `SlotB = 1` points at top-level `saves/dolphin/User/GC/SRAM.EUR.raw`, which Dolphin then region-substitutes. A 16 MB `SRAM.USA.raw` appeared there during a GameCube launch on `K:`, and `E:` has carried one since August. Both are outside every container `save_shapes.json` declares, and `NANDRootPath` points into the same tree even for a GameCube launch
 
 ## RB-194. The Game-ID launch-window correlation attributes a real GameCube save on hardware
 

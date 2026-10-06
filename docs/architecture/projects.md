@@ -15,7 +15,7 @@ The RomM API, and nothing else. No disk, no SQLite, no RetroBat.
   with `System.Text.Json` attributes and no runtime package of its own, where Kiota would
   generate a request-builder API over `Microsoft.Kiota.Abstractions` that owns the
   `HttpClient`. Owning the handler is not negotiable here; see the connect timeout below.
-  The pin, the normalisation step it needs, and how to move it are in
+  The pin, the normalization step it needs, and how to move it are in
   [`src/RomM.Client/openapi/README.md`](../../src/RomM.Client/openapi/README.md).
 - **Everything else is hand-written** over a client-owned handler: the device pairing poll
   loop, resumable downloads, multipart save upload, sync negotiation.
@@ -288,7 +288,7 @@ loss. A figure recorded on another day is never the baseline.
 ReadyToRun, single-file publish measured 61.1 MB and 517 ms, an indication rather than a delta
 since it was not timed beside its untrimmed base, and trimming raises 16 `IL2026` warnings across twelve reflection-based
 `System.Text.Json` call sites in Core and `RomM.Client`, whose failure mode is a runtime
-deserialisation fault in a build that linked cleanly. `SaveShapes` classifies every save, so
+deserialization fault in a build that linked cleanly. `SaveShapes` classifies every save, so
 that is not a risk to carry for a size win. Tracked as #98.
 
 **The publish is five files, and bundling them into one is refused on principle 4.**
@@ -348,7 +348,7 @@ upload and call it success. Reading needs no lock: the store is WAL. See the
 
 **It holds for the screens that write, too.** Defining,
 editing and deleting a set, and setting the budget, are all rows in SQLite, and the tree lock
-serialises writers of _files in the tree_; taking it for a set definition would be the
+serializes writers of _files in the tree_; taking it for a set definition would be the
 speculative acquire above wearing a different hat. Where a lock genuinely is needed the Core
 service takes it and returns the refusal as a value, as `PartialSweep.Apply` does, and
 `EvictionService` surfaces that refusal rather than reimplementing it.
