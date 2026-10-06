@@ -145,7 +145,7 @@ public sealed class SetEditorViewModel : IScreen, IActionScreen
         _opened = Snapshot();
     }
 
-    /// <summary>The rows as they read when the editor opened, which is what "unsaved" is against.</summary>
+    /// <summary>The values as they were when the editor opened, which is what "unsaved" is against.</summary>
     private readonly string _opened;
 
     /// <summary>

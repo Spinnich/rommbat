@@ -629,6 +629,21 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     [Fact]
+    public void A_disk_limit_stepped_away_and_back_is_not_a_change()
+    {
+        // Right then Left lands where it started, so there is nothing to discard and leaving
+        // must not ask (R5.1 on #495).
+        var budget = new BudgetViewModel(_session);
+
+        budget.Handle(NavAction.Right);
+        Assert.True(budget.IsDirty);
+
+        budget.Handle(NavAction.Left);
+        Assert.False(budget.IsDirty);
+        Assert.Equal(ScreenCommandKind.Pop, budget.Handle(NavAction.Back).Kind);
+    }
+
+    [Fact]
     public void Saving_is_a_row_the_confirm_button_presses()
     {
         SeedPlatform(4, "snes");

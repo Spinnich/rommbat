@@ -74,6 +74,9 @@ public sealed class BudgetViewModel : IScreen, IActionScreen
         _budget = NearestBudget(settings.GetInt64(SettingStore.ContentMaxBytes));
         _floor = NearestFloor(
             settings.GetInt64(SettingStore.FreeSpaceFloorBytes) ?? SettingStore.DefaultFreeSpaceFloorBytes);
+
+        _savedBudget = _budget;
+        _savedFloor = _floor;
     }
 
     public string Title => "Disk space";
@@ -94,8 +97,17 @@ public sealed class BudgetViewModel : IScreen, IActionScreen
     public ListView Window => ListWindow.Compute(Cursor, Rows.Count);
 
 
-    /// <summary>True once something has been changed and not yet saved.</summary>
-    public bool IsDirty { get; private set; }
+    /// <summary>
+    /// True while either value differs from what is saved.
+    /// </summary>
+    /// <remarks>
+    /// Compared rather than flagged on a press, so stepping a value away and back again is
+    /// not a change, and leaving does not ask to discard nothing.
+    /// </remarks>
+    public bool IsDirty => _budget != _savedBudget || _floor != _savedFloor;
+
+    private int _savedBudget;
+    private int _savedFloor;
 
     /// <summary>
     /// The floor first, because it is the one that is always on.
@@ -229,8 +241,6 @@ public sealed class BudgetViewModel : IScreen, IActionScreen
         {
             _budget = Wrap(_budget + direction, Budgets.Length);
         }
-
-        IsDirty = true;
     }
 
     private void Save()
@@ -240,7 +250,8 @@ public sealed class BudgetViewModel : IScreen, IActionScreen
         _session.Store.Settings.Set(SettingStore.ContentMaxBytes, Budgets[_budget], now);
         _session.Store.Settings.Set(SettingStore.FreeSpaceFloorBytes, Floors[_floor], now);
 
-        IsDirty = false;
+        _savedBudget = _budget;
+        _savedFloor = _floor;
     }
 
     private static int Wrap(int index, int count) => ((index % count) + count) % count;
