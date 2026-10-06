@@ -114,6 +114,15 @@ The response was 200 with an empty body, `emulatorLauncher.log` grew by 1.9 KB, 
 `game-end` hooks around it as for a player, so a hands-on pass over them can be scripted. Ending
 the game still takes the emulator's own exit (RB-35).
 
+## RB-419. `POST /launch` passes no pad the player has not touched in ES
+
+Verified: RetroBat 8.2.1, 2026-10-06. How: on the agent tree, launched Super Mario Kart (USA) with `POST /launch` straight after ES started, then from the pad in ES's menu, and read each `[Startup]` line in `emulatorLauncher.log`.
+The `POST /launch` made before any pad input reached `emulatorLauncher` with no `-p1*` arguments,
+and RetroArch ran with no controller mapped, so the pad did nothing in the game. Launched from the
+pad, the same game carried `-p1index 0`, `-p1name "Xbox 360 Controller"` and the rest, and played.
+So a game a person plays is launched from the pad; `POST /launch` suits a launch nobody plays, or
+one the agent drives with keys.
+
 ## RB-108. With ES absent, a loopback connect is refused after 2.04 s
 
 Verified: RetroBat 8.2.0, 2026-08-11. How: five raw TCP connects and three `HttpClient` requests to `127.0.0.1:1234` with ES closed.
