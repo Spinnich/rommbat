@@ -156,8 +156,15 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// </remarks>
     public const string DoneLabel = "Done";
 
-    /// <summary>True while the back hint reads <see cref="DoneLabel"/>.</summary>
-    private bool IsDone => BackLabel == DoneLabel;
+    /// <summary>
+    /// True once the back hint reads <see cref="DoneLabel"/> and the work behind it has finished.
+    /// </summary>
+    /// <remarks>
+    /// Not while a loader runs. A screen that applies a removal or resolves a conflict is
+    /// labeled Done from the start, and leaving it cancels the work, so the confirm button must
+    /// not leave until there is nothing left to cancel. Back still can, as it always could.
+    /// </remarks>
+    private bool IsDone => BackLabel == DoneLabel && !IsLoading;
 
     /// <summary>
     /// Which row is selected, and <b>never any of them on a reading list</b>.
@@ -231,14 +238,10 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// The footer's extra hints, when which of them apply depends on what the screen loaded.
     /// </summary>
     /// <remarks>
-    /// <b>A function rather than the fixed array, for the reason <see cref="Note"/> became
-    /// one</b>: it states a fact the rows can change. A screen whose verb only works once a
-    /// preview has come back cannot say so with a hint chosen at construction, and three screens
-    /// got the same rule wrong three different ways because of it. The repair screen and the
-    /// set-removal screen answered <see cref="NavAction.Start"/> and never offered it, so from
-    /// the couch the only thing the footer named was Back; the per-game removal screen offered
-    /// it always, including when the preview had just said nothing would go, so the press walked
-    /// through two screens and removed nothing.
+    /// <b>A function rather than the fixed array, for the reason <see cref="Note"/> is one</b>:
+    /// it states a fact the rows can change. A screen whose verb only works once a preview has
+    /// come back cannot say so with a hint chosen at construction. A screen's verbs belong in
+    /// <see cref="ActionList"/>; this is for the hints that are not verbs.
     /// <para>
     /// Both halves are one rule: <b>offer it exactly when it works</b>. A footer promising an
     /// action that does nothing and a footer silent about one that does are the same defect

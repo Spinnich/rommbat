@@ -219,6 +219,42 @@ public sealed class ControlGrammarTests
     }
 
     [Fact]
+    public async Task Done_does_not_leave_while_the_work_behind_it_is_still_running()
+    {
+        // A screen labeled Done that is still loading is still doing the work, and leaving it
+        // cancels that work: a set removal stopped part way leaves the set with some of its
+        // games gone (R2.1 on #495). Only Back may cancel it, as it always could.
+        var release = new TaskCompletionSource();
+
+        var applying = new ListScreen("Removing", () => [], _ => ScreenCommand.Stay, string.Empty, ListScreen.DoneLabel)
+        {
+            Reading = true,
+            Load = async token =>
+            {
+                await release.Task.WaitAsync(token);
+                return null;
+            },
+        }.Started();
+
+        Assert.True(applying.IsLoading);
+        Assert.DoesNotContain(applying.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Equal(ScreenCommandKind.Stay, applying.Handle(NavAction.Accept).Kind);
+
+        release.SetResult();
+
+        for (var attempt = 0; attempt < 200 && applying.IsLoading; attempt++)
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        Assert.False(applying.IsLoading);
+        Assert.Equal(ListScreen.DoneLabel, Assert.Single(applying.Hints, hint => hint.Action == NavAction.Accept).Label);
+        Assert.Equal(ScreenCommandKind.Pop, applying.Handle(NavAction.Accept).Kind);
+
+        applying.Dispose();
+    }
+
+    [Fact]
     public void A_search_can_be_cleared_and_nothing_else_accepts_no_text()
     {
         string? searched = "old";
