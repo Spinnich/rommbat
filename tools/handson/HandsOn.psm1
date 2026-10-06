@@ -451,8 +451,10 @@ function Stop-Game {
         game-end hook both run.
     .DESCRIPTION
         /emukill does nothing while a game runs (RB-35). Closing the emulator's window
-        (WM_CLOSE) lets it flush its save; ares can outlast 15 s on that (passes.md), so Escape,
-        the QuitEmulator key, follows. emulatorLauncher is never killed: it does the mirror. After
+        (WM_CLOSE) lets it flush its save, and Escape, the QuitEmulator key, follows for one that
+        is slow to. ares gets Escape alone: WM_CLOSE leaves it not responding, so no key lands
+        after it and its save, written on exit, is lost (passes.md). emulatorLauncher is never
+        killed: it does the mirror. After
         a zip it extracted, it asks whether to keep the uncompressed game (RB-420); the answer is
         No, which leaves roms\ as RomMBat synced it.
 
@@ -469,7 +471,9 @@ function Stop-Game {
     $emulatorRan = [bool]@(Get-EmulatorProcess).Count
     $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($launcher.Id)" |
         ForEach-Object { Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue })
-    foreach ($child in $children) { $null = $child.CloseMainWindow() }
+    foreach ($child in $children) {
+        if ($script:EscapeOnly -contains $child.Name) { Send-QuitKey $child } else { $null = $child.CloseMainWindow() }
+    }
 
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     $escapeSent = $false
@@ -488,8 +492,7 @@ function Stop-Game {
         Start-Sleep -Milliseconds 500
         $launcher.Refresh()
         if (-not $escapeSent -and (Get-Date) -gt $deadline.AddSeconds(-$TimeoutSec / 2)) {
-            $window = $children | Where-Object { -not $_.HasExited -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-            if ($window) { Set-WindowFocus $window.MainWindowHandle; Send-Key Escape }
+            $children | Where-Object { -not $_.HasExited } | Select-Object -First 1 | ForEach-Object { Send-QuitKey $_ }
             $escapeSent = $true
         }
 
@@ -513,6 +516,18 @@ function Stop-Game {
         throw "The game is still running after $TimeoutSec s; $hint. Screenshot: $shot"
     }
     Write-Host 'Game ended'
+}
+
+# Emulators that WM_CLOSE leaves not responding; Stop-Game sends them Escape alone.
+$script:EscapeOnly = @('ares')
+
+function Send-QuitKey {
+    # Escape on the emulator's own window, refreshed: Process keeps the first handle it read.
+    param([Parameter(Mandatory)] [System.Diagnostics.Process] $Process)
+    $Process.Refresh()
+    if ($Process.HasExited -or $Process.MainWindowHandle -eq 0) { return }
+    Set-WindowFocus $Process.MainWindowHandle
+    Send-Key Escape
 }
 
 function Get-ESGames {
