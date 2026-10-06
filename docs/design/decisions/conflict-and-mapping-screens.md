@@ -5,8 +5,10 @@ read-when: Changing the conflicts or platform mapping screens.
 
 # Conflict and mapping screens
 
-**Two verbs, on Start and Alternate, and no resolve-all.** A screen that put one side on the
-button that also confirms would make the commonest mispress the destructive one. Either default
+**Two sides, never one press, and no resolve-all.** Accept on a conflict opens a choice of the two
+sides, and the side chosen is confirmed before anything happens. A screen that put one side on
+the button that also confirms would make the commonest mispress the destructive one; here that
+mispress opens a question instead. Either default
 is the guess the conflict exists to avoid, so a button resolving twelve at once would be that
 guess made twelve times. Every screen states that neither side is discarded, which is true and
 was previously only inferable from the absence of a warning.

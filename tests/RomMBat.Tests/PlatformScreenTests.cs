@@ -76,12 +76,13 @@ public class PlatformScreenTests : IDisposable
         navigator.Handle(NavAction.Accept);
         var detail = Assert.IsType<ListScreen>(navigator.Current);
 
-        // A pane of facts with the verbs on Start and Alternate, so nothing is selected.
+        // A pane of facts, so nothing is selected, and choosing a folder is the confirm
+        // button's because it is what the screen is for.
         Assert.True(detail.Reading);
         Assert.Equal(-1, detail.Cursor);
-        Assert.Contains(detail.Hints, hint => hint.Action == NavAction.Start);
+        Assert.Equal("Choose a folder", Assert.Single(detail.Hints, hint => hint.Action == NavAction.Accept).Label);
 
-        navigator.Handle(NavAction.Start);
+        navigator.Handle(NavAction.Accept);
         var picker = Assert.IsType<ListScreen>(navigator.Current);
 
         // Read from the live es_systems.cfg, because RetroBat is the authority on which systems
@@ -121,20 +122,29 @@ public class PlatformScreenTests : IDisposable
             PlatformScreens.Detail(_session, _session.Store.PlatformMap.Find("arcade")!));
 
         // Nothing to drop, so nothing offers it: a press that does nothing is a defect.
-        Assert.DoesNotContain(guessed.Hints, hint => hint.Action == NavAction.Alternate);
+        Assert.DoesNotContain(guessed.Actions, action => action.Label == "Use the automatic choice");
 
         _session.Store.PlatformMap.SetOverride("arcade", "fbneo", DateTimeOffset.UtcNow);
 
         var chosen = Assert.IsType<ListScreen>(
             PlatformScreens.Detail(_session, _session.Store.PlatformMap.Find("arcade")!));
 
-        Assert.Contains(chosen.Hints, hint => hint.Action == NavAction.Alternate);
+        Assert.Contains(chosen.Actions, action => action.Label == "Use the automatic choice");
 
+        // Two presses into the menu rather than one beside the confirm button, because it undoes
+        // somebody's choice.
         var navigator = new Navigator(chosen);
-        navigator.Handle(NavAction.Alternate);
+        navigator.Handle(NavAction.Start);
+        var menu = Assert.IsType<ActionMenuScreen>(navigator.Current);
+        navigator.Handle(NavAction.Down);
+        Assert.Equal("Use the automatic choice", menu.Rows[menu.Cursor].Label);
+        navigator.Handle(NavAction.Accept);
 
-        var confirm = Assert.IsType<ListScreen>(navigator.Current);
-        Assert.EndsWith("?", confirm.Title, StringComparison.Ordinal);
+        var confirm = Assert.IsType<ConfirmScreen>(navigator.Current);
+        Assert.EndsWith("?", confirm.Question, StringComparison.Ordinal);
+        Assert.Same(chosen, confirm.Underneath);
+
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
 
         var row = _session.Store.PlatformMap.Find("arcade");
@@ -143,16 +153,13 @@ public class PlatformScreenTests : IDisposable
         Assert.Null(row!.Folder);
         Assert.False(row.IsUserChoice);
 
-        // Answered once. The confirmation stops offering it rather than letting a second press
-        // run a change that has already happened.
-        Assert.DoesNotContain(confirm.Hints, hint => hint.Action == NavAction.Accept);
-
-        // And the pane says it happened, rather than still describing the drop it offered.
-        Assert.Equal("Done", Assert.Single(confirm.Rows).Label);
-
-        // As do the title and the footer, rather than an offer over its own answer (#448).
-        Assert.Equal("Stopped choosing for Arcade", confirm.Title);
-        Assert.Equal("Done", Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Back).Label);
+        // Answered once: the box says it happened rather than staying an offer over its own
+        // answer (#448), and its only button is Done, which closes it rather than running the
+        // change again.
+        Assert.StartsWith("Stopped choosing for Arcade.", confirm.Question, StringComparison.Ordinal);
+        Assert.Equal(ListScreen.DoneLabel, Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Accept).Label);
+        Assert.DoesNotContain(confirm.Hints, hint => hint.Action == NavAction.Back);
+        Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
     }
 
     [Fact]
@@ -197,7 +204,7 @@ public class PlatformScreenTests : IDisposable
         navigator.Handle(NavAction.Accept);
 
         var detail = Assert.IsType<ListScreen>(navigator.Current);
-        navigator.Handle(NavAction.Start);
+        navigator.Handle(NavAction.Accept);
 
         var picker = Assert.IsType<ListScreen>(navigator.Current);
 

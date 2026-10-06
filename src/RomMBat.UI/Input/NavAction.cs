@@ -26,7 +26,7 @@ public enum NavAction
     /// <summary>Leave this screen. On the first screen, leave RomMBat.</summary>
     Back,
 
-    /// <summary>The screen's own primary action, whatever it says in the footer.</summary>
+    /// <summary>Opens the screen's actions menu, as Start opens EmulationStation's (RB-423).</summary>
     Start,
 
     /// <summary>

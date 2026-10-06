@@ -33,7 +33,7 @@ public sealed record EditorRow(string Label, string Value, string? Detail, bool 
 /// whether a folder is real or a slug resolves; it asks, and it prints the sentence it gets.
 /// </para>
 /// </remarks>
-public sealed class SetEditorViewModel : IScreen
+public sealed class SetEditorViewModel : IScreen, IActionScreen
 {
     private readonly InstallSession _session;
     private readonly SyncSetDefinition? _existing;
@@ -141,7 +141,41 @@ public sealed class SetEditorViewModel : IScreen
             _platformLabel = known?.Label;
             _platformFolder = known?.Folder;
         }
+
+        _opened = Snapshot();
     }
+
+    /// <summary>The values as they were when the editor opened, which is what "unsaved" is against.</summary>
+    private readonly string _opened;
+
+    /// <summary>
+    /// Everything the editor would save, and nothing it merely draws.
+    /// </summary>
+    /// <remarks>
+    /// Read from the values rather than the rows, because the rows change without anyone
+    /// editing: the facet values arrive from RomM while the editor is open, and a facet the
+    /// library has no values for leaves the list.
+    /// </remarks>
+    private string Snapshot() =>
+        string.Join(
+            '|',
+            [
+                _name,
+                _scope.ToString(),
+                _platformValue ?? string.Empty,
+                _collectionValue ?? string.Empty,
+                _folder ?? string.Empty,
+                _searchTerm ?? string.Empty,
+                .. FilterFacet.Multi.Select(facet =>
+                    $"{facet}:{_logic[facet]}:{string.Join(',', _facets[facet].Order(StringComparer.Ordinal))}"),
+                .. FilterFacet.Properties.Select(property => $"{property}:{_properties[property]}"),
+            ]);
+
+    /// <summary>True once anything differs from how the editor opened.</summary>
+    public bool IsDirty => Snapshot() != _opened;
+
+    /// <summary>The last row, which saves, so saving is a row the bottom button presses.</summary>
+    private string SaveLabel => IsNew ? "Create set" : "Save changes";
 
     /// <param name="connect">
     /// How a resolve started from here reaches the server. Carried rather than dropped so the
@@ -228,9 +262,14 @@ public sealed class SetEditorViewModel : IScreen
         {
             var rows = BuildRows();
 
-            return rows.Count > 0
-                ? rows
-                : [new EditorRow("Nothing to change", "this set is defined by its scope", null, false)];
+            if (rows.Count == 0)
+            {
+                return [new EditorRow("Nothing to change", "this set is defined by its scope", null, false)];
+            }
+
+            // Last, where ES puts the button that closes a form, and pressed like any other row.
+            rows.Add(new EditorRow(SaveLabel, string.Empty, null, false));
+            return rows;
         }
     }
 
@@ -346,12 +385,12 @@ public sealed class SetEditorViewModel : IScreen
         {
             var hints = new List<FooterHint>();
 
-            if (Rows[Cursor] is { Steps: false })
+            if (Rows[Cursor] is { Steps: false } row)
             {
-                hints.Add(new FooterHint(NavAction.Accept, "Change"));
+                hints.Add(new FooterHint(NavAction.Accept, row.Label == SaveLabel ? SaveLabel : "Change"));
             }
 
-            hints.Add(new FooterHint(NavAction.Start, IsNew ? "Create set" : "Save changes"));
+            hints.AddRange(ScreenAction.Hints(Actions));
             hints.Add(new FooterHint(NavAction.Back, IsNew ? "Discard" : "Cancel"));
 
             return hints;
@@ -378,8 +417,16 @@ public sealed class SetEditorViewModel : IScreen
             case NavAction.Accept:
                 return Open(rows[Cursor].Label);
 
-            case NavAction.Start:
-                return Save();
+            // Asked rather than thrown away, and only when there is something to lose. The right
+            // button never commits, so leaving with changes is a question whose safe answer keeps
+            // editing.
+            case NavAction.Back when IsDirty:
+                return ScreenCommand.Push(ConfirmScreen.YesNo(
+                    IsNew ? "Discard this set? Nothing has been made yet." : "Discard your changes?",
+                    "Discard",
+                    () => ScreenCommand.PopMany(2),
+                    "Keep editing",
+                    this));
 
             case NavAction.Back:
                 return ScreenCommand.Pop;
@@ -389,8 +436,13 @@ public sealed class SetEditorViewModel : IScreen
         }
     }
 
+    /// <summary>Saving, which the menu offers as well as the last row.</summary>
+    public IReadOnlyList<ScreenAction> Actions => [new ScreenAction(SaveLabel, Save)];
+
     private ScreenCommand Open(string label) => label switch
     {
+        _ when label == SaveLabel => Save(),
+
         "Name" => ScreenCommand.Push(new OnScreenKeyboard(
             "Name this set",
             "What do you want to call it?",
@@ -418,7 +470,10 @@ public sealed class SetEditorViewModel : IScreen
                 _searchTerm = typed.Trim();
                 return new TypedResult(null);
             },
-            _session.EmulationStationLanguage())),
+            _session.EmulationStationLanguage())
+        {
+            AllowEmpty = true,
+        }),
 
         "Folder" => ScreenCommand.Push(FolderPicker()),
 

@@ -59,11 +59,11 @@ public sealed class SetsScreenTests : IDisposable
 
         var navigator = new Navigator(Root());
 
-        // The sets row on the root opens the list, and Start there opens the editor.
+        // The sets row on the root opens the list, and New set in its menu opens the editor.
         RootMenuDriver.Open(navigator, "Sync sets");
         Assert.IsType<ListScreen>(navigator.Current);
 
-        navigator.Handle(NavAction.Start);
+        ActionMenuDriver.Choose(navigator, "New set");
         var editor = Assert.IsType<SetEditorViewModel>(navigator.Current);
         Assert.True(editor.IsNew);
 
@@ -77,7 +77,7 @@ public sealed class SetsScreenTests : IDisposable
         navigator.Handle(NavAction.Accept);
         Assert.Same(editor, navigator.Current);
 
-        navigator.Handle(NavAction.Start);
+        ActionMenuDriver.Choose(navigator, "Create set");
 
         // Onto the set that was just made, resolving it, rather than back to the list. A set
         // that has never resolved holds nothing, so landing on the list would ask for one more
@@ -137,7 +137,7 @@ public sealed class SetsScreenTests : IDisposable
         navigator.Handle(NavAction.Right);
         Assert.True(budget.IsDirty);
 
-        navigator.Handle(NavAction.Start);
+        ActionMenuDriver.Choose(navigator, "Save");
 
         // The floor is written, because that is the row that moved and it is the one always in
         // force. The budget is left unset, because opening a screen must not invent a cap
@@ -156,7 +156,10 @@ public sealed class SetsScreenTests : IDisposable
 
         navigator.Handle(NavAction.Down);
         navigator.Handle(NavAction.Right);
-        navigator.Handle(NavAction.Start);
+
+        // The save row, which is the last, pressed like any other.
+        navigator.Handle(NavAction.Down);
+        navigator.Handle(NavAction.Accept);
 
         // Both are persisted once either is touched, so the saved state does not depend on
         // which row somebody happened to move.
@@ -170,12 +173,14 @@ public sealed class SetsScreenTests : IDisposable
     {
         Seed("doomed");
 
-        var confirm = Assert.IsType<ListScreen>(SetsScreens.ConfirmDelete(_session, "doomed"));
+        var confirm = Assert.IsType<ConfirmScreen>(SetsScreens.ConfirmDelete(_session, "doomed"));
 
-        // Two answers, because deleting a set and keeping its games is a legitimate thing to
-        // want, and removal is a choice rather than a consequence. Both sentences are on the
-        // confirmation rather than on a screen afterwards, because a warning after the act is
-        // not a warning.
+        // Two ways to delete and one to keep it, kept selected first, because deleting a set and
+        // keeping its games is a legitimate thing to want, and removal is a choice rather than a
+        // consequence. Both sentences are on the confirmation rather than on a screen afterwards,
+        // because a warning after the act is not a warning.
+        Assert.Equal(["Delete with games", "Delete, keep games", "Keep it"], confirm.Buttons.Select(button => button.Label));
+        Assert.Equal("Keep it", confirm.Buttons[confirm.Selected].Label);
         Assert.Equal(2, confirm.Rows.Count);
         Assert.Contains(
             confirm.Rows,
@@ -192,11 +197,11 @@ public sealed class SetsScreenTests : IDisposable
     {
         Seed("doomed");
 
-        var confirm = Assert.IsType<ListScreen>(SetsScreens.ConfirmDelete(_session, "doomed"));
+        var confirm = Assert.IsType<ConfirmScreen>(SetsScreens.ConfirmDelete(_session, "doomed"));
 
-        // The second row, which is the one that keeps them. Reached by moving rather than by
-        // index, so a row added above it does not silently retarget this press.
-        confirm.Handle(NavAction.Down);
+        // The middle answer, which keeps them, one to the left of the selected Keep it.
+        confirm.Handle(NavAction.Left);
+        Assert.Equal("Delete, keep games", confirm.Buttons[confirm.Selected].Label);
 
         Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
         Assert.Empty(new SyncSetService(_session).List());
@@ -213,11 +218,12 @@ public sealed class SetsScreenTests : IDisposable
         var list = Assert.IsType<ListScreen>(navigator.Current);
 
         navigator.Handle(NavAction.Accept);
-        navigator.Handle(NavAction.Alternate);
+        ActionMenuDriver.Choose(navigator, "Delete set");
 
-        // Down to "leave the games where they are", which is the answer that does not open a
-        // preview. The removal half has its own tests, because it is minutes of work.
-        navigator.Handle(NavAction.Down);
+        // Left to "Delete, keep games", which is the answer that does not open a preview. The
+        // removal half has its own tests, because it is minutes of work.
+        Assert.IsType<ConfirmScreen>(navigator.Current);
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
 
         // Back on the list, with the deleted set gone from it, not on a message screen whose
@@ -241,7 +247,7 @@ public sealed class SetsScreenTests : IDisposable
         Members(doomed, 1, 2);
         Members(wanted, 1);
 
-        var preview = Assert.IsType<ListScreen>(SetsScreens.ConfirmRemoval(_session, "doomed"));
+        var preview = Assert.IsType<ConfirmScreen>(SetsScreens.ConfirmRemoval(_session, "doomed"));
         await Wait(() => !preview.IsLoading);
 
         var shown = Render(preview);
@@ -258,7 +264,8 @@ public sealed class SetsScreenTests : IDisposable
             shown,
             text => text.Contains("Saves and save states are never removed", StringComparison.Ordinal));
 
-        // Nothing has happened yet. The preview is the screen, and the footer is what commits.
+        // Nothing has happened yet. The preview is the question's details, and its answer is
+        // what commits.
         Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "shared.sfc")));
         Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "only.sfc")));
         Assert.Equal(2, new SyncSetService(_session).List().Count);
@@ -276,10 +283,11 @@ public sealed class SetsScreenTests : IDisposable
         Members(doomed, 1, 2);
         Members(wanted, 1);
 
-        var preview = Assert.IsType<ListScreen>(SetsScreens.ConfirmRemoval(_session, "doomed"));
+        var preview = Assert.IsType<ConfirmScreen>(SetsScreens.ConfirmRemoval(_session, "doomed"));
         await Wait(() => !preview.IsLoading);
 
-        // Accept, not Start: a yes-or-no screen is answered with the confirm button now.
+        // Keep them is selected first; the removal is one to the left.
+        preview.Handle(NavAction.Left);
         var applying = Assert.IsType<ListScreen>(preview.Handle(NavAction.Accept).Screen);
         await Wait(() => !applying.IsLoading);
 
@@ -295,10 +303,10 @@ public sealed class SetsScreenTests : IDisposable
     /// Removing a set's games lands back on the sets list, not on three stale screens.
     /// </summary>
     /// <remarks>
-    /// Found on a hands-on pass. The set is gone by the time this screen is reached, so the
-    /// preview, the confirmation and the set's own detail all describe something that no longer
-    /// exists, and leaving them on the stack is four presses through three of them to get to
-    /// the list. The keep-the-games path is held to the same rule.
+    /// Found on a hands-on pass. The set is gone by the time this screen is reached, so its own
+    /// detail describes something that no longer exists, and leaving it on the stack is a
+    /// press through a stale screen to get to the list. The keep-the-games path is held to the
+    /// same rule.
     /// </remarks>
     [Fact]
     public async Task Removing_a_sets_games_lands_back_on_the_sets_list()
@@ -314,12 +322,17 @@ public sealed class SetsScreenTests : IDisposable
         var list = Assert.IsType<ListScreen>(navigator.Current);
 
         navigator.Handle(NavAction.Accept);
-        navigator.Handle(NavAction.Alternate);
+        ActionMenuDriver.Choose(navigator, "Delete set");
+
+        // Delete with games is the leftmost of the three answers.
+        navigator.Handle(NavAction.Left);
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
 
-        var preview = Assert.IsType<ListScreen>(navigator.Current);
+        var preview = Assert.IsType<ConfirmScreen>(navigator.Current);
         await Wait(() => !preview.IsLoading);
 
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
         var applying = Assert.IsType<ListScreen>(navigator.Current);
         await Wait(() => !applying.IsLoading);
@@ -447,15 +460,18 @@ public sealed class SetsScreenTests : IDisposable
     {
         Seed("empty");
 
-        var confirm = Assert.IsType<ListScreen>(SetsScreens.ConfirmDelete(_session, "empty"));
+        var confirm = Assert.IsType<ConfirmScreen>(SetsScreens.ConfirmDelete(_session, "empty"));
 
-        // The removal answer first, which is where a person lands.
+        // The removal answer, which is the leftmost.
+        confirm.Handle(NavAction.Left);
+        confirm.Handle(NavAction.Left);
         var preview = confirm.Handle(NavAction.Accept).Screen;
 
-        if (preview is ListScreen loaded)
+        if (preview is ConfirmScreen loaded)
         {
             await Wait(() => !loaded.IsLoading);
 
+            loaded.Handle(NavAction.Left);
             var applying = loaded.Handle(NavAction.Accept);
             Assert.NotEqual(ScreenCommandKind.Stay, applying.Kind);
 
@@ -516,6 +532,133 @@ public sealed class SetsScreenTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Start is the menu on every screen, never a verb of its own.
+    /// </summary>
+    /// <remarks>
+    /// Start is MENU in EmulationStation (RB-423), and every verb that sat on it here committed
+    /// something: a save, a set, an install. The on-screen keyboard is the one exception, because
+    /// it copies ES's own, where Start is OK.
+    /// </remarks>
+    [Fact]
+    public async Task Start_only_ever_opens_the_menu()
+    {
+        Seed("menu");
+        SeedPlatform(4, "snes");
+
+        using var built = AllScreens();
+
+        foreach (var screen in built)
+        {
+            if (screen is ListScreen loaded)
+            {
+                await Wait(() => !loaded.IsLoading);
+            }
+
+            if (screen is OnScreenKeyboard)
+            {
+                continue;
+            }
+
+            foreach (var hint in screen.Hints.Where(hint => hint.Action == NavAction.Start))
+            {
+                Assert.Equal("Menu", hint.Label);
+                Assert.IsType<ActionMenuScreen>(Navigator.Press(screen, NavAction.Start).Screen);
+            }
+        }
+    }
+
+    [Fact]
+    public void Leaving_an_editor_with_changes_asks_and_keeping_editing_is_the_safe_answer()
+    {
+        SeedPlatform(4, "snes");
+
+        var navigator = new Navigator(SetsScreens.List(_session));
+        ActionMenuDriver.Choose(navigator, "New set");
+        var editor = Assert.IsType<SetEditorViewModel>(navigator.Current);
+
+        // Nothing changed, so nothing to lose and no question.
+        Assert.False(editor.IsDirty);
+        navigator.Handle(NavAction.Back);
+        Assert.IsType<ListScreen>(navigator.Current);
+
+        ActionMenuDriver.Choose(navigator, "New set");
+        editor = Assert.IsType<SetEditorViewModel>(navigator.Current);
+
+        var picker = Assert.IsType<ListScreen>(OpenRow(editor, "Platform"));
+        picker.Handle(NavAction.Accept);
+        Assert.True(editor.IsDirty);
+
+        navigator.Handle(NavAction.Back);
+        var confirm = Assert.IsType<ConfirmScreen>(navigator.Current);
+        Assert.Same(editor, confirm.Underneath);
+
+        // The safe answer is selected, so the confirm button keeps editing.
+        navigator.Handle(NavAction.Accept);
+        Assert.Same(editor, navigator.Current);
+
+        // Discarding closes the question and the editor together, and makes nothing.
+        navigator.Handle(NavAction.Back);
+        navigator.Handle(NavAction.Left);
+        navigator.Handle(NavAction.Accept);
+
+        Assert.IsType<ListScreen>(navigator.Current);
+        Assert.Empty(new SyncSetService(_session).List());
+    }
+
+    [Fact]
+    public void Loading_what_a_filter_can_match_is_not_a_change()
+    {
+        // The facet values arrive from RomM while the editor is open, and a facet the library
+        // has no values for leaves the rows. Nothing about the set changed, so leaving must not
+        // ask whether to discard anything (R4.3 on #495).
+        var made = new SyncSetService(_session).Add(
+            new SetDraft { Name = "filtered", Scope = CatalogScopeKind.Filter, Filter = new CatalogFilter() },
+            Now);
+
+        var editor = SetEditorViewModel.ForExisting(_session, made.Set!);
+        var before = editor.Rows.Count;
+
+        var library = Library();
+        library[FilterFacet.Genres] = [];
+        editor._facetValues = library;
+
+        Assert.NotEqual(before, editor.Rows.Count);
+        Assert.False(editor.IsDirty);
+        Assert.Equal(ScreenCommandKind.Pop, editor.Handle(NavAction.Back).Kind);
+    }
+
+    [Fact]
+    public void A_disk_limit_stepped_away_and_back_is_not_a_change()
+    {
+        // Right then Left lands where it started, so there is nothing to discard and leaving
+        // must not ask (R5.1 on #495).
+        var budget = new BudgetViewModel(_session);
+
+        budget.Handle(NavAction.Right);
+        Assert.True(budget.IsDirty);
+
+        budget.Handle(NavAction.Left);
+        Assert.False(budget.IsDirty);
+        Assert.Equal(ScreenCommandKind.Pop, budget.Handle(NavAction.Back).Kind);
+    }
+
+    [Fact]
+    public void Saving_is_a_row_the_confirm_button_presses()
+    {
+        SeedPlatform(4, "snes");
+
+        var editor = SetEditorViewModel.ForNew(_session);
+        var picker = Assert.IsType<ListScreen>(OpenRow(editor, "Platform"));
+        picker.Handle(NavAction.Accept);
+
+        MoveTo(editor, "Create set");
+        Assert.Equal("Create set", Assert.Single(editor.Hints, hint => hint.Action == NavAction.Accept).Label);
+
+        Assert.Equal(ScreenCommandKind.Replace, editor.Handle(NavAction.Accept).Kind);
+        Assert.Single(new SyncSetService(_session).List());
+    }
+
     // ---- what the hands-on pass found ----
 
     /// <summary>
@@ -563,7 +706,7 @@ public sealed class SetsScreenTests : IDisposable
                 var offered = screen.Hints.Any(hint => hint.Action == action);
 
                 var before = Render(screen);
-                var command = screen.Handle(action);
+                var command = Navigator.Press(screen, action);
                 var navigated = command.Kind != ScreenCommandKind.Stay;
 
                 // "Did something" is navigating **or** changing what the screen shows. The set
@@ -616,7 +759,7 @@ public sealed class SetsScreenTests : IDisposable
             new SetDraft { Name = "fresh", Scope = CatalogScopeKind.Platform, ScopeValue = "4" },
             Now);
 
-        navigator.Handle(NavAction.Start);
+        ActionMenuDriver.Choose(navigator, "New set");
         Assert.IsType<SetEditorViewModel>(navigator.Current);
         navigator.Handle(NavAction.Back);
 
@@ -677,8 +820,8 @@ public sealed class SetsScreenTests : IDisposable
         Assert.All(editor.Rows, row => Assert.False(row.Steps));
 
         // No Name row either. A platform and a collection are named by RomM already, and the
-        // set takes that name, so only a filter needs one typed.
-        Assert.Equal(["Scope", "Platform"], editor.Rows.Select(row => row.Label));
+        // set takes that name, so only a filter needs one typed. The last row creates the set.
+        Assert.Equal(["Scope", "Platform", "Create set"], editor.Rows.Select(row => row.Label));
     }
 
     [Fact]
@@ -756,7 +899,7 @@ public sealed class SetsScreenTests : IDisposable
         // The screen shows no caps, so it must not send the cleared values a hidden row
         // would have produced. Opening a screen must never wipe a limit somebody set elsewhere.
         var editor = SetEditorViewModel.ForExisting(_session, set);
-        editor.Handle(NavAction.Start);
+        Navigator.Run(editor, "Save changes");
 
         var after = new SyncSetService(_session).Show("capped")!.Set;
 
@@ -798,7 +941,7 @@ public sealed class SetsScreenTests : IDisposable
 
         var picker = Assert.IsType<ListScreen>(OpenRow(editor, "Platform"));
         picker.Handle(NavAction.Accept);
-        editor.Handle(NavAction.Start);
+        Navigator.Run(editor, "Create set");
 
         var made = new SyncSetService(_session).List();
         Assert.Single(made);
@@ -833,7 +976,7 @@ public sealed class SetsScreenTests : IDisposable
         // A platform set shows no Name row at all, so what it was named can only be read off
         // the set once it exists. That is the assertion that matters anyway: the picker
         // suggests a name for a set that has none, and this one has one.
-        editor.Handle(NavAction.Start);
+        Navigator.Run(editor, "Create set");
 
         var made = new SyncSetService(_session).List();
         Assert.Single(made);
@@ -880,7 +1023,7 @@ public sealed class SetsScreenTests : IDisposable
         // Resolving alone stays offered because it is how a person finds out what a set holds
         // without spending disk on it, and a sync re-resolves on the way past anyway, so the two
         // are not a choice anybody has to make.
-        var command = navigator.Current.Handle(NavAction.Extra);
+        var command = Navigator.Press(navigator.Current, NavAction.Extra);
         using var resolve = Assert.IsType<ResolveViewModel>(command.Screen);
 
         Assert.Contains("2", resolve.Title, StringComparison.Ordinal);
@@ -896,7 +1039,7 @@ public sealed class SetsScreenTests : IDisposable
         RootMenuDriver.Open(navigator, "Sync sets");
 
         using var sync = Assert.IsType<SyncViewModel>(
-            navigator.Current.Handle(NavAction.Alternate).Screen);
+            Navigator.Press(navigator.Current, NavAction.Alternate).Screen);
 
         Assert.Contains("2", sync.Title, StringComparison.Ordinal);
     }
@@ -908,8 +1051,8 @@ public sealed class SetsScreenTests : IDisposable
 
         // An empty list offering to resolve or sync everything is a footer promising a no-op.
         Assert.Empty(Assert.IsType<ListScreen>(list).Rows);
-        Assert.Equal(ScreenCommandKind.Stay, list.Handle(NavAction.Extra).Kind);
-        Assert.Equal(ScreenCommandKind.Stay, list.Handle(NavAction.Alternate).Kind);
+        Assert.Equal(ScreenCommandKind.Stay, Navigator.Press(list, NavAction.Extra).Kind);
+        Assert.Equal(ScreenCommandKind.Stay, Navigator.Press(list, NavAction.Alternate).Kind);
     }
 
     [Fact]
@@ -1264,6 +1407,10 @@ public sealed class SetsScreenTests : IDisposable
             {
                 await Wait(() => !loading.IsLoading, attempts: 1_000);
             }
+            else if (pushed is ConfirmScreen previewing)
+            {
+                await Wait(() => !previewing.IsLoading, attempts: 1_000);
+            }
         }
         finally
         {
@@ -1348,8 +1495,10 @@ public sealed class SetsScreenTests : IDisposable
             clock.ElapsedMilliseconds < 500,
             $"opening the facet picker took {clock.ElapsedMilliseconds} ms, so it waited on something");
 
+        // Leavable while it loads, and the footer says so: Done, on Back, because the confirm
+        // button does not leave a screen whose loader is still running.
         Assert.NotEmpty(picker.LoadingMessage);
-        Assert.Contains(NavAction.Back, picker.Hints.Select(hint => hint.Action));
+        Assert.Contains(picker.Hints, hint => hint.Action == NavAction.Back && hint.Label == ListScreen.DoneLabel);
     }
 
     [Fact]
@@ -1562,6 +1711,23 @@ public sealed class SetsScreenTests : IDisposable
 
             case MessageScreen message:
                 text.Add(message.Message);
+                break;
+
+            case ConfirmScreen confirm:
+                text.Add(confirm.Question);
+                text.AddRange(confirm.Buttons.Select(button => button.Label));
+
+                if (confirm.LoadProblem is { } failed)
+                {
+                    text.Add(failed);
+                }
+
+                foreach (var row in confirm.Rows)
+                {
+                    text.Add(row.Label);
+                    text.AddRange(new[] { row.Value, row.Detail }.OfType<string>());
+                }
+
                 break;
 
             default:

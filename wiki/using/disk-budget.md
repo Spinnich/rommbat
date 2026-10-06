@@ -1,7 +1,8 @@
 # Disk space
 
 RomMBat has two limits on how much of the drive it uses. Both are under Disk space on the main
-menu: step each one with Left and Right, and press Start to save.
+menu: step each one with Left and Right, then choose Save at the bottom. Back with unsaved
+changes asks whether to discard them.
 
 | Setting           | What it means                                                                                    |
 | ----------------- | ------------------------------------------------------------------------------------------------ |
@@ -31,8 +32,8 @@ whose save has not reached RomM yet.
 ## When the numbers look wrong
 
 If you delete games by hand, RomMBat still counts them against the limit until it finds out they
-are gone. On the Disk space screen, the left face button checks every file RomMBat has recorded
-against the drive, and offers to forget the ones that are not there. Forgetting only changes
+are gone. On the Disk space screen, Check the files behind these numbers, in the Start menu, checks every
+file RomMBat has recorded against the drive, and offers to forget the ones that are not there. Forgetting only changes
 RomMBat's records: it deletes nothing, and it never forgets a save, because RomM may still have
 it and [restoring](../saves/restore.md) brings it back.
 

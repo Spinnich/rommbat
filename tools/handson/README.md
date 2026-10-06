@@ -68,7 +68,10 @@ before starting the other's.
 | `Use-ScoutTree`, `Use-AgentTree`              | Point every function at the scout tree, or back at the agent tree                                   |
 
 The UI's keys are its desk map: `Up`, `Down`, `Left`, `Right`, `Enter` (A), `Escape` (B),
-`Backspace` (L1), `Tab` (X), `F5` (Start).
+`Backspace` or `PageUp` (L1), `PageDown` (R1), `Tab` (the left face button), `KeyQ` (the top one),
+`F5` (Start). EmulationStation reads its own keyboard map from `es_input.cfg`, where the face
+buttons are letters: `KeyX` is A, `KeyZ` is B, `KeyS` the left face button and `KeyQ` the top,
+with `Enter` as Start, `Backspace` as Select and `Home` and `End` as L2 and R2.
 
 ## Rules the functions enforce
 

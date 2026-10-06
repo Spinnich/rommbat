@@ -130,46 +130,44 @@ public static class PlatformScreens
         // says without this screen being pressed.
         PlatformMapRow Current() => session.Store.PlatformMap.Find(platform.FsSlug) ?? platform;
 
-        return new ListScreen(
+        // Kept so the question draws over this screen.
+        ListScreen? screen = null;
+
+        screen = new ListScreen(
             platform.Label,
             () => DetailRows(Current()),
             _ => ScreenCommand.Stay,
-            acceptLabel: string.Empty,
+            acceptLabel: "Choose a folder",
             backLabel: "Back")
         {
             Reading = true,
 
-            // Both verbs here, because ExtraHints replaces the constructor's hints rather than
-            // adding to them: a Start hint passed there and an ExtraHints that answered only
-            // Alternate would leave the first verb working with nothing in the footer naming it.
-            //
+            // Choosing a folder is what this screen is for, so it is the bottom button's, and
+            // a screen of facts offers it through AlwaysOfferAccept since no row is choosable.
+            AlwaysOfferAccept = true,
+
             // The second verb only exists for a row somebody chose. Offering "use the automatic
             // one" on a row that is already the automatic one is a press that does nothing.
-            ExtraHints = () => Current().IsUserChoice
-                ?
-                [
-                    new FooterHint(NavAction.Start, "Choose a folder"),
-                    new FooterHint(NavAction.Alternate, "Use the automatic choice"),
-                ]
-                : [new FooterHint(NavAction.Start, "Choose a folder")],
+            ActionList = () =>
+            [
+                new ScreenAction("Choose a folder", () => ScreenCommand.Push(FolderPicker(session, Current()))),
+                .. Current().IsUserChoice
+                    ? new[] { new ScreenAction("Use the automatic choice", () => ScreenCommand.Push(ClearConfirm(session, Current(), screen))) }
+                    : [],
+            ],
 
-            Verbs = (action, _) => action switch
-            {
-                NavAction.Start => ScreenCommand.Push(FolderPicker(session, Current())),
-
-                NavAction.Alternate when Current().IsUserChoice =>
-                    ScreenCommand.Push(ClearConfirm(session, Current())),
-
-                _ => null,
-            },
+            Verbs = (action, _) => action == NavAction.Accept
+                ? ScreenCommand.Push(FolderPicker(session, Current()))
+                : null,
         };
+
+        return screen;
     }
 
     private static List<ListRow> DetailRows(PlatformMapRow platform)
     {
-        // Unavailable, because every row is a fact rather than a choice. The verbs are on
-        // Start and Alternate, and an available row here would put an Accept in the footer that
-        // does nothing.
+        // Unavailable, because every row is a fact rather than a choice. The screen's own verbs
+        // are the bottom button's and the menu's, not a row's.
         var rows = new List<ListRow>
         {
             new("Folder", platform.Folder ?? "none", Describe(platform.ResolvedBy), false),
@@ -262,52 +260,39 @@ public static class PlatformScreens
     }
 
     /// <summary>Dropping a choice so the automatic chain answers again.</summary>
-    private static ListScreen ClearConfirm(InstallSession session, PlatformMapRow platform)
+    private static ConfirmScreen ClearConfirm(InstallSession session, PlatformMapRow platform, IScreen? underneath)
     {
-        var cleared = false;
+        ConfirmScreen? box = null;
 
-        return new ListScreen(
+        box = new ConfirmScreen(
             $"Stop choosing for {platform.Label}?",
-            () =>
             [
-                cleared
-                    ? new ListRow(
-                        "Done",
-                        null,
-                        "The next time RomMBat resolves this platform it works the folder out "
-                            + "again. Until then it has none.",
-                        false)
-                    : new ListRow(
-                        "Your choice is dropped",
-                        platform.Folder ?? "none",
-                        "RomMBat works the folder out again from RomM's own name and its bundled "
-                            + "table. Games already downloaded stay where they are.",
-                        false),
+                new ConfirmButton(
+                    "Drop it",
+                    () =>
+                    {
+                        session.Store.PlatformMap.ClearOverride(platform.FsSlug, DateTimeOffset.UtcNow);
+
+                        return box!.Answer(
+                            $"Stopped choosing for {platform.Label}. The next time RomMBat resolves this "
+                                + "platform it works the folder out again. Until then it has none.");
+                    }),
+                new ConfirmButton("Back", () => ScreenCommand.Pop),
             ],
-            _ => ScreenCommand.Stay,
-            // Constant, not a ternary over cleared: the constructor's labels are read once,
-            // with the flag still false. OfferAcceptWhen is what withdraws the hint.
-            acceptLabel: "Drop it",
-            backLabel: "Back")
+            1,
+            underneath)
         {
-            Reading = true,
-            TitleWhen = () => cleared
-                ? $"Stopped choosing for {platform.Label}"
-                : $"Stop choosing for {platform.Label}?",
-            OfferAcceptWhen = () => !cleared,
-            BackLabelWhen = () => cleared ? "Done" : "Back",
-
-            Verbs = (action, _) =>
-            {
-                if (action != NavAction.Accept || cleared)
-                {
-                    return null;
-                }
-
-                session.Store.PlatformMap.ClearOverride(platform.FsSlug, DateTimeOffset.UtcNow);
-                cleared = true;
-                return ScreenCommand.Stay;
-            },
+            Details = () =>
+            [
+                new ListRow(
+                    "Your choice is dropped",
+                    platform.Folder ?? "none",
+                    "RomMBat works the folder out again from RomM's own name and its bundled table. "
+                        + "Games already downloaded stay where they are.",
+                    false),
+            ],
         };
+
+        return box;
     }
 }

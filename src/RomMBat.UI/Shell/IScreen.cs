@@ -26,6 +26,18 @@ public enum ScreenCommandKind
 
     /// <summary>Leave RomMBat entirely.</summary>
     Exit,
+
+    /// <summary>
+    /// Close this popup, then do what <see cref="ScreenCommand.Follow"/> asks of the screen
+    /// underneath.
+    /// </summary>
+    /// <remarks>
+    /// <b>For the actions menu, whose choices belong to the screen it covers.</b> An action
+    /// written as "open the editor" means open it over the set, not over the menu, so the menu
+    /// leaves first and the action runs against what is then on top, and backing out of what it
+    /// opened lands on the set rather than on the menu again.
+    /// </remarks>
+    Dismiss,
 }
 
 /// <summary>A screen's answer to one action.</summary>
@@ -34,12 +46,18 @@ public enum ScreenCommandKind
 /// meaningless by what just happened: deleting a set leaves its detail screen describing
 /// something that no longer exists, so the confirmation and the detail go together.
 /// </param>
+/// <param name="Follow">What a <see cref="ScreenCommandKind.Dismiss"/> runs once the popup has gone.</param>
 public readonly record struct ScreenCommand(
     ScreenCommandKind Kind,
     IScreen? Screen = null,
     int Depth = 1,
-    IScreen? Then = null)
+    IScreen? Then = null,
+    Func<ScreenCommand>? Follow = null)
 {
+    /// <summary>Closes this popup and runs <paramref name="follow"/> on the screen it covered.</summary>
+    public static ScreenCommand Dismiss(Func<ScreenCommand> follow) =>
+        new(ScreenCommandKind.Dismiss, Follow: follow);
+
     public static ScreenCommand Stay => new(ScreenCommandKind.Stay);
 
     public static ScreenCommand Pop => new(ScreenCommandKind.Pop);
@@ -124,6 +142,92 @@ public interface IScreen
 
     /// <summary>Responds to one action.</summary>
     ScreenCommand Handle(NavAction action);
+}
+
+/// <summary>
+/// One thing a screen can do, listed in its actions menu.
+/// </summary>
+/// <param name="Label">What the action does, in the screen's own words. Never a button name.</param>
+/// <param name="Run">
+/// What it does, answered as if the screen itself had been pressed: a push opens over this
+/// screen, a pop closes it.
+/// </param>
+/// <remarks>
+/// <b>Start opens the menu and never commits anything itself</b>, which is EmulationStation's
+/// model: Start is MENU there, and the bottom button picks inside it (RB-423). A press of the
+/// button ES uses to open a menu must never save, create or install.
+/// </remarks>
+public sealed record ScreenAction(string Label, Func<ScreenCommand> Run)
+{
+    /// <summary>
+    /// The face button that runs this without opening the menu, or null for menu only.
+    /// </summary>
+    /// <remarks>
+    /// Only <see cref="NavAction.Alternate"/> or <see cref="NavAction.Extra"/>, and a verb keeps
+    /// the same one on every screen it appears on, so a thumb that learned Sync on one screen
+    /// finds it on the next. Destructive actions take none: they are two presses into a menu,
+    /// never one press beside the confirm button.
+    /// </remarks>
+    public NavAction? Shortcut { get; init; }
+
+    /// <summary>Why this cannot be done now, or null when it can.</summary>
+    /// <remarks>
+    /// Shown dimmed with its reason rather than left out, as an unavailable <c>ListRow</c> is:
+    /// an action that disappears teaches nothing about how to get it back.
+    /// </remarks>
+    public string? Unavailable { get; init; }
+
+    public bool Available => Unavailable is null;
+
+    /// <summary>
+    /// The footer hints a screen's actions earn: each available shortcut, then the menu.
+    /// </summary>
+    /// <remarks>
+    /// Derived from the same list the menu and the shortcuts are, so the footer cannot offer
+    /// a button the menu lacks.
+    /// </remarks>
+    public static IReadOnlyList<FooterHint> Hints(IReadOnlyList<ScreenAction> actions)
+    {
+        ArgumentNullException.ThrowIfNull(actions);
+
+        if (actions.Count == 0)
+        {
+            return [];
+        }
+
+        return
+        [
+            .. actions
+                .Where(action => action.Available && action.Shortcut is not null)
+                .Select(action => new FooterHint(action.Shortcut!.Value, action.Label)),
+            new FooterHint(NavAction.Start, "Menu"),
+        ];
+    }
+}
+
+/// <summary>A screen whose verbs are listed in an actions menu that Start opens.</summary>
+/// <remarks>
+/// The navigator handles Start and the shortcuts for such a screen before the screen sees
+/// them, so no screen can bind its own verb to Start again.
+/// </remarks>
+public interface IActionScreen
+{
+    /// <summary>Every action the screen offers now, in menu order.</summary>
+    IReadOnlyList<ScreenAction> Actions { get; }
+}
+
+/// <summary>
+/// A popup drawn over the screen it was opened from.
+/// </summary>
+/// <remarks>
+/// The screen underneath stays visible, dimmed, as EmulationStation draws its menus and its
+/// message box over the list they came from (RB-423, RB-424), so a person can still see what
+/// the question is about.
+/// </remarks>
+public interface IPopupScreen
+{
+    /// <summary>The screen drawn dimmed behind the popup, or null to draw it alone.</summary>
+    IScreen? Underneath { get; }
 }
 
 /// <summary>

@@ -66,22 +66,26 @@ public class OutboxScreenTests : IDisposable
         var navigator = new Navigator(list);
         navigator.Handle(NavAction.Accept);
 
-        var confirm = Assert.IsType<ListScreen>(navigator.Current);
-        Assert.True(confirm.Reading);
+        var confirm = Assert.IsType<ConfirmScreen>(navigator.Current);
+        Assert.Same(list, confirm.Underneath);
 
-        // Nothing goes until the confirmation is accepted.
+        // Nothing goes until the confirmation is answered, and Keep is selected first.
+        Assert.Equal("Keep", confirm.Buttons[confirm.Selected].Label);
         Assert.Equal(2, _session.Store.Outbox.FailedCount());
 
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
 
         Assert.Equal([other], _session.Store.Outbox.Failed().Select(entry => entry.Id));
         Assert.Equal(1, _session.Store.Outbox.PendingCount());
         Assert.NotEqual(refused, other);
 
-        // Answered once, and Back now finishes rather than declining.
-        Assert.DoesNotContain(confirm.Hints, hint => hint.Action == NavAction.Accept);
-        Assert.Equal("Done", Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Back).Label);
-        Assert.Equal("Save dropped", confirm.Title);
+        // Answered once: the box says what happened, and its only button is Done, which closes
+        // it rather than dropping again.
+        Assert.True(confirm.IsAnswered);
+        Assert.StartsWith("Save dropped.", confirm.Question, StringComparison.Ordinal);
+        Assert.Equal(ListScreen.DoneLabel, Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Accept).Label);
+        Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
     }
 
     [Fact]
@@ -93,11 +97,12 @@ public class OutboxScreenTests : IDisposable
 
         var navigator = new Navigator(OutboxScreens.List(_session));
         Open(navigator, "Every refused entry");
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
 
         Assert.Equal(0, _session.Store.Outbox.FailedCount());
         Assert.Equal(1, _session.Store.Outbox.PendingCount());
-        Assert.Equal("Dropped", Assert.IsType<ListScreen>(navigator.Current).Rows[0].Label);
+        Assert.StartsWith("Refused entries dropped.", Assert.IsType<ConfirmScreen>(navigator.Current).Question, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -123,6 +128,7 @@ public class OutboxScreenTests : IDisposable
 
         var navigator = new Navigator(list);
         Open(navigator, "Not sent yet");
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
 
         Assert.Equal(0, _session.Store.Outbox.PendingCount());
@@ -139,9 +145,10 @@ public class OutboxScreenTests : IDisposable
 
         // The console dropped it while the confirmation was on screen.
         _session.Store.Outbox.DropFailed(id);
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
 
-        Assert.Equal("Nothing dropped", Assert.IsType<ListScreen>(navigator.Current).Rows[0].Label);
+        Assert.StartsWith("Nothing dropped.", Assert.IsType<ConfirmScreen>(navigator.Current).Question, StringComparison.Ordinal);
     }
 
     [Fact]

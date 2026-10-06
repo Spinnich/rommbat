@@ -626,8 +626,12 @@ $script:Keys = @{
     Tab = 0x09; X = 0x09; Start = 0x74; Ctrl = 0x11; Shift = 0x10; Alt = 0x12; Space = 0x20
     F1 = 0x70; F2 = 0x71; F3 = 0x72; F4 = 0x73; F5 = 0x74; F6 = 0x75; F7 = 0x76; F8 = 0x77
     F9 = 0x78; F10 = 0x79; F11 = 0x7A; F12 = 0x7B
+    PageUp = 0x21; PageDown = 0x22; End = 0x23; Home = 0x24
+    # Letters by their own name. ES's keyboard map binds face buttons to letters (a is KeyX,
+    # b KeyZ, x KeyQ, y KeyS), and the bare A, B and X above are the UI's desk aliases.
+    KeyQ = 0x51; KeyS = 0x53; KeyX = 0x58; KeyZ = 0x5A
 }
-$script:ExtendedKeys = @(0x25, 0x26, 0x27, 0x28)
+$script:ExtendedKeys = @(0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28)
 
 function Get-MainWindow {
     param([Parameter(Mandatory)] [string] $ProcessName, [int] $TimeoutSec = 30)

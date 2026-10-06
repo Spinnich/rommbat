@@ -66,11 +66,11 @@ public class QueuedChangeScreenTests : IDisposable
         var navigator = new Navigator(list);
         navigator.Handle(NavAction.Accept);
 
-        var confirm = Assert.IsType<ListScreen>(navigator.Current);
+        var confirm = Assert.IsType<ConfirmScreen>(navigator.Current);
 
-        Assert.True(confirm.Reading);
-        Assert.Contains(confirm.Hints, hint => hint.Action == NavAction.Accept);
-        Assert.Equal("Cancel this change?", confirm.Title);
+        Assert.Same(list, confirm.Underneath);
+        Assert.Equal("Keep it queued", confirm.Buttons[confirm.Selected].Label);
+        Assert.Equal("Cancel this change?", confirm.Question);
 
         // The stored reason is a phrase, so it is made a sentence of its own rather than run
         // into the next one (#448).
@@ -79,6 +79,7 @@ public class QueuedChangeScreenTests : IDisposable
             Assert.Single(confirm.Rows).Detail,
             StringComparison.Ordinal);
 
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
 
         // Canceled deletes, because nothing happened and there is nothing to report. Only an
@@ -86,20 +87,16 @@ public class QueuedChangeScreenTests : IDisposable
         Assert.Empty(_session.Store.PendingConfig.ListOutstanding());
         Assert.Empty(_session.Store.PendingConfig.ListFinished());
 
-        // Answered once: a second press must not re-run a change that has already happened.
-        Assert.DoesNotContain(confirm.Hints, hint => hint.Action == NavAction.Accept);
+        // Answered once: the box says what happened rather than staying a question over its own
+        // answer (#448), and its only button is Done, which finishes rather than re-running a
+        // change that has already happened.
+        Assert.True(confirm.IsAnswered);
+        Assert.StartsWith("Change canceled.", confirm.Question, StringComparison.Ordinal);
+        Assert.Empty(confirm.Rows);
 
-        // And the footer follows the screen. The label was a ternary in the constructor's
-        // argument, which is evaluated once with the flag still false, so the row read
-        // "Canceled" while Back went on offering to keep it queued.
-        var back = Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Back);
-        Assert.Equal("Done", back.Label);
-
-        // And the pane follows it, rather than still describing the change it just canceled.
-        Assert.Equal("Canceled", Assert.Single(confirm.Rows).Label);
-
-        // And so does the title, which otherwise stays a question over its own answer (#448).
-        Assert.Equal("Change canceled", confirm.Title);
+        var done = Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Equal(ListScreen.DoneLabel, done.Label);
+        Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
 
         navigator.Handle(NavAction.Back);
         Assert.Empty(Assert.IsType<ListScreen>(navigator.Current).Rows);
@@ -154,15 +151,10 @@ public class QueuedChangeScreenTests : IDisposable
     [Fact]
     public void The_convert_screen_never_offers_to_write_the_setting_now()
     {
-        var screen = Assert.IsType<ListScreen>(
+        var screen = Assert.IsType<ConfirmScreen>(
             QueuedChangeScreens.Convert(_session, 4242, "Armored Core 3"));
 
-        var strings = screen.Rows
-            .SelectMany(row => new[] { row.Label, row.Value, row.Detail })
-            .Concat(screen.Hints.Select(hint => hint.Label))
-            .Append(screen.Title)
-            .Where(text => text is not null)
-            .ToList();
+        var strings = Text(screen).ToList();
 
         // There is no apply path from this interface and there cannot be one, so nothing here
         // may offer to write it now. The console has --apply because it can be run with ES
@@ -181,10 +173,10 @@ public class QueuedChangeScreenTests : IDisposable
         // console's line with the raw es_settings.cfg key, and the warning ended on a flag.
         AddRom(4242, "ps2", "Armored Core 3 (USA).chd");
 
-        var convert = Assert.IsType<ListScreen>(
+        var convert = Assert.IsType<ConfirmScreen>(
             QueuedChangeScreens.Convert(_session, 4242, "Armored Core 3"));
 
-        Assert.EndsWith("?", convert.Title, StringComparison.Ordinal);
+        Assert.EndsWith("?", convert.Question, StringComparison.Ordinal);
         Assert.Contains(convert.Rows, row => row.Label == "Worth knowing");
         Assert.All(Text(convert), text =>
         {
@@ -193,12 +185,13 @@ public class QueuedChangeScreenTests : IDisposable
         });
 
         var navigator = new Navigator(convert);
+        navigator.Handle(NavAction.Left);
         navigator.Handle(NavAction.Accept);
 
         Assert.Single(_session.Store.PendingConfig.ListOutstanding());
-        Assert.Equal("Memory card change queued for 'Armored Core 3'", convert.Title);
-        Assert.Equal("Queued", Assert.Single(convert.Rows).Label);
-        Assert.Equal("Done", Assert.Single(convert.Hints, hint => hint.Action == NavAction.Back).Label);
+        Assert.StartsWith("Memory card change queued for 'Armored Core 3'.", convert.Question, StringComparison.Ordinal);
+        Assert.Empty(convert.Rows);
+        Assert.Equal(ListScreen.DoneLabel, Assert.Single(convert.Hints, hint => hint.Action == NavAction.Accept).Label);
 
         Assert.All(Text(convert), text =>
         {
@@ -217,18 +210,15 @@ public class QueuedChangeScreenTests : IDisposable
         var navigator = new Navigator(list);
         navigator.Handle(NavAction.Accept);
 
-        var confirm = Assert.IsType<ListScreen>(navigator.Current);
-        var convert = Assert.IsType<ListScreen>(
+        var confirm = Assert.IsType<ConfirmScreen>(navigator.Current);
+        var convert = Assert.IsType<ConfirmScreen>(
             QueuedChangeScreens.Convert(_session, 4242, "Armored Core 3"));
 
-        foreach (var screen in new[] { list, confirm, convert })
+        foreach (var screen in new IScreen[] { list, confirm, convert })
         {
-            var strings = screen.Rows
-                .SelectMany(row => new[] { row.Label, row.Value, row.Detail })
-                .Concat(screen.Hints.Select(hint => hint.Label))
-                .Append(screen.Title)
-                .Append(screen.EmptyMessage)
-                .Append(screen.Note?.Invoke())
+            var strings = Text(screen)
+                .Append((screen as ListScreen)?.EmptyMessage)
+                .Append((screen as ListScreen)?.Note?.Invoke())
                 .Where(text => text is not null);
 
             foreach (var text in strings)
@@ -242,11 +232,13 @@ public class QueuedChangeScreenTests : IDisposable
     }
 
     /// <summary>Every string the screen draws.</summary>
-    private static IEnumerable<string> Text(ListScreen screen) =>
-        screen.Rows
+    private static IEnumerable<string> Text(IScreen screen) =>
+        ((screen as IWindowedScreen)?.Rows ?? [])
             .SelectMany(row => new[] { row.Label, row.Value, row.Detail })
             .Concat(screen.Hints.Select(hint => hint.Label))
             .Append(screen.Title)
+            .Append((screen as ConfirmScreen)?.Question)
+            .Concat((screen as ConfirmScreen)?.Buttons.Select(button => button.Label) ?? [])
             .OfType<string>();
 
     private void AddRom(int romId, string folder, string fileName)

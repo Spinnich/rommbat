@@ -24,7 +24,7 @@ namespace RomMBat.UI.Screens;
 /// it here would be the speculative acquire that makes a concurrent flush skip its upload.
 /// </para>
 /// </remarks>
-public sealed class BudgetViewModel : IScreen
+public sealed class BudgetViewModel : IScreen, IActionScreen
 {
     /// <summary>The ladder for the disk budget. Null is "no budget", which is the state today.</summary>
     private static readonly long?[] Budgets =
@@ -74,6 +74,9 @@ public sealed class BudgetViewModel : IScreen
         _budget = NearestBudget(settings.GetInt64(SettingStore.ContentMaxBytes));
         _floor = NearestFloor(
             settings.GetInt64(SettingStore.FreeSpaceFloorBytes) ?? SettingStore.DefaultFreeSpaceFloorBytes);
+
+        _savedBudget = _budget;
+        _savedFloor = _floor;
     }
 
     public string Title => "Disk space";
@@ -94,8 +97,17 @@ public sealed class BudgetViewModel : IScreen
     public ListView Window => ListWindow.Compute(Cursor, Rows.Count);
 
 
-    /// <summary>True once something has been changed and not yet saved.</summary>
-    public bool IsDirty { get; private set; }
+    /// <summary>
+    /// True while either value differs from what is saved.
+    /// </summary>
+    /// <remarks>
+    /// Compared rather than flagged on a press, so stepping a value away and back again is
+    /// not a change, and leaving does not ask to discard nothing.
+    /// </remarks>
+    public bool IsDirty => _budget != _savedBudget || _floor != _savedFloor;
+
+    private int _savedBudget;
+    private int _savedFloor;
 
     /// <summary>
     /// The floor first, because it is the one that is always on.
@@ -129,26 +141,48 @@ public sealed class BudgetViewModel : IScreen
                 + "other things. Games you put there yourself are never counted and never "
                 + "removed.",
             true),
+
+        // Last, as a form's closing button is, and pressed with the bottom button like a row.
+        new EditorRow(SaveLabel, string.Empty, null, false),
     ];
 
-    public IReadOnlyList<FooterHint> Hints
-    {
-        get
-        {
-            // While there are unsaved changes the footer says only what the two presses do to
-            // them. Offering a third that navigates away would be offering to discard without
-            // saying so.
-            if (IsDirty)
-            {
-                return [new FooterHint(NavAction.Start, "Save"), new FooterHint(NavAction.Back, "Discard")];
-            }
+    private const string SaveLabel = "Save";
 
-            return
-            [
-                new FooterHint(NavAction.Alternate, "Check the files behind these numbers"),
-                new FooterHint(NavAction.Back, "Back"),
-            ];
+    private bool OnSave => Cursor == Rows.Count - 1;
+
+    public IReadOnlyList<FooterHint> Hints =>
+    [
+        .. OnSave ? new[] { new FooterHint(NavAction.Accept, SaveLabel) } : [],
+        .. ScreenAction.Hints(Actions),
+        new FooterHint(NavAction.Back, IsDirty ? "Discard" : "Back"),
+    ];
+
+    /// <summary>
+    /// Saving, and the file check.
+    /// </summary>
+    /// <remarks>
+    /// The check is offered here because this is the screen where a person meets the wrong
+    /// number: the limit is arithmetic over <c>local_file</c>, so a row whose file is gone makes
+    /// it permanently smaller than it looks. Not while there are unsaved changes, because
+    /// opening it would leave them behind without saying so (#113).
+    /// </remarks>
+    public IReadOnlyList<ScreenAction> Actions =>
+    [
+        new ScreenAction(SaveLabel, SaveAndLeave) { Unavailable = IsDirty ? null : "Nothing has changed." },
+        new ScreenAction("Check the files behind these numbers", () => ScreenCommand.Push(InventoryScreens.Check(_session)))
+        {
+            Unavailable = IsDirty ? "Save or discard the change first." : null,
+        },
+    ];
+
+    private ScreenCommand SaveAndLeave()
+    {
+        if (IsDirty)
+        {
+            Save();
         }
+
+        return ScreenCommand.Pop;
     }
 
     public ScreenCommand Handle(NavAction action)
@@ -171,17 +205,17 @@ public sealed class BudgetViewModel : IScreen
                 Step(1);
                 return ScreenCommand.Stay;
 
-            case NavAction.Start when IsDirty:
-                Save();
-                return ScreenCommand.Pop;
+            case NavAction.Accept when OnSave:
+                return SaveAndLeave();
 
-            // Offered here because this is the screen where a person meets the wrong number.
-            // The limit is arithmetic over local_file, so a row whose file is gone makes it
-            // permanently smaller than it looks, and nothing else in RomMBat could see that.
-            // Not while dirty: the footer then says only what the two presses do to the unsaved
-            // changes, and navigating away would discard them without saying so. See #113.
-            case NavAction.Alternate when !IsDirty:
-                return ScreenCommand.Push(InventoryScreens.Check(_session));
+            // Asked, never thrown away silently, and the safe answer keeps editing.
+            case NavAction.Back when IsDirty:
+                return ScreenCommand.Push(ConfirmScreen.YesNo(
+                    "Discard your changes?",
+                    "Discard",
+                    () => ScreenCommand.PopMany(2),
+                    "Keep editing",
+                    this));
 
             case NavAction.Back:
                 return ScreenCommand.Pop;
@@ -193,6 +227,12 @@ public sealed class BudgetViewModel : IScreen
 
     private void Step(int direction)
     {
+        // The save row has no value to step.
+        if (OnSave)
+        {
+            return;
+        }
+
         if (Cursor == 0)
         {
             _floor = Wrap(_floor + direction, Floors.Length);
@@ -201,8 +241,6 @@ public sealed class BudgetViewModel : IScreen
         {
             _budget = Wrap(_budget + direction, Budgets.Length);
         }
-
-        IsDirty = true;
     }
 
     private void Save()
@@ -212,7 +250,8 @@ public sealed class BudgetViewModel : IScreen
         _session.Store.Settings.Set(SettingStore.ContentMaxBytes, Budgets[_budget], now);
         _session.Store.Settings.Set(SettingStore.FreeSpaceFloorBytes, Floors[_floor], now);
 
-        IsDirty = false;
+        _savedBudget = _budget;
+        _savedFloor = _floor;
     }
 
     private static int Wrap(int index, int count) => ((index % count) + count) % count;

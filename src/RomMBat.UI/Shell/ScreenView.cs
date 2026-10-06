@@ -32,6 +32,8 @@ internal static class ScreenView
 
     public static Control Build(IScreen screen) => screen switch
     {
+        IPopupScreen { Underneath: { } underneath } => Dimmed(underneath),
+        ConfirmScreen confirm => ConfirmPanel(confirm),
         StatusViewModel status => Status(status),
         OnScreenKeyboard keyboard => Keyboard(keyboard),
         PairingViewModel pairing => Pairing(pairing),
@@ -1133,6 +1135,173 @@ internal static class ScreenView
             FontSize = 15,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
+
+    /// <summary>
+    /// The screen a popup was opened from, dimmed, drawn exactly where it was.
+    /// </summary>
+    /// <remarks>
+    /// As EmulationStation draws its menus and its message box (RB-423, RB-424): what the
+    /// question is about stays in view. Drawn as the body on its own, with the popup in the
+    /// shell's overlay, because a popup sharing the body's layout would move the screen behind
+    /// it when it opened.
+    /// </remarks>
+    private static Control Dimmed(IScreen underneath)
+    {
+        var behind = Build(underneath);
+        behind.Opacity = 0.25;
+        return behind;
+    }
+
+    /// <summary>The popup itself, for the shell's overlay, or null when the screen is not one.</summary>
+    public static Control? Overlay(IScreen screen) => screen switch
+    {
+        ActionMenuScreen menu => MenuPanel(menu),
+        ConfirmScreen { Underneath: not null } confirm => ConfirmPanel(confirm),
+        _ => null,
+    };
+
+    /// <summary>The actions menu: the same rows a list draws, in a panel of fixed width.</summary>
+    private static Border MenuPanel(ActionMenuScreen menu)
+    {
+        var stack = new StackPanel { Spacing = ListWindow.RowSpacing };
+        var window = menu.Window;
+
+        stack.Children.Add(More(window.Above, "above"));
+
+        for (var index = window.Start; index < window.Start + window.Count; index++)
+        {
+            stack.Children.Add(ListItem(menu.Rows[index], index == menu.Cursor));
+        }
+
+        stack.Children.Add(More(window.Below, "below"));
+
+        return new Border
+        {
+            Background = PopupPanel,
+            BorderBrush = Muted,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(24, 12, 24, 12),
+            Width = PopupWidth,
+            Child = stack,
+        };
+    }
+
+    /// <summary>
+    /// The question, its details when it has any, and its row of answers, each answer the same
+    /// size selected or not.
+    /// </summary>
+    /// <remarks>
+    /// The details area is a fixed height whenever the box has details at all, loading, filled,
+    /// scrolled or empty, so the buttons never move under the thumb as a preview lands.
+    /// </remarks>
+    private static Border ConfirmPanel(ConfirmScreen confirm)
+    {
+        var stack = new StackPanel { Spacing = 22 };
+        var hasDetails = confirm.Details is not null && !confirm.IsAnswered;
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = confirm.Question,
+            Foreground = Ink,
+            FontSize = 22,
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        if (hasDetails)
+        {
+            stack.Children.Add(ConfirmDetails(confirm));
+        }
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 14,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+
+        for (var index = 0; index < confirm.Buttons.Count; index++)
+        {
+            var button = confirm.Buttons[index];
+            var selected = index == confirm.Selected;
+
+            buttons.Children.Add(new Border
+            {
+                Background = selected ? Accent : Panel,
+                BorderBrush = selected ? Ink : Panel,
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(22, 10, 22, 10),
+                MinWidth = 160,
+                Child = new TextBlock
+                {
+                    Text = button.Label,
+                    Foreground = selected ? Brushes.Black : button.Enabled ? Ink : Muted,
+                    FontSize = 20,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                },
+            });
+        }
+
+        stack.Children.Add(buttons);
+
+        return new Border
+        {
+            Background = PopupPanel,
+            BorderBrush = Muted,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(32, 26, 32, 26),
+
+            // Wider with details, which are a pane of facts drawn at the status screen's
+            // measures, and fixed either way so the box cannot breathe as it fills.
+            Width = hasDetails ? ListWidth + 64 : PopupWidth,
+            Child = stack,
+        };
+    }
+
+    /// <summary>A confirmation's details: the loading line, the problem, or a window of facts.</summary>
+    private static Border ConfirmDetails(ConfirmScreen confirm)
+    {
+        var area = new StackPanel { Spacing = ListWindow.StatusLineSpacing };
+
+        if (confirm.IsLoading || confirm.LoadProblem is not null)
+        {
+            area.Children.Add(new TextBlock
+            {
+                Text = confirm.IsLoading ? confirm.LoadingMessage : confirm.LoadProblem,
+                Foreground = confirm.IsLoading ? Muted : Warn,
+                FontSize = 19,
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+        else
+        {
+            var window = confirm.Window;
+
+            area.Children.Add(More(window.Above, "above"));
+
+            for (var index = window.Start; index < window.Start + window.Count; index++)
+            {
+                var row = confirm.Rows[index];
+                area.Children.Add(Row(new StatusRow(row.Label, row.Value ?? string.Empty, row.Detail)));
+            }
+
+            area.Children.Add(More(window.Below, "below"));
+        }
+
+        return new Border
+        {
+            Height = ListWindow.ConfirmDetailsBudget + 40,
+            ClipToBounds = true,
+            Child = area,
+        };
+    }
+
+    /// <summary>How wide a popup is, fixed so it cannot breathe as its cursor moves.</summary>
+    private const double PopupWidth = 760;
+
+    private static readonly IBrush PopupPanel = new SolidColorBrush(Color.FromRgb(0x24, 0x24, 0x24));
 
     /// <summary>A screen whose only content is one sentence about work in progress.</summary>
     private static StackPanel Working(string detail)

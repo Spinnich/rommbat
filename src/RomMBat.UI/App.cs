@@ -47,7 +47,7 @@ internal sealed class App : Application
         {
             // Nothing else can be shown: without a tree there is no store, no map and no pad.
             return new ShellWindow(
-                new Navigator(new MessageScreen("RomMBat cannot start", opened.Message!)),
+                new Navigator(MessageScreen.Fatal("RomMBat cannot start", opened.Message!)),
                 gamepad: null,
                 () => desktop.Shutdown());
         }

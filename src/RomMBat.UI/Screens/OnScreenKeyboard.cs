@@ -481,10 +481,14 @@ public sealed class OnScreenKeyboard : IScreen
     // it simply changes face.
     private void Shift() => IsShifted = !IsShifted;
 
+    /// <summary>True when OK on no text is an answer, which it is for a search and nothing else.</summary>
+    public bool AllowEmpty { get; init; }
+
     private ScreenCommand Commit()
     {
-        // Committing an empty string would ask the caller to make sense of nothing.
-        if (Text.Length == 0)
+        // Committing an empty string would ask most callers to make sense of nothing. A search
+        // is the exception: empty is how it is cleared, or a term could only ever be replaced.
+        if (Text.Length == 0 && !AllowEmpty)
         {
             return ScreenCommand.Stay;
         }

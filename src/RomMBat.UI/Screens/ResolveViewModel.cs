@@ -187,33 +187,37 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
 
     public IReadOnlyList<FooterHint> Hints => Stage switch
     {
-        // Named for what it does rather than for what it stops. "Cancel" reads as though the
-        // work is thrown away, and it is not: the walk resumes where it stopped.
-        ResolveStage.Working => [new FooterHint(NavAction.Back, "Stop for now")],
+        // Says what the press leads to, as the sync screen's does. The question it opens says
+        // that nothing is lost.
+        ResolveStage.Working => [new FooterHint(NavAction.Back, "Stop")],
 
-        // "Done" rather than "Back" once there is nothing left running, which is the rule the
-        // pairing screen already followed and these two did not: if the footer offers a stop
-        // the work is going, and if it says Done it is over.
-        _ => [new FooterHint(NavAction.Back, "Done")],
+        // "Done" rather than "Back" once there is nothing left running: if the footer offers a
+        // stop the work is going, and if it says Done it is over. On the bottom button, because
+        // moving on from a finished screen is progress.
+        _ => [new FooterHint(NavAction.Accept, ListScreen.DoneLabel)],
     };
 
     public ScreenCommand Handle(NavAction action)
     {
         switch (action)
         {
+            // Asked first, as the sync screen's stop is: a query of a large set takes minutes,
+            // and a stray press should not throw that time away. A yes closes the question and
+            // stays, because this screen is the only place that can say which set was
+            // interrupted (#107).
             case NavAction.Back when Stage == ResolveStage.Working:
-                // Stop and stay; a second Back leaves. #107: this screen already composed a
-                // sentence naming the set that was interrupted, and nothing could ever display
-                // it, because Back popped the screen and Dispose was the only thing that
-                // canceled the walk. The stopped summary was written to a screen that had
-                // already left the stack.
-                //
-                // The sync screen answers Back the same way and has to, since its stop removes
-                // a part-fetched game. Two minutes-long screens with two different rules for
-                // the same press is a rule a user has to learn twice.
-                Stop();
-                return ScreenCommand.Stay;
+                return ScreenCommand.Push(ConfirmScreen.YesNo(
+                    "Stop querying? What it has found so far is kept, and the next query carries on from there.",
+                    "Stop",
+                    () =>
+                    {
+                        Stop();
+                        return ScreenCommand.Pop;
+                    },
+                    "Keep querying",
+                    this));
 
+            case NavAction.Accept when Stage != ResolveStage.Working:
             case NavAction.Back:
                 return ScreenCommand.Pop;
 
@@ -225,7 +229,8 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     /// <summary>Asks the walk to stop, and says so at once rather than when it notices.</summary>
     private void Stop()
     {
-        if (_stopping)
+        // A walk that ended while the stop question was open has nothing to stop.
+        if (_stopping || Stage != ResolveStage.Working)
         {
             return;
         }
