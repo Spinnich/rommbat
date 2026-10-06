@@ -55,7 +55,7 @@ A behaviour nobody has recorded is a new finding, filed the way `docs/upstream/R
 
 - **Scout**: post or edit the findings comment on the tracking issue, then file each code finding
   as its own issue citing the tracking issue. Offer to `/start-issue` the first one. Nothing is
-  committed to this branch.
+  committed.
 - **Adopt**: `pwsh -File tools/pre-pr.ps1 -Quiet`, then commit and open the PR the way
   `/start-issue` does. Label it `semver:minor` and the type `/start-issue` would give it. The body
   has the nine-step mapping per record, the AI disclosure, and `Fixes #<tracking issue>`. Then run
