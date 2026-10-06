@@ -47,5 +47,6 @@ slot's, distinct from slot 1's.
 
 **The declared `<directory>` is where every core wrote**, `saves/snes/libretro.<core>/`. ES passed
 `-state_slot 3` from the second row on, and RetroArch wrote slots 1 and 2 regardless, as finding
-261 says. **`mednafen_snes` leaves an empty `<rom>.rtc` on every exit**, which RomMBat now passes
-over without reporting (RB-319).
+261 says. **`mednafen_snes` leaves an empty `<rom>.rtc` on every exit for a game with no clock**, which
+RomMBat passes over without reporting (RB-319); for an S-RTC cartridge the file holds the clock and
+syncs as `libretro:battery:rtc` (RB-417).

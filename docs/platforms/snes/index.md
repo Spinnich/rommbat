@@ -46,6 +46,7 @@ the drive at `5.3.0`, since nothing they exercise changed between the two. Nothi
 | Client    | this branch, deployed twice, named below               |
 | Budget    | `none`, as for every system before it                  |
 | Test game | Legend of Zelda, The - A Link to the Past (USA)        |
+| Edge pass | five more, [below](#the-edge-case-pass)                |
 
 **The test game is a 1 MB LoROM cartridge with 8 KB of battery SRAM**, as jgenesis reports it,
 and RomM rom 200280. It writes its save when a name is registered and on Save and Continue, and
@@ -188,6 +189,49 @@ boot pattern**, and still reached the title. **mednafen's md5 is of the whole `.
 zip**, and it writes a `.srm`, not the `.sav` its other systems' rule reads. On Super Mario Kart
 ares also wrote `<rom>.dram`, 512 B, beside a 2,048 B `.ram`: the DSP's data RAM.
 
+## The edge-case pass
+
+**Five more games were booted on all fifteen rows on 2026-10-05**, on the agent tree at RetroBat
+8.2.1 with this branch deployed, to cover what Zelda does not. Each was launched through
+`emulatorLauncher`, left about 25 seconds and closed, and every file it wrote under `saves/` was
+listed and moved aside. No one saved in these launches, so they measure what each row writes and
+names, not a save driven through a sync.
+
+| Game                                 | Rom    | Covers                                           | Save  |
+| ------------------------------------ | ------ | ------------------------------------------------ | ----- |
+| Super Mario Kart (USA)               | 166868 | DSP-1, HiROM                                     | 2 KB  |
+| Kirby's Dream Land 3 (USA)           | 166168 | SA-1, its BW-RAM as the save                     | 32 KB |
+| Super Mario World 2 - Yoshi's Island | 166870 | Super FX, its RAM declared in the expansion byte | 32 KB |
+| New Horizons (USA)                   | 166381 | HiROM with 32 KB of SRAM                         | 32 KB |
+| Super Shell Monsters Story II [T-En] | 191007 | S-RTC real-time clock, ExHiROM                   | 8 KB  |
+
+Yoshi's Island is the `(USA) (Rev 1)` release, and Super Shell Monsters Story II is Daikaijuu
+Monogatari II with Dynamic Designs' v0.90 translation, from RomM's second `snes` platform. The
+agent tree was given the DSP-1 firmware as the maintainer's install has it, above, so that all
+fifteen rows reach Super Mario Kart's title.
+
+**Every row that wrote a save sized and named it as it does Zelda's**, whatever the chip (RB-418). Two things
+were new. **The clock cartridge writes a second file on eight rows**, in four names, and each now
+takes a class B slot of its own beside the save, as a clock does on `gb` (RB-417). **ares writes
+the SA-1's internal RAM** as `<rom>.iram` beside the `.ram`, as it writes a DSP-1's data RAM as
+`.dram`, and it takes its own slot too. `libretro`/`snes9x2005` would not start the clock
+cartridge, and `libretro`/`bsnes-jg` names its clock so it joins no rom. Evidence is under
+`R:\rommbat-evidence\snes\edge\`.
+
+**Then the maintainer raced Super Mario Kart on all fifteen rows**, on 2026-10-06, one Time Trial
+on Mario Circuit 1 per row from ES over RDP, with each row picked by `snes.emulator` and
+`snes.core` in `es_settings.cfg` and confirmed from `emulatorLauncher.log`. **Every row ran the
+DSP-1 through a full race.** The rows that share the `.srm` showed the records the rows before had
+set, and ares, BizHawk and jgenesis were each seeded from the latest file before their launch.
+Each row's save went up through the quit pass and read back `in step`, ares's `.dram` with its
+`.ram`. Every row changed the save from the one before except BizHawk's `Snes9x` core, which
+rewrote it unchanged: the game keeps five times per course, so a run outside them changes
+nothing, and the bytes cannot tell that from a save that did not land.
+
+**The new slots went up and came back.** The clock and SA-1 files the boots wrote were sent with
+`flush`, deleted, and brought back by `saves restore --apply`, each to its own path and byte for
+byte: `libretro`, `mednafen`, `ares` and `jgenesis` `:battery:rtc`, and `ares:battery:iram`.
+
 ## What the pass turned up that is not a row
 
 - **jgenesis closed once, 3.5 s into a launch from ES, with exit code 1**, and did not do so again.
@@ -208,10 +252,11 @@ ares also wrote `<rom>.dram`, 512 B, beside a 2,048 B `.ram`: the DSP's data RAM
 
 - **Nothing about `snes` under any build but these.** Every row was measured on RetroBat 8.2.1 and
   RomM `5.3.0`.
-- **Nothing about another game.** Zelda is one LoROM cartridge with 8 KB of SRAM and no
-  coprocessor. A game with a coprocessor, a real-time clock or a larger SRAM may be sized and named
-  differently, and ares's `.dram` was seen on Super Mario Kart only.
-- **Nothing about a DSP game past its title screen**, on any row.
+- **Nothing about a played save on four of the edge-case games.** Kirby's Dream Land 3, Yoshi's
+  Island, New Horizons and Super Shell Monsters Story II were booted and closed, not played; their
+  clock and SA-1 files went up and came back from what those boots wrote.
+- **Nothing about a coprocessor this pass did not boot**: the Cx4, S-DD1, SPC7110, OBC1 and the
+  DSP chips past DSP-1.
 - **Nothing about a `.smc`.** Every ROM in the set is a `.sfc`; a `.smc` can carry a 512-byte copier
   header, and mednafen's hashed name for one is left unnameable until one is driven.
 - **Nothing about mednafen's hashed `.srm` driven through a restore**, which only the tests cover.

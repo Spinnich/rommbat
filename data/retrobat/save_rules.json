@@ -91,6 +91,15 @@
     },
     {
       "emulator": "jgenesis",
+      "systems": ["snes"],
+      "directory": "jgenesis/sfc",
+      "extensions": [".rtc"],
+      "named_after": "rom file",
+      "class": "B",
+      "evidence": "snes under jgenesis on 8.2.1: Super Shell Monsters Story II (Japan) [T-En by Dynamic Designs v0.90] [n].zip, an S-RTC cartridge, wrote jgenesis/sfc/<rom>.rtc, 36 B, the cartridge clock, beside its <rom>.sav, 8,192 B. Its own rule so the .sav keeps jgenesis:battery"
+    },
+    {
+      "emulator": "jgenesis",
       "systems": ["mastersystem"],
       "directory": "jgenesis/sms",
       "extensions": [".sav"],
@@ -136,12 +145,12 @@
     },
     {
       "emulator": "libretro",
-      "systems": ["gb", "gbc"],
+      "systems": ["gb", "gbc", "snes"],
       "directory": "",
       "extensions": [".rtc"],
       "named_after": "rom file",
       "class": "B",
-      "evidence": "gb under libretro on 8.2.1: Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).zip, an MBC3 cartridge with a clock, wrote a loose <rom>.rtc beside the .srm under gambatte (8 B), sameboy (32 B), tgbdual and DoubleCherryGB (4 B), and mesen standalone wrote the same name (13 B). gambatte and mesen write none for Pokemon Yellow, which has no clock; the other three write one for every game. Shared as the .srm is, so class B gives it libretro:battery:rtc; gbc under libretro on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip, MBC3 with a clock, wrote the same loose <rom>.rtc at the same four sizes under the four gbc cores, and mesen standalone 13 B"
+      "evidence": "gb under libretro on 8.2.1: Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).zip, an MBC3 cartridge with a clock, wrote a loose <rom>.rtc beside the .srm under gambatte (8 B), sameboy (32 B), tgbdual and DoubleCherryGB (4 B), and mesen standalone wrote the same name (13 B). gambatte and mesen write none for Pokemon Yellow, which has no clock; the other three write one for every game. Shared as the .srm is, so class B gives it libretro:battery:rtc; gbc under libretro on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip, MBC3 with a clock, wrote the same loose <rom>.rtc at the same four sizes under the four gbc cores, and mesen standalone 13 B; snes under libretro on 8.2.1: Super Shell Monsters Story II (Japan) [T-En by Dynamic Designs v0.90] [n].zip, an S-RTC cartridge, wrote a loose <rom>.rtc beside the .srm under snes9x and mednafen_snes (20 B) and bsnes (16 B), and snes9x standalone wrote the same name (20 B). bsnes_hd_beta, mesen-s and mesen standalone wrote none, bsnes-jg named its clock <rom>.zip#<member>.rtc, which this rule does not join, and snes9x2005 refused the cartridge"
     },
     {
       "emulator": "libretro",
@@ -198,6 +207,15 @@
       "named_after": "rom file and content md5",
       "class": "A",
       "evidence": "snes under mednafen, core snes, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote a loose <rom>.608c22b8ff930c62dc2de54bcd6eba72.srm, 8,192 B, the md5 being of the whole .sfc inside, when no plain <rom>.srm was present, and read and saved back into the plain .srm the libretro cores share when one was. Its own rule because on snes mednafen writes .srm, not the .sav its other systems' rule reads"
+    },
+    {
+      "emulator": "mednafen",
+      "systems": ["snes"],
+      "directory": "",
+      "extensions": [".rtc"],
+      "named_after": "rom file and content md5",
+      "class": "B",
+      "evidence": "snes under mednafen, core snes, on 8.2.1: Super Shell Monsters Story II (Japan) [T-En by Dynamic Designs v0.90] [n].zip, an S-RTC cartridge, wrote a loose <rom>.fe6c7d5083495dc199d247ede7eb4a05.rtc, 20 B, the cartridge clock, beside <rom>.fe6c7d5083495dc199d247ede7eb4a05.srm, 8,192 B. Its own rule so the .srm keeps mednafen:battery"
     },
     {
       "emulator": "ares",
@@ -257,10 +275,10 @@
       "emulator": "ares",
       "systems": ["snes"],
       "directory": "ares/Super Famicom",
-      "extensions": [".ram", ".dram"],
+      "extensions": [".ram", ".dram", ".iram", ".rtc"],
       "named_after": "rom file",
       "class": "B",
-      "evidence": "snes under ares, core SuperFamicom, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote ares/Super Famicom/<rom>.ram, 8,192 B, on exit, beside its states .bs1 and .bs2. Super Mario Kart (USA).zip, a DSP-1 cartridge, wrote <rom>.ram, 2,048 B, and <rom>.dram, 512 B, the coprocessor's data RAM, so class B gives the second file its own slot"
+      "evidence": "snes under ares, core SuperFamicom, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote ares/Super Famicom/<rom>.ram, 8,192 B, on exit, beside its states .bs1 and .bs2. Super Mario Kart (USA).zip, a DSP-1 cartridge, wrote <rom>.ram, 2,048 B, and <rom>.dram, 512 B, the coprocessor's data RAM, so class B gives the second file its own slot. Kirby's Dream Land 3 (USA).zip, an SA-1 cartridge, wrote <rom>.ram, 32,768 B, and <rom>.iram, 2,048 B, the SA-1's internal RAM, and Super Shell Monsters Story II (Japan) [T-En by Dynamic Designs v0.90] [n].zip, an S-RTC cartridge, wrote <rom>.ram, 8,192 B, and <rom>.rtc, 16 B, the cartridge clock"
     },
     {
       "emulator": "ares",
@@ -394,7 +412,7 @@
   ],
   "empty_not_a_save": {
     "snes": {
-      ".rtc": "snes under libretro, core mednafen_snes, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip and Super Mario Kart (USA).zip each left a loose <rom>.rtc of 0 B beside the .srm on every exit, which no other snes row wrote or touched"
+      ".rtc": "snes under libretro, core mednafen_snes, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip and Super Mario Kart (USA).zip each left a loose <rom>.rtc of 0 B beside the .srm on every exit, which no other snes row wrote or touched. A cartridge with a clock fills it, and the libretro rule takes it then"
     }
   },
   "not_a_save_extensions": {

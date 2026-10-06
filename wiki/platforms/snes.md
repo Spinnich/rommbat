@@ -35,3 +35,9 @@ A save follows you to another emulator only where the two read the same file
 - BizHawk's three cores share another.
 
 The rest each keep their own.
+
+A few Japanese games, such as Daikaijuu Monogatari II, carry a real-time clock, and most emulators
+keep it in a second file beside the save. RomMBat syncs that file with the save. Two exceptions:
+RetroArch's Snes9x 2005 core would not start the one such game tested, and its bsnes-jg core
+names the clock file in a way RomMBat cannot match to a game, so that one clock stays on the
+machine.
