@@ -50,7 +50,7 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
 {
     private readonly InstallSession _session;
     private readonly Uri _origin;
-    private readonly Func<Uri, RomMConnection> _connect;
+    private readonly Func<Uri, string?, RomMConnection> _connect;
 
     private CancellationTokenSource _run = new();
     private PairingSession? _pairing;
@@ -59,16 +59,22 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
     private bool _disposed;
 
     public PairingViewModel(InstallSession session, Uri origin)
-        : this(session, origin, origin => InstallSession.Connect(origin))
+        : this(
+            session,
+            origin,
+            (origin, token) => token is null
+                ? InstallSession.Connect(origin)
+                : InstallSession.ConnectAuthenticated(origin, token))
     {
     }
 
     /// <param name="connect">
-    /// How the screen reaches the server. Tests stand a stub in place of one, the way
+    /// How the screen reaches the server, without a token while pairing and with one for the
+    /// device check after it. Tests stand a stub in place of one, the way
     /// <see cref="RomMConnection"/>'s own handler constructor exists for. Taken here rather
     /// than as an init property because the first run starts in this constructor.
     /// </param>
-    internal PairingViewModel(InstallSession session, Uri origin, Func<Uri, RomMConnection> connect)
+    internal PairingViewModel(InstallSession session, Uri origin, Func<Uri, string?, RomMConnection> connect)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(origin);
@@ -110,6 +116,9 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
 
     /// <summary>Set once pairing succeeded, for the summary.</summary>
     public PairingCompletion? Completion => _completion;
+
+    /// <summary>Whether this install is one device in RomM, once the check after pairing has run.</summary>
+    public DeviceCheck? DeviceCheck { get; private set; }
 
     public IReadOnlyList<FooterHint> Hints => Stage switch
     {
@@ -170,6 +179,7 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
 
         _pairing = null;
         QrCode = null;
+        DeviceCheck = null;
         Move(PairingStage.Contacting, "Contacting the server.");
         Start();
     }
@@ -202,7 +212,7 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
 
         try
         {
-            using var connection = _connect(_origin);
+            using var connection = _connect(_origin, null);
 
             var attempt = await ServerProbes
                 .ContactAsync(connection, _session.Store, cancellationToken: cancellationToken)
@@ -265,6 +275,23 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
             Update(
                 completion.IsPaired ? PairingStage.Paired : PairingStage.Refused,
                 completion.Message);
+
+            if (!completion.IsPaired)
+            {
+                return;
+            }
+
+            // The pairing is already stored, so the screen says so first and the check fills in
+            // a line under it rather than holding the result back for one more request.
+            var check = await service
+                .VerifyDeviceAsync(completion, token => _connect(_origin, token), cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!Stale())
+            {
+                DeviceCheck = check;
+                Invalidated?.Invoke(this, EventArgs.Empty);
+            }
         }
         catch (OperationCanceledException)
         {

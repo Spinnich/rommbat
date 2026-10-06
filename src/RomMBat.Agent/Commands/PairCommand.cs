@@ -142,7 +142,7 @@ internal static class PairCommand
             }
 
             WriteSuccess(completion);
-            await VerifyDeviceAsync(pairing, origin, completion, passphrase, cancellationToken).ConfigureAwait(false);
+            await WriteDeviceCheckAsync(pairing, origin, completion, passphrase, cancellationToken).ConfigureAwait(false);
             return ExitCode.Ok;
         }
     }
@@ -288,61 +288,29 @@ internal static class PairCommand
         Console.WriteLine("Pair again and grant the missing scopes to turn them back on.");
     }
 
-    /// <summary>
-    /// Confirms the token works and that this install shows up as one device, not two.
-    /// </summary>
-    /// <remarks>
-    /// The whole point of pairing on a stored GUID rather than a MAC address is that moving
-    /// the drive updates the existing device. This is the check that proves it.
-    /// </remarks>
-    private static async Task VerifyDeviceAsync(
+    private static async Task WriteDeviceCheckAsync(
         PairingService pairing,
         Uri origin,
         PairingCompletion completion,
         string? passphrase,
         CancellationToken cancellationToken)
     {
-        if (!completion.Scopes.Has(RomMScopes.DevicesRead))
+        var check = await pairing
+            .VerifyDeviceAsync(
+                completion,
+                token => AgentContext.ConnectAuthenticated(origin, token),
+                passphrase,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        if (check.IsWarning)
         {
-            Console.WriteLine();
-            Console.WriteLine("Skipping the device check: devices.read was not granted.");
+            Console.Error.WriteLine($"Warning: {check.Message}");
             return;
         }
 
-        string token;
-        try
-        {
-            token = pairing.UnlockToken(passphrase);
-        }
-        catch (TokenUnlockException ex)
-        {
-            Console.Error.WriteLine($"Warning: {ex.Message}");
-            return;
-        }
-
-        using var authenticated = AgentContext.ConnectAuthenticated(origin, token);
-
-        try
-        {
-            var devices = await authenticated.ListDevicesAsync(cancellationToken).ConfigureAwait(false);
-            if (!devices.IsSuccess || devices.Value is null)
-            {
-                Console.Error.WriteLine($"Warning: could not read the device list back: {devices.Message}");
-                return;
-            }
-
-            var matching = devices.Value.Count(device =>
-                string.Equals(device.Id, completion.RomMDeviceId, StringComparison.Ordinal));
-
-            Console.WriteLine();
-            Console.WriteLine(matching == 1
-                ? "Verified: the token works and this install is one device in RomM."
-                : $"Warning: expected exactly one matching device, found {matching}.");
-        }
-        catch (RomMUnreachableException ex)
-        {
-            Console.Error.WriteLine($"Warning: could not verify the pairing, {ex.Message}");
-        }
+        Console.WriteLine();
+        Console.WriteLine(check.Message);
     }
 
     /// <summary>

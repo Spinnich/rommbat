@@ -14,7 +14,9 @@ is your server's address.
 4. RomM asks which permissions to give this device. Grant the ones in
    [the table below](#which-permissions-to-grant), then approve.
 
-RomMBat notices the approval on its own and says it is paired. A code lasts 10 minutes; if it
+RomMBat notices the approval on its own and says it is paired. It then reads RomM's device list back
+and says whether this RetroBat shows up there as one device; a warning there leaves the pairing in
+place. A code lasts 10 minutes; if it
 runs out, choose New code on the footer. If the server cannot be reached, RomMBat says so
 and offers Try again. Everything else in RomMBat works without the server, so pairing can
 wait until it is back.

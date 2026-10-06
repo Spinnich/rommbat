@@ -26,6 +26,10 @@ So:
 - Re-pairing with the same identifier updates the existing device rather than duplicating
   it, which is what makes "move the drive to another PC" a non-event.
 
+Pairing then proves it: `PairingService.VerifyDeviceAsync` reads `GET /api/devices` back with the
+new token and expects exactly one entry with the returned device id. The console and the gamepad
+UI both show the result, which never undoes the pairing, and it is skipped without `devices.read`.
+
 The GUID lives in **`emulators/rommbat/device.id`**, a plain text file, and is mirrored into
 the `device` table. The file is the authority on purpose: identity has to outlive the
 database, or a rebuilt store would turn into a second device in the RomM UI.
