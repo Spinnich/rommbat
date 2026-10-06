@@ -63,8 +63,8 @@ Link to the Past, with `docs/platforms/snes/` the record. **Boot a coprocessor g
 not only the test game: RetroBat lists no `snes` firmware, and on Super Mario Kart, a DSP-1
 cartridge, three rows refused for want of `dsp1b.rom` while Zelda booted everywhere (RB-317).
 A title screen does not exercise the chip, so claim no more than the title. **A row whose emulator
-is not installed asks to install it on its first launch**, standalone Snes9x here; the maintainer
-decides whether to accept. **ares shows nothing when a state is saved or its slot steps**, so the
+is not installed asks to install it on its first launch**, standalone Snes9x here; the agent
+accepts it on its own tree, and the kit's `Wait-Emulator` does (RB-50). **ares shows nothing when a state is saved or its slot steps**, so the
 agent drives ares's states from its own session and checks the files, rather than asking for keys
 pressed blind. **The server may already hold the test game's save**, from another client: the first
 flush then records a conflict rather than overwrite, and which side wins is the maintainer's call.

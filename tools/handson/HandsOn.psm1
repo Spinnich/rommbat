@@ -103,7 +103,7 @@ function Get-AgentProcess {
     #>
     param([Parameter(Mandatory)] [string[]] $Name)
     $prefix = (Get-AgentRoot).TrimEnd('\', '/') + '\'
-    @(Get-Process -Name $Name -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($prefix, 'OrdinalIgnoreCase') })
+    @(Get-Process -Name $Name -ErrorAction SilentlyContinue | Where-Object { $path = $_.Path; $path -and $path.StartsWith($prefix, 'OrdinalIgnoreCase') })
 }
 
 function Assert-AgentES {
@@ -382,9 +382,10 @@ function Start-EmulatorLauncher {
 function Get-EmulatorProcess {
     # Every emulator runs from <tree>\emulators\, and RomMBat's own folder there holds none.
     $prefix = (Get-AgentRoot).TrimEnd('\', '/') + '\emulators\'
+    # Path is read once: a process exiting between two reads leaves the second one null.
     @(Get-Process | Where-Object {
-            $_.Path -and $_.Path.StartsWith($prefix, 'OrdinalIgnoreCase') -and
-            -not $_.Path.StartsWith("${prefix}rommbat\", 'OrdinalIgnoreCase')
+            $path = $_.Path
+            $path -and $path.StartsWith($prefix, 'OrdinalIgnoreCase') -and -not $path.StartsWith("${prefix}rommbat\", 'OrdinalIgnoreCase')
         })
 }
 
@@ -396,7 +397,7 @@ function Get-LauncherDialog {
         emulatorLauncher's prompts, "not installed, install now?" before a launch and "keep the
         uncompressed game?" after one, are full-screen windows with no title, and the process's
         MainWindowHandle stays 0, so Get-MainWindow cannot see them. They are found by the
-        launcher's pid. Neither times out (savestates.md). Which one is up follows from whether
+        launcher's pid. Neither times out (RB-50, RB-420). Which one is up follows from whether
         an emulator has run yet: Wait-Emulator answers the first and Stop-Game the second.
     #>
     $launcher = Get-AgentProcess emulatorLauncher | Select-Object -First 1
@@ -452,8 +453,8 @@ function Stop-Game {
         /emukill does nothing while a game runs (RB-35). Closing the emulator's window
         (WM_CLOSE) lets it flush its save; ares can outlast 15 s on that (passes.md), so Escape,
         the QuitEmulator key, follows. emulatorLauncher is never killed: it does the mirror. After
-        a zip it extracted, it asks whether to keep the uncompressed game; the answer is No, which
-        leaves roms\ as RomMBat synced it.
+        a zip it extracted, it asks whether to keep the uncompressed game (RB-420); the answer is
+        No, which leaves roms\ as RomMBat synced it.
 
         An emulator that ignores both is ended by -Force, which loses a save it had not yet
         written, so it is opt-in. A launcher still up after its emulator has gone is a prompt,
@@ -463,6 +464,9 @@ function Stop-Game {
     $launcher = Get-AgentProcess emulatorLauncher | Select-Object -First 1
     if (-not $launcher) { return }
     Show-AgentBanner
+    # Only a launch that reached an emulator can end on the keep prompt; a window up before one ran
+    # is the install prompt, which is not Stop-Game's to answer.
+    $emulatorRan = [bool]@(Get-EmulatorProcess).Count
     $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($launcher.Id)" |
         ForEach-Object { Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue })
     foreach ($child in $children) { $null = $child.CloseMainWindow() }
@@ -490,7 +494,7 @@ function Stop-Game {
         }
 
         # With the emulator gone, a launcher window that stays up is the keep-uncompressed prompt.
-        $dialog = if (-not $declined -and -not @(Get-EmulatorProcess).Count) { Get-LauncherDialog }
+        $dialog = if ($emulatorRan -and -not $declined -and -not @(Get-EmulatorProcess).Count) { Get-LauncherDialog }
         if (-not $dialog) { $dialogSince = $null }
         elseif (-not $dialogSince) { $dialogSince = Get-Date }
         elseif (((Get-Date) - $dialogSince).TotalSeconds -ge 2) {
@@ -504,7 +508,8 @@ function Stop-Game {
     }
     if (-not $launcher.HasExited) {
         $shot = Save-Screenshot 'stop-game-stalled'
-        $hint = if ($Force) { 'end it from the pad or ask the maintainer' } else { 'Stop-Game -Force ends the emulator, losing a save it has not written; or end it from the pad' }
+        $hint = if (-not $emulatorRan -and (Get-LauncherDialog)) { 'no emulator ran and a launcher prompt is up, which Wait-Emulator answers' }
+        elseif ($Force) { 'end it from the pad or ask the maintainer' } else { 'Stop-Game -Force ends the emulator, losing a save it has not written; or end it from the pad' }
         throw "The game is still running after $TimeoutSec s; $hint. Screenshot: $shot"
     }
     Write-Host 'Game ended'
