@@ -195,8 +195,9 @@ progress, and the disk budget); the sync run (every set or one, with live progre
 leaves the tree correct, and the budget as it is spent); browse, per-game install and removal;
 conflicts; the platform mapping; and the configuration queue.
 
-**The root is a list of verbs because a screen has only four action buttons**, Accept, Start,
-Extra and Alternate, and the root needs more entry points than that. `RootScreens.Menu` is that
+**The root is a list of verbs because a screen has only three action buttons**, Accept,
+Alternate and Extra, with Start reserved for the menu, and the root needs more entry points than
+that. `RootScreens.Menu` is that
 list; `StatusViewModel` holds the facts, and each verb is one press behind the row naming it. The counts that motivate a verb (conflicts, unmapped
 platforms, queued changes) are on the rows themselves, because burying a number a person has to
 act on would mean the interface knew about a stalled sync and did not say so.
@@ -234,17 +235,26 @@ set and take its games, or take one game off from its detail screen. Both go thr
 has no save kind, enforced by a `CHECK`, so anything that removes content walks a table that
 holds no saves. `rommbat-agent evict` is unchanged.
 
-**Two screens run minutes-long work, and they answer Back the same way**: the first press stops
-and stays so the screen can say what happened, and a second leaves. The sync screen's stop
-removes the game it was in, so its footer says so rather than reading "Stop for now". Both own
-their cancellation and are disposed when left.
+**Start opens a menu and never commits, Accept confirms or moves on, and Back never commits.**
+That is EmulationStation's own grammar (RB-421 to RB-424). A screen lists its verbs as
+`ScreenAction`s; the navigator opens `ActionMenuScreen` on Start and runs the Alternate and Extra
+shortcuts from the same list, so the footer, the menu and the shortcuts cannot disagree. A verb
+keeps one shortcut everywhere (Sync on Alternate, Query on Extra), and a destructive one has
+none. An editor saves from its last row, and Back with unsaved changes asks through
+`ConfirmScreen`, ES's message box with the safe answer selected first, where ES selects YES.
+
+**Two screens run minutes-long work, and both stop on Back and stay** so the screen can say what
+happened. The sync screen's stop removes the game it was in, so it asks first and says so; the
+resolve screen's loses nothing and stops at once. Both own their cancellation and are disposed
+when left.
 
 **A screen that has finished says so three times, because a full progress bar and a stalled one
 are the same picture.** The title turns past tense ("Queried 'X'", "Synced 'X'"), an outcome
 word sits above the sentence ("Finished", "Stopped", "Finished with problems", "Did not
 finish"), and the footer reads **Done** instead of offering a stop. That last one is the rule:
 **if the footer offers a stop the work is running, and if it says Done it is over**, which is
-the only thing a person has to learn to know whether to keep waiting. The sets screen's
+the only thing a person has to learn to know whether to keep waiting. Done sits on Accept,
+because moving on is progress, and Back leaves too. The sets screen's
 footer offers **Query** rather than Check, beside Sync, because "Query" names the act of asking
 the server and so says which of the two reaches the network.
 

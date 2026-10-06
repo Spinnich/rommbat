@@ -32,8 +32,8 @@ internal static class ScreenView
 
     public static Control Build(IScreen screen) => screen switch
     {
-        ActionMenuScreen menu => Popup(menu.Underneath, MenuPanel(menu)),
-        ConfirmScreen confirm => Popup(confirm.Underneath, ConfirmPanel(confirm)),
+        IPopupScreen { Underneath: { } underneath } => Dimmed(underneath),
+        ConfirmScreen confirm => ConfirmPanel(confirm),
         StatusViewModel status => Status(status),
         OnScreenKeyboard keyboard => Keyboard(keyboard),
         PairingViewModel pairing => Pairing(pairing),
@@ -1137,30 +1137,28 @@ internal static class ScreenView
         };
 
     /// <summary>
-    /// A popup over the screen it was opened from, which stays visible and dimmed.
+    /// The screen a popup was opened from, dimmed, drawn exactly where it was.
     /// </summary>
     /// <remarks>
     /// As EmulationStation draws its menus and its message box (RB-423, RB-424): what the
-    /// question is about stays in view, so the popup does not have to repeat it.
+    /// question is about stays in view. Drawn as the body on its own, with the popup in the
+    /// shell's overlay, because a popup sharing the body's layout made the screen behind it
+    /// jump when it opened.
     /// </remarks>
-    private static Grid Popup(IScreen? underneath, Control panel)
+    private static Control Dimmed(IScreen underneath)
     {
-        var grid = new Grid();
-
-        if (underneath is not null)
-        {
-            var behind = Build(underneath);
-            behind.Opacity = 0.25;
-            behind.IsHitTestVisible = false;
-            grid.Children.Add(behind);
-        }
-
-        panel.HorizontalAlignment = HorizontalAlignment.Center;
-        panel.VerticalAlignment = VerticalAlignment.Center;
-        grid.Children.Add(panel);
-
-        return grid;
+        var behind = Build(underneath);
+        behind.Opacity = 0.25;
+        return behind;
     }
+
+    /// <summary>The popup itself, for the shell's overlay, or null when the screen is not one.</summary>
+    public static Control? Overlay(IScreen screen) => screen switch
+    {
+        ActionMenuScreen menu => MenuPanel(menu),
+        ConfirmScreen { Underneath: not null } confirm => ConfirmPanel(confirm),
+        _ => null,
+    };
 
     /// <summary>The actions menu: the same rows a list draws, in a panel of fixed width.</summary>
     private static Border MenuPanel(ActionMenuScreen menu)

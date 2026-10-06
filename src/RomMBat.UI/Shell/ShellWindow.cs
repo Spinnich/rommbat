@@ -38,6 +38,11 @@ internal sealed class ShellWindow : Window
     private readonly GamepadReader? _gamepad;
     private readonly Action _exit;
     private readonly ContentControl _body = new();
+    private readonly ContentControl _overlay = new()
+    {
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center,
+    };
     private readonly TextBlock _title = new();
     private readonly StackPanel _footer = new() { Orientation = Orientation.Horizontal, Spacing = 28 };
     private bool _primed;
@@ -113,9 +118,15 @@ internal sealed class ShellWindow : Window
         Grid.SetRow(scroller, 1);
         Grid.SetRow(footerBar, 2);
 
+        // Over the title and the body, outside their layout, so opening a popup moves nothing
+        // underneath it.
+        Grid.SetRow(_overlay, 0);
+        Grid.SetRowSpan(_overlay, 2);
+
         grid.Children.Add(_title);
         grid.Children.Add(scroller);
         grid.Children.Add(footerBar);
+        grid.Children.Add(_overlay);
 
         return grid;
     }
@@ -215,6 +226,7 @@ internal sealed class ShellWindow : Window
 
         _title.Text = screen.Title;
         _body.Content = ScreenView.Build(screen);
+        _overlay.Content = ScreenView.Overlay(screen);
 
         _footer.Children.Clear();
         foreach (var hint in screen.Hints)

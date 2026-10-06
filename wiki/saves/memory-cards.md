@@ -28,7 +28,7 @@ RetroBat's FOLDER choice for the PlayStation 2 memory card is still a shared car
 writes into the one folder, `Mcdf01.ps2`, so RomMBat does not sync that either.
 
 1. In [Find a game](../using/browse-and-install.md), open the game.
-2. Press the top face button for Give it its own memory card.
+2. Press Start for the menu, and choose Give it its own memory card.
 3. Read what changes, then choose Queue it.
 4. Quit EmulationStation. RomMBat makes the change as it closes.
 

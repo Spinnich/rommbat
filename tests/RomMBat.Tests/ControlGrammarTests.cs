@@ -196,9 +196,12 @@ public sealed class ControlGrammarTests
         confirm.Handle(NavAction.Accept);
         Assert.Equal(1, risky);
 
-        // The footer names what each button does now.
+        // The footer names what each button does now, and the right button only once it differs.
         Assert.Equal("Stop", Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Accept).Label);
         Assert.Equal("Keep going", Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Back).Label);
+
+        confirm.Handle(NavAction.Right);
+        Assert.DoesNotContain(confirm.Hints, hint => hint.Action == NavAction.Back);
     }
 
     [Fact]

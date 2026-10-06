@@ -59,10 +59,19 @@ public sealed class ConfirmScreen : IScreen, IPopupScreen
 
     public string Title => Underneath?.Title ?? Question;
 
+    /// <summary>
+    /// The selected answer, the d-pad, and the right button only when it answers differently.
+    /// </summary>
+    /// <remarks>
+    /// ES's box names the bottom button and CHOOSE (RB-424). The right button is named once the
+    /// selection has moved off the safe answer, because only then do the two buttons differ, and
+    /// a footer reading "Keep editing" twice says nothing a person can use.
+    /// </remarks>
     public IReadOnlyList<FooterHint> Hints =>
     [
         new FooterHint(NavAction.Accept, Buttons[Selected].Label),
-        new FooterHint(NavAction.Back, Buttons[_safe].Label),
+        .. Buttons.Count > 1 ? new[] { FooterHint.Move("Choose") } : [],
+        .. Selected != _safe ? new[] { new FooterHint(NavAction.Back, Buttons[_safe].Label) } : [],
     ];
 
     public ScreenCommand Handle(NavAction action)

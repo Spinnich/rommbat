@@ -23,12 +23,13 @@ down on the next sync.
 
 Choose Sync sets on the main menu. On the list:
 
-- Start makes a new set, as in [Your first sync](../getting-started/first-sync.md).
 - Accept opens the set under the cursor.
 - The left face button syncs every set.
 - The top face button queries every set.
+- Start opens the menu, which has New set, as in [Your first sync](../getting-started/first-sync.md).
 
-On a set, Start syncs it, the top face button queries it, and the left face button deletes it.
+On a set, the left face button syncs it and the top face button queries it. Delete set is in its
+Start menu.
 The set's screen shows what it holds, how much RomM says that weighs, how much it takes up on this
 device with artwork, when it was last queried, and the games it skipped and why.
 
@@ -80,8 +81,8 @@ Each RomM platform's games go into one RetroBat system folder, such as `roms\sne
 out which folder from RomM's own name for the platform and a table of known names. When it
 cannot, or gets one wrong, choose Platforms on the main menu.
 
-Open a platform to see where its games go and why. Press Start to choose a folder yourself, or the
-left face button to go back to the automatic choice. A platform with no folder is listed as
+Open a platform to see where its games go and why. Press Accept to choose a folder yourself, or
+choose Use the automatic choice from the Start menu to go back to RomMBat's own choice. A platform with no folder is listed as
 unmapped, and a sync skips its games until you choose one.
 
 Games already downloaded stay in the folder they went to. The next sync puts new games in the

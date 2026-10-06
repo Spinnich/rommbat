@@ -11,17 +11,25 @@ jobs there as here. The footer at the bottom of each screen shows what each butt
 screen. It draws buttons by their position on the controller rather than by a letter, because
 the bottom face button is A on an Xbox pad, Cross on a PlayStation pad and B on a Switch Pro.
 
-| Button              | What it does                                                              |
-| ------------------- | ------------------------------------------------------------------------- |
-| D-pad or left stick | Move. Left and Right also step through choices, such as a disk limit      |
-| Accept              | Open what the cursor is on, or choose it. Your confirm button in RetroBat |
-| Back                | Leave this screen, or on the main menu go back to EmulationStation        |
-| Start               | The screen's main action, such as Sync now or Save                        |
-| Left face button    | The screen's second action, such as Delete set                            |
-| Top face button     | A third action, where a screen has one                                    |
+| Button              | What it does                                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| D-pad or left stick | Move. Left and Right also step through choices, such as a disk limit                                |
+| Accept              | Open or choose what the cursor is on, answer yes, save, or move on. Your confirm button in RetroBat |
+| Back                | Leave this screen or cancel, or on the main menu go back to EmulationStation                        |
+| Start               | Open the screen's menu, which lists everything that screen can do                                   |
+| Left face button    | A shortcut to the screen's most common action, such as Sync now, or Search                          |
+| Top face button     | A shortcut to the next most common, such as Query                                                   |
+
+They follow EmulationStation's own: Start opens a menu there too, and Accept picks from it.
 
 **Accept never changes a value.** It opens a list to choose from. To step through choices in
 place, use Left and Right.
+
+**Back never saves, deletes or stops anything without asking.** Leaving a screen with unsaved
+changes asks whether to discard them, and stopping a sync asks first. In every such question
+the answer that changes nothing is selected, so pressing Accept or Back straight away is safe.
+
+When a screen has finished its work, its footer says Done, and Accept or Back leaves it.
 
 ## The main menu
 
