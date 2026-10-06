@@ -1441,10 +1441,10 @@ public sealed class SetsScreenTests : IDisposable
             clock.ElapsedMilliseconds < 500,
             $"opening the facet picker took {clock.ElapsedMilliseconds} ms, so it waited on something");
 
-        // Leavable while it loads, and the footer says so: Done, on the confirm button, since
-        // there is no row yet for that button to choose.
+        // Leavable while it loads, and the footer says so: Done, on Back, because the confirm
+        // button does not leave a screen whose loader is still running.
         Assert.NotEmpty(picker.LoadingMessage);
-        Assert.Contains(picker.Hints, hint => hint.Label == ListScreen.DoneLabel);
+        Assert.Contains(picker.Hints, hint => hint.Action == NavAction.Back && hint.Label == ListScreen.DoneLabel);
     }
 
     [Fact]
