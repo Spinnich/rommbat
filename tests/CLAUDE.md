@@ -16,7 +16,7 @@ subcommands, in its own project so the agent's Windows manifest stays out of the
   Profile before adding a slow test (`pre-pr-verification`, "Test cost").
 - **A test that needs a live RomM calls `Assert.SkipUnless`** on its environment variables, so
   a clone with no server runs green.
-- **Offline behaviour is tested through `StubRomMServer`'s unreachable mode**, which throws
+- **Offline behavior is tested through `StubRomMServer`'s unreachable mode**, which throws
   what `SocketsHttpHandler` throws on a connect timeout. Do not fake it with a cancellation.
 - **A temp tree must be disposed, and nothing may still be writing to it.** `TempTreeLeakCheck`
   fails the run if one is left in `%TEMP%\rommbat-tests`, naming the test that made it and

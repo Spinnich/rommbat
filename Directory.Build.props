@@ -55,7 +55,7 @@
   <PropertyGroup>
     <!--
       Deterministic output, so rebuilding a commit produces the same bytes and a
-      published artefact can be checked against its tag.
+      published artifact can be checked against its tag.
     -->
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>

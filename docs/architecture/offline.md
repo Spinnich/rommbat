@@ -1,6 +1,6 @@
 ---
 summary: How every operation behaves when the server is unreachable, a transfer is cut, or the clock is wrong.
-read-when: Before adding an operation that reaches the server, to give it a defined offline behaviour.
+read-when: Before adding an operation that reaches the server, to give it a defined offline behavior.
 ---
 
 # Being offline is the normal case
@@ -8,7 +8,7 @@ read-when: Before adding an operation that reaches the server, to give it a defi
 Not an error path. The network is an enrichment, probed with a short-timeout
 `GET /api/heartbeat`, never assumed.
 
-| Situation                | Behaviour                                                                                                                                                                                                      |
+| Situation                | Behavior                                                                                                                                                                                                       |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Server unreachable       | Every operation completes locally or queues. Browse falls back to the local subset and says so                                                                                                                 |
 | Mid-download disconnect  | `.part` file survives; the next run resumes with `Range`                                                                                                                                                       |

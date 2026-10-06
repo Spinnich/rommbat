@@ -88,7 +88,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md), and report security issues as
 | [RomM](https://github.com/rommapp/romm)                   | The self-hosted ROM manager RomMBat syncs against     |
 | [RetroBat](https://github.com/RetroBat-Official/retrobat) | The Windows retro-gaming distro RomMBat installs into |
 
-## Licence
+## License
 
 [GPL-3.0](LICENSE), matching the RomM Playnite plugin and Argosy.
 

@@ -92,7 +92,7 @@ touching them.
 On each row, slot 2's state and `.png` were deleted with the `.srm`. The preview named the
 screenshot it would bring back, and `--apply` answered `restored 1 save(s) and 1 state(s), failed
 0, ... with 1 screenshot(s)`, exit 0. **Every file came back at its own md5**, and slot 2's image
-is not slot 1's on either row, so the link is to that state and not to a neighbour.
+is not slot 1's on either row, so the link is to that state and not to a neighbor.
 
 **`-state_slot` did not pick the slot**, and that corrected the `nestopia` record. `mesen` was
 launched with `-state_slot 5` and wrote slots 1 and 2, and RetroArch's log shows it choosing:

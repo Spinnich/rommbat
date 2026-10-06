@@ -16,7 +16,7 @@ namespace RomMBat.Agent;
 /// twice as tall and a 41-module code then does not fit an 80x30 window.
 /// </para>
 /// <para>
-/// Colours are set explicitly rather than relying on the terminal's own, because a scanner
+/// Colors are set explicitly rather than relying on the terminal's own, because a scanner
 /// needs dark modules to actually be dark: rendering with block characters alone inverts
 /// the code on a dark-background terminal.
 /// </para>
@@ -72,7 +72,7 @@ internal static class ConsoleQr
     }
 
     /// <summary>
-    /// The redirected-output form: block characters, no colour.
+    /// The redirected-output form: block characters, no color.
     /// </summary>
     /// <remarks>
     /// Two characters per module, so it stays square, and one row per module. Whether it

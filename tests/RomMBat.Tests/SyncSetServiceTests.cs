@@ -277,7 +277,7 @@ public sealed class SyncSetServiceTests : IDisposable
     {
         PairWith([.. RomMScopes.Requested]);
 
-        // The generalising form. A scope is pickable only if something can produce its value:
+        // The generalizing form. A scope is pickable only if something can produce its value:
         // the platform picker, the collection picker, or the filter's own fields.
         foreach (var option in Service.Scopes().Where(o => o.Available))
         {
@@ -405,7 +405,7 @@ public sealed class SyncSetServiceTests : IDisposable
         // complaining, which produced the widest possible scope from a command naming three
         // games. The agent refuses it.
         //
-        // This behaviour is unchanged and is correct: a filter is built from fields, so a
+        // This behavior is unchanged and is correct: a filter is built from fields, so a
         // draft carrying a value has nothing to do with it, and a front end assembling one has
         // no value to supply. Asserted so that a later change here is a deliberate one.
         var outcome = Service.Add(

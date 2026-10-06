@@ -31,7 +31,7 @@ template was correct and one `<directory>` declaration still is not: **`openmsx`
 `saves/msx1/openmsx`. So never read an empty declared directory as "this game has no states",
 and cross-check against the emulator's generated config where it matters.
 
-**A `<core>` override is honoured for `enabled` and ignored for `system` and `directory`.**
+**A `<core>` override is honored for `enabled` and ignored for `system` and `directory`.**
 `SaveStateSchema.ReadCores` parses all three, and `MatchDirectory`, the only consumer, reads
 `Enabled` alone. `<defaultCoreDirectory>` is not parsed at all. Nothing that ships takes this
 path: RetroBat 8.2.1 carries both only as a commented-out sample under `libretro`

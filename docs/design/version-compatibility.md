@@ -11,7 +11,7 @@ Every RomMBat release states the minimum RomM and RetroBat versions it supports.
 **The floor tracks the newest stable, it does not sit at the oldest version that happens to
 work.** RomMBat adopts a new RomM or RetroBat stable within one release of it appearing and
 moves the minimum with it. Two reasons, both specific to this project. Every fact in
-`docs/upstream/` is a measurement of one build's behaviour, and supporting a range
+`docs/upstream/` is a measurement of one build's behavior, and supporting a range
 means owning that measurement on every version in the range, on a `(system, emulator, core)`
 matrix that is already two to four passes per row. And RetroBat's own updater moves users
 forward, so a wide floor buys compatibility with installs that mostly do not exist while

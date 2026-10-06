@@ -142,7 +142,7 @@ internal sealed record StubFirmware(int Id, string FileName, byte[] Bytes)
 /// </summary>
 /// <remarks>
 /// This is the harness `docs/architecture/projects.md` calls the highest-value suite. Being offline
-/// is the normal case for this app, so the interesting behaviour is what happens when the
+/// is the normal case for this app, so the interesting behavior is what happens when the
 /// server disappears partway through something, and that cannot be tested against a server
 /// that is always up.
 /// <para>
@@ -177,7 +177,7 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
 
     /// <summary>What <c>GET /api/heartbeat</c> reports as <c>SYSTEM.VERSION</c>.</summary>
     /// <remarks>
-    /// The floor, so a test that goes through the compatibility check reaches the behaviour it
+    /// The floor, so a test that goes through the compatibility check reaches the behavior it
     /// is about. It defaulted to <c>5.2.0</c> until the floor moved, which then read as a
     /// server the client refuses, and the screens that check at startup stopped before doing
     /// anything: two pairing tests timed out waiting for an approval that could not be asked
@@ -600,7 +600,7 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// Serves firmware content the way the measured server does.
     /// </summary>
     /// <remarks>
-    /// Two behaviours are copied from a live instance rather than invented. The file name in
+    /// Two behaviors are copied from a live instance rather than invented. The file name in
     /// the URL is <b>not read</b>: the right id under any name serves the bytes. And a record
     /// flagged <c>missing_from_fs</c> answers <b>500</b> with a bare "Internal Server Error"
     /// rather than 404, which is why a plan must skip such a record instead of promising it.
@@ -649,7 +649,7 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// Serves ROM content the way the measured server does, traps included.
     /// </summary>
     /// <remarks>
-    /// Three behaviours are copied from a live instance rather than invented. A <c>Range</c>
+    /// Three behaviors are copied from a live instance rather than invented. A <c>Range</c>
     /// header on a multi-file ROM is refused <b>403</b>, in every form. A single-file request
     /// answers <b>206</b> with a <c>Content-Range</c> and an <c>ETag</c>. And a stale
     /// <c>If-Range</c> answers <b>200</b> with the whole body rather than splicing, which is

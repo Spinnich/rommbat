@@ -268,7 +268,7 @@ public sealed class PlaytimeCorrelator
         }
 
         // Otherwise the most recent launch before the end. A menu launch reaching here is
-        // still recognised as one and discarded by the caller.
+        // still recognized as one and discarded by the caller.
         return candidates[0];
     }
 
@@ -279,7 +279,7 @@ public sealed class PlaytimeCorrelator
         if (romPath is not { } path)
         {
             // Nothing names a game. rom_id is genuinely optional on the endpoint, which is not
-            // a licence to send a session without one: an unattributed session is not useful.
+            // a license to send a session without one: an unattributed session is not useful.
             return null;
         }
 
@@ -312,7 +312,7 @@ public sealed class PlaytimeCorrelator
     private void Enqueue(PendingPlaySession session, DateTimeOffset now)
     {
         // The payload rather than columns, because a play session is not a file and the outbox
-        // columns describe one. Serialised with the property names the endpoint wants, so the
+        // columns describe one. Serialized with the property names the endpoint wants, so the
         // flush hands it over rather than rebuilding it.
         var payload = JsonSerializer.Serialize(session);
 

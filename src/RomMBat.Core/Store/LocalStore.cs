@@ -198,7 +198,7 @@ public sealed class LocalStore : IDisposable
         catch
         {
             // The caller never receives a store to dispose, and the UI outlives a refusal, so
-            // the file handle is released here rather than left to the finaliser.
+            // the file handle is released here rather than left to the finalizer.
             store.Dispose();
             throw;
         }
@@ -236,7 +236,7 @@ public sealed class LocalStore : IDisposable
     /// through the connection directly, so a transaction that only relied on its inner calls to
     /// gate themselves would drop the gate between statements: another thread could create and
     /// dispose a command on the same connection mid-transaction, which is exactly the
-    /// unserialised prepared-statement-list mutation <see cref="StoreGate"/> exists to stop, and
+    /// unserialized prepared-statement-list mutation <see cref="StoreGate"/> exists to stop, and
     /// its reads would land inside an open transaction and see uncommitted rows.
     /// <see cref="StoreGate"/> is re-entrant, which is what lets the inner calls take it again.
     /// </remarks>
@@ -300,7 +300,7 @@ public sealed class LocalStore : IDisposable
     /// <summary>Closes the connection, blocking until no other thread is inside it.</summary>
     /// <remarks>
     /// <b>Disposal is ordered by <see cref="StoreGate"/> like every other use of the connection,
-    /// and for a while it was the one path that was not.</b> A screen's loader is cancelled when
+    /// and for a while it was the one path that was not.</b> A screen's loader is canceled when
     /// the screen is disposed and is not waited for, so it can still be mid-read when the session
     /// closes; <c>SqliteConnection.Close</c> then enumerated its prepared-statement list while
     /// that reader mutated it and threw out of here. <b>The symptom varies</b>, so do not match

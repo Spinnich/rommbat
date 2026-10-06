@@ -46,7 +46,7 @@ public class SaveArchiveTests
     [Fact]
     public void The_hash_moves_when_a_member_is_renamed_and_when_its_contents_change()
     {
-        // Both halves matter. Contents alone would miss a game reorganising its savedata, and
+        // Both halves matter. Contents alone would miss a game reorganizing its savedata, and
         // names alone would miss the ordinary case of a save being written.
         var members = new Dictionary<string, byte[]>(StringComparer.Ordinal)
         {

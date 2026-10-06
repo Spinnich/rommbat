@@ -71,7 +71,7 @@ public class NavRepeatTests
     {
         var nav = new NavRepeat();
 
-        // joystick1down and joystick1right are synthesised by GamepadReader, because
+        // joystick1down and joystick1right are synthesized by GamepadReader, because
         // es_input.cfg records only one direction per axis. A stick that could move a menu up
         // and never down would read as a broken pad.
         Assert.Equal([NavAction.Up], nav.Advance(Held("joystick1up"), T0));

@@ -110,7 +110,7 @@ public static class RootScreens
             Add(
                 new ListRow(
                     "Platforms",
-                    // Not Plural: "unmapped" is an adjective, and pluralising it produced
+                    // Not Plural: "unmapped" is an adjective, and pluralizing it produced
                     // "5 unmappeds" on the live install. Only count nouns go through Plural.
                     unmapped == 0 ? "all mapped" : Counted(unmapped, "unmapped"),
                     unmapped == 0

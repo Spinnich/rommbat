@@ -15,7 +15,7 @@ Every row boots all three without firmware. ares, core `Mega32X`, keeps `ares/Me
 ## RB-414. BizHawk writes a zeroed `sega32x` battery file at boot for every cartridge, battery or not
 
 Verified: RetroBat 8.2.1, 2026-10-05. How: launched each game under `bizhawk`/`PicoDrive` through `emulatorLauncher`, closed the window, read the file.
-Knuckles' Chaotix left a 1,024 B `.SaveRAM`, NBA Jam 8,192 B and Doom, which has no battery, 16,384 B, every byte `0x00`. NBA Jam's game initialises its EEPROM at boot, as the other rows' files show, and BizHawk's file stays zero. `ErasedSave` passes over `0xFF` only, so by the maintainer's decision these upload as saves
+Knuckles' Chaotix left a 1,024 B `.SaveRAM`, NBA Jam 8,192 B and Doom, which has no battery, 16,384 B, every byte `0x00`. NBA Jam's game initializes its EEPROM at boot, as the other rows' files show, and BizHawk's file stays zero. `ErasedSave` passes over `0xFF` only, so by the maintainer's decision these upload as saves
 
 ## RB-415. ares and BizHawk do not keep a `sega32x` serial EEPROM, while their SRAM saves round-trip
 

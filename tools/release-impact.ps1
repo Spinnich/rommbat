@@ -103,5 +103,5 @@ if (-not $isStable -or $new.Major -lt 1) { exit 0 }
 $old = ConvertTo-Core $previous
 $bump = if ($new.Major -gt $old.Major) { 3 } elseif ($new.Minor -gt $old.Minor) { 2 } else { 1 }
 if ($old.Major -ge 1 -and $bump -lt $highest) {
-    throw "v$Version is a $($names[$bump]) bump over $previous, but a merged PR is labelled semver:$($names[$highest]). Delete the tag and push the right one."
+    throw "v$Version is a $($names[$bump]) bump over $previous, but a merged PR is labeled semver:$($names[$highest]). Delete the tag and push the right one."
 }

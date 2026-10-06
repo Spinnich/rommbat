@@ -35,7 +35,7 @@ public sealed class NavRepeat
     /// </summary>
     /// <remarks>
     /// The stick's four directions sit beside the d-pad's rather than replacing them, because
-    /// a pad has both and a user reaches for either. The synthesised <c>joystick1down</c> and
+    /// a pad has both and a user reaches for either. The synthesized <c>joystick1down</c> and
     /// <c>joystick1right</c> come from <see cref="GamepadReader"/>, since <c>es_input.cfg</c>
     /// records only one direction per axis.
     /// </remarks>

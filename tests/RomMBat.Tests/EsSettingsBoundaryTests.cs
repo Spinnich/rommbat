@@ -12,12 +12,12 @@ namespace RomMBat.Tests;
 /// </summary>
 /// <remarks>
 /// <b>This is the most important UI test, and it is deliberately not a test of
-/// behaviour.</b> A test that drove a screen and checked the file was untouched would pass for
+/// behavior.</b> A test that drove a screen and checked the file was untouched would pass for
 /// a UI that simply had not been asked to write one yet. What has to hold is stronger: there is
 /// no code path from the UI to that writer at all.
 /// <para>
 /// <b>Why the rule cannot be bent.</b> The UI is launched from the EmulationStation menu, so ES
-/// is always up by construction, and ES loads <c>es_settings.cfg</c> at startup and serialises
+/// is always up by construction, and ES loads <c>es_settings.cfg</c> at startup and serializes
 /// its own model over anything written underneath. A key that appears afterwards is discarded,
 /// and merging and atomicity do not help: both were tried and the write still vanished
 /// (RB-178 and RB-179). Every change therefore goes through
@@ -34,7 +34,7 @@ namespace RomMBat.Tests;
 /// </remarks>
 public class EsSettingsBoundaryTests
 {
-    /// <summary>The writer the UI may never reach, and its neighbours in the same file.</summary>
+    /// <summary>The writer the UI may never reach, and its neighbors in the same file.</summary>
     private static readonly string[] Forbidden =
     [
         nameof(EsSettingsFile),

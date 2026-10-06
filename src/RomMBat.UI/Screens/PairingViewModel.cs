@@ -157,7 +157,7 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
     }
 
     /// <summary>
-    /// The token the run in flight was started with, so a test can assert what cancelled it.
+    /// The token the run in flight was started with, so a test can assert what canceled it.
     /// </summary>
     internal CancellationToken CurrentRun => _run.Token;
 
@@ -165,7 +165,7 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
     /// Abandons the request in flight and asks for a new one.
     /// </summary>
     /// <remarks>
-    /// <b>The old run has to be cancelled, not just forgotten.</b> It is parked inside
+    /// <b>The old run has to be canceled, not just forgotten.</b> It is parked inside
     /// <c>AwaitApprovalAsync</c>, which returns only on approval, denial, a server error or
     /// the old code's own expiry. Left running it writes "the pairing code expired" over the
     /// fresh code now on screen, or is approved and saves a second pairing concurrently with
@@ -321,7 +321,7 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
     /// A run is still unwinding when this returns, and disposing a source whose token that run
     /// may still register on throws <see cref="ObjectDisposedException"/> on the background
     /// thread, where it becomes an unobserved task exception rather than anything anyone sees.
-    /// Cancelling releases the registrations; the source itself is a few bytes for the GC.
+    /// Canceling releases the registrations; the source itself is a few bytes for the GC.
     /// </remarks>
     public void Dispose()
     {

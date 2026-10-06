@@ -134,7 +134,7 @@ public static class RomGameId
             return RomGameIdResult.Refused("it is a CHD, which carries no header in the clear");
         }
 
-        return RomGameIdResult.Refused("it carries no header this build recognises");
+        return RomGameIdResult.Refused("it carries no header this build recognizes");
     }
 
     /// <summary>Four upper-case letters or digits, which is the disc game-code shape.</summary>

@@ -11,7 +11,7 @@ namespace RomMBat.Core.RetroBat;
 /// <remarks>
 /// Three exist and they are not interchangeable. <c>{{slot2d}}</c> is exactly two digits,
 /// <c>{{slot0}}</c> exactly one, and <c>{{slot}}</c> is the free form only <c>libretro</c> uses.
-/// The width is what stops a glob picking up a neighbour: DeSmuME declares
+/// The width is what stops a glob picking up a neighbor: DeSmuME declares
 /// <c>{{romfilename}}.ds{{slot0}}</c> and writes its <b>battery</b> save as
 /// <c>{{romfilename}}.dsv</c>, so a one-digit anchor is the difference between finding one save
 /// state and uploading a battery save as slot "v".
@@ -327,7 +327,7 @@ public sealed class SaveStateSchema
     /// <summary>Parses the document.</summary>
     /// <remarks>
     /// An <c>&lt;emulator&gt;</c> with no <c>&lt;file&gt;</c> is dropped rather than defaulted:
-    /// with no filename rule there is nothing to recognise a state by, and inventing one is how
+    /// with no filename rule there is nothing to recognize a state by, and inventing one is how
     /// a client uploads a file that is not a save state.
     /// </remarks>
     public static SaveStateSchema Parse(Stream stream)
@@ -465,7 +465,7 @@ public sealed record SaveStateDirectory(SaveStateEmulator Emulator, string Syste
 /// One expansion of an emulator's templates for a given system and core.
 /// </summary>
 /// <remarks>
-/// Holds the directory the states are expected under and an expression that recognises one and
+/// Holds the directory the states are expected under and an expression that recognizes one and
 /// hands back the ROM stem and the slot. Built once per (emulator, system, core) rather than per
 /// file.
 /// </remarks>
@@ -550,7 +550,7 @@ public sealed partial class SaveStateTemplate
     }
 
     /// <summary>
-    /// Recognises a filename as a save state and says which ROM and slot it belongs to.
+    /// Recognizes a filename as a save state and says which ROM and slot it belongs to.
     /// </summary>
     /// <remarks>
     /// <b>The autosave rule is tried first.</b> <c>libretro</c> declares

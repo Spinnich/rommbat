@@ -257,8 +257,8 @@ public sealed partial class RomMConnection
     /// <summary>Closes a negotiate session. Needs <c>devices.write</c>.</summary>
     /// <remarks>
     /// Closing one twice answers 400 with <c>Session is already COMPLETED</c>, which
-    /// <see cref="AlreadyCompleted"/> recognises. The server's other terminal states,
-    /// <c>FAILED</c> and <c>CANCELLED</c>, word the same refusal and are not a close that landed.
+    /// <see cref="AlreadyCompleted"/> recognizes. The server's other terminal states,
+    /// <c>FAILED</c> and <c>CANCELED</c>, word the same refusal and are not a close that landed.
     /// </remarks>
     public Task<RomMResponse<bool>> CompleteSyncSessionAsync(
         int sessionId,
@@ -337,7 +337,7 @@ public sealed partial class RomMConnection
     /// </para>
     /// <para>
     /// The endpoint also takes <c>start_after</c>, <c>end_before</c> and <c>offset</c>, and this
-    /// sends none of them. Their serialisation has never been put to a real server, so adding
+    /// sends none of them. Their serialization has never been put to a real server, so adding
     /// one means measuring it rather than assuming <c>"O"</c> is the format RomM parses.
     /// </para>
     /// </remarks>

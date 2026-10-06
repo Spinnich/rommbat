@@ -119,7 +119,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// </summary>
     /// <remarks>
     /// A confirmation that acts in place kept its question as the heading after it was
-    /// answered, so "Cancel this change?" sat over a row reading "Cancelled". A finished screen
+    /// answered, so "Cancel this change?" sat over a row reading "Canceled". A finished screen
     /// says so in its title as well as its rows and footer.
     /// </remarks>
     public Func<string>? TitleWhen { get; init; }
@@ -132,7 +132,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// <remarks>
     /// <b>Read on every draw, because the constructor's argument is not.</b> Three screens
     /// passed a ternary over a flag their own verb sets, which is evaluated once with the flag
-    /// still false: after cancelling a queued change the row read "Cancelled" and the footer
+    /// still false: after canceling a queued change the row read "Canceled" and the footer
     /// still offered to keep it queued. A label that changes with what the screen has done says
     /// so through <see cref="BackLabelWhen"/>.
     /// </remarks>
@@ -307,7 +307,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
         {
             _reading = value;
 
-            // Set here rather than read in the constructor, because an object initialiser runs
+            // Set here rather than read in the constructor, because an object initializer runs
             // after it: the constructor computed a cursor with this still false, parked at -1
             // because no row is available, and the first press then stepped from -2. Caught by
             // the test below rather than from the couch, which is the only reason it is not a
@@ -445,7 +445,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
 
         _disposed = true;
 
-        // Cancelled, never disposed: a request still unwinding can register on this token.
+        // Canceled, never disposed: a request still unwinding can register on this token.
         _load.Cancel();
     }
 
@@ -505,7 +505,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
         {
             // Re-read for the same reason a chosen row's Stay does below: a verb that acts in
             // place has changed a flag the row factory reads, and the pane would otherwise go
-            // on describing what it just cancelled, dropped or queued.
+            // on describing what it just canceled, dropped or queued.
             if (answered.Kind == ScreenCommandKind.Stay)
             {
                 Returned();
@@ -617,7 +617,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// </summary>
     /// <remarks>
     /// <b>Because a loader finishes on the thread pool.</b> <see cref="Returned"/> runs in the
-    /// load's continuation, before <see cref="Invalidated"/> is raised and marshalled, so it
+    /// load's continuation, before <see cref="Invalidated"/> is raised and marshaled, so it
     /// writes while the drawing thread may be inside <c>Handle</c> or <c>Hints</c>. Written as
     /// two fields it set the rows first and clamped the cursor second, and a read landing
     /// between them indexed a shorter list with the old cursor. One reference assignment

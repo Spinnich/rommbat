@@ -26,7 +26,7 @@
 
     Not trimmed, and that is measured rather than lazy: trimming takes this from 101 MB to
     61 MB and 1041 ms to 517 ms, but Core and RomM.Client raise 16 IL2026 warnings whose
-    failure mode is a runtime deserialisation fault in a build that linked cleanly. See #98.
+    failure mode is a runtime deserialization fault in a build that linked cleanly. See #98.
   -->
   <ItemGroup>
     <PackageReference Include="Avalonia" />

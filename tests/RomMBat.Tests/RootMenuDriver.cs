@@ -11,7 +11,7 @@ namespace RomMBat.Tests;
 /// <remarks>
 /// <b>By row label, never by index.</b> The root's verbs are nine rows, and a test that
 /// pressed Down four times would keep passing when the rows were
-/// reordered or when one of them was mislabelled, which is exactly what the tests using this are
+/// reordered or when one of them was mislabeled, which is exactly what the tests using this are
 /// there to catch. Naming the row means the assertion fails when the row a person would look for
 /// is not the row that opens.
 /// <para>
@@ -46,7 +46,7 @@ internal static class RootMenuDriver
         }
 
         Assert.Fail(
-            $"The root menu has no selectable row labelled '{label}'. It has: "
+            $"The root menu has no selectable row labeled '{label}'. It has: "
                 + string.Join(", ", menu.Rows.Select(row => row.Label)));
     }
 }

@@ -202,7 +202,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
             var state = _state;
 
             // Nothing while a page is on its way. The renderer draws the loading message in the
-            // body, so saying it here as well put "Asking RomM" on screen twice, once centred
+            // body, so saying it here as well put "Asking RomM" on screen twice, once centered
             // and once left, which reads as a screen that has drawn itself wrong.
             if (state.IsLoading)
             {
@@ -332,7 +332,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
 
     public void Dispose()
     {
-        // Cancelled, never disposed: a request still unwinding can register on this token.
+        // Canceled, never disposed: a request still unwinding can register on this token.
         _load.Cancel();
 
         // Under the same lock the fetch opens it under. This runs on the thread that draws and
@@ -457,7 +457,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
                 }
                 finally
                 {
-                    // Every exit, the cancelled one included. A guard left set by a path that
+                    // Every exit, the canceled one included. A guard left set by a path that
                     // did not clear it is a screen that never fetches again, which from the
                     // couch is indistinguishable from a hang.
                     lock (_gate)

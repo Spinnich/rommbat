@@ -43,7 +43,7 @@ public sealed record SaveSlotRecord(
 /// Four of these fields cannot be recomputed locally: <c>save_id</c> is the only way to address
 /// a save for download or ack, <c>file_name</c> is what the server renamed the upload to,
 /// <c>server_content_hash</c> is what decides a conflict, and <c>origin_device_id</c> is how
-/// this device recognises its own upload coming back down.
+/// this device recognizes its own upload coming back down.
 /// </remarks>
 public sealed class SaveSlotStore
 {
@@ -92,7 +92,7 @@ public sealed class SaveSlotStore
     /// </summary>
     /// <remarks>
     /// <b>Every path that writes server bytes into a slot owes this.</b> The recorded save id is
-    /// what recognises a superseded row returning to the head of its slot, and what scopes the
+    /// what recognizes a superseded row returning to the head of its slot, and what scopes the
     /// in-step rule for a stale upload record to the row this device last exchanged.
     /// <para>
     /// Class A breaks more quietly. Its wire hash is the file's own, so nothing uploads, but the
@@ -192,7 +192,7 @@ public sealed class SaveSlotStore
     /// True when the current save in a slot is one this device uploaded.
     /// </summary>
     /// <remarks>
-    /// <c>origin_device_id</c> names the uploader, which is the cheapest way to recognise your
+    /// <c>origin_device_id</c> names the uploader, which is the cheapest way to recognize your
     /// own save coming back down and decide whether a download is worth acting on.
     /// <para>
     /// This reads the row. A caller that already holds one asks it directly with

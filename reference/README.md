@@ -80,7 +80,7 @@ projects, and RomM's `is_verified` misses 60% of what RetroBat requires.
 
 **The gamelist exporter settles two units and gets a third field wrong**
 
-`verify.py` asserts behaviours rather than counts here, because the writer depends on them.
+`verify.py` asserts behaviors rather than counts here, because the writer depends on them.
 Confirmed in upstream's own code: `first_release_date` is divided by 1000, so it is
 **milliseconds**, and `average_rating` is divided by 100, so it is on a **0-100** scale, with
 a comment saying as much. Both match what RomMBat measured live.

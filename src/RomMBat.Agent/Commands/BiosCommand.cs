@@ -273,7 +273,7 @@ internal static class BiosCommand
             Console.WriteLine();
             Console.WriteLine(
                 $"{unverifiable} of these are files RetroBat lists without a hash. RomMBat can neither find "
-                    + "them in RomM nor recognise them on disk, so it says nothing about whether you have them."
+                    + "them in RomM nor recognize them on disk, so it says nothing about whether you have them."
                     + (named > 0
                         ? $" For {named} of them RomM holds a file under the same name, named above, which is "
                             + "never fetched: whether it is the right one is yours to judge."

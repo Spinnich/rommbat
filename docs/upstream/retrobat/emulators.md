@@ -65,7 +65,7 @@ tolerates both.
 
 Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. How: counted launches with `-system retrobat` and a rom under `system\es_menu\`.
 There were 27 on 8.2.0 and 9 in the 8.2.1 `.log.old`. So RomMBat's own exit, which fires a
-`game-end` with no game behind it, is recognised from the log rather than inferred.
+`game-end` with no game behind it, is recognized from the log rather than inferred.
 `LaunchRecord.IsMenuLaunch` carries it, and `PlaytimeCorrelator` discards that `game-end`.
 
 ## RB-252. `-core` means nothing for an emulator that declares no core

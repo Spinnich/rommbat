@@ -52,7 +52,7 @@ and review those by eye.
 - **Only what the branch touched**, plus any doc the branch made false. A sentence the diff
   falsified is in scope and blocking, even in a file the diff never opened. Other pre-existing
   problems go in a separate list, not the findings.
-- **Severity is the honest one.** Blocking means it must not merge as is. A nit labelled as a
+- **Severity is the honest one.** Blocking means it must not merge as is. A nit labeled as a
   bug costs a round.
 - **An empty review is a valid result.** "CI green, invariants hold, nothing blocking" is complete.
 

@@ -66,12 +66,12 @@ public sealed record ResolveReport(
 /// live instance: a platform scope of 9,196 roms walked in <b>8 minutes 15 seconds</b> at 250
 /// rows a page. That is why this reports through <see cref="IProgress{T}"/> and why
 /// cancellation is a first-class outcome rather than only a failure path: nobody holds a
-/// controller for eight minutes, so a cancelled walk is the ordinary case and it must resume.
+/// controller for eight minutes, so a canceled walk is the ordinary case and it must resume.
 /// </para>
 /// <para>
-/// <b>A cancelled walk is Interrupted, not an error.</b> It records its offset exactly as an
+/// <b>A canceled walk is Interrupted, not an error.</b> It records its offset exactly as an
 /// unreachable server does, so the next resolve continues from there. That is the whole
-/// difference between cancelling and losing eight minutes of paging.
+/// difference between canceling and losing eight minutes of paging.
 /// </para>
 /// <para>
 /// <b>Only a completed walk retires membership.</b> A segment is an accumulator, not a
@@ -337,7 +337,7 @@ public sealed class SetResolveService
 }
 
 /// <summary>
-/// A resolve the caller cancelled, carrying what it managed to record.
+/// A resolve the caller canceled, carrying what it managed to record.
 /// </summary>
 /// <remarks>
 /// Cancellation has to be observable as cancellation, so the caller can tell "the user pressed

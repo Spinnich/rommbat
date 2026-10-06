@@ -43,7 +43,7 @@ public sealed record SaveUnit(
     /// The newest rather than the container's own, because a directory's mtime moves for
     /// reasons that have nothing to do with a save and does not move for a rewrite in place.
     /// It only ever breaks ties: the content hash decides whether anything changed, since
-    /// exFAT and FAT32 both quantise to 2 seconds and round up.
+    /// exFAT and FAT32 both quantize to 2 seconds and round up.
     /// </remarks>
     public DateTimeOffset? NewestMtimeUtc => Files.Count == 0 ? null : Files.Max(file => file.MtimeUtc);
 

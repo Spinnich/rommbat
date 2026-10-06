@@ -74,7 +74,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
             cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(resumed.IsSuccess, resumed.Message);
-        Assert.True(resumed.Value!.Resumed, "A range request should have been honoured with a 206.");
+        Assert.True(resumed.Value!.Resumed, "A range request should have been honored with a 206.");
         Assert.False(resumed.Value.RestartedFromScratch);
         Assert.Equal(whole.ToArray(), spliced.ToArray());
     }

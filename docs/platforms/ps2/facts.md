@@ -47,7 +47,7 @@ Driven on hardware under real budget pressure. With the budget 485.5 MB over and
 
 ## RB-187. Reverting a conversion restores `es_settings.cfg`, and only ES's own bookkeeping moves afterwards
 
-Against a byte copy taken before the conversion: **57 settings before, 57 after the revert, nothing added, nothing dropped, no `pcsx2_slot1_memory` and no RomMBat key left**. The file's md5 differs, and the whole difference is `LastSystem`, which ES rewrites to record where the user was in the UI. So a byte comparison is the wrong assertion for this file and a **setting-set comparison is the right one**, which is the same lesson `gamelist.xml` teaches: compare what the writer owns, not the bytes a second writer also touches. The `absent` prior state was honoured, the key being removed rather than written at a stock value
+Against a byte copy taken before the conversion: **57 settings before, 57 after the revert, nothing added, nothing dropped, no `pcsx2_slot1_memory` and no RomMBat key left**. The file's md5 differs, and the whole difference is `LastSystem`, which ES rewrites to record where the user was in the UI. So a byte comparison is the wrong assertion for this file and a **setting-set comparison is the right one**, which is the same lesson `gamelist.xml` teaches: compare what the writer owns, not the bytes a second writer also touches. The `absent` prior state was honored, the key being removed rather than written at a stock value
 
 ## RB-188. After a revert the per-game card stays on disk, keeps its `local_save` row, and goes on syncing, by decision
 

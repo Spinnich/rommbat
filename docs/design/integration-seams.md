@@ -46,7 +46,7 @@ ES events include `start`, `game-start`, `game-end`, `game-selected`, `system-se
 `quit`, `shutdown`, `sleep`, `wake`, `update-gamelists`. RetroBat ships
 `.emulationstation/scripts/start/updatestores.bat` and
 `.emulationstation/scripts/update-gamelists/updatestores.bat`, which proves the `.bat`
-path works **for a script that takes no arguments**. It does not generalise: a
+path works **for a script that takes no arguments**. It does not generalize: a
 `.bat` fails to start at all once ES quotes an argument, which it does for any value
 containing a space (RB-352, RB-397). Nine event folders exist on disk; `game-selected` and `system-selected`
 fire (ES logs them on every navigation move, with system, rom path and display name) but

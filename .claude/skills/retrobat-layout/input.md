@@ -51,7 +51,7 @@ configuring a controller in ES is what rewrites the file.
 **The GUID has two spellings and a straight comparison never matches.** SDL 2.0.18+ fills bytes
 2-3 of a joystick GUID with a CRC-16 of the device name; ES writes them zeroed. The same 8BitDo
 is `0300b155c82d0000...` from the running library and `03000000c82d0000...` in the file.
-Normalise before comparing; `EsInputMap.NormalizeGuid` is the one place that does it.
+Normalize before comparing; `EsInputMap.NormalizeGuid` is the one place that does it.
 
 **The ids are SDL _joystick_ indices, so only the same library can read them.** `emulationstation.exe`
 imports **`SDL2.dll`** (2.32.8 on 8.2.1) and not `SDL3.dll`, though RetroBat ships both. RomMBat
@@ -129,7 +129,7 @@ asleep in its cradle at launch, batteries that go mid-session, and a virtual pad
 streaming host that attaches only once the client sends input are the same shape, and all three
 end with a person holding a controller that does nothing and no way to reach the thing that
 would restart the app. A lost pad also does not announce itself: reading a handle whose device
-has gone away returns released buttons and centred axes, which is exactly what an untouched
+has gone away returns released buttons and centered axes, which is exactly what an untouched
 controller looks like, so `SDL_JoystickGetAttached` is the only way to tell them apart.
 `GamepadReader` asks that per frame and re-enumerates once a second when it holds nothing.
 RB-231.

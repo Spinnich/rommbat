@@ -108,7 +108,7 @@ internal static class FlushCommand
         if (report.Drained is { IsNoOp: false } drained && !quiet)
         {
             Console.WriteLine($"hooks: {drained.Ingested} events read"
-                + (drained.Malformed > 0 ? $", {drained.Malformed} unrecognised and discarded" : string.Empty)
+                + (drained.Malformed > 0 ? $", {drained.Malformed} unrecognized and discarded" : string.Empty)
                 + (drained.Unreadable > 0
                     ? $", {drained.Unreadable} written by a newer hook and kept for a newer agent"
                     : string.Empty)

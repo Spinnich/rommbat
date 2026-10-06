@@ -17,7 +17,7 @@ Part of the [offline-and-portable](SKILL.md) skill. How threads share the SQLite
   `Commit` issue their own `BEGIN` and `COMMIT` through the connection directly, so relying on
   the store calls inside the transaction to gate themselves drops the gate between every
   statement: another thread creates and disposes its own command mid-transaction, which is the
-  unserialised prepared-statement-list mutation this exists to stop, and its reads land inside an
+  unserialized prepared-statement-list mutation this exists to stop, and its reads land inside an
   open transaction and see uncommitted rows. `InTransaction` therefore enters the gate around the
   whole thing. `NextSequence` and `CurrentSequence` go through `Command()` for the same reason:
   a raw `CreateCommand` is ungated by construction. This was wrong when the gate was added, in
@@ -47,7 +47,7 @@ Part of the [offline-and-portable](SKILL.md) skill. How threads share the SQLite
   `SqliteDataRecord.AddChanges`, when the reader's statement is torn down first. Reproducing it
   six times on `a7b103a` gave four of the first and two of the second. It surfaced as the screen
   sweeps failing **only when
-  both test projects ran together**: a screen's loader is cancelled when the screen is disposed
+  both test projects ran together**: a screen's loader is canceled when the screen is disposed
   and never waited for, so under load it is still running when the session closes. Measured on
   main at `a7b103a`, one and then two of 1177 failing across two runs, while
   `tests/RomMBat.Tests` alone passed 1145 of 1145, which is exactly how a race of this shape
@@ -91,7 +91,7 @@ Part of the [offline-and-portable](SKILL.md) skill. How threads share the SQLite
   **The UI does write, and the assertion holds because a Core service takes the lock for it.** Two rules fall out, and the first is the one that
   looks wrong:
   - **A write to SQLite alone takes no lock.** Defining, editing or deleting a sync set, and
-    setting the disk budget, are rows in a WAL database. The tree lock serialises writers of
+    setting the disk budget, are rows in a WAL database. The tree lock serializes writers of
     _files in the tree_, and taking it for a set definition would refuse a user's set because
     somebody else was draining the outbox: two unrelated things sharing a mutex. A test asserts
     a set is definable while a background pass holds it.

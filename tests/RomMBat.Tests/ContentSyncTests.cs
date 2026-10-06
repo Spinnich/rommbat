@@ -19,8 +19,8 @@ namespace RomMBat.Tests;
 /// Content sync: what lands on disk, what does not, and what a second run does.
 /// </summary>
 /// <remarks>
-/// Driven against <see cref="StubRomMServer"/>, which copies the download behaviour measured
-/// against a live instance rather than an idealised version of it: 206 with an <c>ETag</c> for a
+/// Driven against <see cref="StubRomMServer"/>, which copies the download behavior measured
+/// against a live instance rather than an idealized version of it: 206 with an <c>ETag</c> for a
 /// single-file ROM, 403 for any range on a multi-file one, and a full 200 for a stale
 /// <c>If-Range</c>.
 /// </remarks>
@@ -124,7 +124,7 @@ public sealed class ContentSyncTests : IDisposable
         Assert.False(File.Exists(part));
 
         // The validator has to survive the transfer that died, or the resume asks the server to
-        // splice onto bytes it has no way of recognising.
+        // splice onto bytes it has no way of recognizing.
         Assert.Contains(
             stub.ContentRequests,
             request => request.Contains($"bytes={expected.Length / 3}-", StringComparison.Ordinal)
@@ -144,7 +144,7 @@ public sealed class ContentSyncTests : IDisposable
         await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         // The file changed on the server, so the partial bytes describe something that no
-        // longer exists. Measured behaviour: a full 200, never a 206 spliced onto stale bytes.
+        // longer exists. Measured behavior: a full 200, never a 206 spliced onto stale bytes.
         stub.ContentETag = "\"deadbeef-2000\"";
 
         var resumed = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
@@ -207,7 +207,7 @@ public sealed class ContentSyncTests : IDisposable
 
         await ResolveAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
-        // The server's copy shrank under a resume point the catalogue still describes as
+        // The server's copy shrank under a resume point the catalog still describes as
         // further out, so the range names a byte that no longer exists.
         stub.Content[1] = stub.Content[1][..1024];
 

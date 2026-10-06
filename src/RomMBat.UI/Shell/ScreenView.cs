@@ -129,8 +129,8 @@ internal static class ScreenView
 
     private static StackPanel Status(StatusViewModel status)
     {
-        // The block is centred; the rows inside it are not. A label-and-value list read across
-        // a room needs its labels to start on one line, and centring each row destroys that.
+        // The block is centered; the rows inside it are not. A label-and-value list read across
+        // a room needs its labels to start on one line, and centering each row destroys that.
         var stack = new StackPanel
         {
             Spacing = 22,
@@ -287,7 +287,7 @@ internal static class ScreenView
             var face = keyboard.Face(key);
 
             // Shift and the layer key are modes, so they say whether they are on. Upstream
-            // colours them for the same reason, and a mode nobody can see is the thing the
+            // colors them for the same reason, and a mode nobody can see is the thing the
             // original flat grid was built to avoid.
             var engaged = (key.Kind == KeyKind.Shift && keyboard.IsShifted)
                 || (key.Kind == KeyKind.Layer && keyboard.IsAlted);
@@ -527,7 +527,7 @@ internal static class ScreenView
 
         // Both markers always, empty when there is nothing to say. Adding and removing them as
         // the cursor reaches an end changed the height of the whole block, and the block is
-        // centred, so the list visibly resized and shifted while being scrolled.
+        // centered, so the list visibly resized and shifted while being scrolled.
         stack.Children.Add(More(window.Above, "above"));
 
         for (var index = window.Start; index < window.Start + window.Count; index++)
@@ -728,7 +728,7 @@ internal static class ScreenView
             });
         }
 
-        // Both markers always, empty when there is nothing to say, because the block is centred
+        // Both markers always, empty when there is nothing to say, because the block is centered
         // and adding one as the cursor reaches an end resizes the whole thing under the thumb.
         stack.Children.Add(More(window.Above, "above"));
 
@@ -870,11 +870,11 @@ internal static class ScreenView
     /// The fixed width every line of the sync screen is laid out in.
     /// </summary>
     /// <remarks>
-    /// <b>A centred <c>TextBlock</c> is as wide as its text, so it re-centres whenever the text
+    /// <b>A centered <c>TextBlock</c> is as wide as its text, so it re-centres whenever the text
     /// changes width.</b> This screen rebuilds up to eight times a second and almost every line
     /// on it is a number, so each redraw nudged the whole column sideways. A hands-on pass on a
     /// set of small ROMs called it double vision. Giving every volatile line the bar's own width
-    /// and centring the text inside it makes the box still and lets only the glyphs change.
+    /// and centering the text inside it makes the box still and lets only the glyphs change.
     /// </remarks>
     private const double SyncColumn = 620;
 
@@ -997,8 +997,8 @@ internal static class ScreenView
 
         if (state.Transferred is { } transferred)
         {
-            // Two anchored halves rather than one centred line. The rate and the total change
-            // independently, and a single centred string moves both of them whenever either
+            // Two anchored halves rather than one centered line. The rate and the total change
+            // independently, and a single centered string moves both of them whenever either
             // changes width. Here the transferred count grows leftwards from a fixed edge and
             // the rate grows rightwards from another, so neither pushes the other.
             var line = new Grid
@@ -1120,7 +1120,7 @@ internal static class ScreenView
     /// <remarks>
     /// <b>A finished progress bar and a stalled one are the same picture.</b> A hands-on pass
     /// sat on a resolve at 107 of 107 under a full bar and could not tell whether the last game
-    /// had hung. Drawn in the accent colour above the sentence, in the same treatment the
+    /// had hung. Drawn in the accent color above the sentence, in the same treatment the
     /// problems heading already uses, so it reads as a label on the screen rather than as one
     /// more line of detail. The word itself comes from the view model, because which one
     /// applies is a fact about the outcome.

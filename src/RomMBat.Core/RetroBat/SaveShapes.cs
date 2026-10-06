@@ -1017,7 +1017,7 @@ public sealed class SaveShapes
     /// Reads a class string, which is usually one letter and sometimes two.
     /// </summary>
     /// <remarks>
-    /// <c>megacd</c> is <c>BD</c>. An unrecognised letter becomes
+    /// <c>megacd</c> is <c>BD</c>. An unrecognized letter becomes
     /// <see cref="SaveShapeClass.Unknown"/> rather than being dropped, so a future class this
     /// build does not know is reported as unsyncable instead of silently treated as class A.
     /// </remarks>
@@ -1037,7 +1037,7 @@ public sealed class SaveShapes
     /// Reads the declared class C containers, dropping any this build cannot act on.
     /// </summary>
     /// <remarks>
-    /// A container with no path, no emulator, no slot or an unrecognised key kind is dropped
+    /// A container with no path, no emulator, no slot or an unrecognized key kind is dropped
     /// rather than defaulted. Every default available here is a guess about where to read
     /// someone's saves from, and the shipped alternative is reporting the system as unknown.
     /// </remarks>
@@ -1065,7 +1065,7 @@ public sealed class SaveShapes
     /// <remarks>
     /// An entry with no <c>option</c> names no key, so there is nothing to set and nothing to
     /// put back. Dropped rather than defaulted, for the same reason a container with an
-    /// unrecognised key kind is: every default available here is a guess about someone's
+    /// unrecognized key kind is: every default available here is a guess about someone's
     /// configuration.
     /// </remarks>
     private static PerGameConversion? ParseConversion(ConversionEntry? entry) =>

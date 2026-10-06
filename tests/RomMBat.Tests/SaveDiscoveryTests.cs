@@ -356,7 +356,7 @@ public class SaveDiscoveryTests
             "n64",
             "project64/sstates/THE LEGEND OF ZELDA-AA3911F5D5598E19E0183E15B6719C36/The Legend of Zelda - Ocarina of Time (U) (V1.0).pj.zip",
             "a state");
-        fixture.AddSave("n64", "project64/cache/nobody-declared.bin", "an unrecognised file");
+        fixture.AddSave("n64", "project64/cache/nobody-declared.bin", "an unrecognized file");
 
         fixture.ScanWithStateSchema();
 
@@ -375,7 +375,7 @@ public class SaveDiscoveryTests
         using var fixture = SaveTree.Create();
 
         fixture.AddSave("ps2", "pcsx2/memcards/Mcd001.ps2", "every game's memory card");
-        fixture.AddSave("ps2", "pcsx2/something-nobody-declared.bin", "an unrecognised file");
+        fixture.AddSave("ps2", "pcsx2/something-nobody-declared.bin", "an unrecognized file");
 
         fixture.Scan();
 
@@ -1254,7 +1254,7 @@ public class SaveDiscoveryTests
     [Fact]
     public void A_blank_memory_card_under_an_emulators_own_directory_is_carried_rather_than_reported()
     {
-        // The recogniser reads the format, not the system, so the rule that claims the file is
+        // The recognizer reads the format, not the system, so the rule that claims the file is
         // incidental here. What matters is that the subdirectory report does not count it.
         using var fixture = SaveTree.Create();
 

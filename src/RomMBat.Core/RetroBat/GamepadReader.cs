@@ -232,7 +232,7 @@ public sealed class GamepadReader : IDisposable
         for (var axis = 0; axis < _axes; axis++)
         {
             // An axis binding names a direction, so the reading is reduced to its sign. An
-            // analog trigger rests fully negative rather than centred (RB-223), so a
+            // analog trigger rests fully negative rather than centered (RB-223), so a
             // resting trigger reads -1 and matches nothing, where "non-zero means pressed"
             // would report both triggers held forever.
             var raw = SdlLibrary.SDL_JoystickGetAxis(_joystick, axis);
@@ -259,7 +259,7 @@ public sealed class GamepadReader : IDisposable
     /// never names because ES infers it. Without this a stick can move a menu up and never
     /// down, which reads as a broken pad rather than a missing rule.
     /// <para>
-    /// The four synthesised names are not ES vocabulary and no `inputConfig` will ever contain
+    /// The four synthesized names are not ES vocabulary and no `inputConfig` will ever contain
     /// them, which is deliberate: they say plainly that they were derived rather than read.
     /// </para>
     /// </remarks>
@@ -301,7 +301,7 @@ public sealed class GamepadReader : IDisposable
     /// that restarts it needs the controller.
     /// <para>
     /// <b>A lost pad does not announce itself.</b> Reading a handle whose device has gone away
-    /// is not an error: every button comes back released and every axis centred, which is
+    /// is not an error: every button comes back released and every axis centered, which is
     /// exactly what a controller nobody is touching looks like. <c>SDL_JoystickGetAttached</c>
     /// is the only way to tell those two apart, so the ordinary frame pays one call for it and
     /// nothing else.

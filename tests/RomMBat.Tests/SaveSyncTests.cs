@@ -75,7 +75,7 @@ public class SaveSyncTests
         var afterFirst = fixture.Stub.Saves.Count;
 
         // Cleared, so the second run negotiates for real rather than being told to upload
-        // again. Leaving it set asserts the stub's content dedup, not the client's behaviour.
+        // again. Leaving it set asserts the stub's content dedup, not the client's behavior.
         fixture.Stub.NegotiateActions.Remove((42, "libretro:battery"));
 
         var second = await fixture.SyncAsync(TestContext.Current.CancellationToken);
@@ -1798,7 +1798,7 @@ public class SaveSyncTests
         Assert.NotEqual(conflict.LocalHash, conflict.ServerHash);
 
         // The server's time is shown to whoever picks a side. The stub serves it with no zone,
-        // as RomM serialises a play session (RB-260), and System.Text.Json reads that as local.
+        // as RomM serializes a play session (RB-260), and System.Text.Json reads that as local.
         // Without UtcTimestampConverter this is out by the machine's own offset, and right only
         // where that offset is zero, which is what CI is.
         Assert.Equal(fixture.Stub.ServerDate, conflict.ServerUpdatedAt);
@@ -2113,7 +2113,7 @@ public class SaveSyncTests
     public async Task A_bundled_save_this_device_uploaded_is_recognised_rather_than_fetched_again()
     {
         // The download skip for a bundled unit: the server offering back this device's own
-        // upload is recognised by hash and not fetched. Noticed on the K: install when the skip
+        // upload is recognized by hash and not fetched. Noticed on the K: install when the skip
         // was dead for class C: bandwidth and a pointless write of the live tree.
         using var fixture = SyncFixture.Create();
         fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
@@ -2251,7 +2251,7 @@ public class SaveSyncTests
     {
         // The fold is RomM's archive digest, so a peer's upload of identical contents carries
         // the hash this device already holds. The real server answers no_op for that (s4 M6);
-        // forced to download here, the skip still recognises the bytes and nothing moves: no
+        // forced to download here, the skip still recognizes the bytes and nothing moves: no
         // transfer, no copy under replaced/ and no mtime churn.
         using var fixture = SyncFixture.Create();
         fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
@@ -2827,7 +2827,7 @@ public class SaveSyncTests
         // FormatException, which walks past that and out of Program.DispatchAsync, so one
         // unreadable timestamp in a 200 left the process where every caller is written for a
         // handled failure. The repo warns above the floor instead of refusing, so a newer RomM
-        // serialising a field differently is a supported state.
+        // serializing a field differently is a supported state.
         var unreadable = Assert.Throws<System.Text.Json.JsonException>(() =>
             System.Text.Json.JsonSerializer.Deserialize<RomM.Client.Saves.PlaySessionRow>(
                 """
@@ -2892,7 +2892,7 @@ public class SaveSyncTests
     [Fact]
     public async Task A_peer_row_holding_this_devices_bytes_is_acknowledged_without_a_transfer()
     {
-        // The skip above recognises the bytes, and the head is no longer the row this device
+        // The skip above recognizes the bytes, and the head is no longer the row this device
         // exchanged. Measured at 5.3.0 (s4 M6): left unacknowledged, the server's record for the
         // device stays at the old row and the next edit's upload is refused 409.
         using var fixture = SyncFixture.Create();

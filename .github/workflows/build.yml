@@ -1,6 +1,6 @@
 name: Build
 
-# Compiles the solution and runs the unit suite, then packages the portable artefact.
+# Compiles the solution and runs the unit suite, then packages the portable artifact.
 # Windows is the target platform and the only one the tree is guaranteed to build on,
 # since RomMBat publishes win-x64 self-contained.
 
@@ -49,7 +49,7 @@ jobs:
       - name: Test
         run: dotnet test --configuration Release --no-build --output Detailed
 
-  # The self-contained publish is the shipped artefact, so a compile that succeeds but cannot
+  # The self-contained publish is the shipped artifact, so a compile that succeeds but cannot
   # be published is not a green build. Only the hook is one file: the agent is two and the UI
   # five, because bundling the natives unpacks them outside the tree, and deduplicating the
   # sqlite native the agent and the UI share leaves the seven an install needs.
@@ -80,7 +80,7 @@ jobs:
           if (-not $prefix) { throw 'Directory.Build.props has no VersionPrefix.' }
           ./tools/publish.ps1 -Version "$prefix-ci.$env:GITHUB_RUN_NUMBER"
 
-      - name: Upload artefacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: rommbat-win-x64

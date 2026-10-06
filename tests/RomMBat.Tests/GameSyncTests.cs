@@ -324,7 +324,7 @@ public sealed class GameSyncTests : IDisposable
     public async Task An_adopted_file_survives_a_rollback_because_it_is_the_users_own()
     {
         // Fence one. Adopted means the user's own ROM or their own scrape: it does not count
-        // against the budget and eviction may never delete it, and a rollback is not a licence
+        // against the budget and eviction may never delete it, and a rollback is not a license
         // to. MediaSync writes exactly this row for artwork a user's own scraper left behind.
         using var stub = Library((1, "Title (Disc 1).chd"), (2, "Title (Disc 2).chd"));
         stub.Content[2] = new byte[16];

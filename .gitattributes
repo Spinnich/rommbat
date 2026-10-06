@@ -7,13 +7,13 @@
 *.ps1 text eol=crlf
 *.sln text eol=crlf
 
-# Vendored upstream artifacts and captured fixtures are byte-exact. Normalising them
+# Vendored upstream artifacts and captured fixtures are byte-exact. Normalizing them
 # would hide drift and break hash comparisons.
 reference/** -text
 tests/**/fixtures/** -text
 
 # The pinned OpenAPI schema is served bytes, and its sha256 is published. Line-ending
-# normalisation would change the hash.
+# normalization would change the hash.
 src/RomM.Client/openapi/romm-*.json -text
 
 # Generated. Collapsed in diffs and excluded from language statistics.

@@ -1,6 +1,6 @@
 ---
-summary: The portable zip is the artefact, how it is assembled, and who announces RomMBat upstream.
-read-when: Changing tools/publish.ps1, the release artefact, an installer, or anything about announcing a release.
+summary: The portable zip is the artifact, how it is assembled, and who announces RomMBat upstream.
+read-when: Changing tools/publish.ps1, the release artifact, an installer, or anything about announcing a release.
 ---
 
 # Packaging and release
@@ -19,13 +19,13 @@ the output directory. And **publishing over a warm output directory that is miss
 skips every native and still reports success**: deleting `libSkiaSharp.dll` alone left all four
 absent, so each project's output is cleaned first.
 
-The zip's entries carry the `emulators/rommbat/` prefix, because the artefact is extracted at
+The zip's entries carry the `emulators/rommbat/` prefix, because the artifact is extracted at
 the RetroBat root and `RetroBatInstall.AppDirectory` pins the app to that directory. A flat
 archive extracts to a tree whose ES menu entry cannot resolve its executable.
 
 - `dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true` so no .NET
   install is needed. RetroBat already requires the VC++ redist; add nothing else.
-- **A portable zip is the primary artefact**, extracted into the RetroBat tree, requiring
+- **A portable zip is the primary artifact**, extracted into the RetroBat tree, requiring
   no admin rights and touching no machine state. A conventional installer is at most a
   convenience wrapper over the same layout, never the only route.
 - Setup writes the ES menu entry and the script hooks with relative paths, appends rather

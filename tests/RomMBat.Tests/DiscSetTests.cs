@@ -58,7 +58,7 @@ public class DiscSetTests
     public void Marker_spellings_the_measured_library_does_not_use_are_matched_anyway(string fsName)
     {
         // Only (Disc N) appears across 202 real files. The others are matched because the two
-        // directions are not symmetric: recognising a marker nobody writes costs a conversion
+        // directions are not symmetric: recognizing a marker nobody writes costs a conversion
         // that was never offered, and missing one costs a save.
         Assert.True(DiscSet.IsOneDiscOfASet(fsName));
     }

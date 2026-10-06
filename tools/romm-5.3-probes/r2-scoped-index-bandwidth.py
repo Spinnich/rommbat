@@ -11,7 +11,7 @@ What it takes, at limit=250 (RomPager.DefaultPageSize):
   per scope      the largest platform, the largest regular, smart and virtual collection,
                  index on against off, latency and body bytes, at offsets spread
                  over the scope, and whether total stays non-null with the index off
-  interleaving   on and off alternate within each repeat, so a warm cache favours neither
+  interleaving   on and off alternate within each repeat, so a warm cache favors neither
   with_total     scoped, index on and off against with_total on and off, because RomPage.Total
                  is a non-nullable int and the server nulls it when both flags are off
 

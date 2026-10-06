@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace RomMBat.Core.Paths;
 
 /// <summary>
-/// A path relative to the RetroBat root, normalised to forward slashes.
+/// A path relative to the RetroBat root, normalized to forward slashes.
 /// </summary>
 /// <remarks>
 /// This is the only path shape any persisted record ever holds. RetroBat is portable, so
@@ -23,7 +23,7 @@ public readonly struct RelativePath : IEquatable<RelativePath>, IComparable<Rela
 
     private RelativePath(string value) => _value = value;
 
-    /// <summary>The normalised path, forward-slashed, with no leading or trailing slash.</summary>
+    /// <summary>The normalized path, forward-slashed, with no leading or trailing slash.</summary>
     public string Value => _value ?? string.Empty;
 
     /// <summary>True when this holds a real path rather than the default value.</summary>
@@ -41,7 +41,7 @@ public readonly struct RelativePath : IEquatable<RelativePath>, IComparable<Rela
     }
 
     /// <summary>
-    /// Normalises and validates a relative path.
+    /// Normalizes and validates a relative path.
     /// </summary>
     /// <returns>False when the value is absolute, escapes the root, or is empty.</returns>
     public static bool TryCreate(string? value, out RelativePath path)
@@ -56,7 +56,7 @@ public readonly struct RelativePath : IEquatable<RelativePath>, IComparable<Rela
         var candidate = value.Replace('\\', '/').Trim();
 
         // Catches C:\x, C:x, /x, \x, \\server\share and \\?\C:\x in one go on Windows, and
-        // is checked before normalisation so nothing can be smuggled past it.
+        // is checked before normalization so nothing can be smuggled past it.
         if (Path.IsPathRooted(candidate) || candidate.StartsWith("//", StringComparison.Ordinal))
         {
             return false;
@@ -95,7 +95,7 @@ public readonly struct RelativePath : IEquatable<RelativePath>, IComparable<Rela
         return true;
     }
 
-    /// <summary>Normalises and validates a relative path, throwing when it is not one.</summary>
+    /// <summary>Normalizes and validates a relative path, throwing when it is not one.</summary>
     /// <exception cref="ArgumentException">The value is absolute, escapes the root, or is empty.</exception>
     public static RelativePath Create(string value)
     {

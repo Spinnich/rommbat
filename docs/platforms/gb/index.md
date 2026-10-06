@@ -178,7 +178,7 @@ before a flush could send it.
 | `jgenesis`                  | `jgenesis/gb/<rom>.sav`, 32,768 B                        | `0xFF` throughout                                |
 
 **A boot write on `gb` is not recognisably blank.** On `gba` every one was uniform `0xFF`. Here
-Mesen randomises uninitialised RAM, and Pokemon's first generation decompresses sprites through
+Mesen randomizes uninitialized RAM, and Pokemon's first generation decompresses sprites through
 cartridge RAM, so a boot can leave real-looking bytes. The scanner passes over a file of nothing
 but `0xFF` (RB-408), which covers the rows above that write one, and only a baseline separates
 the rest from a save. RB-294.

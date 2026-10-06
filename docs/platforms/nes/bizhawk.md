@@ -140,14 +140,14 @@ verified`, `0 downloaded, 0 written`, `889 already present`, `all 1 unchanged`, 
 
 **After `quickerNES` it answered 227 and 885, and the missing game is the one `NesHawk` was driven
 on.** Destiny of an Emperor (USA) left the set, `departed` at 17:32:32Z. It is not a RomMBat
-result. The set is smart collection 9, whose filter is the NES platform and favourite, and a
-probe set asking the server for favourites titled "Destiny of an Emperor" now answers only
+result. The set is smart collection 9, whose filter is the NES platform and favorite, and a
+probe set asking the server for favorites titled "Destiny of an Emperor" now answers only
 Destiny of an Emperor II. RomMBat made no write to the server between the `NesHawk` step-9 sync,
 which still resolved 228, and 17:32:32Z: one flush that sent nothing, then the restore's reads and
 downloads. Nothing in `RomM.Client` writes a collection either. Its one user-side write is
-`now_playing: false`, and `RomUserData` has no favourite field. The ROM had been a member since
+`now_playing: false`, and `RomUserData` has no favorite field. The ROM had been a member since
 the set's first sync, 2026-09-12 18:03Z, origin `synced`, and the maintainer does not recall
-favouriting it. How it came to be a favourite, and why it stopped, is unexplained.
+favouriting it. How it came to be a favorite, and why it stopped, is unexplained.
 
 **Step 9 still passes on `quickerNES`**, because the step is about the re-sync: `0 downloaded, 0
 written`, `all 1 unchanged`, `gamelist.xml` identical either side. The departed game kept its

@@ -23,7 +23,7 @@ public enum RomMFeature
     /// <summary>Device identity, sync negotiation and roaming sync config.</summary>
     DeviceSync,
 
-    /// <summary>Play sessions, last-played and favourites.</summary>
+    /// <summary>Play sessions, last-played and favorites.</summary>
     Playtime,
 }
 
@@ -101,7 +101,7 @@ public sealed class GrantedScopes
             "No save sync at all, and sync-set definitions do not roam"),
         new(
             RomMFeature.Playtime,
-            "Play sessions and favourites",
+            "Play sessions and favorites",
             [RomMScopes.RomsUserRead, RomMScopes.RomsUserWrite],
             "No playtime tracking"),
     ];

@@ -1,7 +1,7 @@
 namespace RomMBat.Core.Content;
 
 /// <summary>
-/// Recognises a PlayStation memory card image that has been formatted and never written to.
+/// Recognizes a PlayStation memory card image that has been formatted and never written to.
 /// </summary>
 /// <remarks>
 /// <b>An emulator writes one of these on exit whether or not the game saved.</b> Measured on

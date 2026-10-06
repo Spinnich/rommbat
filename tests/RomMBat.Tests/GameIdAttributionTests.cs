@@ -117,7 +117,7 @@ public class GameIdAttributionTests
     [Fact]
     public void Two_launches_covering_one_window_are_refused_rather_than_guessed_between()
     {
-        // exFAT and FAT32 both quantise mtime to two seconds and round up, so two launches this
+        // exFAT and FAT32 both quantize mtime to two seconds and round up, so two launches this
         // close cannot be separated by when a file says it was written. Picking the later one
         // would upload one game's save under the other's name.
         using var fixture = new AttributionFixture();

@@ -53,7 +53,7 @@ public sealed record Attribution(
 /// <c>ULES01513_1.00</c>, matching <c>SAVEDATA/ULES01513SYSDATA</c>. Free, reads no ROM, and
 /// reaches saves that predate RomMBat, on any game that has a state.</item>
 /// <item><b>The launch window.</b> A unit whose newest member was written inside a launch of the
-/// same system belongs to that launch's ROM. Generalises to every odd case and needs no format
+/// same system belongs to that launch's ROM. Generalizes to every odd case and needs no format
 /// parsing, and it is the only route that reaches a WAD.</item>
 /// <item><b>The ROM header.</b> A game code at a fixed offset. Measured at 100% of GameCube and
 /// 75.5% of Wii, and <b>0% of PSP, PS3 and PSX</b>, so it is irreplaceable on the two systems
@@ -72,7 +72,7 @@ public sealed class GameIdAttributor
     /// How close two launches may sit before the newest-file rule stops being able to separate them.
     /// </summary>
     /// <remarks>
-    /// exFAT and FAT32 both quantise mtime to two seconds and round up, so a save written at the
+    /// exFAT and FAT32 both quantize mtime to two seconds and round up, so a save written at the
     /// very end of one session can be stamped inside the next. Two launches naming different
     /// ROMs inside that band are indistinguishable by mtime and the unit is refused rather than
     /// given to whichever sorts first.

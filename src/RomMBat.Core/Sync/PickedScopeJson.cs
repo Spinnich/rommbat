@@ -21,7 +21,7 @@ public static class PickedScopeJson
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
 
     /// <summary>
-    /// Serialises the ids, sorted and deduplicated.
+    /// Serializes the ids, sorted and deduplicated.
     /// </summary>
     /// <remarks>
     /// Sorted so a picked set's stored value is a function of what it holds rather than of the

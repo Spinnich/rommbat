@@ -106,7 +106,7 @@ From the live `es_systems.cfg`:
 `gamegear` has no multi-disc or multi-file shape to settle. Castle of Illusion Starring Mickey Mouse
 (USA, Europe, Brazil) (En), one of the nineteen, was launched on every row: Genesis Plus GX,
 mednafen, ares and jgenesis play it at the Master System's frame, BizHawk plays it cropped to a Game
-Gear screen, PicoDrive plays it cropped and in the wrong colours (RB-411), and FBNeo refuses it for its
+Gear screen, PicoDrive plays it cropped and in the wrong colors (RB-411), and FBNeo refuses it for its
 name.
 
 ### 3. BIOS

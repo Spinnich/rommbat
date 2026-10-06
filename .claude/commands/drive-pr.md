@@ -54,7 +54,7 @@ Four rulings. Each needs its evidence in the row.
 | Ruling     | Means                                                                                    |
 | ---------- | ---------------------------------------------------------------------------------------- |
 | FIXED      | Changed. The row names the commit                                                        |
-| REJECTED   | Wrong. The row names the test, rule, doc line or behaviour that shows it                 |
+| REJECTED   | Wrong. The row names the test, rule, doc line or behavior that shows it                  |
 | DEFERRED   | Real but not this PR's: large or unrelated. The row names the follow-up issue you opened |
 | MAINTAINER | A design-of-record question. Goes to the maintainer as a multiple-choice question        |
 
@@ -90,7 +90,7 @@ and the row says what that evidence was.
    ledger's round to it. Spawn the `pr-reviewer` agent with the prompt `PR <n>, round <r>` and
    wait for it. It posts its own comment.
 6. **Rule.** Every finding gets a row. Roll the reviewer's small pre-existing items that sit in
-   files this PR edits into this PR; open an issue for each large or unrelated one (never labelled
+   files this PR edits into this PR; open an issue for each large or unrelated one (never labeled
    `good first issue`). Reply on each of the maintainer's threads.
 7. **Fix.** A failing test first, where the finding is a defect. Scoped changes only: no cleanup
    rides along. A fix that falsifies a doc corrects it in the same commit (`pre-pr-verification`,

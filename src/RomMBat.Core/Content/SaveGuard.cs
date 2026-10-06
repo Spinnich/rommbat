@@ -35,7 +35,7 @@ public sealed record SaveGuardVerdict(bool CanRemove, string? Reason)
 /// never reached the server, and one whose hash no longer matches the file has changed since it
 /// did. Either way the bytes on disk are what would be lost.</item>
 /// <item><c>local_state</c>: the same question about save states, which are save data by any
-/// reading a user would recognise. A state is worthless once its ROM is gone, and a state that
+/// reading a user would recognize. A state is worthless once its ROM is gone, and a state that
 /// has never gone up is not recoverable from anywhere.</item>
 /// </list>
 /// <para>

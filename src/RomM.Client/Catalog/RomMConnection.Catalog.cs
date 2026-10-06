@@ -150,7 +150,7 @@ public sealed partial class RomMConnection
     /// this device, so callers merge into what is already there rather than replacing it.
     /// <para>
     /// <b>Only <c>sync_config</c> goes on the wire, and the generated
-    /// <c>DeviceUpdatePayload</c> is deliberately not used.</b> That type serialises every
+    /// <c>DeviceUpdatePayload</c> is deliberately not used.</b> That type serializes every
     /// property, so the unset ones arrive as explicit nulls and the server writes them: the
     /// full shape answers <b>500</b>, while <c>sync_config</c> alone answers 200 and leaves
     /// the rest of the device intact. RB-73.

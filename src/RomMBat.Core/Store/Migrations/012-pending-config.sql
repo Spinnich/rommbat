@@ -2,7 +2,7 @@
 -- happened when it finally did.
 --
 -- `saves convert --apply` refuses while EmulationStation is running, because ES loads
--- es_settings.cfg at startup and serialises that model on every write, so a key that appears
+-- es_settings.cfg at startup and serializes that model on every write, so a key that appears
 -- afterwards is discarded (RB-178 and RB-179). That refusal is correct and it is also a
 -- dead end for the thing M7 is building: **the UI is launched from the ES menu, so it always
 -- runs under a live ES.** It can never write that file. Without somewhere to put the intent,
@@ -37,7 +37,7 @@
 --    so it is gone before the quit hook fires, and the next time a person sees it the apply
 --    has already happened. If the row were deleted on success the UI could only say "it is
 --    not queued any more", which reads the same as never having been queued and the same as
---    having been refused. So applied_at_utc, result and detail stay, and a cancelled change
+--    having been refused. So applied_at_utc, result and detail stay, and a canceled change
 --    is the one case that deletes: nothing happened, so there is nothing to report.
 --
 -- 3. Why one outstanding change per target, but any number of finished ones.

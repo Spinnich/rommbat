@@ -20,7 +20,7 @@ namespace RomMBat.UI.Screens;
 /// </para>
 /// <para>
 /// <b>Written straight to <see cref="SettingStore"/>, and no tree lock.</b> These are rows in
-/// SQLite, which is in WAL mode. The lock serialises writers of files in the tree, and taking
+/// SQLite, which is in WAL mode. The lock serializes writers of files in the tree, and taking
 /// it here would be the speculative acquire that makes a concurrent flush skip its upload.
 /// </para>
 /// </remarks>

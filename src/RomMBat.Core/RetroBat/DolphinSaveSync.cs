@@ -222,7 +222,7 @@ public static class DolphinSaveSync
 
         var where = state.Scope switch
         {
-            DolphinSyncScope.Global => $"'{state.SetAt}' is on, so this applies to every system that honours it",
+            DolphinSyncScope.Global => $"'{state.SetAt}' is on, so this applies to every system that honors it",
             DolphinSyncScope.System => $"'{state.SetAt}' is on",
             // One is named and the rest counted: the Card A copies are per install, not per game.
             DolphinSyncScope.PerGame when state.PerGameKeys == 2 =>

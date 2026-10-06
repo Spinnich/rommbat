@@ -35,7 +35,7 @@
 --    key for `SAVEDATA/ULES01513SYSDATA` while the stem resolves through the same (folder, stem)
 --    index class A uses. That reads no ROM and needs no observed launch.
 --
---    It is a distinct provenance rather than a flavour of 'rom_header', because what it is
+--    It is a distinct provenance rather than a flavor of 'rom_header', because what it is
 --    trusting is different: 'rom_header' trusts bytes in the game, 'sidecar' trusts a file
 --    RetroBat wrote about the game. A reviewer deciding whether to keep a binding needs to know
 --    which. Rebuilt rather than ALTERed, because the value list is a CHECK.

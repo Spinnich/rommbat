@@ -6,7 +6,7 @@ name: Release
 #
 # A manual run is the dry run: the same steps against the branch it is started on, versioned
 # <VersionPrefix>-dryrun.<run number>, with the zip, its checksum and the notes header uploaded
-# as a workflow artefact instead of a release. It takes no inputs, because an input that reaches
+# as a workflow artifact instead of a release. It takes no inputs, because an input that reaches
 # the build is what checkov's CKV_GHA_7 forbids.
 
 on:
@@ -125,7 +125,7 @@ jobs:
             release-header.md
           retention-days: 7
 
-      # --generate-notes appends the categorised PR list from .github/release.yml after the
+      # --generate-notes appends the categorized PR list from .github/release.yml after the
       # header. Created as a draft; the maintainer publishes it.
       - name: Create the draft release
         if: github.event_name == 'push'

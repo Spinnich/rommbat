@@ -69,7 +69,7 @@ So the rules here are stricter than under `roms/`:
   key; the md5 is not.
 - **174 of the 348 requirements carry no md5 at all**, and 28 systems have nothing else. Those
   are unverifiable, which is a third state beside matched and missing, and reporting them as
-  missing tells a user to hunt for a file RomMBat could not recognise if they already had it.
+  missing tells a user to hunt for a file RomMBat could not recognize if they already had it.
   One absent from disk, where the library holds a file under its exact name, stays
   `Unverifiable` with `BiosStep.SameName` set: a lead the report prints, never a fetch.
 

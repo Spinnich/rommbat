@@ -73,7 +73,7 @@ public class StateSyncTests
     [Fact]
     public async Task A_restored_state_is_named_after_the_rom_on_disk_and_not_after_the_server_row()
     {
-        // RomM strips anything parenthesised into its tags, so file_name_no_tags for
+        // RomM strips anything parenthesized into its tags, so file_name_no_tags for
         // "ActRaiser (USA) [libretro.snes9x].state1" comes back as "ActRaiser". Writing that
         // puts the state where the emulator will never look and it reads as simply absent.
         // es_savestates.cfg declares {{romfilename}}.state{{slot}}, so the ROM names it.

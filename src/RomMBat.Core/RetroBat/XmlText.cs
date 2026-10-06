@@ -22,7 +22,7 @@ internal static class XmlText
     private const char NonCharacterFfff = (char)0xFFFF;
 
     /// <summary>
-    /// Removes what XML 1.0 cannot carry, and normalises line endings.
+    /// Removes what XML 1.0 cannot carry, and normalizes line endings.
     /// </summary>
     /// <remarks>
     /// Control characters below 0x20 other than tab, newline and carriage return have no
@@ -31,7 +31,7 @@ internal static class XmlText
     /// rather than replaced, because a replacement character in a description is noise a user
     /// would read as corruption.
     /// <para>
-    /// CRLF becomes LF because an XML parser normalises it on the way back in anyway, so
+    /// CRLF becomes LF because an XML parser normalizes it on the way back in anyway, so
     /// leaving it would make a round trip change the bytes and churn the file forever.
     /// </para>
     /// </remarks>

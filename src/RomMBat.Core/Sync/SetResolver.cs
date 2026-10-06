@@ -268,7 +268,7 @@ public sealed class SetResolver
 
         while (!pager.IsComplete)
         {
-            // Stopped, not thrown. A cancelled walk is an interruption exactly as an
+            // Stopped, not thrown. A canceled walk is an interruption exactly as an
             // unreachable server is, and this is what makes that true rather than merely
             // written down: throwing here left the caller with no resolution to record, so the
             // offset was saved and every game found before it was dropped. The next walk then
@@ -286,7 +286,7 @@ public sealed class SetResolver
             }
             catch (OperationCanceledException)
             {
-                // Cancelled mid-request. The pager only advances on success, so the offset is
+                // Canceled mid-request. The pager only advances on success, so the offset is
                 // still the last page that completed and this page is simply read again.
                 break;
             }

@@ -14,7 +14,7 @@ namespace RomM.Client.Saves;
 /// problem with a hand-written one and shipped two filename bugs doing it.
 /// </param>
 /// <param name="OriginDeviceId">
-/// Which device uploaded this. The cheapest way to recognise your own save coming back down,
+/// Which device uploaded this. The cheapest way to recognize your own save coming back down,
 /// which decides whether a <c>download</c> operation is worth acting on.
 /// </param>
 /// <param name="UpdatedAt">
@@ -88,7 +88,7 @@ public sealed record SyncOperation(
     [property: JsonPropertyName("server_content_hash")] string? ServerContentHash)
 {
     /// <summary>
-    /// The action, or <see cref="SyncAction.Conflict"/> for anything unrecognised.
+    /// The action, or <see cref="SyncAction.Conflict"/> for anything unrecognized.
     /// </summary>
     /// <remarks>
     /// An unknown action from a newer server is treated as a conflict rather than ignored,

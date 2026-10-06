@@ -26,7 +26,7 @@ namespace RomMBat.Tests;
 /// why.
 /// <para>
 /// <b>Reading needs no lock.</b> The store is SQLite in WAL mode, so a reader and a writer
-/// coexist, and everything the UI shows is a read. The lock exists to serialise <i>writers</i>,
+/// coexist, and everything the UI shows is a read. The lock exists to serialize <i>writers</i>,
 /// and the UI itself is none.
 /// </para>
 /// <para>
@@ -38,7 +38,7 @@ namespace RomMBat.Tests;
 /// <para>
 /// <b>Defining a sync set takes no lock at all, and that is a decision rather than an
 /// oversight.</b> Every write on <see cref="SyncSetService"/> is a row in SQLite, which is in
-/// WAL mode, and the tree lock serialises writers of <i>files in the tree</i>. Taking it to add
+/// WAL mode, and the tree lock serializes writers of <i>files in the tree</i>. Taking it to add
 /// a set definition would be exactly the speculative acquire this class exists to warn about.
 /// A test below asserts a set can be defined while a background pass holds it.
 /// </para>

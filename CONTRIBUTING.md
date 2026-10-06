@@ -45,7 +45,7 @@ RomMBat's documentation lives in this repository, in layers that each have one r
 | ------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [README.md](README.md)                            | Someone deciding whether to try it | What RomMBat is, the requirements, and links into the guide. No counts and no platform status                                                     |
 | [wiki/](wiki/README.md)                           | A player                           | The guide, published to GitHub Pages: installing, pairing, syncing, saves, and a page per platform. The platform table is generated, never edited |
-| [docs/design/](docs/design/)                      | Anyone changing behaviour          | The principles, and one record under `decisions/` per standing decision                                                                           |
+| [docs/design/](docs/design/)                      | Anyone changing behavior           | The principles, and one record under `decisions/` per standing decision                                                                           |
 | [docs/architecture/](docs/architecture/README.md) | A developer                        | How the code is laid out and why                                                                                                                  |
 | [docs/upstream/](docs/upstream/README.md)         | A developer or agent               | How RetroBat and RomM behave, as `RB-` and `RM-` facts with the evidence and the version they were verified on                                    |
 | `docs/platforms/<system>/`                        | Whoever certifies a system         | The certification record for each `(system, emulator, core)` row                                                                                  |
@@ -53,7 +53,7 @@ RomMBat's documentation lives in this repository, in layers that each have one r
 
 [docs/contributing/writing.md](docs/contributing/writing.md) sets the voice for each layer and lists what `tools/docs/check.py` enforces. Docs describe the present and travel with the code that changes them: the `pre-pr-verification` skill's "Documentation parity" table says what a given change owes.
 
-Documentation for the RomM server itself lives in [the docs repo](https://github.com/rommapp/docs); open a pull request there for anything about RomM's own behaviour, including the device sync protocol.
+Documentation for the RomM server itself lives in [the docs repo](https://github.com/rommapp/docs); open a pull request there for anything about RomM's own behavior, including the device sync protocol.
 
 ## How to Contribute Code
 
@@ -102,7 +102,7 @@ Release notes are generated from the labels on merged PRs, grouped by [.github/r
 
 Each PR also carries one version-impact label, `semver:major`, `semver:minor` or `semver:patch`, as [versioning](docs/design/decisions/versioning.md) defines them. It picks the release's bump rather than a section, and a docs or CI change is a patch.
 
-A PR with no type label lands under "Other changes". The agent commands label their own PRs: `/start-issue` copies the issue's type label or picks one from the diff and picks the `semver:*` label, and `/drive-pr` adds either when it is missing. A PR from a fork is labelled by the maintainer, since a fork cannot set labels. `ready-to-merge` and `needs-decision` track a PR's state in the [workflow](docs/contributing/workflow.md) and do not affect the notes.
+A PR with no type label lands under "Other changes". The agent commands label their own PRs: `/start-issue` copies the issue's type label or picks one from the diff and picks the `semver:*` label, and `/drive-pr` adds either when it is missing. A PR from a fork is labeled by the maintainer, since a fork cannot set labels. `ready-to-merge` and `needs-decision` track a PR's state in the [workflow](docs/contributing/workflow.md) and do not affect the notes.
 
 ## Rules that are specific to this project
 
@@ -141,14 +141,14 @@ Follow the existing code style used throughout the project. `.editorconfig` and 
 
 Beyond that:
 
-- **English only** outside of localisation files.
+- **American English only** (US spelling and vocabulary) outside of localization files.
 - **No em-dashes** in comments, docs or commit messages. Use commas, parentheses, or separate sentences.
 - **Keep comments short** and focused on why, not what. Don't narrate the code, and don't explain why a change was made; describe how the code behaves now.
 - **Tests travel with code.** New logic gets a test. Save-shape and mapping logic get fixtures from a real install, checked in.
 
 If working with VSCode, `.vscode/extensions.json` holds the recommended set and the editor offers to install it when you first open the workspace:
 
-- [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) for the language service, debugging and test discovery. [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit) adds a solution explorer on top, but its licence is free only for individuals and open source work, so the base extension is enough to contribute.
+- [C#](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp) for the language service, debugging and test discovery. [C# Dev Kit](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csdevkit) adds a solution explorer on top, but its license is free only for individuals and open source work, so the base extension is enough to contribute.
 - [Trunk](https://marketplace.visualstudio.com/items?itemName=Trunk.io)
 - [EditorConfig](https://marketplace.visualstudio.com/items?itemName=EditorConfig.EditorConfig)
 - [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python) for `reference/verify.py`

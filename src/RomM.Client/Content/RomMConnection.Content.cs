@@ -297,7 +297,7 @@ public sealed partial class RomMConnection
                 }
                 catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
                 {
-                    // The distinction this whole path exists to keep: a user cancelling and a
+                    // The distinction this whole path exists to keep: a user canceling and a
                     // link going away are the same exception type and must not read alike.
                     throw new RomMUnreachableException(
                         UnreachableReason.RequestTimeout,

@@ -60,7 +60,7 @@ empty extension says nothing about the shape, and RomMBat reads `has_multiple_fi
 
 ## RB-81. `GET /api/roms/identifiers` returns every visible ROM id and takes no parameters
 
-Verified: RomM 5.1.1, 2026-08-10, and 5.3.1, 2026-09-28. How: timed five uncancelled calls live; on 5.3.1 read `get_rom_identifiers` and `get_rom_ids`.
+Verified: RomM 5.1.1, 2026-08-10, and 5.3.1, 2026-09-28. How: timed five uncanceled calls live; on 5.3.1 read `get_rom_identifiers` and `get_rom_ids`.
 It answers 95,989 ids, 656 KiB, in 0.55 to 0.92 s, because `get_rom_ids` projects the id
 column. With no parameters it cannot be scoped to a set or paged. RomMBat reconciles deletions
 by re-resolving each set, whose walk already yields that set's ids, and does not call it.
@@ -109,13 +109,13 @@ Of 94,467 single-file ROMs with a file on disk, all three hashes carry a value o
 and all three are `''` on 599 (0.6%). No row carries a sha1 without an md5. So RomMBat verifies
 a download by md5 alone, and only that 0.6% falls back to size.
 
-## RB-236. An unrecognised `metadata_providers` value is ignored, and returns the whole library
+## RB-236. An unrecognized `metadata_providers` value is ignored, and returns the whole library
 
 Verified: RomM 5.2.0, 2026-08-31, and 5.3.1, 2026-09-28. How: sent each value alone and compared `total` with the unfiltered one; on 5.3.1 read `METADATA_SOURCE_FACET_COLUMNS`.
 The filter maps a value to a provider's id column and drops any value it has no column for, so
 `zzz-not-a-provider`, `sgdb`, `screenscraper` and `playmatch` each return all 95,989 ROMs. The
 15 it knows are `igdb`, `ss`, `moby`, `launchbox`, `ra`, `hasheous`, `tgdb`, `flashpoint`,
-`hltb`, `demozoo`, `pouet`, `csdb`, `steam`, `gamelist` and `libretro`. An unrecognised
+`hltb`, `demozoo`, `pouet`, `csdb`, `steam`, `gamelist` and `libretro`. An unrecognized
 `statuses` value returns zero rows instead, so the authority for statuses is `RomUserStatus`.
 RomMBat's picker offers only values the server knows.
 
@@ -132,7 +132,7 @@ sidecar only for values.
 
 Verified: RomM 5.2.0, 2026-09-01, and 5.3.1, 2026-09-28. How: compared `total` for `platform_id` and `platform_ids` on one platform live.
 `platform_id=<nes>` returned the whole library, 95,989, and `platform_ids=<nes>` the platform's
-7,568. The route treats an unrecognised query parameter as absent rather than as an error, so a
+7,568. The route treats an unrecognized query parameter as absent rather than as an error, so a
 misspelt scope reads as a scope that matched everything. `CatalogQuery` sends `platform_ids`.
 
 ## RM-1. `utils/platform_aliases.py` maps RomM's folder names to its slugs
@@ -187,7 +187,7 @@ becomes `4D530064`, and ps2 prefixes `BA`. 28 of 33 rows answered:
 
 Switch needs `prod.keys`, which RomM leaves out deliberately, PSN `.pkg` content is not covered,
 and a Vita `.zip` answers nothing; `Metal Gear Solid (Europe) (Disc 1).chd` failed where three
-`.chd` neighbours did not. On GameCube `title_id` is the header's four bytes in hex (`47414645`)
+`.chd` neighbors did not. On GameCube `title_id` is the header's four bytes in hex (`47414645`)
 and `save_target` the same four in ASCII (`GAFE`), as a Dolphin `.gci` name carries them. Only a
 rescan writes the ASCII form: on 2026-09-29, 1,790 of 1,794 rows carried it and 4 still held hex
 in both fields. The 1,793 rows the probe read carry 1,601 distinct ids: `tools/romm-5.3-probes/r5-gamecube-title-ids.py` finds 104 groups

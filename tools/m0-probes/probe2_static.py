@@ -66,7 +66,7 @@ def parse_systems(es_systems: Path) -> list[dict]:
             {
                 "name": name,
                 "path": raw_path,
-                # ES accepts a space-separated list; normalise case since Windows is
+                # ES accepts a space-separated list; normalize case since Windows is
                 # case-insensitive but the strings in the file are not consistent.
                 "extensions": sorted({e.lower() for e in raw_ext.split() if e}),
                 "emulators": emulators,

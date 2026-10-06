@@ -142,7 +142,7 @@ Guardrails that follow from this:
 
 ### 3. Curation, so the device shows what the user cares about
 
-A 100k library is unnavigable from a couch with a gamepad. The organising abstraction is
+A 100k library is unnavigable from a couch with a gamepad. The organizing abstraction is
 a **Sync Set**: a named scope plus a policy.
 
 - **Scope** can be a collection, a smart collection, a virtual collection, a platform, or
@@ -153,14 +153,14 @@ a **Sync Set**: a named scope plus a policy.
   `has_saves`, `playable`, plus the multi-value `genres` / `franchises` / `companies` /
   `regions` / `player_counts` filters with their `any`/`all`/`none` logic operators.
 - **Policy** covers: max games, max bytes, ordering (name, recently added, recently
-  played), and eviction rules (keep favourites, keep the last N played, and **never evict
+  played), and eviction rules (keep favorites, keep the last N played, and **never evict
   a game with unflushed local saves**).
 - Smart collections are re-evaluated server-side and their membership drifts, so
   re-resolve every set on every sync: new members are added, departed members become
   eviction candidates rather than immediate deletions.
 - **A smart collection's listed `rom_count` is its owner's, not the caller's.** It is stored,
   and recomputed as the owner, while paging applies the criteria as whoever asks. So a public
-  collection filtering on `favorite` lists another account's favourites and pages back only
+  collection filtering on `favorite` lists another account's favorites and pages back only
   the caller's: 29 of 29 on a live instance advertised 6 to 594 and paged 0 (RM-16). The
   picker shows no count for one, and the resolve reports what the set really holds (#193).
 - Persist set definitions into `Device.sync_config` (a free-form dict, writable via
@@ -188,8 +188,8 @@ a drive-letter change and a move to a different PC.**
 - **Never persist an absolute path.** The local file index, sync-set definitions and
   outbox entries all store paths **relative to the RetroBat root**. Resolve to absolute
   only at the moment of use. A drive letter that shifts from `E:` to `F:` must be a
-  non-event. Note the ES hooks receive an **absolute** rom path in `$1`, so relativising at
-  that boundary is mandatory work, not an optimisation.
+  non-event. Note the ES hooks receive an **absolute** rom path in `$1`, so relativizing at
+  that boundary is mandatory work, not an optimization.
 - **Find the root relative to the executable**, walking up from `AppContext.BaseDirectory`
   and confirming with a marker (`retrobat.ini`, `emulationstation/`, `roms/`). There is no
   `build.ini`; the version file is `system/version.info`. Registry and fixed-path lookups

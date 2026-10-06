@@ -20,7 +20,7 @@ wave order, with the reason for each wave, is its
 **A floor move owes every record a mapping onto the nine steps (#187), and at wave scale that
 cannot be a person's afternoon per row.** Wave 1 is 81 rows and the floor moves within one release
 of every RomM or RetroBat stable, so the design aims hands-on time at new emulators and at rows
-whose behaviour actually moved, and carries the rest mechanically. Issue #216, in three layers:
+whose behavior actually moved, and carries the rest mechanically. Issue #216, in three layers:
 
 1. **A row fingerprint, with no emulator running.** Each `(system, emulator, core)` record stores a
    hash of what the row depends on: its `es_savestates.cfg` entry and any supplement entry, the

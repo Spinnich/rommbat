@@ -101,7 +101,7 @@ public sealed record SaveUnitPath(
 
     /// <summary>Reads a key kind, defaulting to <see cref="SaveUnitKeyKind.Unknown"/>.</summary>
     /// <remarks>
-    /// An unrecognised kind makes the whole container unreadable rather than falling back to
+    /// An unrecognized kind makes the whole container unreadable rather than falling back to
     /// something permissive, so a future shape file this build does not understand reports its
     /// systems as unknown instead of walking them under the wrong rule.
     /// </remarks>

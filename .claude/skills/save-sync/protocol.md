@@ -6,7 +6,7 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
 
 - Pair on `(rom_id, slot)`. Always send a stable, non-null slot.
 - Send the **real local mtime** as `updated_at`, never the sync time.
-- Compare on `content_hash` first, mtime second: **exFAT and FAT32 both quantise mtime to
+- Compare on `content_hash` first, mtime second: **exFAT and FAT32 both quantize mtime to
   2 seconds and round up**, so a save can be stamped 2 s in the future and several saves
   written together share one timestamp. Mtimes are not bit-stable across filesystems.
 - **`overwrite=true` does not replace a row in the slot, whatever it looks like.** A slotted
@@ -90,7 +90,7 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   preview as well as after; that is the ceiling of the API rather than a shortcut. RB-246.
 
   **A restored state is named after the ROM on disk, never after the server row.** RomM strips
-  parenthesised groups as tags, so `Legend of Zelda, The (USA) (Rev 1) [libretro.nestopia].state1`
+  parenthesized groups as tags, so `Legend of Zelda, The (USA) (Rev 1) [libretro.nestopia].state1`
   reads back as `Legend of Zelda, The`. Writing the server's name puts a state where the emulator
   never looks, and it then reads as absent rather than as an error. RB-247.
 
@@ -207,10 +207,10 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   sentinel inside the directory is not a substitute**, measured rather than assumed:
   `Directory.Delete(recursive: true)` removes the siblings first and only then fails on the
   sentinel, so the staged members are gone regardless.
-- **A server time shown beside a local one has to be read as UTC first.** RomM serialises a
+- **A server time shown beside a local one has to be read as UTC first.** RomM serializes a
   play session's times with no zone while storing UTC, so a plain `DateTimeOffset` is out by the
   machine's own offset. `UtcTimestampConverter` is on every server `DateTimeOffset`, the save and
-  state fields included, since it also honours an offset; see the `romm-api` skill and RB-260.
+  state fields included, since it also honors an offset; see the `romm-api` skill and RB-260.
   `save_slot.updated_at` and `save_conflict.server_updated_at` are display-only: ordering compares
   server rows only against each other.
 - **Negotiate falls back to `updated_at` wherever the hashes do not settle it, so two of its
@@ -235,7 +235,7 @@ identical)`. M5 and M6, added at `5.3.0` and answering the same at `5.3.1`, are 
     safe rather than merely better than silence: identical content into one slot reuses the row,
     and a stale device record still answers 409, which lands as a conflict.
   - **An `upload` of bytes the server already holds is a no-op without a round trip, and this
-    one is defence rather than a live fix.** An emulator rewriting a save with identical bytes
+    one is defense rather than a live fix.** An emulator rewriting a save with identical bytes
     moves the mtime and nothing else, and M4 answers that `no_op (Content is identical)`, so the
     hash settles it server-side (RB-259). Kept because it costs one comparison against a value
     the operation already carries, and because the failure it prevents is a silent upload on
@@ -276,7 +276,7 @@ identical)`. M5 and M6, added at `5.3.0` and answering the same at `5.3.1`, are 
   `--keep-local` just sent comes back offered and reopens the conflict it settled; a plain file hash
   is enough there because the bundled case below was refused first. **A bundled slot is the
   exception and is refused with a reason**, because a class C restore needs a container and a
-  unit key and both come from a local unit this device does not have; recognise it from the
+  unit key and both come from a local unit this device does not have; recognize it from the
   shapes table, never from a `.zip` extension.
 - **Unscoped negotiate means most of the answer is for games the device does not hold, and that
   is not a failure.** A device carrying a 10-game sync set out of a 500-save library is offered
@@ -334,7 +334,7 @@ identical)`. M5 and M6, added at `5.3.0` and answering the same at `5.3.1`, are 
   as changed and puts the merged copy back over the server's. Somebody who chose to discard the
   local side gets a merge instead, and it propagates.
 - **Record the slot's server identity when a bundled restore lands**, not only the local fold.
-  The recorded save id is what recognises a superseded row returning and what scopes the in-step
+  The recorded save id is what recognizes a superseded row returning and what scopes the in-step
   rule above. Measured before 303: the flush after a class C restore reported one upload, which
   the server then deduplicated into a row it already had.
 - **A settled conflict is settled for one server row, not for one digest.** `content_hash` is
@@ -352,7 +352,7 @@ request carries `device_id`**. Empty therefore reads exactly like "nobody has ev
 this", which is why it must not be read that way. With `device_id` set it lists every device
 that has a record, the queried one first, and gives a queried device that has never synced
 the save an `is_current: false` entry, the strongest reason to pull (RM-18).
-`origin_device_id` names the uploader, which is how a device recognises its own save
+`origin_device_id` names the uploader, which is how a device recognizes its own save
 returning.
 
 ## The slot is the key to everything, so a save without one is inert
@@ -422,10 +422,10 @@ A restore of a save the server holds **with no slot** records no slot identity, 
 is outside the protocol and its save id would otherwise stand in for a slot it never belonged to.
 
 **The recorded save id is now load-bearing**, which is why this was fixed rather than left
-cosmetic: it is what recognises a superseded row returning to the head of its slot. See "[Other
+cosmetic: it is what recognizes a superseded row returning to the head of its slot. See "[Other
 writers on the same slots](other-writers.md#other-writers-on-the-same-slots)".
 
-**Copy aside before overwriting is honoured on the download path too**, not just on conflicts,
+**Copy aside before overwriting is honored on the download path too**, not just on conflicts,
 which is worth knowing before assuming a download is safe to make silent. A keep-local
 resolution prunes its copy; a keep-server's and a download's are never pruned. Since #211 a download only ever replaces
 bytes this device already sent, so that copy duplicates the server rather than being the last

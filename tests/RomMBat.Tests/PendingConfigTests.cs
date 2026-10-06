@@ -56,7 +56,7 @@ public sealed class PendingConfigTests : IDisposable
     {
         // The point of the whole table. Nothing is running when background quit drains this:
         // the UI exited before the quit hook fired. If the row vanished on success, the next
-        // session could not tell an applied change from a cancelled one or from one that was
+        // session could not tell an applied change from a canceled one or from one that was
         // never queued at all.
         var id = _store.PendingConfig.Queue(Request());
 
@@ -108,7 +108,7 @@ public sealed class PendingConfigTests : IDisposable
     [Fact]
     public void Cancelling_never_reaches_a_change_that_has_already_been_applied()
     {
-        // Once it is on disk, cancelling it is not a thing the queue can do. Reverting is, and
+        // Once it is on disk, canceling it is not a thing the queue can do. Reverting is, and
         // that is a new queued change rather than the removal of an old one.
         var id = _store.PendingConfig.Queue(Request());
         _store.PendingConfig.RecordResult(id, PendingConfigResult.Applied, "set", DateTimeOffset.UtcNow);

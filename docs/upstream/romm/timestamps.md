@@ -1,5 +1,5 @@
 ---
-summary: How RomM serialises datetimes.
+summary: How RomM serializes datetimes.
 read-when: Before reading any timestamp RomM sends.
 ---
 
@@ -15,6 +15,6 @@ Verified: RomM 5.3.1, 2026-09-29. How: read every datetime on ten `GET` routes a
 platforms, devices, firmware and the user carry `+00:00`. `System.Text.Json` reads a zone-less
 value as local, so a plain `DateTimeOffset` is out by the machine's own offset, and right only on
 a UTC machine, which is what CI is. Every `DateTimeOffset` RomMBat reads off the server goes
-through `UtcTimestampConverter`, which reads a zone-less value as UTC and honours an offset where
+through `UtcTimestampConverter`, which reads a zone-less value as UTC and honors an offset where
 one is present. The test stub serves every timestamp zone-less, because a stub writing an offset
 lets a broken client pass.

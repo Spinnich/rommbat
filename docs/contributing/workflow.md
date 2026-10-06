@@ -27,15 +27,15 @@ again on a PR that stopped for you, once you have answered.
 Each command and the reviewer agent set `model` and `effort` in their frontmatter, so a session
 switches model when the command starts and returns to your own default on your next message.
 
-| Command or agent | Model  | Effort | Why                                                           |
-| ---------------- | ------ | ------ | ------------------------------------------------------------- |
-| `/next`          | Sonnet | low    | Ranks a list and hands off                                    |
-| `/start-issue`   | Opus   | medium | The design judgement: ruling on the issue and writing the fix |
-| `/drive-pr`      | Sonnet | high   | CI logs and scoped fixes; high effort for ruling on findings  |
-| `pr-reviewer`    | Opus   | medium | A different, stronger model from the one driving the PR       |
-| `/review-pr`     | Sonnet | low    | Spawns the reviewer and relays its comment                    |
-| `/certify`       | Sonnet | medium | Mostly launching rows, sending keys and recording             |
-| `/upstream`      | Opus   | medium | Reading an upstream delta and ruling on what it changes       |
+| Command or agent | Model  | Effort | Why                                                          |
+| ---------------- | ------ | ------ | ------------------------------------------------------------ |
+| `/next`          | Sonnet | low    | Ranks a list and hands off                                   |
+| `/start-issue`   | Opus   | medium | The design judgment: ruling on the issue and writing the fix |
+| `/drive-pr`      | Sonnet | high   | CI logs and scoped fixes; high effort for ruling on findings |
+| `pr-reviewer`    | Opus   | medium | A different, stronger model from the one driving the PR      |
+| `/review-pr`     | Sonnet | low    | Spawns the reviewer and relays its comment                   |
+| `/certify`       | Sonnet | medium | Mostly launching rows, sending keys and recording            |
+| `/upstream`      | Opus   | medium | Reading an upstream delta and ruling on what it changes      |
 
 Other general-purpose subagents run on Sonnet, from `CLAUDE_CODE_SUBAGENT_MODEL` in
 `.claude/settings.json`. The values are family aliases, so each takes the newest model in its

@@ -15,7 +15,7 @@ The probe says: **Refuted. The two describe opposite sides of a mirror.** Driven
 
 ## RB-167. The Jaguar battery save never leaves the emulator's own tree
 
-`game4F7E323A69447A71_eeprom.bigpeep`, 128 bytes, sits in `emulators/bigpemu/userdata/` with no counterpart anywhere under `saves/jaguar/`, so not everything `bigpemu` writes reaches `saves/`. Same class of trap as openMSX's states landing in `bios/openmsx/savestates/`: a client reading only the declared tree concludes the game has no battery save. `jaguar` is in `save_shapes.json`'s `_unclassified` list and this is the concrete reason it has to stay there until the native path is modelled
+`game4F7E323A69447A71_eeprom.bigpeep`, 128 bytes, sits in `emulators/bigpemu/userdata/` with no counterpart anywhere under `saves/jaguar/`, so not everything `bigpemu` writes reaches `saves/`. Same class of trap as openMSX's states landing in `bios/openmsx/savestates/`: a client reading only the declared tree concludes the game has no battery save. `jaguar` is in `save_shapes.json`'s `_unclassified` list and this is the concrete reason it has to stay there until the native path is modeled
 
 ## RB-168. `bigpemu` writes a `.txt` sidecar, and its contents map the mirror's names to the native ones
 

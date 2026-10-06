@@ -20,4 +20,4 @@ Ask three questions before writing the class:
 
 1. Does it persist a path? Then it persists a relative one.
 2. Does it run on the game-launch path? Then it does not open a socket.
-3. Does it need the server? Then it needs a defined behaviour when the server is gone.
+3. Does it need the server? Then it needs a defined behavior when the server is gone.

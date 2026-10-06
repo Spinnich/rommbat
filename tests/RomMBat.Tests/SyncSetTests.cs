@@ -15,7 +15,7 @@ namespace RomMBat.Tests;
 /// answer with the server switched off.
 /// </summary>
 /// <remarks>
-/// The point of a set is "my SNES favourites, max 40 games, 8 GB" resolving to an
+/// The point of a set is "my SNES favorites, max 40 games, 8 GB" resolving to an
 /// exact list without the client ever holding the library, so that is the shape of most of
 /// these.
 /// </remarks>
@@ -54,7 +54,7 @@ public class SyncSetTests : IDisposable
 
         var set = Add(new SyncSetDefinition
         {
-            Name = "My SNES favourites",
+            Name = "My SNES favorites",
             Scope = CatalogScopeKind.Platform,
             ScopeValue = "1",
             MaxGames = 40,

@@ -170,7 +170,7 @@ public sealed class EsMenuEntryTests : IDisposable
         Assert.False(File.Exists(At(EsMenuEntry.LogoPath)));
         Assert.False(GamelistDocument.Load(At(EsMenuEntry.GamelistPath)).Contains(EsMenuEntry.EntryPath));
 
-        // The folders and the neighbours survive, which is the whole point: es_menu/ and
+        // The folders and the neighbors survive, which is the whole point: es_menu/ and
         // media/ are RetroBat's, and 93 entries live in that gamelist.
         Assert.True(File.Exists(neighbour));
         Assert.True(Directory.Exists(Path.Combine(_tree.Root, "system", "es_menu", "media")));

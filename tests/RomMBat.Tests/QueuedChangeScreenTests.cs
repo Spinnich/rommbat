@@ -10,11 +10,11 @@ using Xunit;
 namespace RomMBat.Tests;
 
 /// <summary>
-/// The queued-config surface, where a queued change can be cancelled from the couch.
+/// The queued-config surface, where a queued change can be canceled from the couch.
 /// </summary>
 /// <remarks>
 /// <b>Queueing is not a convenience here, it is the only mechanism.</b> EmulationStation loads
-/// <c>es_settings.cfg</c> at startup and serialises its own model over anything written
+/// <c>es_settings.cfg</c> at startup and serializes its own model over anything written
 /// afterwards, and RomMBat is launched from the ES menu, so it runs under a live ES every single
 /// time. That is why there is no apply path on any of these screens and why "waiting for you to
 /// quit EmulationStation" is a permanent answer rather than a transient one.
@@ -81,7 +81,7 @@ public class QueuedChangeScreenTests : IDisposable
 
         navigator.Handle(NavAction.Accept);
 
-        // Cancelled deletes, because nothing happened and there is nothing to report. Only an
+        // Canceled deletes, because nothing happened and there is nothing to report. Only an
         // applied change keeps its outcome.
         Assert.Empty(_session.Store.PendingConfig.ListOutstanding());
         Assert.Empty(_session.Store.PendingConfig.ListFinished());
@@ -91,15 +91,15 @@ public class QueuedChangeScreenTests : IDisposable
 
         // And the footer follows the screen. The label was a ternary in the constructor's
         // argument, which is evaluated once with the flag still false, so the row read
-        // "Cancelled" while Back went on offering to keep it queued.
+        // "Canceled" while Back went on offering to keep it queued.
         var back = Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Back);
         Assert.Equal("Done", back.Label);
 
-        // And the pane follows it, rather than still describing the change it just cancelled.
-        Assert.Equal("Cancelled", Assert.Single(confirm.Rows).Label);
+        // And the pane follows it, rather than still describing the change it just canceled.
+        Assert.Equal("Canceled", Assert.Single(confirm.Rows).Label);
 
         // And so does the title, which otherwise stays a question over its own answer (#448).
-        Assert.Equal("Change cancelled", confirm.Title);
+        Assert.Equal("Change canceled", confirm.Title);
 
         navigator.Handle(NavAction.Back);
         Assert.Empty(Assert.IsType<ListScreen>(navigator.Current).Rows);

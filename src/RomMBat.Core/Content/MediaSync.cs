@@ -216,7 +216,7 @@ public sealed class MediaSync
         var budget = _store.Settings.GetInt64(SettingStore.ContentMaxBytes);
         var floor = _store.Settings.GetInt64(SettingStore.FreeSpaceFloorBytes)
             ?? SettingStore.DefaultFreeSpaceFloorBytes;
-        // Summed in SQL rather than by materialising the table. Interleaving artwork per game
+        // Summed in SQL rather than by materializing the table. Interleaving artwork per game
         // turned this from one scan per run into one per game, which is quadratic in library
         // size against a table migration 013 measured at 5,268 rows on a live install. The
         // figure is unchanged; only what it costs to read is. #111.

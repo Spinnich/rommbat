@@ -77,7 +77,7 @@ public sealed class PartialSweepTests : IDisposable
         // too: it is where a class C restore extracts before touching the live tree.
         //
         // state- is here because a producer the sweep does not know is a leak with no upper
-        // bound: an unrecognised name is left alone forever, and a partial has no local_file row,
+        // bound: an unrecognized name is left alone forever, and a partial has no local_file row,
         // so the bytes are invisible to the disk budget as well.
         using var store = LocalStore.Open(_tree.Install());
 
@@ -235,7 +235,7 @@ public sealed class PartialSweepTests : IDisposable
             BiosPlanner.PartFor("0123456789abcdef0123456789abcdef").Value,
             StringComparison.Ordinal);
 
-        // And the names the sweep recognises are still the names the producers write, so a
+        // And the names the sweep recognizes are still the names the producers write, so a
         // rename is caught as well as a move.
         using var store = LocalStore.Open(_tree.Install());
 

@@ -60,7 +60,7 @@ was additive except for one thing the DTO diff shows as a single character:
 `int?`. The server returns null only when a caller asks for neither `with_total` nor
 `with_rom_id_index`; `CatalogQuery` always sends `with_total=true` and a test asserts it, so
 `RomPage.Total` stays a non-nullable `int`. A pin move that silently turned a field nullable
-under code that assumes otherwise would throw at deserialisation, not degrade.
+under code that assumes otherwise would throw at deserialization, not degrade.
 
 The 5.2.0 to 5.3.0-alpha.2 move adds 32 operations and removes none, and retypes no member of
 any retained class. Two members leave: `ClaimSessionRequest`, renamed to
@@ -89,7 +89,7 @@ is four lines.
 - `SystemDict` gains `GIT_BRANCH`, a nullable string the server fills only on a `development`
   build. It is `required` in the schema, which would matter if NSwag enforced it; `nswag.json`
   sets `requiredPropertiesMustBeDefined: false` and `generateDataAnnotations: false`, so the
-  property is plain and a server that omits it still deserialises.
+  property is plain and a server that omits it still deserializes.
 - The `X-Upload-Total-Size` and `X-Upload-Total-Chunks` headers on `POST /api/roms/upload/start`
   drop from `minimum: 1` to `minimum: 0`, because an empty ROM file is accepted now. RomMBat
   does not upload ROMs.
@@ -121,7 +121,7 @@ both as a single line, which put `1572` inside `1570`'s `//` comment and disable
 them. If a regenerated file still will not compile on a
 doc-comment warning, add the warning there rather than turning the check off for the project.
 
-## Why the schema is normalised first
+## Why the schema is normalized first
 
 `normalize.py` writes a derived copy that the generator consumes; the pinned file is never
 edited. RomM serves OpenAPI **3.1**, where an optional string is

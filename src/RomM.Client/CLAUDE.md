@@ -15,7 +15,7 @@ costs the most when skipped.
 ## Traps
 
 - **Regenerate DTOs only when moving the RomM floor** (`CLAUDE.md` rule 6), and review the diff.
-  Anything the schema gets wrong is fixed in the normalisation step `openapi/README.md`
+  Anything the schema gets wrong is fixed in the normalization step `openapi/README.md`
   describes, never in `Generated/`.
 - **Every handler sets `SocketsHttpHandler.ConnectTimeout`** (rule 5). A new handler without it
   stalls 21 s on an absent LAN host.

@@ -761,7 +761,7 @@ public sealed class SyncSetStore
     /// </remarks>
     public static SetOrdering DefaultOrdering => SetOrdering.RecentlyUpdated;
 
-    /// <summary>Reads a stored or supplied ordering. An unrecognised value is the default.</summary>
+    /// <summary>Reads a stored or supplied ordering. An unrecognized value is the default.</summary>
     public static SetOrdering ParseOrdering(string? text) => text switch
     {
         "name" => SetOrdering.Name,

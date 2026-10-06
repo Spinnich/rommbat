@@ -22,7 +22,7 @@ read a delta, and the traps in it, is in [delta.md](delta.md).
 ## The tracking issue
 
 `tools/upstream_watch.py`, run daily by `.github/workflows/upstream-watch.yml`, keeps one issue per
-upstream version line above the floor, labelled `upstream` and titled
+upstream version line above the floor, labeled `upstream` and titled
 `<RomM|RetroBat> <major>.<minor>: scout and adopt`. It owns the releases table between its markers
 and comments when a tag appears. Everything else in the issue is the pass's:
 
@@ -51,7 +51,7 @@ prerelease is not one. A test asserts the floor and the tested row carry no prer
    `/api/heartbeat`. If it is the target, pull `/openapi.json` into scratch and diff it against
    the pin. Name every path and field the generated DTOs or `RomM.Client` use that moved, then
    run the live tests against that instance. If it is not the target, the schema and the live
-   behaviour are unproven, and the findings say so; the maintainer owns that instance, so never
+   behavior are unproven, and the findings say so; the maintainer owns that instance, so never
    upgrade it yourself.
 5. **Preview the re-check list**: `python3 tools/docs/check.py --stale --floor <project>=<core>`,
    with the version less its suffix (`5.4.0`), lists the facts adoption will owe. Read every entry
@@ -98,10 +98,10 @@ and must move, and some are the version a measurement was taken on and must not.
    the floor from `RetroBatVersion.Minimum` and `RomMServerVersion.Minimum`, so run it once the
    floor being moved is in code: step 2 for RetroBat, step 6 for RomM. Re-measure each fact
    and restamp it, or delete it with its citations when it stopped being true. Read the upstream
-   changelog end to end as well, for behaviour no fact records yet.
+   changelog end to end as well, for behavior no fact records yet.
 4. Re-check every entry in `docs/upstream/issues.md`. A fix upstream changes what
    RomMBat should do; **no workaround comes out until a hands-on pass has seen the fixed
-   behaviour.** A changelog line is upstream's belief, not a measurement.
+   behavior.** A changelog line is upstream's belief, not a measurement.
 5. Leave provenance alone. `data/retrobat/*.json`'s `_retrobat_version`, and a live capture under
    `tests/.../fixtures/`, record the version something was **measured on**. Rewriting those to
    the new number silently reattributes a measurement to a build nobody ran it against.

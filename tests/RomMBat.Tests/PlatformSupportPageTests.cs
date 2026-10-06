@@ -13,7 +13,7 @@ namespace RomMBat.Tests;
 /// </summary>
 /// <remarks>
 /// Certification is per <c>(system, emulator, core)</c>, and a hand-kept status table drifts from
-/// the records it summarises. The rows are data, the page is built from them, and a system in the
+/// the records it summarizes. The rows are data, the page is built from them, and a system in the
 /// file must carry every row the vendored <c>es_systems.cfg</c> declares for it, in its order, so
 /// a refresh that adds a core surfaces here as a row nobody has tested rather than going unseen.
 /// </remarks>

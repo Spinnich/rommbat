@@ -150,8 +150,8 @@ public sealed record BiosPlan
 /// good faith, so both are covered by tests carrying the real filenames.
 /// <para>
 /// <b>A requirement with no md5 is a third state.</b> It can be neither found in RomM nor
-/// recognised on disk, so it is reported as unverifiable and never as missing: telling a user
-/// to go and find a file RomMBat could not recognise if they already had it is worse than
+/// recognized on disk, so it is reported as unverifiable and never as missing: telling a user
+/// to go and find a file RomMBat could not recognize if they already had it is worse than
 /// saying nothing. When nothing is at the path and RomM holds a file under the same name, the
 /// step names it as <see cref="BiosStep.SameName"/> for the user to judge.
 /// </para>
@@ -391,7 +391,7 @@ public sealed class BiosPlanner
             return step with
             {
                 Action = BiosAction.Unverifiable,
-                Reason = "RetroBat names no hash for this file, so RomMBat cannot find it or recognise it.",
+                Reason = "RetroBat names no hash for this file, so RomMBat cannot find it or recognize it.",
             };
         }
 

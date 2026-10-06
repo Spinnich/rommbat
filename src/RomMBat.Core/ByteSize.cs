@@ -33,7 +33,7 @@ public static class ByteSize
     /// <b>The unit and the decimal place are fixed so the text does not change width.</b>
     /// Formatting each side on its own rescales the left one as it grows, KB to MB to GB, and
     /// <c>0.#</c> drops a decimal at every round number, so a progress line rebuilt eight times
-    /// a second is a different length almost every time. Centred, that reads as the text
+    /// a second is a different length almost every time. Centered, that reads as the text
     /// vibrating: a hands-on pass on a set of small ROMs called it double vision. The
     /// destination is fixed for the whole run, so taking the unit from it makes the left side
     /// grow through a stable scale, and one forced decimal keeps the width constant within it.

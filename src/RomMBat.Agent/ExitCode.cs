@@ -34,7 +34,7 @@ internal static class ExitCode
     /// <summary>The server could not be reached. Normal, not a fault.</summary>
     public const int Offline = 5;
 
-    /// <summary>The user cancelled.</summary>
+    /// <summary>The user canceled.</summary>
     public const int Cancelled = 6;
 
     /// <summary>

@@ -1,7 +1,7 @@
 namespace RomMBat.Core.Content;
 
 /// <summary>
-/// Recognises a battery file that holds nothing but <c>0xFF</c>, which is save memory no game wrote.
+/// Recognizes a battery file that holds nothing but <c>0xFF</c>, which is save memory no game wrote.
 /// </summary>
 /// <remarks>
 /// <b>ares writes one for every cartridge, battery or not.</b> Measured on <c>gamegear</c> under

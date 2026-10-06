@@ -84,8 +84,8 @@ public static class RomMTransportErrors
     /// <remarks>
     /// The order matters. A caller's own cancellation is checked first, because a
     /// <see cref="TaskCanceledException"/> from a real cancellation and one from a connect
-    /// timeout are the same type. Anything unrecognised is returned unchanged so it
-    /// surfaces rather than being mislabelled as an offline server.
+    /// timeout are the same type. Anything unrecognized is returned unchanged so it
+    /// surfaces rather than being mislabeled as an offline server.
     /// </remarks>
     /// <param name="exception">What <see cref="HttpClient"/> threw.</param>
     /// <param name="requestUri">Used only to build the message.</param>

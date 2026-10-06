@@ -39,7 +39,7 @@ public sealed record EvictionApplied(
 /// <see cref="StateScanner"/>, <see cref="SaveScanner"/>, <see cref="EvictionPlanner"/>,
 /// <see cref="PartialSweep"/> and <see cref="GamelistSync"/>; none of them is reimplemented.
 /// <para>
-/// <b>The tree lock is not taken here and that is unchanged behaviour.</b>
+/// <b>The tree lock is not taken here and that is unchanged behavior.</b>
 /// <see cref="PartialSweep.Apply"/> takes it around its own deletions, because one of the
 /// things it would delete is a class C restore's staging directory, and it returns
 /// <see cref="PartialSweepOutcome.Skipped"/> with the sentence for it when it cannot. That is

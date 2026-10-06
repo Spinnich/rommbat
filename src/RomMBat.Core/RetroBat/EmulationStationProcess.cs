@@ -25,7 +25,7 @@ public sealed record EsRunningVerdict(bool IsRunning, string? Detail)
 /// <remarks>
 /// <b>This exists because a write made while ES runs is discarded.</b> Driven on a real
 /// install: two custom keys were merged in atomically, confirmed on disk, and gone after ES's
-/// next write. ES loads the file at startup and serialises that model every time it writes, so
+/// next write. ES loads the file at startup and serializes that model every time it writes, so
 /// a key present at load survives and one that appears afterwards does not. Merging and
 /// atomicity do not help; both were done. See RB-178 and RB-179.
 /// <para>

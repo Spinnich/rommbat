@@ -108,7 +108,7 @@ public sealed class BiosManifestTests
 
         // mastersystem is one of the 29 systems with no joinable entry at all. Reporting these
         // as "not in your library" would send a user looking for a file RomMBat could not
-        // recognise if they already had it.
+        // recognize if they already had it.
         var mastersystem = manifest.For("mastersystem");
 
         Assert.NotEmpty(mastersystem);

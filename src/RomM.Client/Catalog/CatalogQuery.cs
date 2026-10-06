@@ -208,7 +208,7 @@ public sealed record CatalogFilter
     [JsonPropertyName("matched")]
     public bool? Matched { get; init; }
 
-    /// <summary>Favourites are collection membership in RomM, and this is the filter form of it.</summary>
+    /// <summary>Favorites are collection membership in RomM, and this is the filter form of it.</summary>
     [JsonPropertyName("favorite")]
     public bool? Favorite { get; init; }
 
@@ -401,7 +401,7 @@ public sealed record CatalogQuery
             // noise of a scoped page and about 140 ms unscoped (RM-9). Load-bearing: the server
             // returns a null `total` when neither this nor with_rom_id_index is set, and
             // RomPage.Total is a non-nullable int, so turning this off to save bytes throws on
-            // deserialisation rather than degrading.
+            // deserialization rather than degrading.
             new("with_total", "true"),
 
             // Opt-in and left off. Per-file detail is the content sync's to ask for, and it

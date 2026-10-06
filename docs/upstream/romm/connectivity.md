@@ -23,7 +23,7 @@ also bounds a reachable server's slow answer.
 Verified: Windows 11 26200, .NET 10, 2026-08-09 and 2026-09-29. How: read the exception chain of each way a request to the absent host of RB-353 ends.
 All three throw `TaskCanceledException`. A `ConnectTimeout` wraps a bare `TimeoutException`; an
 `HttpClient.Timeout` wraps a `TimeoutException` that wraps a further `TaskCanceledException`; a
-cancelled token wraps only a `TaskCanceledException`. A bare `catch (TaskCanceledException)`
+canceled token wraps only a `TaskCanceledException`. A bare `catch (TaskCanceledException)`
 reports every offline server as the user's doing, so `RomMTransportErrors.Classify` checks the
 token first, then reads that chain to report `ConnectTimeout` or `RequestTimeout`.
 

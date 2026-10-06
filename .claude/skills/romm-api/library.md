@@ -112,7 +112,7 @@ columns for that reason.
   `RomM.Client.Catalog.RomRow` and `PlatformRow`, which are slim and carry `long`.
 - **`platform.slug` is not unique; `fs_slug` and `id` are.** 123 platforms, 72 slugs, on a
   real instance, whose owner files demos and prototypes under a parallel `-unofficial` folder
-  per system. **A user's filing scheme, not a RomM behaviour**, so the number and naming of
+  per system. **A user's filing scheme, not a RomM behavior**, so the number and naming of
   such rows is unpredictable. Never key anything by slug.
 - **Never read `rom_ids` from a collection response.** `BaseCollectionSchema.rom_ids` is a
   full `set[int]` present even on the list endpoint, so `GET /api/collections` on a large
@@ -123,15 +123,15 @@ columns for that reason.
   an invented parameter both answer `total=83131`. No 422, no warning, no echo of what was
   applied. Check parameter names against the pinned schema, and treat a scoped walk whose
   `total` equals the library total as a bug in the query.
-- **An unrecognised _value_ of a known filter is ignored the same way, and that is worse.**
+- **An unrecognized _value_ of a known filter is ignored the same way, and that is worse.**
   `metadata_providers=zzz-not-a-provider` returns the whole library, so a picker offering a
   value the server does not know hands somebody every game while looking like a filter.
   **Never invent a vocabulary for a parameter the schema declares as a bare array of strings.**
   Two of them are: `metadata_providers` has no enumeration anywhere and was probed one value at
-  a time against a live instance, where a recognised value moves the total and an unrecognised
+  a time against a live instance, where a recognized value moves the total and an unrecognized
   one does not. Deriving it from `SimpleRomSchema`'s `*_id` fields would have been wrong,
   because `sgdb` is one of those and the filter ignores it. `statuses` cannot be probed that
-  way at all, since an unrecognised status returns **zero** rather than everything and so looks
+  way at all, since an unrecognized status returns **zero** rather than everything and so looks
   exactly like a real status nobody has used; its authority is `RomUserStatus` in the schema.
   RB-236.
 - **`filter_values` is not the list of what you can filter on.** The sidecar reports
@@ -140,7 +140,7 @@ columns for that reason.
   a facet, and as **ids** where every other key is names. Drive a filter screen off the
   endpoint's parameters and use the sidecar only for the values. RB-237.
 - **The sidecar rides on `/api/roms`, so asking for it means being sent a row.** Read it with a
-  shape that ignores `items` entirely. Deserialising the row through the generated page type
+  shape that ignores `items` entirely. Deserializing the row through the generated page type
   put an `int32` on `fs_size_bytes`, and a single ROM at or above 2 GiB then failed the whole
   body, leaving every facet empty on a library with thousands of values. `RomRow` exists for
   that overflow and says so; `RomFilterValuesPage` is the same lesson for this call.
@@ -173,7 +173,7 @@ columns for that reason.
   prefix and carry a `?ts=` query with a **raw space**; `path_manual`, `path_video` and
   `ss_metadata.logo_path` are relative to it. **The relative form requested as given
   answers 200 with the web UI's `index.html`** (RB-90), with an `ETag` and
-  `Accept-Ranges`, so a status check will not catch it and the content type must be. Normalise
+  `Accept-Ranges`, so a status check will not catch it and the content type must be. Normalize
   onto the prefix exactly once and drop the query. nginx serves them: ranges work, 416 past
   the end, and **no token is required at all**. EmulationStation's marquee is
   `ss_metadata.logo_path`, never the similarly named `marquee_path`, which is an arcade

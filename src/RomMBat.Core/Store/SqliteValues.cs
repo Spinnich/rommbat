@@ -73,7 +73,7 @@ internal static class SqliteValues
     /// </summary>
     /// <remarks>
     /// <b>One <see cref="SqliteConnection"/> is shared by every store, and it is not
-    /// thread-safe.</b> Unserialised, the failure is not a clean exception: two
+    /// thread-safe.</b> Unserialized, the failure is not a clean exception: two
     /// threads mutating one connection's prepared-statement list threw "Collection was modified"
     /// out of <c>SqliteCommand.Dispose</c> in a full test run.
     /// <para>

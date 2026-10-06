@@ -133,7 +133,7 @@ public sealed class ConflictResolutionService
     /// <summary>Every conflict still waiting on a decision, oldest first, and what to call it.</summary>
     /// <remarks>
     /// Oldest first because that is the order they happened in, and because a conflict that has
-    /// been open longest is the one whose local copy a person is least likely to still recognise.
+    /// been open longest is the one whose local copy a person is least likely to still recognize.
     /// <para>
     /// <b>Named from <c>rom_metadata</c>, which is the store that outlives the file.</b> A
     /// conflicted save frequently belongs to a ROM that is no longer on the device, since

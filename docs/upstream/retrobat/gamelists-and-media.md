@@ -1,16 +1,16 @@
 ---
 summary: How ES reads and rewrites `gamelist.xml`, names media, and treats its scraper options.
-read-when: Before writing a gamelist or media, or honouring a scraper option.
+read-when: Before writing a gamelist or media, or honoring a scraper option.
 ---
 
 # RetroBat: gamelists and media
 
 Facts RomMBat relies on, one per heading. [The upstream reference](../README.md) says what an entry holds and how IDs are kept.
 
-## RB-388. ES serialises its loaded gamelist model, so an edit it has not reloaded can be lost
+## RB-388. ES serializes its loaded gamelist model, so an edit it has not reloaded can be lost
 
 Verified: RetroBat 8.2.0, 2026-08-08. How: edited `roms/<system>/gamelist.xml` with ES up, called `/reloadgames`, quit, and diffed the file ES rewrote on exit.
-ES holds the gamelist it loaded in memory and serialises that model when it rewrites the file on
+ES holds the gamelist it loaded in memory and serializes that model when it rewrites the file on
 exit. An edit followed by `/reloadgames` is in the model, shows at once and survives the rewrite.
 An edit with no reload is overwritten when ES next rewrites the file, which it does only when it
 has a change of its own (RB-104): that half is inferred from the measured halves, not driven. ES writes no `<game>` for a rom it has no metadata for, even while
@@ -136,5 +136,5 @@ Verified: RetroBat 8.2.1, 2026-09-01. How: the maintainer saw SCRAPE FROM change
 Every row is built from `Scraper::getScraper()` and guarded on `isMediaSupported(...)`. When the
 stored value is not in the new scraper's list, `selectFirstItem()` picks one and `addSaveFunc`
 writes it on close. So `ScrapperImageSrc` records the scraper last selected when that menu
-closed, not a deliberate choice. A reader maps the values it recognises, falls back on anything
+closed, not a deliberate choice. A reader maps the values it recognizes, falls back on anything
 else, and ignores `Scraper`, since RomM is none of the scrapers it names.

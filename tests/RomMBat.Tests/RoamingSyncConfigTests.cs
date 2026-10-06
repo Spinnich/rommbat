@@ -38,7 +38,7 @@ public class RoamingSyncConfigTests : IDisposable
         _store.SyncSets.Add(
             new SyncSetDefinition
             {
-                Name = "My SNES favourites",
+                Name = "My SNES favorites",
                 Scope = CatalogScopeKind.Platform,
                 ScopeValue = "6",
                 MaxGames = 40,

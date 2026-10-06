@@ -39,7 +39,7 @@ vulnerabilities, and are documented so a report can skip them:
   in [docs/design/principles.md](docs/design/principles.md#4-portable-first).
 - **RomMBat writes into the RetroBat tree**, including `gamelist.xml` and
   `es_settings.cfg`. That is the integration mechanism. Reports about RomMBat
-  modifying RetroBat's own configuration are expected behaviour, though a write
+  modifying RetroBat's own configuration are expected behavior, though a write
   **outside** the RetroBat tree is a real bug and worth reporting.
 
 ## Please do report

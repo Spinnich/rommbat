@@ -119,7 +119,7 @@ public sealed record PartialSweepOutcome
 /// still claims and a transfer implies a claim.
 /// </para>
 /// <para>
-/// <b>Anything else in the directory is left alone.</b> A name this class does not recognise
+/// <b>Anything else in the directory is left alone.</b> A name this class does not recognize
 /// was not written by a producer it knows about, and deleting on the strength of "it is in a
 /// directory we own" is how a sweep destroys something it was never asked to judge.
 /// </para>

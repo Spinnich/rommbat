@@ -44,7 +44,7 @@ public sealed record EsSetting(string Name, EsSettingGroup Group, string Value);
 /// </para>
 /// <list type="bullet">
 /// <item><b>Never write while EmulationStation is running, because the write is discarded.</b>
-/// ES loads this file at startup and serialises that model on every write, so a key present at
+/// ES loads this file at startup and serializes that model on every write, so a key present at
 /// load survives, ones ES cannot understand included, and a key that appears afterwards does
 /// not. Merging and atomicity do not help: both were done and the write still vanished. A key
 /// that predates the load survives, nonsense or not. RB-178 and RB-179.</item>

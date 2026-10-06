@@ -72,7 +72,7 @@ against `action-max` is the only case, and it is the one the mapping regression 
 carried **72 distinct slugs**, because that owner files demos, prototypes, unlicensed and
 aftermarket titles under a parallel `-unofficial` folder per system, and RomM resolves both
 folders to one platform (`fs_slug` `gb` and `gb-unofficial` are both `slug` `gb`). **This is
-a user's filing scheme, not a RomM behaviour**, so how many such rows exist and what they are
+a user's filing scheme, not a RomM behavior**, so how many such rows exist and what they are
 called is unpredictable: do not special-case the `-unofficial` suffix, and do not assume the
 collisions come in pairs. The local `platform_map` is keyed by `fs_slug`; the slug is only the
 bundled table's lookup key. Key the map by slug and 51 of those 123 platforms disappear, and

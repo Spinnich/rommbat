@@ -77,8 +77,8 @@ public readonly record struct ScreenCommand(
 /// <remarks>
 /// <b>Every hint a screen offers is drawn, in the order it is listed.</b> This record carried a
 /// <c>Priority</c> for shedding hints on a narrow screen, which nothing implemented and every
-/// screen set: a comment describing a behaviour the code does not have is worse than the missing
-/// behaviour, because the next reader trusts it. No screen offers more than five, so if a footer
+/// screen set: a comment describing a behavior the code does not have is worse than the missing
+/// behavior, because the next reader trusts it. No screen offers more than five, so if a footer
 /// ever has too many for a panel, the shed goes in <c>ShellWindow</c> where the
 /// widths are known, and the order it drops them in is Argosy's convention and worth keeping:
 /// a footer that reflows as the content changes makes the controls feel unreliable.

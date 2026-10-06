@@ -31,7 +31,7 @@ parameters take, and ten yes-or-no properties. The values come from the live lib
 **Two of the eleven are not in the sidecar and are not derived from the library.** Statuses are
 a vocabulary the user assigns, taken from the pinned schema's `RomUserStatus`. Metadata
 providers have no enumeration in the schema at all, and the server **silently ignores** a value
-it does not recognise, so a wrong entry would hand somebody the whole library while looking
+it does not recognize, so a wrong entry would hand somebody the whole library while looking
 like a filter: they were probed one at a time against a live instance (RB-236). Deriving
 them from the rom row's `*_id` fields would have been wrong, which the probe is how we know.
 
