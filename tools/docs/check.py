@@ -3,9 +3,9 @@
 
 Two classes of check. An error fails the run: a relative link or anchor that does not
 resolve, an em-dash, a fact ID (`RB-<n>` for RetroBat, `RM-<n>` for RomM) cited but defined
-nowhere, history phrasing, or a Markdown file over its line budget. A report is printed and does
-not fail: the always-loaded context ceiling, missing frontmatter, legacy "finding N" citations,
-generic use of `dry-run`, and British spellings in prose. Reports exist for rules the tree does not meet yet, or,
+nowhere, history phrasing, a British spelling in prose, or a Markdown file over its line
+budget. A report is printed and does not fail: the always-loaded context ceiling, missing
+frontmatter, legacy "finding N" citations, and generic use of `dry-run`. Reports exist for rules the tree does not meet yet, or,
 for the context ceiling, a rule that counts the maintainer's local MEMORY.md, which CI never sees.
 
 Usage:
@@ -314,7 +314,7 @@ def check_file(rel: str, text: str, findings: Findings, defined_facts: set[str] 
             findings.report("dry-run", f"{rel}:{number}: generic dry-run; say preview")
         # A quotation keeps its source's spelling; a dotted or --flag word is a name.
         for word in BRITISH_SPELLING.findall(re.sub(r"\"[^\"]*\"", "", line)):
-            findings.report("spelling", f"{rel}:{number}: {word}; the house style is American English")
+            findings.errors.append(f"{rel}:{number}: {word}; the house style is American English")
         if defined_facts is not None and not FACT_HEADING.match(line):
             for prefix, digits in FACT_ID.findall(line):
                 if f"{prefix}-{digits}" not in defined_facts:

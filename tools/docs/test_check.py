@@ -184,9 +184,9 @@ class SpellingTest(unittest.TestCase):
     def reports(self, text: str) -> list[str]:
         findings = check.Findings()
         check.check_file("docs/x.md", text, findings, None)
-        return findings.reports.get("spelling", [])
+        return [e for e in findings.errors if "American English" in e]
 
-    def test_british_spelling_is_reported(self) -> None:
+    def test_british_spelling_fails(self) -> None:
         self.assertEqual(
             self.reports("The behaviour is well-organised.\n"),
             [

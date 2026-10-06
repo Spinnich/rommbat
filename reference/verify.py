@@ -106,7 +106,7 @@ def main():
 
     # The blank string is filtered here and nowhere else, because an entry carrying no md5
     # cannot be joined in either direction: RomMBat can neither find such a file in RomM nor
-    # recognise it on disk. Counting it as a requirement inflated every number below by one
+    # recognize it on disk. Counting it as a requirement inflated every number below by one
     # and made "unknown to RomM" claim a hash that does not exist.
     rb_md5 = {md5 for _system, md5, _file in entries if md5}
     check("RetroBat systems in the BIOS manifest", len(bios), 100)
@@ -167,7 +167,7 @@ def main():
 
     print("\nGamelist export")
     exporter = (HERE / "romm-gamelist_exporter.py").read_text(encoding="utf-8")
-    # Behaviours rather than counts: M4 reads these off RomM's own exporter, and each is a
+    # Behaviors rather than counts: M4 reads these off RomM's own exporter, and each is a
     # conversion that would be silently wrong if upstream changed it.
     check(
         "first_release_date is milliseconds",

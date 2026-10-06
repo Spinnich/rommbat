@@ -77,7 +77,7 @@ the tree.
 | `summary:` and `read-when:` frontmatter on every file under `docs/`                                    | Reported    |
 | History phrasing, such as `The move to` or `Superseded`                                                | Fails       |
 | Generic `dry-run`                                                                                      | Reported    |
-| A British spelling from the checker's list, outside code and quotation marks                           | Reported    |
+| A British spelling from the checker's list, outside code and quotation marks                           | Fails       |
 | A `$` in prose written `\$`, or `&#36;` under `wiki/`, which MkDocs does not unescape                  | Fails       |
 
 A reported rule becomes a failing one once the tree meets it. The context ceiling stays reported,
