@@ -1954,6 +1954,28 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_problem_for_a_rom_this_device_holds_no_file_for_names_it_by_its_id()
+    {
+        // A save outlives its ROM's record when the game is removed after the scan, and the line
+        // still has to say which game it is about.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(9, "saturn", "Battle Garegga (Japan)", ".chd", ".bcr", "the big one");
+        File.WriteAllText(fixture.Resolve("saves/saturn/Battle Garegga (Japan).bkr"), "the small one");
+        Assert.Equal(2, fixture.Scan().Found);
+
+        Assert.True(fixture.Store.Files.Remove(RelativePath.Create("roms/saturn/Battle Garegga (Japan).chd")));
+
+        fixture.Stub.NegotiateActions[(9, "libretro:battery:bcr")] = "upload";
+        fixture.Stub.NegotiateActions[(9, "libretro:battery:bkr")] = "upload";
+        fixture.Stub.RefuseUploadForSlot = "libretro:battery:bkr";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        var batch = Assert.Single(outcome.Problems, problem => problem.Contains("are one save", StringComparison.Ordinal));
+        Assert.StartsWith("rom 9, Battery save: ", batch, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_class_B_save_that_lands_whole_is_not_reported_as_a_batch()
     {
         // Only partial batches are named. One that landed whole is the ordinary case and saying

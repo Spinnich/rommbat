@@ -805,7 +805,7 @@ public sealed class SaveSync
     /// <b>The gamepad UI and the agent print these lines alike</b>, so they carry the game's file
     /// and <see cref="SaveSlotLabel"/>'s words rather than a rom id and a raw slot. Nobody types a
     /// flush problem back into a command; the raw slot stays where <c>saves resolve</c> needs it,
-    /// in the conflict listing. A ROM this device holds no file for falls back to its id.
+    /// in the agent's listings. A ROM this device holds no file for falls back to its id.
     /// </remarks>
     private string NameSave(long? romId, string? slot)
     {
