@@ -568,9 +568,15 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
 
         if (attempt.Connection is null)
         {
+            // Not Core's sentence when unpaired: that one names the CLI command, which a
+            // person holding a pad cannot run. The menu here offers the pairing instead.
             Publish(_ => new SyncSnapshot(
                 attempt.NotPaired ? SyncStage.NotPaired : SyncStage.Refused,
-                attempt.Problem ?? "This install is not paired with a RomM server."));
+                attempt.NotPaired
+                    ? _pair is not null
+                        ? "This device is not paired with RomM yet. Choose Pair with RomM from the menu."
+                        : "This device is not paired with RomM yet. Pair with RomM from RomMBat's first screen."
+                    : attempt.Problem ?? "This install is not paired with a RomM server."));
             return;
         }
 

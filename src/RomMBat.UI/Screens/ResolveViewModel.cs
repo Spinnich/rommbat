@@ -310,7 +310,11 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         if (attempt.Connection is null)
         {
             Stage = attempt.NotPaired ? ResolveStage.NotPaired : ResolveStage.Refused;
-            Detail = attempt.Problem ?? "This install is not paired with a RomM server.";
+            // Not Core's sentence when unpaired, which names the CLI command. RomMBat's first
+            // screen is where this one pairs from.
+            Detail = attempt.NotPaired
+                ? "This device is not paired with RomM yet. Pair with RomM from RomMBat's first screen."
+                : attempt.Problem ?? "This install is not paired with a RomM server.";
             return;
         }
 

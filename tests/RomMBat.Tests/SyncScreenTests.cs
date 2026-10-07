@@ -462,6 +462,11 @@ public sealed class SyncScreenTests : IDisposable
         Assert.Equal(SyncStage.NotPaired, sync.State.Stage);
         Assert.Contains(sync.Hints, hint => hint.Action == NavAction.Start);
 
+        // Said as a press on this screen, not as the CLI command Core's sentence names, which
+        // is what the agent tree showed a person holding a pad.
+        Assert.DoesNotContain("rommbat-agent", sync.State.Detail, StringComparison.Ordinal);
+        Assert.Contains("Pair with RomM", sync.State.Detail, StringComparison.Ordinal);
+
         Assert.Equal(ScreenCommandKind.Push, Navigator.Run(sync, "Pair with RomM").Kind);
         Assert.True(opened);
     }
