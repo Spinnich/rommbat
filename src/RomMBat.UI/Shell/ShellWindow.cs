@@ -7,6 +7,9 @@ using Avalonia.Threading;
 using RomMBat.Core.RetroBat;
 using RomMBat.UI.Input;
 
+// Aliased because a Window has a Theme of its own, which the bare name would find first.
+using EsTheme = RomMBat.UI.Shell.Theme;
+
 namespace RomMBat.UI.Shell;
 
 /// <summary>
@@ -43,8 +46,9 @@ internal sealed class ShellWindow : Window
         HorizontalAlignment = HorizontalAlignment.Center,
         VerticalAlignment = VerticalAlignment.Center,
     };
+    private readonly Border _scrim = new() { Background = EsTheme.Scrim, IsVisible = false };
     private readonly TextBlock _title = new();
-    private readonly StackPanel _footer = new() { Orientation = Orientation.Horizontal, Spacing = 28 };
+    private readonly StackPanel _footer = new() { Orientation = Orientation.Horizontal, Spacing = 22 };
     private bool _primed;
     private GamepadAvailability? _lastAvailability;
     private ILiveScreen? _live;
@@ -58,7 +62,11 @@ internal sealed class ShellWindow : Window
         Title = "RomMBat";
         WindowState = WindowState.FullScreen;
         WindowDecorations = WindowDecorations.None;
-        Background = new SolidColorBrush(Color.FromRgb(0x10, 0x12, 0x18));
+        Background = EsTheme.Background;
+
+        // Inherited by every line the screens draw, so only the title and the help bar name
+        // a face of their own.
+        FontFamily = EsTheme.MenuFont;
 
         Content = BuildChrome();
         Render();
@@ -85,47 +93,94 @@ internal sealed class ShellWindow : Window
             handledEventsToo: true);
     }
 
+    /// <summary>How wide the menu panel is: the widest list with a margin either side.</summary>
+    private const double PanelWidth = 1100;
+
+    /// <summary>
+    /// EmulationStation's menu: a centered panel holding the title and the screen, over the
+    /// theme's background, with the help bar along the bottom left (RB-425).
+    /// </summary>
+    /// <remarks>
+    /// <b>The panel is a fixed size</b> where ES's fits its rows, because a screen here changes
+    /// what it holds while it is open, and a panel that fitted it would grow and shrink as a
+    /// sync ran or a page loaded (#490).
+    /// </remarks>
     private Grid BuildChrome()
     {
+        _title.FontFamily = EsTheme.TitleFont;
+        _title.FontWeight = FontWeight.Bold;
         _title.FontSize = 34;
-        _title.Foreground = Brushes.White;
-        _title.Margin = new Thickness(48, 36, 48, 16);
+        _title.Foreground = EsTheme.Title;
+        _title.Margin = new Thickness(24, 14, 24, 10);
         _title.HorizontalAlignment = HorizontalAlignment.Center;
+        _title.TextTrimming = TextTrimming.CharacterEllipsis;
 
-        _body.Margin = new Thickness(48, 8, 48, 8);
+        _body.Margin = new Thickness(0);
 
-        // Centered rather than pinned to the top. Every screen in this stage is far shorter than
-        // a television, and left as-is the content sits in the upper third with a third of the
-        // display empty beneath it.
+        // Centered rather than pinned to the top. Most screens are far shorter than a
+        // television, and left as-is the content sits in the upper third with a third of the
+        // panel empty beneath it.
         _body.VerticalAlignment = VerticalAlignment.Center;
 
-        _footer.HorizontalAlignment = HorizontalAlignment.Center;
+        var inside = new Grid();
+        inside.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        inside.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        inside.RowDefinitions.Add(new RowDefinition(GridLength.Star));
+
+        var rule = new Border { Height = 1, Background = EsTheme.Separator, Margin = new Thickness(0, 0, 0, 4) };
+        var scroller = new ScrollViewer { Content = _body };
+
+        Grid.SetRow(_title, 0);
+        Grid.SetRow(rule, 1);
+        Grid.SetRow(scroller, 2);
+        inside.Children.Add(_title);
+        inside.Children.Add(rule);
+        inside.Children.Add(scroller);
+
+        var panel = new Border
+        {
+            Background = EsTheme.MenuPanel,
+            BorderBrush = EsTheme.MenuEdge,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Width = PanelWidth,
+            Margin = new Thickness(0, 16, 0, 12),
+            Padding = new Thickness(24, 0, 24, 8),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Child = inside,
+        };
+
+        _footer.HorizontalAlignment = HorizontalAlignment.Left;
+        _footer.VerticalAlignment = VerticalAlignment.Center;
+
+        // Fixed, so a screen with fewer hints, or none, does not resize the panel above it.
+        _footer.Height = 40;
 
         var footerBar = new Border
         {
-            Background = new SolidColorBrush(Color.FromRgb(0x18, 0x1B, 0x24)),
-            Padding = new Thickness(48, 18, 48, 18),
+            Background = EsTheme.HelpBar,
+            BorderBrush = EsTheme.Base,
+            BorderThickness = new Thickness(0, 1, 0, 0),
+            Padding = new Thickness(24, 6, 24, 6),
             Child = _footer,
         };
 
         var grid = new Grid();
-        grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
 
-        Grid.SetRow(_title, 0);
-        var scroller = new ScrollViewer { Content = _body };
-        Grid.SetRow(scroller, 1);
-        Grid.SetRow(footerBar, 2);
+        Grid.SetRow(panel, 0);
+        Grid.SetRow(footerBar, 1);
 
-        // Over the title and the body, outside their layout, so opening a popup moves nothing
-        // underneath it.
+        // Over the panel, outside its layout, so opening a popup moves nothing underneath it.
+        // The scrim darkens the panel behind it, as ES darkens what a menu opens over, or the
+        // popup is the panel's own color on top of it and reads as part of it.
+        Grid.SetRow(_scrim, 0);
         Grid.SetRow(_overlay, 0);
-        Grid.SetRowSpan(_overlay, 2);
 
-        grid.Children.Add(_title);
-        grid.Children.Add(scroller);
+        grid.Children.Add(panel);
         grid.Children.Add(footerBar);
+        grid.Children.Add(_scrim);
         grid.Children.Add(_overlay);
 
         return grid;
@@ -224,9 +279,11 @@ internal sealed class ShellWindow : Window
         var screen = _navigator.Current;
         Rewire(screen);
 
-        _title.Text = screen.Title;
+        // In capitals, as ES titles every menu (RB-423).
+        _title.Text = screen.Title.ToUpperInvariant();
         _body.Content = ScreenView.Build(screen);
         _overlay.Content = ScreenView.Overlay(screen);
+        _scrim.IsVisible = _overlay.Content is not null;
 
         _footer.Children.Clear();
         foreach (var hint in screen.Hints)

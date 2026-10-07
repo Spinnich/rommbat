@@ -40,5 +40,12 @@ and the outbox are Core's.
 - **A finished screen says so**: past-tense title, an outcome word, and a footer reading Done on
   Accept instead of offering a stop. `ListScreen` moves Done to Accept whenever its back label
   reads `ListScreen.DoneLabel`.
+- **Every color is a `Shell/Theme` token** copied from the carbon theme (RB-425); a screen never
+  names a brush. Inside a `Window`, `Theme` is the window's own property, so `ShellWindow` aliases
+  the class as `EsTheme`.
+- **Fonts and help icons are read from the install at startup, never shipped.** A font from a
+  file is named `fonts:RomMBatInstall#<family>`; the constructor taking the key as a URI builds a
+  family that silently resolves to Segoe UI. `EsIcon` refuses an SVG it cannot draw faithfully,
+  and the hint falls back to a drawn glyph.
 - The publish is five files and must stay out of self-extraction, which unpacks natives outside
   the tree (`docs/architecture/projects.md`, "src/RomMBat.UI").

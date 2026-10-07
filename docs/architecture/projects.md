@@ -217,8 +217,8 @@ undoes the paging. Both draw through one body in `ScreenView`, so the windowing 
 markers cannot be right in one and wrong in the other.
 
 **A list of choices and a pane of facts are drawn differently, and `ListScreen.Reading` is which
-one a screen is.** A list of choices has a cursor, wraps, and draws each row as a filled panel
-that fills accent when selected. A pane of facts has **no cursor at all**, scrolls by an offset
+one a screen is.** A list of choices has a cursor, wraps, and draws each row at a menu row's
+height with ES's selection bar on the one under the cursor. A pane of facts has **no cursor at all**, scrolls by an offset
 so every press moves the view, clamps at both ends, and draws its rows as plain lines. Dressing
 the second as the first is what a hands-on pass reported twice, as information shown as buttons
 that do nothing. `IWindowedScreen` makes the row count follow from the same answer, so a screen
@@ -271,6 +271,18 @@ and the sentence and the problems box are cut at their line budgets. The problem
 newest that fit, and the sync screen offers every problem exactly when `ProgressLayout.Fit` left
 one out. A list's note is reserved whenever the screen has one, a counting loader draws its track
 from the start, and browse holds its rows at a full page's height while the next one loads.
+
+**It looks like one more EmulationStation menu, in RetroBat's default carbon theme** (RB-425):
+a centered panel, the title in capitals, a gradient bar on the selection, and ES's help bar along
+the bottom left. Every color is a token in `Shell/Theme`, copied from the theme's
+`views/menu.xml` and its blue colorset. **The fonts and help icons are read from the live install
+at each start, never shipped**: carbon's Cabin, else ES's own font, else the system's, and ES's
+`resources/help/*.svg` (RB-426). Those icons are drawn by `EsIcon`, a reader of the few
+elements they use, rather than by an SVG package, because the package built for Avalonia 12 moves
+SkiaSharp and HarfBuzzSharp a major version past the ones Avalonia ships against, which would
+replace two of the natives this publish carries. A file using anything the reader does not draw
+is refused whole, and that hint falls back to a drawn glyph. The panel is a fixed size where ES's
+fits its rows, because a screen here changes what it holds while it is open.
 
 **The on-screen keyboard is EmulationStation's own, key for key.** `KeyboardLayouts` holds a
 transcription of the three grids compiled into `emulationstation.exe`, in upstream's shape, and

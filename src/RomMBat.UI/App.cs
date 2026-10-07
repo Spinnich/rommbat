@@ -43,6 +43,9 @@ internal sealed class App : Application
     {
         var opened = InstallSession.Open(Program.ExplicitRoot);
 
+        // Before any window, because a font has to be registered before text can name it.
+        Theme.Load(ThemeFiles.Find(opened.Session?.Install));
+
         if (opened.Session is null)
         {
             // Nothing else can be shown: without a tree there is no store, no map and no pad.
