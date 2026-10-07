@@ -52,13 +52,16 @@ internal sealed class ShellWindow : Window
     private readonly StackPanel _footer = new() { Orientation = Orientation.Horizontal, Spacing = 22 };
     private bool _primed;
     private GamepadAvailability? _lastAvailability;
-    private ILiveScreen? _live;
+    private readonly LiveFollow _live;
 
     public ShellWindow(Navigator navigator, GamepadReader? gamepad, Action exit)
     {
         _navigator = navigator;
         _gamepad = gamepad;
         _exit = exit;
+
+        // Raised from whatever thread did the work, so hop to the UI thread before touching controls.
+        _live = new LiveFollow(() => Dispatcher.UIThread.Post(Render));
 
         Title = "RomMBat";
         WindowState = WindowState.FullScreen;
@@ -259,31 +262,6 @@ internal sealed class ShellWindow : Window
         }
     }
 
-    /// <summary>Follows a screen that updates itself, and stops following the last one.</summary>
-    private void Rewire(IScreen screen)
-    {
-        if (ReferenceEquals(screen, _live))
-        {
-            return;
-        }
-
-        if (_live is not null)
-        {
-            _live.Invalidated -= OnScreenInvalidated;
-        }
-
-        _live = screen as ILiveScreen;
-
-        if (_live is not null)
-        {
-            _live.Invalidated += OnScreenInvalidated;
-        }
-    }
-
-    // Raised from whatever thread did the work, so hop to the UI thread before touching controls.
-    private void OnScreenInvalidated(object? sender, EventArgs e) =>
-        Dispatcher.UIThread.Post(Render);
-
     /// <summary>
     /// Rebuilds the visible screen.
     /// </summary>
@@ -296,7 +274,7 @@ internal sealed class ShellWindow : Window
     private void Render()
     {
         var screen = _navigator.Current;
-        Rewire(screen);
+        _live.Follow(screen);
 
         // In capitals, as ES titles every menu (RB-423).
         _title.Text = screen.Title.ToUpperInvariant();
