@@ -263,7 +263,10 @@ word sits above the sentence ("Finished", "Stopped", "Finished with problems", "
 reach RomM", "Did not finish"), and the footer reads **Done** instead of offering a stop. That last one is the rule:
 **if the footer offers a stop the work is running, and if it says Done it is over**, which is
 the only thing a person has to learn to know whether to keep waiting. Done sits on Accept,
-because moving on is progress, and Back leaves too. A screen whose loader changes something (`ListScreen.AsksBeforeStopping`) offers Stop on Back while it runs and asks first, as the sync screen does, because leaving cancels the work part way. The sets screen offers **Check for changes**
+because moving on is progress, and Back leaves too. A screen whose loader changes something
+(`ListScreen.AsksBeforeStopping`) offers Stop on Back while it runs and asks first, as the sync
+screen does, because leaving cancels the work part way. The sets screen offers **Check for
+changes**
 rather than Check alone, beside Sync, because the full phrase says it asks the server and so
 which of the two reaches the network.
 
