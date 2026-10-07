@@ -673,7 +673,7 @@ public sealed partial class BrowseScreenTests : IDisposable
         }
 
         Assert.Equal(SyncStage.Done, sync.State.Stage);
-        Assert.Contains(sync.State.Problems, problem => problem.Contains("devices.write", StringComparison.Ordinal));
+        Assert.Contains(sync.State.Problems, problem => problem.StartsWith("Your sync sets are saved on this device only", StringComparison.Ordinal));
         Assert.Null(stub.StoredSyncConfig);
     }
 
@@ -861,7 +861,7 @@ public sealed partial class BrowseScreenTests : IDisposable
 
         Assert.Contains(
             applying.Rows,
-            row => row.Label == "Problem" && row.Detail?.Contains("devices.write", StringComparison.Ordinal) == true);
+            row => row.Label == "Problem" && row.Detail?.StartsWith("Your sync sets are saved on this device only", StringComparison.Ordinal) == true);
         Assert.Contains(applying.Rows, row => row.Label == "Removed" && row.Value != "nothing");
         Assert.Empty(new PickedSetService(_session).Picks());
     }
