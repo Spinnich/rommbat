@@ -718,7 +718,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     }
 
     /// <summary>Turns one reported event into the next value of the screen.</summary>
-    private void Observe(SyncEvent reported)
+    internal void Observe(SyncEvent reported)
     {
         switch (reported)
         {
@@ -765,8 +765,13 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
                 break;
 
             case GameRolledBack(var title, var files, var bytes, var problems):
-                Note($"{title} was not finished, so the {files} {(files == 1 ? "file" : "files")} "
-                    + $"downloaded for it were removed ({ByteSize.Format(bytes)}).");
+                // Only when something came off. A game whose first file failed removed nothing,
+                // and "the 0 files downloaded for it were removed (0 B)" is a line about nothing.
+                if (files > 0)
+                {
+                    Note($"{title} was not finished, so the {files} {(files == 1 ? "file" : "files")} "
+                        + $"downloaded for it were removed ({ByteSize.Format(bytes)}).");
+                }
 
                 foreach (var problem in problems)
                 {

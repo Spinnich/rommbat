@@ -340,6 +340,28 @@ public sealed class SyncScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task A_rollback_that_removed_nothing_says_only_what_failed()
+    {
+        // The agent tree listed "was not finished, so the 0 files downloaded for it were removed
+        // (0 B)" above the eight files that could not be removed. Core reports a rollback that
+        // removed nothing when removing failed, and only the failures are worth a line.
+        using var stub = Library(1);
+        Pair();
+        Seed("games", 1);
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        await SettledAsync(sync);
+        var before = sync.State.Problems.Count;
+
+        sync.Observe(new GameRolledBack("Game 1", 0, 0, ["Game 1.chd could not be removed"]));
+
+        Assert.Equal(before + 1, sync.State.Problems.Count);
+        Assert.Equal("Game 1.chd could not be removed", sync.State.Problems[^1]);
+
+        sync.Dispose();
+    }
+
+    [Fact]
     public async Task Nothing_stale_is_left_on_the_screen_once_the_run_is_over()
     {
         // A hands-on pass finished a sync and the screen still read "Telling EmulationStation",
