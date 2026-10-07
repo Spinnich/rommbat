@@ -638,6 +638,21 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
             // Offline is a working state, so this is a sentence rather than an error screen.
             Publish(state => state with { Stage = SyncStage.Incomplete, Detail = ex.Message, Game = null });
         }
+        catch (Exception ex)
+        {
+            // Broad on purpose, as ListScreen's loader is. Uncaught, a throw faulted a task
+            // nothing awaits and the screen said "Syncing" and offered Stop for good, which a
+            // write the machine refused did on the agent tree.
+            Publish(state => state with
+            {
+                Stage = SyncStage.Incomplete,
+                Detail = $"The sync stopped on an error: {ex.Message}",
+                Pass = null,
+                Game = null,
+                GameTotal = 0,
+                GameTransferred = 0,
+            });
+        }
         finally
         {
             connection.Dispose();

@@ -369,6 +369,14 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
             Detail = ex.Message;
             Raise();
         }
+        catch (Exception ex)
+        {
+            // Broad on purpose, for the reason SyncViewModel gives: uncaught, the screen goes on
+            // saying it is checking, with Stop offered, for good.
+            Stage = ResolveStage.Stopped;
+            Detail = $"The check stopped on an error: {ex.Message}";
+            Raise();
+        }
         finally
         {
             connection.Dispose();

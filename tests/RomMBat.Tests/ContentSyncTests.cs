@@ -200,6 +200,32 @@ public sealed class ContentSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_rom_the_machine_will_not_write_fails_that_game_rather_than_the_run()
+    {
+        // A folder standing where the ROM belongs, which Windows refuses as access denied rather
+        // than as an I/O error. On the agent tree that escaped the run and left the sync screen
+        // on "Syncing" for good. Run twice, because the second run finds the finished part and
+        // takes the rename-only path, which sat outside the handler altogether.
+        using var stub = Library(2);
+        using var store = LocalStore.Open(_tree.Install());
+
+        await ResolveAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
+
+        var blocked = Members(store).First();
+        Directory.CreateDirectory(Absolute(blocked));
+
+        foreach (var run in new[] { "first", "second" })
+        {
+            var outcome = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.True(outcome.Failed == 1, $"the {run} run failed {outcome.Failed} games");
+            Assert.Contains(outcome.Problems, problem => problem.Contains("could not be written", StringComparison.Ordinal));
+        }
+
+        Assert.All(Members(store).Skip(1), member => Assert.True(File.Exists(Absolute(member))));
+    }
+
+    [Fact]
     public async Task A_resume_point_the_server_refuses_discards_the_partial_file_rather_than_repeating()
     {
         using var stub = Library(1);

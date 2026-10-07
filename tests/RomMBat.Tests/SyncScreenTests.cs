@@ -304,6 +304,42 @@ public sealed class SyncScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task A_run_that_throws_something_unexpected_ends_on_a_sentence_rather_than_syncing_forever()
+    {
+        // On the agent tree a write the machine refused escaped the run, and the screen said
+        // "Syncing" and offered Stop for good. Core now fails that one game, so this throws
+        // from the connection instead, which nothing between it and the screen translates.
+        using var stub = Library(1);
+        Pair();
+        Seed("games", 1);
+
+        var sync = new SyncViewModel(_session, Set(), Throwing(stub, "/content"));
+        await SettledAsync(sync);
+
+        Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
+        Assert.Contains("nothing expected this", sync.State.Detail, StringComparison.Ordinal);
+        Assert.Null(sync.State.Pass);
+
+        sync.Dispose();
+    }
+
+    [Fact]
+    public async Task A_check_that_throws_something_unexpected_ends_rather_than_checking_forever()
+    {
+        using var stub = Library(1);
+        Pair();
+        Seed("games", 1);
+
+        var resolve = new ResolveViewModel(_session, Set(), Throwing(stub, "/api/"));
+        await SettledAsync(resolve);
+
+        Assert.Equal(ResolveStage.Stopped, resolve.Stage);
+        Assert.Contains("nothing expected this", resolve.Detail, StringComparison.Ordinal);
+
+        resolve.Dispose();
+    }
+
+    [Fact]
     public async Task Nothing_stale_is_left_on_the_screen_once_the_run_is_over()
     {
         // A hands-on pass finished a sync and the screen still read "Telling EmulationStation",
@@ -1464,6 +1500,25 @@ public sealed class SyncScreenTests : IDisposable
         }
 
         Assert.True(sync.State.Stage != SyncStage.Working, "the sync never finished");
+    }
+
+    /// <summary>The stub, behind a handler that throws what no caller expects on matching paths.</summary>
+    private static Func<Uri, RomMConnection> Throwing(StubRomMServer stub, string path) =>
+        _ => new RomMConnection(
+            new RomMClientOptions { Origin = Origin, AccessToken = "rmm_test" },
+            new ThrowingHandler(stub, path));
+
+    private sealed class ThrowingHandler(HttpMessageHandler inner, string path) : DelegatingHandler(inner)
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            request.RequestUri!.AbsolutePath.Contains(path, StringComparison.Ordinal)
+                ? throw new InvalidOperationException("nothing expected this")
+                : base.SendAsync(request, cancellationToken);
+
+        // The stub is the test's to dispose.
+        protected override void Dispose(bool disposing)
+        {
+        }
     }
 
     private static Func<Uri, RomMConnection> Connect(StubRomMServer stub) =>
