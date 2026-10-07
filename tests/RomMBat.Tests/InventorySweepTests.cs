@@ -98,8 +98,8 @@ public sealed class InventorySweepTests : IDisposable
     [Fact]
     public void A_stopped_check_reads_no_further()
     {
-        // Back on the check left its scan reading every row against the drive to the end,
-        // which on a USB stick runs for seconds after the screen has gone (#507).
+        // Back on the check ends its scan where it is. A scan that ran on to the end would
+        // keep reading the drive for seconds after the screen has gone on a USB stick (#507).
         for (var index = 0; index < 300; index++)
         {
             Row($"roms/snes/gone-{index:000}.sfc", 1_000, onDisk: false);

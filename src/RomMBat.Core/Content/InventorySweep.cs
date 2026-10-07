@@ -137,8 +137,8 @@ public sealed class InventorySweep
     /// said of it.
     /// </param>
     /// <param name="cancellationToken">
-    /// Checked before each row, as <see cref="Apply"/> is. Unchecked, Back on the check left
-    /// the screen while the scan went on reading every row against the drive (#507).
+    /// Checked before each row, as <see cref="Apply"/> is, so Back on the check ends the scan
+    /// with the screen rather than reading every remaining row against the drive (#507).
     /// </param>
     public InventoryReport Plan(
         IProgress<(int Done, int Total)>? progress = null,
