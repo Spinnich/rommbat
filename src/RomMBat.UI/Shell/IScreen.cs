@@ -300,6 +300,10 @@ public interface IReturnAware
 /// <b>Raised from whatever thread did the work</b>, so the shell marshals it. Screens have no
 /// business knowing which thread they are on.
 /// </para>
+/// <para>
+/// <b>Followed while it is drawn, not only while it is on top.</b> A screen dimmed behind a
+/// popup still redraws the stack when it changes, through <see cref="LiveFollow"/>.
+/// </para>
 /// </remarks>
 public interface ILiveScreen
 {
