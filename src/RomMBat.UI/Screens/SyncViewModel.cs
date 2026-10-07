@@ -272,6 +272,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     private bool _disposed;
     private bool _stopping;
 
+    /// <summary>The pass label for the set downloading now, which artwork's label interrupts.</summary>
+    private string? _downloading;
+
     private long _sent;
     private long _inFlight;
     private long _planned;
@@ -724,10 +727,14 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
             case SetPlanned(var set, var plan):
                 _planned = plan.BytesToTransfer;
                 _sentBefore = _sent;
+                _downloading = _sets.Count == 1 ? "Downloading..." : $"Downloading '{set.Name}'...";
 
                 Publish(state => state with
                 {
-                    Pass = _sets.Count == 1 ? "Downloading..." : $"Downloading '{set.Name}'...",
+                    // The plan is made, so the opening sentence has stopped being true. It
+                    // stood over every game of a 755-game run on the agent tree.
+                    Detail = "Downloading games and their artwork...",
+                    Pass = _downloading,
                     Total = plan.Steps.Count,
                     Done = 0,
                     TotalBytes = _sent + _planned,
@@ -909,6 +916,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
 
         Publish(state => state with
         {
+            // Put back on every step, because artwork is fetched between games (#102) and its
+            // label otherwise stayed up over every download after the first game's.
+            Pass = _downloading ?? state.Pass,
             Game = step.Step.Member.DisplayName,
 
             // The index is the game being worked on, so the count of finished ones is one

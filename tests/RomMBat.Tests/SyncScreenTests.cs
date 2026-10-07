@@ -262,6 +262,48 @@ public sealed class SyncScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task A_download_after_a_games_artwork_says_it_is_downloading_again()
+    {
+        // Artwork is fetched between games (#102). On the agent tree every download after the
+        // first game's artwork went on reading "Fetching artwork...", under "Working out what
+        // this device should hold...", for the whole of a 755-game run.
+        using var stub = Library(2);
+        Pair();
+        Seed("games", 2);
+
+        var seen = new List<(string? Pass, string? Game, string Detail)>();
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        sync.Invalidated += (_, _) =>
+        {
+            var state = sync.State;
+
+            lock (seen)
+            {
+                seen.Add((state.Pass, state.Game, state.Detail));
+            }
+        };
+
+        await SettledAsync(sync);
+
+        List<(string? Pass, string? Game, string Detail)> frames;
+
+        lock (seen)
+        {
+            frames = [.. seen];
+        }
+
+        var artwork = frames.FindIndex(frame => frame.Pass == "Fetching artwork...");
+        Assert.True(artwork >= 0, "no artwork was fetched, so this proves nothing");
+
+        var next = frames.Skip(artwork).First(frame => frame.Game == "Game 2" && frame.Pass != "Fetching artwork...");
+        Assert.Equal("Downloading...", next.Pass);
+        Assert.Equal("Downloading games and their artwork...", next.Detail);
+
+        sync.Dispose();
+    }
+
+    [Fact]
     public async Task Nothing_stale_is_left_on_the_screen_once_the_run_is_over()
     {
         // A hands-on pass finished a sync and the screen still read "Telling EmulationStation",
