@@ -68,7 +68,7 @@ install is often neither one directory nor one file (`SaveUnit`).
 keys on it, so a server save with no slot is outside the protocol: never fetched, never in
 conflict. See `save-sync`, "The slot is the key to everything". A player reads
 `SaveSlotLabel.Describe` instead, such as "Battery save" or "Save state 3", on the gamepad UI and in
-every flush problem. The agent's own listings of conflicts and restores print the slot, which is what
+a flush problem that names a save by its slot rather than its file. The agent's own listings of conflicts and restores print the slot, which is what
 `saves resolve` takes back.
 
 **Conflict.** A slot where this device and the server both changed since they last agreed.

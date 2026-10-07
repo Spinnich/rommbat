@@ -276,7 +276,8 @@ pairs each with its term. A conflict shows its slot through `SaveSlotLabel.Descr
 save", "Save state 3", "Memory card"), a refused play session shows none, and a set shows its scope
 kind through `SyncSetStore.ScopeLabel`, while the agent's listings of conflicts and restores print
 the raw slot that `saves resolve` takes back. Sentences Core returns reach both front ends: a flush
-problem names a save by its game's file and that label ("Super Metroid (USA).sfc, Battery save"),
+problem names a save by its path, or, where it has only a slot to go on, by its game's file and that
+label ("Super Metroid (USA).sfc, Battery save"),
 and a conflict resolution by the label alone, apart from the refusal for a conflict never recorded,
 which repeats the rom and slot the command was given.
 

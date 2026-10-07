@@ -4,10 +4,10 @@ namespace RomMBat.Core.Sync;
 /// What a player reads in place of a slot, such as "Battery save" for <c>libretro:battery</c>.
 /// </summary>
 /// <remarks>
-/// <b>The gamepad UI and every flush problem show these, and the agent's listings of conflicts
-/// and restores keep the raw slot</b>, because the slot is what <c>saves resolve</c> takes and a
-/// label cannot be typed back. The emulator half is dropped: the game's own row already says which
-/// game it is, and two rows differ by the kind of save.
+/// <b>The gamepad UI and a flush problem naming a save by its slot show these, and the agent's
+/// listings of conflicts and restores keep the raw slot</b>, because the slot is what
+/// <c>saves resolve</c> takes and a label cannot be typed back. The emulator half is dropped: the
+/// game's own row already says which game it is, and two rows differ by the kind of save.
 /// <para>
 /// A qualifier after <c>battery</c> stays in brackets, because a game can hold two battery saves
 /// that differ by nothing else, and two rows reading "Battery save" could not be told apart.
