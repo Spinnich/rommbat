@@ -40,7 +40,8 @@ public sealed record LoadProgress(int Done, int Total)
 /// </para>
 /// <para>
 /// <b>The cursor wraps.</b> A d-pad held at the bottom of a long list with no wrap feels
-/// broken, and the alternative is a user paging back up through forty systems.
+/// broken, and the alternative is a user paging back up through forty systems. L1 and R1 move a
+/// window at a time and stop at the ends, so either end is one press away.
 /// </para>
 /// </remarks>
 public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveScreen, IActionScreen, IDisposable
@@ -572,6 +573,15 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
                 _state = state with { Cursor = Step(state.Rows, state.Cursor + 1, 1) };
                 return ScreenCommand.Stay;
 
+            // One window, as L1 and R1 move one screen in ES (RB-421).
+            case NavAction.PageUp:
+                _state = state with { Cursor = Page(state.Rows, state.Cursor, -1) };
+                return ScreenCommand.Stay;
+
+            case NavAction.PageDown:
+                _state = state with { Cursor = Page(state.Rows, state.Cursor, 1) };
+                return ScreenCommand.Stay;
+
             case NavAction.Accept when state.Cursor >= 0 && state.Rows[state.Cursor].Available:
             {
                 var answer = _choose(state.Cursor);
@@ -613,6 +623,43 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
                 0,
                 ListWindow.ScrolledByHeight(int.MaxValue, Heights(rows), ListWindow.ContentBudget).Start)
             : FirstAvailable(rows, from, step);
+
+    /// <summary>
+    /// Where a page press lands: one window on, clamped at the ends rather than wrapped.
+    /// </summary>
+    /// <remarks>
+    /// <b>Clamped, unlike a single step.</b> A press that moves eight rows and wraps lands
+    /// somewhere unrelated to where it started, and the press at the end is how a person reaches
+    /// the first or last row in one go. An unavailable row it lands on gives way to the nearest
+    /// choosable one, ahead first.
+    /// </remarks>
+    private int Page(IReadOnlyList<ListRow> rows, int from, int direction)
+    {
+        if (rows.Count == 0)
+        {
+            return from;
+        }
+
+        if (Reading)
+        {
+            return Step(rows, from + (direction * ListWindow.ReadingCapacity), direction);
+        }
+
+        var target = Math.Clamp(from + (direction * ListWindow.Capacity), 0, rows.Count - 1);
+
+        for (var reach = 0; reach < rows.Count; reach++)
+        {
+            foreach (var candidate in new[] { target + (direction * reach), target - (direction * reach) })
+            {
+                if (candidate >= 0 && candidate < rows.Count && rows[candidate].Available)
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        return from;
+    }
 
     /// <summary>
     /// The first choosable row from <paramref name="from"/>, wrapping, or -1 if there is none.

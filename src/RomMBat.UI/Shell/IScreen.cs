@@ -163,9 +163,10 @@ public sealed record ScreenAction(string Label, Func<ScreenCommand> Run)
     /// The face button that runs this without opening the menu, or null for menu only.
     /// </summary>
     /// <remarks>
-    /// Only <see cref="NavAction.Alternate"/> or <see cref="NavAction.Extra"/>, and a verb keeps
-    /// the same one on every screen it appears on, so a thumb that learned Sync on one screen
-    /// finds it on the next. Destructive actions take none: they are two presses into a menu,
+    /// <see cref="NavAction.Alternate"/> or <see cref="NavAction.Extra"/>, or
+    /// <see cref="NavAction.Options"/> for a list's view options, which Select opens in ES
+    /// (RB-422). A verb keeps the same one on every screen it appears on, so a thumb that
+    /// learned Sync on one screen finds it on the next. Destructive actions take none: they are two presses into a menu,
     /// never one press beside the confirm button.
     /// </remarks>
     public NavAction? Shortcut { get; init; }

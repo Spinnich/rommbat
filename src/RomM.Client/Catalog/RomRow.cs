@@ -352,6 +352,14 @@ public sealed record RomFilterValuesPage
     public RomFilterValues? FilterValues { get; init; }
 }
 
+/// <summary>The letter-index sidecar, and nothing else off the page it arrives on.</summary>
+/// <remarks>Ignores <c>items</c> for the reason <see cref="RomFilterValuesPage"/> does.</remarks>
+public sealed record RomCharIndexPage
+{
+    [JsonPropertyName("char_index")]
+    public IReadOnlyDictionary<string, int>? CharIndex { get; init; }
+}
+
 /// <summary>
 /// What each filter facet can be, across the whole library rather than a page.
 /// </summary>

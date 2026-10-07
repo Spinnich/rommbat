@@ -621,7 +621,7 @@ public sealed class SetsScreenTests : IDisposable
 
         var library = Library();
         library[FilterFacet.Genres] = [];
-        editor._facetValues = library;
+        editor.Filters.Values = library;
 
         Assert.NotEqual(before, editor.Rows.Count);
         Assert.False(editor.IsDirty);
@@ -1165,7 +1165,7 @@ public sealed class SetsScreenTests : IDisposable
     public void The_logic_operator_is_set_inside_the_facet_it_belongs_to()
     {
         var editor = FilterEditor();
-        editor._facetValues = Library();
+        editor.Filters.Values = Library();
 
         var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
 
@@ -1190,7 +1190,7 @@ public sealed class SetsScreenTests : IDisposable
     public void The_line_above_a_facet_picker_follows_the_operator_rather_than_asserting_one()
     {
         var editor = FilterEditor();
-        editor._facetValues = Library();
+        editor.Filters.Values = Library();
 
         var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
 
@@ -1208,7 +1208,7 @@ public sealed class SetsScreenTests : IDisposable
     public void The_operator_row_does_not_swallow_the_value_under_it()
     {
         var editor = FilterEditor();
-        editor._facetValues = Library();
+        editor.Filters.Values = Library();
 
         var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
 
@@ -1225,7 +1225,7 @@ public sealed class SetsScreenTests : IDisposable
     public void A_facet_row_names_its_operator_only_when_it_is_not_the_default()
     {
         var editor = FilterEditor();
-        editor._facetValues = Library();
+        editor.Filters.Values = Library();
 
         var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
         picker.Handle(NavAction.Down);

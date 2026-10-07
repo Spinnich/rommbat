@@ -143,6 +143,38 @@ public sealed partial class RomMConnection
     }
 
     /// <summary>
+    /// Fetches the letter index of one query: where in its order each first character begins.
+    /// </summary>
+    /// <remarks>
+    /// <b>The second call that turns a sidecar on, for a letter jump.</b> Keys are lowercased
+    /// first characters, digits folded into <c>0</c>, and each value is the offset of the first
+    /// row under it in <paramref name="query"/>'s own order, so it follows the scope, the filter,
+    /// the search and the direction. Under an order other than name it comes back empty (RB-427).
+    /// Fetched with <c>limit=1</c> and read through <see cref="RomCharIndexPage"/>, which
+    /// ignores the row for the reason <see cref="RomFilterValuesPage"/> does.
+    /// </remarks>
+    public async Task<RomMResponse<IReadOnlyDictionary<string, int>>> GetCharIndexAsync(
+        CatalogQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var response = await GetAuthenticatedAsync<RomCharIndexPage>(
+            "api/roms?" + query.ToQueryString(limit: 1, offset: 0, withCharIndex: true),
+            cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccess)
+        {
+            return RomMResponse.Failure<IReadOnlyDictionary<string, int>>(
+                response.Status,
+                response.Message ?? "The letter index was not returned.");
+        }
+
+        return RomMResponse.Success<IReadOnlyDictionary<string, int>>(
+            response.Value!.CharIndex ?? new Dictionary<string, int>(StringComparer.Ordinal));
+    }
+
+    /// <summary>
     /// Writes this device's roaming configuration. Needs <c>devices.write</c>.
     /// </summary>
     /// <remarks>

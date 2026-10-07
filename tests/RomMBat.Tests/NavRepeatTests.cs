@@ -89,9 +89,9 @@ public class NavRepeatTests
         var nav = new NavRepeat();
 
         // Measured: select and hotkey are the same physical button on both the 8BitDo and the
-        // Xbox pad, so the reader reports both names for one press. Neither is bound to a
-        // navigation action, so nothing happens, which is the point.
-        Assert.Empty(nav.Advance(Held("select", "hotkey"), T0));
+        // Xbox pad, so the reader reports both names for one press. Only select is bound, to
+        // the view options, so the press is one action and hotkey adds nothing to it.
+        Assert.Equal([NavAction.Options], nav.Advance(Held("select", "hotkey"), T0));
     }
 
     [Fact]

@@ -231,6 +231,9 @@ internal sealed class ShellWindow : Window
             Key.PageUp => NavAction.PageUp,
             Key.PageDown => NavAction.PageDown,
             Key.F5 => NavAction.Start,
+            Key.F6 => NavAction.Options,
+            Key.Home => NavAction.PreviousGroup,
+            Key.End => NavAction.NextGroup,
             _ => null,
         };
 

@@ -52,4 +52,13 @@ public enum NavAction
 
     /// <summary>Next page or next section.</summary>
     PageDown,
+
+    /// <summary>Opens a list's view options, as Select opens ES's VIEW OPTIONS (RB-422).</summary>
+    Options,
+
+    /// <summary>The previous list of the same kind, as L2 is the previous system in ES (RB-421).</summary>
+    PreviousGroup,
+
+    /// <summary>The next list of the same kind, as R2 is the next system in ES (RB-421).</summary>
+    NextGroup,
 }

@@ -66,6 +66,14 @@ public sealed class NavRepeat
         // per character.
         (NavAction.PageUp, ["pageup"], true),
         (NavAction.PageDown, ["pagedown"], true),
+
+        // Select, which is the same physical button as hotkey on several pads; this reads only
+        // the select name, so a hotkey binding elsewhere changes nothing here.
+        (NavAction.Options, ["select"], false),
+
+        // L2 and R2 change the whole list, which costs a fetch, so a held trigger moves once.
+        (NavAction.PreviousGroup, ["l2"], false),
+        (NavAction.NextGroup, ["r2"], false),
     ];
 
     /// <summary>

@@ -84,8 +84,11 @@ columns for that reason.
 
 ## Traps
 
-- **Always** pass `with_char_index=false&with_filter_values=false` to `/api/roms`; the filter
-  values alone are a flat 379 KB per request (RB-354). Page size 250, `order_by=id&order_dir=asc` so a ROM added
+- **Always** pass `with_char_index=false&with_filter_values=false` on a page of `/api/roms`; the
+  filter values alone are a flat 379 KB per request (RB-354). Each is read in one `limit=1`
+  request of its own where it is the point. The letter index keys a lowercased first character,
+  digits folded into `0`, to the offset of its first row in that query's own order, so it follows
+  scope, filter, search and direction, and it is **empty under any order but name** (RB-427). Page size 250, `order_by=id&order_dir=asc` so a ROM added
   mid-walk lands past the cursor instead of shifting every later page.
 - **`with_rom_id_index=false` under every scope, from `5.3.0`.** Under a
   scoping parameter (`platform_ids`, `collection_id`, `smart_collection_id`,

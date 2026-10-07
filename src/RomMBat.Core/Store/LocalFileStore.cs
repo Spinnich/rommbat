@@ -552,6 +552,94 @@ public sealed class LocalFileStore
         int offset,
         int? romId = null)
     {
+        var (where, bind) = Installed(folder, search, romId);
+
+        using var counting = _connection.Command($"SELECT COUNT(DISTINCT f.rom_id) {InstalledFrom} {where};");
+        bind(counting);
+
+        var total = Convert.ToInt32(counting.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+
+        // Grouped by rom, so one ROM in two folders is one row that names both, which is the
+        // reading browse gives an online row too.
+        using var command = _connection.Command(
+            $"""
+            SELECT f.rom_id,
+                   MIN(COALESCE(m.display_name, f.file_name)),
+                   MIN(COALESCE(m.platform_slug, f.folder)),
+                   MIN(COALESCE(m.sort_key, f.file_name)),
+                   MIN(COALESCE(m.fs_name, f.file_name))
+            {InstalledFrom}
+            {where}
+            GROUP BY f.rom_id
+            ORDER BY 4 COLLATE NOCASE, f.rom_id
+            LIMIT $limit OFFSET $offset;
+            """);
+
+        bind(command);
+        command.With("$limit", limit).With("$offset", offset);
+
+        using var reader = command.ExecuteReader();
+        var games = new List<InstalledGame>();
+
+        while (reader.Read())
+        {
+            games.Add(new InstalledGame(
+                (int)reader.GetInt64(0),
+                reader.GetString(1),
+                reader.GetStringOrNull(2) ?? string.Empty,
+                reader.GetStringOrNull(4) ?? string.Empty));
+        }
+
+        return (total, games);
+    }
+
+    /// <summary>
+    /// Where each first character begins in <see cref="InstalledGames"/>'s order, which is the
+    /// offline form of RomM's letter index.
+    /// </summary>
+    /// <remarks>
+    /// The same rows in the same order as the page, numbered by a window over them, so an offset
+    /// read here is one <see cref="InstalledGames"/> lands on. Keyed by the lowercased first
+    /// character of the sort key, as RomM keys its own.
+    /// </remarks>
+    public IReadOnlyList<(string First, int Offset)> InstalledLetters(string? folder, string? search)
+    {
+        var (where, bind) = Installed(folder, search, null);
+
+        using var command = _connection.Command(
+            $"""
+            SELECT lower(substr(sort_key, 1, 1)), MIN(position)
+            FROM (
+                SELECT MIN(COALESCE(m.sort_key, f.file_name)) AS sort_key,
+                       ROW_NUMBER() OVER (ORDER BY MIN(COALESCE(m.sort_key, f.file_name)) COLLATE NOCASE, f.rom_id) - 1 AS position
+                {InstalledFrom}
+                {where}
+                GROUP BY f.rom_id)
+            GROUP BY 1
+            ORDER BY 2;
+            """);
+
+        bind(command);
+
+        using var reader = command.ExecuteReader();
+        var letters = new List<(string, int)>();
+
+        while (reader.Read())
+        {
+            if (reader.GetStringOrNull(0) is { Length: > 0 } first)
+            {
+                letters.Add((first, (int)reader.GetInt64(1)));
+            }
+        }
+
+        return letters;
+    }
+
+    private const string InstalledFrom = "FROM local_file f LEFT JOIN sync_set_member m ON m.rom_id = f.rom_id";
+
+    /// <summary>What both installed-game reads narrow by, so a page and its letters cannot disagree.</summary>
+    private static (string Where, Action<SqliteCommand> Bind) Installed(string? folder, string? search, int? romId)
+    {
         var clauses = new List<string> { "f.kind = 'rom'", "f.rom_id IS NOT NULL", "f.stale = 0" };
 
         if (romId is not null)
@@ -569,48 +657,7 @@ public sealed class LocalFileStore
             clauses.Add("COALESCE(m.display_name, f.file_name) LIKE $search ESCAPE '~'");
         }
 
-        var where = "WHERE " + string.Join(" AND ", clauses);
-        const string From = "FROM local_file f LEFT JOIN sync_set_member m ON m.rom_id = f.rom_id";
-
-        using var counting = _connection.Command($"SELECT COUNT(DISTINCT f.rom_id) {From} {where};");
-        Bind(counting);
-
-        var total = Convert.ToInt32(counting.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
-
-        // Grouped by rom, so one ROM in two folders is one row that names both, which is the
-        // reading browse gives an online row too.
-        using var command = _connection.Command(
-            $"""
-            SELECT f.rom_id,
-                   MIN(COALESCE(m.display_name, f.file_name)),
-                   MIN(COALESCE(m.platform_slug, f.folder)),
-                   MIN(COALESCE(m.sort_key, f.file_name)),
-                   MIN(COALESCE(m.fs_name, f.file_name))
-            {From}
-            {where}
-            GROUP BY f.rom_id
-            ORDER BY 4 COLLATE NOCASE, f.rom_id
-            LIMIT $limit OFFSET $offset;
-            """);
-
-        Bind(command);
-        command.With("$limit", limit).With("$offset", offset);
-
-        using var reader = command.ExecuteReader();
-        var games = new List<InstalledGame>();
-
-        while (reader.Read())
-        {
-            games.Add(new InstalledGame(
-                (int)reader.GetInt64(0),
-                reader.GetString(1),
-                reader.GetStringOrNull(2) ?? string.Empty,
-                reader.GetStringOrNull(4) ?? string.Empty));
-        }
-
-        return (total, games);
-
-        void Bind(SqliteCommand command)
+        return ("WHERE " + string.Join(" AND ", clauses), command =>
         {
             if (romId is { } rom)
             {
@@ -629,7 +676,7 @@ public sealed class LocalFileStore
                 // library is full of both.
                 command.With("$search", "%" + Escape(search) + "%");
             }
-        }
+        });
     }
 
     /// <summary>Escapes LIKE's two wildcards, and the escape character itself first.</summary>

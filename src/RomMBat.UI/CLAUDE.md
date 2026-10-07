@@ -21,8 +21,8 @@ and the outbox are Core's.
   (`retrobat-layout`, "Controller input").
 - **No primary flow needs a mouse.**
 - A physical keyboard drives it at a desk, and is not a supported user flow: arrows move, Enter
-  is A, Escape is B, Backspace or PageUp is L1, PageDown is R1, Tab is the left face button, Q
-  the top one, F5 is Start. A connected controller is read through the same `es_input.cfg` a
+  is A, Escape is B, Backspace or PageUp is L1, PageDown is R1, Home is L2, End is R2, Tab is
+  the left face button, Q the top one, F5 is Start and F6 is Select. A connected controller is read through the same `es_input.cfg` a
   real install uses.
 - **Start is the menu, never a verb.** A screen lists its verbs as `ScreenAction`s and the
   navigator owns Start and the shortcuts; drive one in a test through `Navigator.Press` or

@@ -11,6 +11,25 @@ a sync set for it. It also shows what is already here.
    a search, search again with nothing typed.
 4. Accept opens a game.
 
+## Move through a long list
+
+A large library is not something to scroll through, so the game list moves the way
+EmulationStation's does:
+
+- **L1 and R1** move one screen up or down.
+- **L2 and R2** switch to the previous or next platform without leaving the list. Your search,
+  sort and filters stay as they are.
+- **Select** opens the view options:
+  - **Search for** types a search, as the left face button does.
+  - **Jump to letter**: press Left and Right to choose a letter, then Accept to go to the first
+    game under it. Numbers and symbols are under #. It works only when the list is sorted by name.
+  - **Sort by**: by name either way, by release date, or by rating.
+  - **Filters**: RomM's own filters, the same ones a saved-search sync set offers, such as genre
+    or region. Choose Show these games at the bottom to apply them; Back leaves them as they were.
+
+Sort and filters need RomM. When it cannot be reached, the games on this device are listed by
+name, and you can still search them and jump to a letter.
+
 When RomM can be reached, you are looking through its whole library. When it cannot, RomMBat says
 so and shows the games already on this device instead, so you can still find those anywhere.
 

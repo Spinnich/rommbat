@@ -104,8 +104,10 @@ things that "sync" usually conflates:
 
 Guardrails that follow from this:
 
-- Never call `GET /api/roms` without `with_char_index=false&with_filter_values=false`.
-  Each of those sidecars scans the whole library.
+- Never page `GET /api/roms` without `with_char_index=false&with_filter_values=false`.
+  Each of those sidecars scans the whole library. Each is asked for in one request of its own
+  at `limit=1`, and only where it is the point: the filter values for a filter picker, and the
+  letter index for a letter jump.
 
   **`with_rom_id_index=false` too, under every scope.** Under a scoping parameter the index
   spans the scope rather than the library and is resent on every page: 63 KiB a 250-row page on
