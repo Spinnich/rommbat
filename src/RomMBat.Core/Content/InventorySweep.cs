@@ -136,7 +136,13 @@ public sealed class InventorySweep
     /// nothing moving on it is indistinguishable from a hung one, which is what a hands-on pass
     /// said of it.
     /// </param>
-    public InventoryReport Plan(IProgress<(int Done, int Total)>? progress = null)
+    /// <param name="cancellationToken">
+    /// Checked before each row, as <see cref="Apply"/> is. Unchecked, Back on the check left
+    /// the screen while the scan went on reading every row against the drive (#507).
+    /// </param>
+    public InventoryReport Plan(
+        IProgress<(int Done, int Total)>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         var rows = _store.Files.List(includeStale: true);
         var saves = _store.Saves.List();
@@ -147,6 +153,8 @@ public sealed class InventorySweep
 
         for (var index = 0; index < total; index++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (index < rows.Count)
             {
                 if (!Exists(rows[index].Path))

@@ -58,7 +58,7 @@ internal static class StatusCommand
         if (command.Has("check-files") || command.Has("repair-files"))
         {
             var sweep = new InventorySweep(install, store);
-            var inventory = sweep.Plan();
+            var inventory = sweep.Plan(cancellationToken: cancellationToken);
 
             Console.WriteLine($"  local files:     {inventory.Summary}");
 

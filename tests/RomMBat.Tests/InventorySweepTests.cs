@@ -93,6 +93,34 @@ public sealed class InventorySweepTests : IDisposable
         Assert.Equal(201, sweep.Plan().Rows);
     }
 
+    [Fact]
+    public void A_stopped_check_reads_no_further()
+    {
+        // Back on the check left its scan reading every row against the drive to the end,
+        // which on a USB stick runs for seconds after the screen has gone (#507).
+        for (var index = 0; index < 300; index++)
+        {
+            Row($"roms/snes/gone-{index:000}.sfc", 1_000, onDisk: false);
+        }
+
+        var sweep = new InventorySweep(_session.Install, _session.Store);
+        var reached = 0;
+
+        using var stop = new CancellationTokenSource();
+        var progress = new Immediate<(int Done, int Total)>(step =>
+        {
+            reached = step.Done;
+
+            if (step.Done >= 100)
+            {
+                stop.Cancel();
+            }
+        });
+
+        Assert.Throws<OperationCanceledException>(() => sweep.Plan(progress, stop.Token));
+        Assert.Equal(100, reached);
+    }
+
     /// <summary>
     /// The repair takes the rows and stops the budget counting bytes that are not there.
     /// </summary>

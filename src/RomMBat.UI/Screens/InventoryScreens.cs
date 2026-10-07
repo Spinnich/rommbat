@@ -52,7 +52,7 @@ public static class InventoryScreens
                 // A stopped repair can still be removing its last row, and both read one store.
                 await repairing.WaitAsync(token).ConfigureAwait(false);
 
-                report = sweep.Plan(screen!.Reporter);
+                report = sweep.Plan(screen!.Reporter, token);
                 token.ThrowIfCancellationRequested();
                 return null;
             },
