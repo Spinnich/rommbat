@@ -675,6 +675,24 @@ internal static class ScreenView
         // is how they drift, and they had: the pane reserved three wrapped lines under every
         // row and flung its value to the right edge, so four short facts filled a display and
         // the eye had to cross it to join a label to its value.
+        if (reading && row.IsParagraph)
+        {
+            return new Border
+            {
+                Background = Brushes.Transparent,
+                Child = new TextBlock
+                {
+                    Text = row.Detail,
+                    Foreground = Theme.Text,
+                    FontSize = 17,
+                    LineHeight = ListWindow.ParagraphLineHeight,
+                    MaxLines = ListWindow.ParagraphMaxLines,
+                    TextWrapping = TextWrapping.Wrap,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                },
+            };
+        }
+
         if (reading)
         {
             return new Border

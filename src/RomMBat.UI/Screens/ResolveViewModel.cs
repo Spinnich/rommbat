@@ -21,6 +21,12 @@ public enum ResolveStage
     /// <summary>Stopped part way. The offset is recorded and the next run continues.</summary>
     Stopped,
 
+    /// <summary>An error nothing expected ended the check. Nobody pressed Stop.</summary>
+    Failed,
+
+    /// <summary>RomM could not be reached, so there was nothing to check against.</summary>
+    Unreachable,
+
     /// <summary>The server refused, or the set needs a folder chosen.</summary>
     Refused,
 
@@ -126,13 +132,22 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     /// and it was the thing saying the wrong one.
     /// </para>
     /// </remarks>
-    public string Title => Stage == ResolveStage.Working
-        ? _sets.Count == 1
-            ? $"Checking '{_sets[0].Name}' for changes"
-            : $"Checking {_sets.Count} sync sets for changes"
-        : _sets.Count == 1
-            ? $"Checked '{_sets[0].Name}' for changes"
-            : $"Checked {_sets.Count} sync sets for changes";
+    public string Title
+    {
+        get
+        {
+            var subject = _sets.Count == 1 ? $"'{_sets[0].Name}'" : $"{_sets.Count} sync sets";
+
+            // Past tense only for a check that finished, as the sync screen's title is.
+            return Stage switch
+            {
+                ResolveStage.Working => $"Checking {subject} for changes",
+                ResolveStage.Done => $"Checked {subject} for changes",
+                ResolveStage.Stopped => $"Check of {subject} stopped",
+                _ => $"Check of {subject} did not finish",
+            };
+        }
+    }
 
     /// <summary>
     /// One word for how it ended, or null while it is still going.
@@ -148,6 +163,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         ResolveStage.Working => null,
         ResolveStage.Done => "Finished",
         ResolveStage.Stopped => "Stopped",
+        ResolveStage.Unreachable => "Could not reach RomM",
         _ => "Did not finish",
     };
 
@@ -310,7 +326,11 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         if (attempt.Connection is null)
         {
             Stage = attempt.NotPaired ? ResolveStage.NotPaired : ResolveStage.Refused;
-            Detail = attempt.Problem ?? "This install is not paired with a RomM server.";
+            // Not Core's sentence when unpaired, which names the CLI command. RomMBat's first
+            // screen is where this one pairs from.
+            Detail = attempt.NotPaired
+                ? "This device is not paired with RomM yet. Pair with RomM from RomMBat's first screen."
+                : attempt.Problem ?? "This install is not paired with a RomM server.";
             return;
         }
 
@@ -365,8 +385,16 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         catch (RomMUnreachableException ex)
         {
             // Offline is a working state, so this is a sentence rather than an error screen.
-            Stage = ResolveStage.Stopped;
+            Stage = ResolveStage.Unreachable;
             Detail = ex.Message;
+            Raise();
+        }
+        catch (Exception ex)
+        {
+            // Broad on purpose, for the reason SyncViewModel gives: uncaught, the screen goes on
+            // saying it is checking, with Stop offered, for good.
+            Stage = ResolveStage.Failed;
+            Detail = $"The check stopped on an error: {ex.Message}";
             Raise();
         }
         finally
@@ -433,11 +461,16 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
                     ResolveStage.Refused,
                     (report.Problem ?? report.Summary)
                         + " Set a folder on this set and check it for changes again."),
+
+                // A problem means a failure ended the walk, which nobody asked for. Without one,
+                // the walk was stopped on purpose and the offset is where it continues.
+                _ when report.Problem is not null => (
+                    report.Cause == FailureCause.Unreachable ? ResolveStage.Unreachable : ResolveStage.Failed,
+                    report.Problem),
                 _ => (
                     ResolveStage.Stopped,
-                    report.Problem
-                        ?? $"{report.Summary} Stopped at {report.Offset:N0} of {report.Total:N0}; "
-                            + "the next check continues from there."),
+                    $"{report.Summary} Stopped at {report.Offset:N0} of {report.Total:N0}; "
+                        + "the next check continues from there."),
             };
         }
 

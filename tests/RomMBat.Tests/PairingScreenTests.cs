@@ -150,6 +150,32 @@ public class PairingScreenTests
     }
 
     [Fact]
+    public async Task The_countdown_redraws_while_the_code_waits()
+    {
+        // Remaining is read when the screen draws, and the agent tree's screen said
+        // "Expires in 9:58" for as long as it stayed open, because nothing redrew it.
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+
+        using var stub = new StubRomMServer { UserCode = "K7M2PQRS" };
+        using var pairing = new PairingViewModel(
+            session,
+            Origin,
+            (_, _) => new RomMConnection(new RomMClientOptions { Origin = Origin }, stub));
+
+        Assert.True(
+            await WaitForAsync(pairing, stage => stage == PairingStage.WaitingForApproval),
+            "pairing never reached the approval wait");
+
+        var redraws = 0;
+        pairing.Invalidated += (_, _) => Interlocked.Increment(ref redraws);
+
+        await Task.Delay(TimeSpan.FromSeconds(2.5), TestContext.Current.CancellationToken);
+
+        Assert.True(Volatile.Read(ref redraws) >= 2, $"redrew {redraws} times in 2.5 s of waiting");
+    }
+
+    [Fact]
     public async Task Leaving_the_screen_cancels_the_run_rather_than_leaving_it_polling()
     {
         using var tree = TempRetroBatTree.Create();

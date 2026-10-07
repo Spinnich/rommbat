@@ -112,11 +112,11 @@ public static class OutboxScreens
             new ListRow(
                 title,
                 Moment(entry.RecordedAtUtc),
-                $"The server refused it: {entry.LastError} Dropping deletes RomMBat's record of it. "
+                $"The server refused it: {Sentence(entry.LastError)} Dropping deletes RomMBat's record of it. "
                     + "Nothing on the drive is deleted.",
                 false),
             () => session.Store.Outbox.DropFailed(entry.Id),
-            _ => "The server never received it, so it exists only on this device.",
+            _ => "RomM never got it, and nothing will send it now.",
             underneath);
 
     /// <summary>Dropping every refused entry.</summary>
@@ -131,8 +131,7 @@ public static class OutboxScreens
                     + "RomMBat's records of them. Nothing on the drive is deleted.",
                 false),
             () => session.Store.Outbox.DropFailed(),
-            dropped => $"{Entries(dropped)} dropped. The server never received them, so they exist only "
-                + "on this device.",
+            NeverSent,
             underneath);
 
     /// <summary>Dropping every unsent entry, for an install whose server is gone.</summary>
@@ -152,8 +151,18 @@ public static class OutboxScreens
                     + "with another. Nothing on the drive is deleted.",
                 false),
             () => session.Store.Outbox.DropPending(),
-            dropped => $"{Entries(dropped)} dropped. They exist only on this device.",
+            NeverSent,
             underneath);
+
+    /// <summary>What dropping several means, after the opening words have said they went.</summary>
+    /// <remarks>
+    /// Not "they exist only on this device", which read after "dropped" as the opposite of it,
+    /// and not the count again: "Unsent entries dropped. 2 entries dropped." said it twice.
+    /// </remarks>
+    private static string NeverSent(int dropped) =>
+        dropped == 1
+            ? "RomM never got it, and nothing will send it now."
+            : $"RomM never got these {dropped}, and nothing will send them now.";
 
     /// <summary>
     /// The question with what it would drop, and what dropping did once it is answered.
@@ -210,8 +219,18 @@ public static class OutboxScreens
     private static string Capitalised(string text) =>
         text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
 
-    private static string Entries(int count) =>
-        count == 1 ? "1 entry" : $"{count.ToString(CultureInfo.CurrentCulture)} entries";
+    /// <summary>The server's message ended as a sentence, which RomM's often are not; one that asks or exclaims already is.</summary>
+    /// <remarks>"end_time is too far in the future Dropping deletes..." ran two into one.</remarks>
+    private static string Sentence(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return "no reason given.";
+        }
+
+        var text = message.TrimEnd();
+        return text[^1] is '?' or '!' ? text : text.TrimEnd('.') + ".";
+    }
 
     private static string Moment(DateTimeOffset moment) =>
         moment.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);

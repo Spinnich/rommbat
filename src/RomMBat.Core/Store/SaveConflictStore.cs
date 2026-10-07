@@ -113,6 +113,11 @@ public sealed class SaveConflictStore
               server_updated_at = excluded.server_updated_at,
               server_save_id    = excluded.server_save_id,
               reason            = excluded.reason,
+              -- A reopened slot is a new conflict, so it is first seen now. Kept, the screen
+              -- dated a conflict made at 09:41 to 08:09, when the one already decided began.
+              first_seen_at_utc = CASE WHEN save_conflict.resolved_at_utc IS NULL
+                                       THEN save_conflict.first_seen_at_utc
+                                       ELSE excluded.first_seen_at_utc END,
               last_seen_at_utc  = excluded.last_seen_at_utc,
               resolved_at_utc   = NULL,
               resolution        = NULL;

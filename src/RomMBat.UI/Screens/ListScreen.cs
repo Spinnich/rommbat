@@ -13,7 +13,18 @@ namespace RomMBat.UI.Screens;
 /// cannot offer would leave a user concluding RomMBat does not support it, where the reason is
 /// their own pairing and is fixable.
 /// </param>
-public sealed record ListRow(string Label, string? Value = null, string? Detail = null, bool Available = true);
+public sealed record ListRow(string Label, string? Value = null, string? Detail = null, bool Available = true)
+{
+    /// <summary>
+    /// A sentence with no label or value, which a pane of facts draws across its whole width.
+    /// </summary>
+    /// <remarks>
+    /// For a list of things that are only sentences, such as a run's problems. As a fact row
+    /// each sat under a label column it did not use, in a third of the width, and seven of
+    /// seventeen fit the screen.
+    /// </remarks>
+    public bool IsParagraph => Label.Length == 0 && Value is null && Detail is not null;
+}
 
 /// <summary>How far a screen's loader has got.</summary>
 public sealed record LoadProgress(int Done, int Total)
@@ -167,6 +178,19 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// </remarks>
     private bool IsDone => BackLabel == DoneLabel && !IsLoading;
 
+    /// <summary>True while the work a Done screen reports on is still running.</summary>
+    private bool IsWorking => AsksBeforeStopping && BackLabel == DoneLabel && IsLoading;
+
+    /// <summary>
+    /// True on a screen whose loader changes something, so leaving it mid-way stops that.
+    /// </summary>
+    /// <remarks>A picker that is only reading its values is left without a question.</remarks>
+    public bool AsksBeforeStopping { get; init; }
+
+    /// <summary>What Back asks while the work runs, because leaving stops it part way.</summary>
+    public string StopQuestion { get; init; } =
+        "Stop now? What is already done stays done, and the rest is left as it was.";
+
     /// <summary>
     /// Which row is selected, and <b>never any of them on a reading list</b>.
     /// </summary>
@@ -220,7 +244,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
 
     /// <summary>How tall each row of a pane is drawn, in the order they are drawn.</summary>
     private static IReadOnlyList<double> Heights(IReadOnlyList<ListRow> rows) =>
-        [.. rows.Select(row => ListWindow.FactHeight(row.Detail))];
+        [.. rows.Select(row => row.IsParagraph ? ListWindow.ParagraphHeight(row.Detail!) : ListWindow.FactHeight(row.Detail))];
 
     /// <summary>
     /// A line above the rows, or null.
@@ -515,7 +539,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
 
             if (!IsDone || offerAccept)
             {
-                hints.Add(new FooterHint(NavAction.Back, BackLabel));
+                hints.Add(new FooterHint(NavAction.Back, IsWorking ? "Stop" : BackLabel));
             }
 
             return hints;
@@ -597,6 +621,17 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
                 return answer;
             }
 
+            // Asked first, as the sync screen asks, because leaving cancels the work part way:
+            // a removal stopped half done leaves some of the games gone. Ruled with Spinnich
+            // after the help bar offered Done on a press that did exactly that, unannounced.
+            case NavAction.Back when IsWorking:
+                return ScreenCommand.Push(ConfirmScreen.YesNo(
+                    StopQuestion,
+                    "Stop",
+                    StopAnswered,
+                    "Keep going",
+                    this));
+
             case NavAction.Back:
             case NavAction.Accept when IsDone:
                 return OnBack is { } leave ? leave() : ScreenCommand.Pop;
@@ -604,6 +639,22 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
             default:
                 return ScreenCommand.Stay;
         }
+    }
+
+    /// <summary>
+    /// What choosing Stop does, decided when it is chosen. The question can sit open while the
+    /// work finishes underneath it, and then there is nothing to stop: leave as Done does,
+    /// with the question closed too, rather than landing on a screen the work made meaningless.
+    /// </summary>
+    private ScreenCommand StopAnswered()
+    {
+        if (IsLoading || OnBack is not { } leave)
+        {
+            return ScreenCommand.PopMany(2);
+        }
+
+        var left = leave();
+        return left.Kind == ScreenCommandKind.Pop ? left with { Depth = left.Depth + 1 } : left;
     }
 
     /// <summary>

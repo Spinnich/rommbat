@@ -38,9 +38,25 @@ public static class BrowseScreens
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(game);
 
+        // The game as the store has it now. The record is the row the list held when this
+        // opened, and an install or removal on a screen above changes where it is and who wants
+        // it: read once, the menu went on offering "Take it off" for a game already gone.
+        BrowseGame Current()
+        {
+            var placement = session.Store.Files.PlacementFor([game.RomId])
+                .GetValueOrDefault(game.RomId, new RomPlacement([], 0));
+
+            return game with
+            {
+                Folders = placement.Folders,
+                BytesOnDevice = placement.Bytes,
+                Sets = session.Store.SyncSets.SetsClaiming([game.RomId]).GetValueOrDefault(game.RomId, []),
+            };
+        }
+
         // Re-read on return, because installing and removing both happen on screens above this
         // one, and rows read once would go on saying what they said before the press.
-        IReadOnlyList<ListRow> Rows() => DetailRows(session, game);
+        IReadOnlyList<ListRow> Rows() => DetailRows(session, Current());
 
         // Kept so the removal question can draw over this screen.
         ListScreen? screen = null;
@@ -67,7 +83,7 @@ public static class BrowseScreens
                 .. game.Row is not null
                     ? new[] { new ScreenAction("Put this game on the device", () => Install(session, game, connect, changed)) }
                     : [],
-                .. game.IsHere
+                .. Current().IsHere
                     ? new[] { new ScreenAction("Take it off this device", () => ScreenCommand.Push(ConfirmRemoval(session, game, connect, changed, screen))) }
                     : [],
                 .. QueuedChangeScreens.CanConvert(session, game.RomId)
@@ -229,6 +245,7 @@ public static class BrowseScreens
             acceptLabel: string.Empty,
             backLabel: "Done")
         {
+            AsksBeforeStopping = true,
             Reading = true,
             LoadingMessage = "Removing the game and rewriting the list EmulationStation reads...",
             Load = async token =>
@@ -301,8 +318,10 @@ public static class BrowseScreens
         rows.Add(new ListRow(
             "Wanted by",
             game.Sets.Count == 0 ? "no sync set" : string.Join(", ", game.Sets),
+            // The eviction warning only for a game that is here to be evicted. On one that is
+            // not, "Nothing is keeping this game here" described a game that was not.
             game.Sets.Count == 0
-                ? "Nothing is keeping this game here, so the next eviction may take it."
+                ? game.IsHere ? "Nothing is keeping this game here, so the next eviction may take it." : null
                 : "Taking it off is refused while another of these still wants it.",
             false));
 
@@ -332,8 +351,7 @@ public static class BrowseScreens
             new(
                 ready.Plan.Selected.Count == 0 ? "It would stay" : "It goes",
                 ready.Plan.Selected.Count == 0 ? null : ByteSize.Format(ready.Plan.BytesFreed),
-                "Saves and save states are never removed. They live in different tables and "
-                    + "nothing that removes content can reach them.",
+                "Taking a game off never touches its saves or save states.",
                 false),
         };
 

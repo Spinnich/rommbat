@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using RomMBat.Core.RetroBat;
 using RomMBat.UI.Input;
+using RomMBat.UI.Screens;
 
 // Aliased because a Window has a Theme of its own, which the bare name would find first.
 using EsTheme = RomMBat.UI.Shell.Theme;
@@ -68,7 +69,7 @@ internal sealed class ShellWindow : Window
         // a face of their own.
         FontFamily = EsTheme.MenuFont;
 
-        Content = BuildChrome();
+        Content = Scaled(BuildChrome());
         Render();
 
         _navigator.Changed += (_, _) => Render();
@@ -91,6 +92,21 @@ internal sealed class ShellWindow : Window
             OnKey,
             Avalonia.Interactivity.RoutingStrategies.Tunnel,
             handledEventsToo: true);
+    }
+
+    /// <summary>The chrome at its design size, scaled to the display (<see cref="DesignSize"/>).</summary>
+    private Viewbox Scaled(Grid chrome)
+    {
+        var (width, height) = DesignSize.Fit(DesignSize.Width, DesignSize.Height);
+        chrome.Width = width;
+        chrome.Height = height;
+
+        SizeChanged += (_, e) =>
+        {
+            (chrome.Width, chrome.Height) = DesignSize.Fit(e.NewSize.Width, e.NewSize.Height);
+        };
+
+        return new Viewbox { Stretch = Stretch.Uniform, Child = chrome };
     }
 
     /// <summary>How wide the menu panel is: the widest list with a margin either side.</summary>

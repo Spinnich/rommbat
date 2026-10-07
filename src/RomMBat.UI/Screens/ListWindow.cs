@@ -134,6 +134,25 @@ public static class ListWindow
         return StatusRowHeight + (lines * FactDetailLineHeight);
     }
 
+    /// <summary>How wide a paragraph row is, in characters: the whole 980px block at 17px.</summary>
+    /// <remarks>Estimated short, as <see cref="FactDetailColumns"/> is, so a line is left blank rather than cut.</remarks>
+    public const int ParagraphColumns = 100;
+
+    /// <summary>The most lines a paragraph row is given before it is clipped.</summary>
+    public const int ParagraphMaxLines = 4;
+
+    /// <summary>One wrapped line of a paragraph row at 17px.</summary>
+    public const double ParagraphLineHeight = 24;
+
+    /// <summary>How tall a paragraph row is drawn: its lines and nothing above them.</summary>
+    public static double ParagraphHeight(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+
+        var lines = Math.Clamp((text.Length + ParagraphColumns - 1) / ParagraphColumns, 1, ParagraphMaxLines);
+        return lines * ParagraphLineHeight;
+    }
+
     /// <summary>A section heading on the status pane, with the gap above it.</summary>
     public const double StatusTitleHeight = 36;
 

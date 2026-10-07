@@ -263,6 +263,8 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
                 "Scan the code with a phone, or open the address and type the code. "
                     + "RomM will ask which permissions to grant.");
 
+            _ = TickAsync(run);
+
             var completion = await service
                 .CompleteAsync(connection, pairing, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
@@ -306,6 +308,29 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
         catch (RomMApiException ex)
         {
             Update(PairingStage.Refused, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Redraws once a second while a code waits, so its countdown moves.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Remaining"/> is read at draw time, and nothing else redraws during the wait:
+    /// on the agent tree the screen said "Expires in 9:58" for as long as it was left open.
+    /// </remarks>
+    private async Task TickAsync(CancellationTokenSource run)
+    {
+        try
+        {
+            while (ReferenceEquals(_run, run) && Stage == PairingStage.WaitingForApproval)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1), run.Token).ConfigureAwait(false);
+                Invalidated?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A new code or the screen closing. The run that replaces this one ticks its own.
         }
     }
 

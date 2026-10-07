@@ -332,50 +332,54 @@ public sealed class ContentSync
         var targetAbsolute = _install.Resolve(transfer.TargetPath);
         var now = _time.GetUtcNow();
 
-        Directory.CreateDirectory(Path.GetDirectoryName(partAbsolute)!);
-        Directory.CreateDirectory(Path.GetDirectoryName(targetAbsolute)!);
-
-        var existing = transfer.Resume ? new FileInfo(partAbsolute) : null;
-        var resumeFrom = existing is { Exists: true } ? existing.Length : 0;
-
-        if (!transfer.Resume && File.Exists(partAbsolute))
-        {
-            // A partial file nothing vouches for. Starting again costs a download; continuing
-            // from it would produce a file that verifies wrong at best.
-            File.Delete(partAbsolute);
-        }
-
-        if (resumeFrom > 0 && transfer.SizeBytes > 0 && resumeFrom >= transfer.SizeBytes)
-        {
-            // The whole file is already here, because the power went out between the last byte
-            // landing and the rename. Asking to resume past the end is refused 416 on every run
-            // from here on, so what this needs is the verify and rename it never got.
-            var (finished, wrong) = Verify(partAbsolute, transfer);
-
-            if (wrong is null)
-            {
-                Commit(transfer, partAbsolute, targetAbsolute, finished!);
-                return (0, null, false, FailureCause.None);
-            }
-
-            SafeDelete(partAbsolute);
-            _store.Downloads.Remove(transfer.RomId, transfer.FileId);
-            resumeFrom = 0;
-        }
-
-        var record = _store.Downloads.Begin(new ContentDownload
-        {
-            RomId = transfer.RomId,
-            FileId = transfer.FileId,
-            PartPath = part,
-            TargetPath = transfer.TargetPath,
-            ExpectedSize = transfer.SizeBytes,
-            Validator = _store.Downloads.Find(transfer.RomId, transfer.FileId)?.Validator,
-            UpdatedAt = now,
-        });
-
+        // Everything that touches the disk is inside, the rename of a part already finished
+        // included. Outside, a write this machine refused escaped the run and left the sync
+        // screen on "Syncing" for good, which a folder standing where the ROM belonged did on
+        // the agent tree.
         try
         {
+            Directory.CreateDirectory(Path.GetDirectoryName(partAbsolute)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(targetAbsolute)!);
+
+            var existing = transfer.Resume ? new FileInfo(partAbsolute) : null;
+            var resumeFrom = existing is { Exists: true } ? existing.Length : 0;
+
+            if (!transfer.Resume && File.Exists(partAbsolute))
+            {
+                // A partial file nothing vouches for. Starting again costs a download; continuing
+                // from it would produce a file that verifies wrong at best.
+                File.Delete(partAbsolute);
+            }
+
+            if (resumeFrom > 0 && transfer.SizeBytes > 0 && resumeFrom >= transfer.SizeBytes)
+            {
+                // The whole file is already here, because the power went out between the last byte
+                // landing and the rename. Asking to resume past the end is refused 416 on every run
+                // from here on, so what this needs is the verify and rename it never got.
+                var (finished, mismatch) = Verify(partAbsolute, transfer);
+
+                if (mismatch is null)
+                {
+                    Commit(transfer, partAbsolute, targetAbsolute, finished!);
+                    return (0, null, false, FailureCause.None);
+                }
+
+                SafeDelete(partAbsolute);
+                _store.Downloads.Remove(transfer.RomId, transfer.FileId);
+                resumeFrom = 0;
+            }
+
+            var record = _store.Downloads.Begin(new ContentDownload
+            {
+                RomId = transfer.RomId,
+                FileId = transfer.FileId,
+                PartPath = part,
+                TargetPath = transfer.TargetPath,
+                ExpectedSize = transfer.SizeBytes,
+                Validator = _store.Downloads.Find(transfer.RomId, transfer.FileId)?.Validator,
+                UpdatedAt = now,
+            });
+
             RomMResponse<RomContentResult> response;
 
             await using (var destination = new FileStream(
@@ -480,7 +484,7 @@ public sealed class ContentSync
                 false,
                 FailureCause.Failed);
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _store.Downloads.Fail(transfer.RomId, ex.Message, _time.GetUtcNow(), transfer.FileId);
             return (0, $"the file could not be written: {ex.Message}", false, FailureCause.Failed);

@@ -87,13 +87,14 @@ public static class InventoryScreens
             acceptLabel: string.Empty,
             backLabel: "Done")
         {
+            AsksBeforeStopping = true,
             Reading = true,
             LoadingMessage = "Removing records for files that are gone...",
             Counts = true,
             Load = token =>
             {
                 repaired = new InventorySweep(session.Install, session.Store)
-                    .Apply(report, screen!.Reporter);
+                    .Apply(report, screen!.Reporter, token);
 
                 token.ThrowIfCancellationRequested();
                 return Task.FromResult<string?>(null);

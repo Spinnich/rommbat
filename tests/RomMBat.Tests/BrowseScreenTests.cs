@@ -673,7 +673,7 @@ public sealed partial class BrowseScreenTests : IDisposable
         }
 
         Assert.Equal(SyncStage.Done, sync.State.Stage);
-        Assert.Contains(sync.State.Problems, problem => problem.Contains("devices.write", StringComparison.Ordinal));
+        Assert.Contains(sync.State.Problems, problem => problem.StartsWith("Your sync sets are saved on this device only", StringComparison.Ordinal));
         Assert.Null(stub.StoredSyncConfig);
     }
 
@@ -769,6 +769,63 @@ public sealed partial class BrowseScreenTests : IDisposable
         Assert.Same(detail, navigator.Current);
         Assert.Equal(depth, navigator.Depth);
         Assert.False(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "Chrono Trigger.sfc")));
+
+        // And the screen it lands on knows. It was opened from a row that said "here", and
+        // offering to take the game off again is a press that removes nothing.
+        Assert.DoesNotContain(detail.Actions, action => action.Label == "Take it off this device");
+        Assert.Contains(detail.Rows, row => row.Label == "On this device" && row.Value == "no");
+
+        // Nor does the list behind it go on saying "here" once it is back on top.
+        navigator.Handle(NavAction.Back);
+        Assert.Same(browse, navigator.Current);
+        await Settled(browse);
+        Assert.Empty(browse.Rows);
+    }
+
+    /// <summary>
+    /// The list a game was installed from says it is here, once the install has fetched it.
+    /// </summary>
+    /// <remarks>
+    /// The list used to re-read when the press was made, which is before the sync it opens has
+    /// fetched anything, and never again: the row showed the new set and "not here", on the
+    /// agent tree, until the screen was left and opened again.
+    /// </remarks>
+    [Fact]
+    public async Task A_game_installed_from_browse_reads_as_here_on_the_list_it_came_from()
+    {
+        using var stub = Library(1);
+        stub.Content[stub.Library[0].Id] = new byte[1_024];
+
+        Pair();
+
+        var navigator = new Navigator(new BrowseViewModel(_session, Connect(stub)));
+        var browse = Assert.IsType<BrowseViewModel>(navigator.Current);
+        await Settled(browse);
+        Assert.Equal("not here", browse.Rows[0].Value);
+
+        navigator.Handle(NavAction.Accept);
+        navigator.Handle(NavAction.Accept);
+
+        var sync = Assert.IsType<SyncViewModel>(navigator.Current);
+        await SyncSettled(sync);
+        Assert.Equal(SyncStage.Done, sync.State.Stage);
+
+        // Done, then Back from the set the game joined.
+        navigator.Handle(NavAction.Accept);
+        navigator.Handle(NavAction.Back);
+
+        Assert.Same(browse, navigator.Current);
+        await Settled(browse);
+        Assert.StartsWith("here: ", browse.Rows[0].Value, StringComparison.Ordinal);
+
+        // And the game's own screen, opened from that row, offers to take it off.
+        navigator.Handle(NavAction.Accept);
+        var detail = Assert.IsType<ListScreen>(navigator.Current);
+        Assert.Contains(detail.Actions, action => action.Label == "Take it off this device");
+
+        sync.Dispose();
+        detail.Dispose();
+        browse.Dispose();
     }
 
     [Fact]
@@ -804,7 +861,7 @@ public sealed partial class BrowseScreenTests : IDisposable
 
         Assert.Contains(
             applying.Rows,
-            row => row.Label == "Problem" && row.Detail?.Contains("devices.write", StringComparison.Ordinal) == true);
+            row => row.Label == "Problem" && row.Detail?.StartsWith("Your sync sets are saved on this device only", StringComparison.Ordinal) == true);
         Assert.Contains(applying.Rows, row => row.Label == "Removed" && row.Value != "nothing");
         Assert.Empty(new PickedSetService(_session).Picks());
     }

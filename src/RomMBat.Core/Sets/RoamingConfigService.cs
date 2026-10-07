@@ -19,7 +19,8 @@ public sealed record RoamingPush(bool Pushed, string? Note);
 /// <b>Best effort by design.</b> Failing to roam a definition is not a reason to fail the
 /// operation that created it: the local store is the authority and the push is a mirror. Every
 /// failure here comes back as a <see cref="RoamingPush"/> with a note, never as a throw and
-/// never as a non-zero outcome.
+/// never as a non-zero outcome. The note is a whole sentence, because the sync and removal
+/// screens list it on its own, where a parenthetical read as a fragment.
 /// <para>
 /// It opens its own connection because the caller that defines a set has no reason to hold
 /// one, and pairing may have expired since.
@@ -50,7 +51,7 @@ public sealed class RoamingConfigService
 
         if (device?.RomMDeviceId is null || !device.Scopes.Allows(RomMFeature.DeviceSync))
         {
-            return new RoamingPush(false, "(definitions stay on this device: devices.write was not granted)");
+            return new RoamingPush(false, "Your sync sets are saved on this device only: this pairing does not let RomMBat share them with RomM. Pair again to share them.");
         }
 
         try
@@ -79,11 +80,11 @@ public sealed class RoamingConfigService
 
             return new RoamingPush(
                 pushed.IsSuccess,
-                pushed.IsSuccess ? null : $"(definitions stay on this device: {pushed.Message})");
+                pushed.IsSuccess ? null : $"Your sync sets are saved on this device, but RomM did not take them: {pushed.Message}");
         }
         catch (RomMUnreachableException)
         {
-            return new RoamingPush(false, "(definitions stay on this device until the server is reachable)");
+            return new RoamingPush(false, "Your sync sets are saved on this device, and reach RomM the next time it can be reached.");
         }
     }
 

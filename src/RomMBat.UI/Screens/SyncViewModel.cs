@@ -97,7 +97,15 @@ public sealed record SyncSnapshot(
         SyncStage.Working => null,
         SyncStage.Done => "Finished",
         SyncStage.Stopped => "Stopped",
-        SyncStage.Incomplete => "Finished with problems",
+        // Unreachable is not a finish with problems: on the agent tree nothing had been fetched
+        // and the screen said "Finished with problems" over "Some games could not be fetched".
+        // No cause is the screen's own catch for an error nothing expected.
+        SyncStage.Incomplete => Cause switch
+        {
+            FailureCause.Unreachable => "Could not reach RomM",
+            FailureCause.None => "Did not finish",
+            _ => "Finished with problems",
+        },
         SyncStage.Blocked => "Stopped by the disk budget",
         _ => "Did not finish",
     };
@@ -272,6 +280,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     private bool _disposed;
     private bool _stopping;
 
+    /// <summary>The pass label for the set downloading now, which artwork's label interrupts.</summary>
+    private string? _downloading;
+
     private long _sent;
     private long _inFlight;
     private long _planned;
@@ -362,24 +373,30 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     /// What the screen is doing, in the tense it is doing it in.
     /// </summary>
     /// <remarks>
-    /// Past tense once the work is over. The present tense is a claim that it is still running,
-    /// and a finished run under a full bar is otherwise indistinguishable from a stuck one.
+    /// Past tense once the work finished, and saying it ended otherwise. The present tense is a
+    /// claim that it is still running, and a finished run under a full bar is otherwise
+    /// indistinguishable from a stuck one.
     /// See <see cref="ResolveViewModel.Title"/>, where a hands-on pass found it.
     /// </remarks>
     public string Title
     {
         get
         {
-            var working = _state.Stage == SyncStage.Working;
+            var subject = _installing is { } game
+                ? $"'{game.DisplayName}'"
+                : _sets.Count == 1 ? $"'{_sets[0].Name}'" : $"{_sets.Count} sync sets";
 
-            if (_installing is { } game)
+            // Past tense only for a run that finished. "Synced 'gg'" over STOPPED at 397 of 755
+            // claimed a sync that had not happened; ruled with Spinnich.
+            var installing = _installing is not null;
+            return _state.Stage switch
             {
-                return working ? $"Installing '{game.DisplayName}'" : $"Installed '{game.DisplayName}'";
-            }
-
-            return _sets.Count == 1
-                ? working ? $"Syncing '{_sets[0].Name}'" : $"Synced '{_sets[0].Name}'"
-                : working ? $"Syncing {_sets.Count} sync sets" : $"Synced {_sets.Count} sync sets";
+                SyncStage.Working => installing ? $"Installing {subject}" : $"Syncing {subject}",
+                SyncStage.Done => installing ? $"Installed {subject}" : $"Synced {subject}",
+                SyncStage.Stopped or SyncStage.Blocked =>
+                    installing ? $"Install of {subject} stopped" : $"Sync of {subject} stopped",
+                _ => installing ? $"Install of {subject} did not finish" : $"Sync of {subject} did not finish",
+            };
         }
     }
 
@@ -416,7 +433,15 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         [
             .. OffersPairing ? new[] { new ScreenAction("Pair with RomM", () => ScreenCommand.Push(_pair())) } : [],
             .. ProgressLayout.Hides(_state.Problems)
-                ? new[] { new ScreenAction(SeeAll(_state.Problems.Count), () => ScreenCommand.Push(AllProblems(_state.Problems))) }
+                ? new[]
+                {
+                    // On a button, so the help bar says the box is not all of it. Only in the
+                    // menu, a run with seventeen problems showed three and said nothing more.
+                    new ScreenAction(SeeAll(_state.Problems.Count), () => ScreenCommand.Push(AllProblems(_state.Problems)))
+                    {
+                        Shortcut = NavAction.Extra,
+                    },
+                }
                 : [],
         ];
 
@@ -453,18 +478,14 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     /// walk them anyway, because a list of nothing but unavailable rows otherwise does not
     /// scroll.
     /// <para>
-    /// Numbered oldest first, which is the order they happened. The run screen keeps the newest
+    /// Oldest first, which is the order they happened, and each across the whole width. The run screen keeps the newest
     /// few for the opposite reason, that the tail says what was going on most recently.
     /// </para>
     /// </remarks>
     private static ListScreen AllProblems(IReadOnlyList<string> problems) =>
         new ListScreen(
             problems.Count == 1 ? "The problem" : $"{problems.Count} problems",
-            [.. problems.Select((problem, index) => new ListRow(
-                (index + 1).ToString(CultureInfo.CurrentCulture),
-                null,
-                problem,
-                false))],
+            [.. problems.Select(problem => new ListRow(string.Empty, null, problem, false))],
             _ => ScreenCommand.Stay,
             acceptLabel: string.Empty)
         {
@@ -543,7 +564,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         }
 
         _stopping = true;
-        Publish(state => state with { Detail = "Stopping, and putting back the game in progress..." });
+        Publish(state => state with { Detail = "Stopping, and removing the game in progress..." });
         _run.Cancel();
     }
 
@@ -553,9 +574,15 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
 
         if (attempt.Connection is null)
         {
+            // Not Core's sentence when unpaired: that one names the CLI command, which a
+            // person holding a pad cannot run. The menu here offers the pairing instead.
             Publish(_ => new SyncSnapshot(
                 attempt.NotPaired ? SyncStage.NotPaired : SyncStage.Refused,
-                attempt.Problem ?? "This install is not paired with a RomM server."));
+                attempt.NotPaired
+                    ? _pair is not null
+                        ? "This device is not paired with RomM yet. Choose Pair with RomM from the menu."
+                        : "This device is not paired with RomM yet. Pair with RomM from RomMBat's first screen."
+                    : attempt.Problem ?? "This install is not paired with a RomM server."));
             return;
         }
 
@@ -633,7 +660,28 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         catch (RomMUnreachableException ex)
         {
             // Offline is a working state, so this is a sentence rather than an error screen.
-            Publish(state => state with { Stage = SyncStage.Incomplete, Detail = ex.Message, Game = null });
+            Publish(state => state with
+            {
+                Stage = SyncStage.Incomplete,
+                Cause = FailureCause.Unreachable,
+                Detail = ex.Message,
+                Game = null,
+            });
+        }
+        catch (Exception ex)
+        {
+            // Broad on purpose, as ListScreen's loader is. Uncaught, a throw faulted a task
+            // nothing awaits and the screen said "Syncing" and offered Stop for good, which a
+            // write the machine refused did on the agent tree.
+            Publish(state => state with
+            {
+                Stage = SyncStage.Incomplete,
+                Detail = $"The sync stopped on an error: {ex.Message}",
+                Pass = null,
+                Game = null,
+                GameTotal = 0,
+                GameTransferred = 0,
+            });
         }
         finally
         {
@@ -696,7 +744,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     }
 
     /// <summary>Turns one reported event into the next value of the screen.</summary>
-    private void Observe(SyncEvent reported)
+    internal void Observe(SyncEvent reported)
     {
         switch (reported)
         {
@@ -724,10 +772,14 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
             case SetPlanned(var set, var plan):
                 _planned = plan.BytesToTransfer;
                 _sentBefore = _sent;
+                _downloading = _sets.Count == 1 ? "Downloading..." : $"Downloading '{set.Name}'...";
 
                 Publish(state => state with
                 {
-                    Pass = _sets.Count == 1 ? "Downloading..." : $"Downloading '{set.Name}'...",
+                    // The plan is made, so the opening sentence has stopped being true. It
+                    // stood over every game of a 755-game run on the agent tree.
+                    Detail = "Downloading games and their artwork...",
+                    Pass = _downloading,
                     Total = plan.Steps.Count,
                     Done = 0,
                     TotalBytes = _sent + _planned,
@@ -739,8 +791,13 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
                 break;
 
             case GameRolledBack(var title, var files, var bytes, var problems):
-                Note($"{title} was not finished, so the {files} {(files == 1 ? "file" : "files")} "
-                    + $"downloaded for it were removed ({ByteSize.Format(bytes)}).");
+                // Only when something came off. A game whose first file failed removed nothing,
+                // and "the 0 files downloaded for it were removed (0 B)" is a line about nothing.
+                if (files > 0)
+                {
+                    Note($"{title} was not finished, so the {files} {(files == 1 ? "file" : "files")} "
+                        + $"downloaded for it were removed ({ByteSize.Format(bytes)}).");
+                }
 
                 foreach (var problem in problems)
                 {
@@ -815,11 +872,13 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
                 SyncStage.Done,
                 _installing is { } game
                     ? $"'{game.DisplayName}' is on this device and EmulationStation has been told."
-                    : "Everything in these sync sets is on this device."),
+                    : _sets.Count == 1
+                        ? "Everything in this sync set is on this device."
+                        : "Everything in these sync sets is on this device."),
 
             Core.Sets.SyncState.Stopped => (
                 SyncStage.Stopped,
-                "Stopped. Everything that finished is on this device, and the game in progress was put back."),
+                "Stopped. Everything that finished is on this device, and the game in progress was removed."),
 
             Core.Sets.SyncState.Rejected => (
                 SyncStage.Rejected,
@@ -840,6 +899,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
                 FailureCause.Failed =>
                     "Some games could not be fetched: RomM refused them, or what arrived could not be "
                         + "verified or written here. Syncing again may not fix it, so check the problems listed.",
+                FailureCause.Unreachable =>
+                    "RomM could not be reached, so the sync stopped there. What is already on this device "
+                        + "stays, and syncing again picks up where this left off.",
                 _ => "Some games could not be fetched. Syncing again picks up where this left off.",
             }),
         };
@@ -909,6 +971,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
 
         Publish(state => state with
         {
+            // Put back on every step, because artwork is fetched between games (#102) and its
+            // label otherwise stayed up over every download after the first game's.
+            Pass = _downloading ?? state.Pass,
             Game = step.Step.Member.DisplayName,
 
             // The index is the game being worked on, so the count of finished ones is one
@@ -924,12 +989,14 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         });
     }
 
-    /// <summary>Adds a problem, in arrival order, and never the same one twice in a row.</summary>
+    /// <summary>Adds a problem, in arrival order, and never one already listed.</summary>
     private void Note(string problem)
     {
         lock (_gate)
         {
-            if (_problems.Count > 0 && string.Equals(_problems[^1], problem, StringComparison.Ordinal))
+            // Anywhere in the list, not only the last: a game of eight releases rolled back once
+            // per release, and the same sentence filled the box eight times.
+            if (_problems.Contains(problem, StringComparer.Ordinal))
             {
                 return;
             }

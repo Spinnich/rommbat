@@ -419,6 +419,7 @@ public static class SetsScreens
             acceptLabel: string.Empty,
             backLabel: "Done")
         {
+            AsksBeforeStopping = true,
             Reading = true,
             LoadingMessage = "Removing games and rewriting the lists EmulationStation reads...",
             Load = async token =>

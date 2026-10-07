@@ -1,6 +1,7 @@
 using RomMBat.Core;
 using RomMBat.Core.Content;
 using RomMBat.Core.Paths;
+using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
 using RomMBat.Tests.Support;
 using Xunit;
@@ -61,6 +62,37 @@ public sealed class InventorySweepTests : IDisposable
         Assert.Contains("all present", report.Summary, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void A_stopped_repair_forgets_what_it_reached_and_leaves_the_rest()
+    {
+        // On the agent tree, Stop on a 60,000-row repair left the screen while every row went
+        // on being removed, because nothing between the rows looked at the stop.
+        for (var index = 0; index < 300; index++)
+        {
+            Row($"roms/snes/gone-{index:000}.sfc", 1_000, onDisk: false);
+        }
+
+        Row("roms/snes/here.sfc", 1_000, onDisk: true);
+
+        var sweep = new InventorySweep(_session.Install, _session.Store);
+        var report = sweep.Plan();
+
+        using var stop = new CancellationTokenSource();
+        var progress = new Immediate<(int Done, int Total)>(step =>
+        {
+            if (step.Done >= 100)
+            {
+                stop.Cancel();
+            }
+        });
+
+        Assert.Throws<OperationCanceledException>(() => sweep.Apply(report, progress, stop.Token));
+
+        // Stopped where it was asked to: the first hundred are gone, the rest are still there
+        // for the next check to find.
+        Assert.Equal(201, sweep.Plan().Rows);
+    }
+
     /// <summary>
     /// The repair takes the rows and stops the budget counting bytes that are not there.
     /// </summary>
@@ -78,7 +110,7 @@ public sealed class InventorySweepTests : IDisposable
         Assert.Equal(5_000, _session.Store.Files.SyncedBytes());
 
         var sweep = new InventorySweep(_session.Install, _session.Store);
-        var repaired = sweep.Apply(sweep.Plan());
+        var repaired = sweep.Apply(sweep.Plan(), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, repaired.Removed);
         Assert.Equal(4_000, repaired.BytesReclaimed);
@@ -112,7 +144,7 @@ public sealed class InventorySweepTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
         File.WriteAllBytes(absolute, new byte[4_000]);
 
-        var repaired = sweep.Apply(report);
+        var repaired = sweep.Apply(report, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, repaired.Removed);
         Assert.Equal(1, repaired.Returned);
@@ -146,7 +178,7 @@ public sealed class InventorySweepTests : IDisposable
         Assert.True(report.NothingFound);
         Assert.Contains("does not look like the tree", report.Summary, StringComparison.Ordinal);
 
-        var repaired = sweep.Apply(report);
+        var repaired = sweep.Apply(report, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, repaired.Removed);
         Assert.Equal(3_000, _session.Store.Files.SyncedBytes());
@@ -164,7 +196,7 @@ public sealed class InventorySweepTests : IDisposable
         var report = sweep.Plan();
 
         Assert.False(report.NothingFound);
-        Assert.Equal(2, sweep.Apply(report).Removed);
+        Assert.Equal(2, sweep.Apply(report, cancellationToken: TestContext.Current.CancellationToken).Removed);
     }
 
     [Fact]
@@ -190,7 +222,7 @@ public sealed class InventorySweepTests : IDisposable
         Assert.Equal("saves/gb/Dr. Mario (World).srm", Assert.Single(report.MissingSaves).Path.Value);
         Assert.Contains("1 not on this drive", report.SavesSummary, StringComparison.Ordinal);
 
-        Assert.Equal(1, sweep.Apply(report).Removed);
+        Assert.Equal(1, sweep.Apply(report, cancellationToken: TestContext.Current.CancellationToken).Removed);
         Assert.Equal(2, _session.Store.Saves.List().Count);
     }
 

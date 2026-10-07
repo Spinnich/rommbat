@@ -262,6 +262,131 @@ public sealed class SyncScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task A_download_after_a_games_artwork_says_it_is_downloading_again()
+    {
+        // Artwork is fetched between games (#102). On the agent tree every download after the
+        // first game's artwork went on reading "Fetching artwork...", under "Working out what
+        // this device should hold...", for the whole of a 755-game run.
+        using var stub = Library(2);
+        Pair();
+        Seed("games", 2);
+
+        var seen = new List<(string? Pass, string? Game, string Detail)>();
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        sync.Invalidated += (_, _) =>
+        {
+            var state = sync.State;
+
+            lock (seen)
+            {
+                seen.Add((state.Pass, state.Game, state.Detail));
+            }
+        };
+
+        await SettledAsync(sync);
+
+        List<(string? Pass, string? Game, string Detail)> frames;
+
+        lock (seen)
+        {
+            frames = [.. seen];
+        }
+
+        var artwork = frames.FindIndex(frame => frame.Pass == "Fetching artwork...");
+        Assert.True(artwork >= 0, "no artwork was fetched, so this proves nothing");
+
+        var next = frames.Skip(artwork).First(frame => frame.Game == "Game 2" && frame.Pass != "Fetching artwork...");
+        Assert.Equal("Downloading...", next.Pass);
+        Assert.Equal("Downloading games and their artwork...", next.Detail);
+
+        sync.Dispose();
+    }
+
+    [Fact]
+    public async Task A_run_that_throws_something_unexpected_ends_on_a_sentence_rather_than_syncing_forever()
+    {
+        // On the agent tree a write the machine refused escaped the run, and the screen said
+        // "Syncing" and offered Stop for good. Core now fails that one game, so this throws
+        // from the connection instead, which nothing between it and the screen translates.
+        using var stub = Library(1);
+        Pair();
+        Seed("games", 1);
+
+        var sync = new SyncViewModel(_session, Set(), Throwing(stub, "/content"));
+        await SettledAsync(sync);
+
+        Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
+        Assert.Contains("nothing expected this", sync.State.Detail, StringComparison.Ordinal);
+        Assert.Null(sync.State.Pass);
+
+        sync.Dispose();
+    }
+
+    [Fact]
+    public async Task A_check_that_throws_something_unexpected_ends_rather_than_checking_forever()
+    {
+        using var stub = Library(1);
+        Pair();
+        Seed("games", 1);
+
+        var resolve = new ResolveViewModel(_session, Set(), Throwing(stub, "/api/"));
+        await SettledAsync(resolve);
+
+        // An error nobody asked for is not a stop: the person pressed nothing, so the screen
+        // says the check did not finish, as the sync screen's matching catch does.
+        Assert.Equal(ResolveStage.Failed, resolve.Stage);
+        Assert.Equal("Check of 'games' did not finish", resolve.Title);
+        Assert.Equal("Did not finish", resolve.Outcome);
+        Assert.Contains("nothing expected this", resolve.Detail, StringComparison.Ordinal);
+
+        resolve.Dispose();
+    }
+
+    [Fact]
+    public async Task A_check_that_cannot_reach_the_server_says_so_as_the_sync_screen_does()
+    {
+        using var stub = Library(1);
+        Pair();
+        Seed("games", 1);
+
+        var resolve = new ResolveViewModel(
+            _session,
+            Set(),
+            Throwing(stub, "/api/", new RomMUnreachableException(UnreachableReason.ConnectTimeout, "RomM did not answer.")));
+        await SettledAsync(resolve);
+
+        Assert.Equal(ResolveStage.Unreachable, resolve.Stage);
+        Assert.Equal("Check of 'games' did not finish", resolve.Title);
+        Assert.Equal("Could not reach RomM", resolve.Outcome);
+        Assert.StartsWith("RomM did not answer.", resolve.Detail, StringComparison.Ordinal);
+
+        resolve.Dispose();
+    }
+
+    [Fact]
+    public async Task A_rollback_that_removed_nothing_says_only_what_failed()
+    {
+        // The agent tree listed "was not finished, so the 0 files downloaded for it were removed
+        // (0 B)" above the eight files that could not be removed. Core reports a rollback that
+        // removed nothing when removing failed, and only the failures are worth a line.
+        using var stub = Library(1);
+        Pair();
+        Seed("games", 1);
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        await SettledAsync(sync);
+        var before = sync.State.Problems.Count;
+
+        sync.Observe(new GameRolledBack("Game 1", 0, 0, ["Game 1.chd could not be removed"]));
+
+        Assert.Equal(before + 1, sync.State.Problems.Count);
+        Assert.Equal("Game 1.chd could not be removed", sync.State.Problems[^1]);
+
+        sync.Dispose();
+    }
+
+    [Fact]
     public async Task Nothing_stale_is_left_on_the_screen_once_the_run_is_over()
     {
         // A hands-on pass finished a sync and the screen still read "Telling EmulationStation",
@@ -361,6 +486,11 @@ public sealed class SyncScreenTests : IDisposable
 
         Assert.Equal(SyncStage.NotPaired, sync.State.Stage);
         Assert.Contains(sync.Hints, hint => hint.Action == NavAction.Start);
+
+        // Said as a press on this screen, not as the CLI command Core's sentence names, which
+        // is what the agent tree showed a person holding a pad.
+        Assert.DoesNotContain("rommbat-agent", sync.State.Detail, StringComparison.Ordinal);
+        Assert.Contains("Pair with RomM", sync.State.Detail, StringComparison.Ordinal);
 
         Assert.Equal(ScreenCommandKind.Push, Navigator.Run(sync, "Pair with RomM").Kind);
         Assert.True(opened);
@@ -779,6 +909,15 @@ public sealed class SyncScreenTests : IDisposable
         // Nothing to choose, so no row promises a press that does nothing.
         Assert.All(all.Rows, row => Assert.False(row.Available));
 
+        // Each one across the whole width rather than under a number in a third of it, and on
+        // a button, so the help bar says the box is not all of it. On the agent tree a run with
+        // seventeen showed three and offered the rest only from the Start menu.
+        Assert.All(all.Rows, row => Assert.True(row.IsParagraph));
+        Assert.Equal(NavAction.Extra, offer.Shortcut);
+
+        // And never the same sentence twice, which eight releases of one game did eight times.
+        Assert.Equal(sync.State.Problems.Count, sync.State.Problems.Distinct(StringComparer.Ordinal).Count());
+
         sync.Dispose();
     }
 
@@ -1149,6 +1288,15 @@ public sealed class SyncScreenTests : IDisposable
         Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
         Assert.Contains("picks up where", sync.State.Detail, StringComparison.Ordinal);
 
+        // Said as what happened. The agent tree read "Finished with problems" over "Some games
+        // could not be fetched" with nothing fetched and the server off.
+        Assert.Equal("Could not reach RomM", sync.State.Outcome);
+        Assert.StartsWith("RomM could not be reached", sync.State.Detail, StringComparison.Ordinal);
+
+        // Past tense only for a sync that finished. Ruled with Spinnich after the agent tree
+        // titled a stopped run "Synced 'gg'".
+        Assert.Equal("Sync of 'games' did not finish", sync.Title);
+
         sync.Dispose();
     }
 
@@ -1422,6 +1570,20 @@ public sealed class SyncScreenTests : IDisposable
         }
 
         Assert.True(sync.State.Stage != SyncStage.Working, "the sync never finished");
+    }
+
+    /// <summary>The stub, behind a handler that throws what no caller expects on matching paths.</summary>
+    private static Func<Uri, RomMConnection> Throwing(StubRomMServer stub, string path, Exception? error = null) =>
+        _ => new RomMConnection(
+            new RomMClientOptions { Origin = Origin, AccessToken = "rmm_test" },
+            new ThrowingHandler(stub, path, error ?? new InvalidOperationException("nothing expected this")));
+
+    private sealed class ThrowingHandler(HttpMessageHandler inner, string path, Exception error) : DelegatingHandler(inner)
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            request.RequestUri!.AbsolutePath.Contains(path, StringComparison.Ordinal)
+                ? throw error
+                : base.SendAsync(request, cancellationToken);
     }
 
     private static Func<Uri, RomMConnection> Connect(StubRomMServer stub) =>

@@ -195,9 +195,15 @@ public sealed class InventorySweep
     /// sat on, and applied later, and a sync in between may have put the file back. Removing
     /// its row then would cost a re-download of a file that is already correct.
     /// </remarks>
+    /// <param name="cancellationToken">
+    /// Checked before each row. Each row goes on its own, so a stop leaves the store consistent:
+    /// what was forgotten stays forgotten, and the next check finds the rest. Unchecked, a
+    /// person who chose Stop on 60,000 rows left the screen while every one was still removed.
+    /// </param>
     public InventoryRepair Apply(
         InventoryReport report,
-        IProgress<(int Done, int Total)>? progress = null)
+        IProgress<(int Done, int Total)>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(report);
 
@@ -215,6 +221,8 @@ public sealed class InventorySweep
 
         for (var index = 0; index < report.Missing.Count; index++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var file = report.Missing[index];
 
             if (Exists(file.Path))

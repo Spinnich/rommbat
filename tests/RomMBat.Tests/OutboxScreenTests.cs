@@ -84,8 +84,39 @@ public class OutboxScreenTests : IDisposable
         // it rather than dropping again.
         Assert.True(confirm.IsAnswered);
         Assert.StartsWith("Save dropped.", confirm.Question, StringComparison.Ordinal);
+        Assert.DoesNotContain("exists only", confirm.Question, StringComparison.Ordinal);
         Assert.Equal(ListScreen.DoneLabel, Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Accept).Label);
         Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
+    }
+
+    [Fact]
+    public void A_server_reason_without_a_full_stop_still_ends_before_the_next_sentence()
+    {
+        // RomM sends "end_time is too far in the future" bare, and the agent tree read
+        // "...too far in the future Dropping deletes RomMBat's record of it."
+        var id = Enqueue(41);
+        _session.Store.Outbox.MarkFailed(id, "end_time is too far in the future", DateTimeOffset.UtcNow);
+
+        var navigator = new Navigator(OutboxScreens.List(_session));
+        navigator.Handle(NavAction.Accept);
+
+        var confirm = Assert.IsType<ConfirmScreen>(navigator.Current);
+        Assert.Contains("in the future. Dropping deletes", Assert.Single(confirm.Details!()).Detail ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Is the clock right?", "Is the clock right? Dropping deletes")]
+    [InlineData("Too late!", "Too late! Dropping deletes")]
+    public void A_server_reason_that_already_ends_a_sentence_gets_no_full_stop_after_it(string reason, string expected)
+    {
+        var id = Enqueue(41);
+        _session.Store.Outbox.MarkFailed(id, reason, DateTimeOffset.UtcNow);
+
+        var navigator = new Navigator(OutboxScreens.List(_session));
+        navigator.Handle(NavAction.Accept);
+
+        var confirm = Assert.IsType<ConfirmScreen>(navigator.Current);
+        Assert.Contains(expected, Assert.Single(confirm.Details!()).Detail ?? string.Empty, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -102,7 +133,12 @@ public class OutboxScreenTests : IDisposable
 
         Assert.Equal(0, _session.Store.Outbox.FailedCount());
         Assert.Equal(1, _session.Store.Outbox.PendingCount());
-        Assert.StartsWith("Refused entries dropped.", Assert.IsType<ConfirmScreen>(navigator.Current).Question, StringComparison.Ordinal);
+        var answer = Assert.IsType<ConfirmScreen>(navigator.Current).Question;
+        Assert.StartsWith("Refused entries dropped.", answer, StringComparison.Ordinal);
+
+        // Not "they exist only on this device", which read as the opposite of dropped.
+        Assert.Contains("RomM never got", answer, StringComparison.Ordinal);
+        Assert.DoesNotContain("exist only", answer, StringComparison.Ordinal);
     }
 
     [Fact]
