@@ -97,7 +97,15 @@ public sealed record SyncSnapshot(
         SyncStage.Working => null,
         SyncStage.Done => "Finished",
         SyncStage.Stopped => "Stopped",
-        SyncStage.Incomplete => "Finished with problems",
+        // Unreachable is not a finish with problems: on the agent tree nothing had been fetched
+        // and the screen said "Finished with problems" over "Some games could not be fetched".
+        // No cause is the screen's own catch for an error nothing expected.
+        SyncStage.Incomplete => Cause switch
+        {
+            FailureCause.Unreachable => "Could not reach RomM",
+            FailureCause.None => "Did not finish",
+            _ => "Finished with problems",
+        },
         SyncStage.Blocked => "Stopped by the disk budget",
         _ => "Did not finish",
     };
@@ -640,7 +648,13 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         catch (RomMUnreachableException ex)
         {
             // Offline is a working state, so this is a sentence rather than an error screen.
-            Publish(state => state with { Stage = SyncStage.Incomplete, Detail = ex.Message, Game = null });
+            Publish(state => state with
+            {
+                Stage = SyncStage.Incomplete,
+                Cause = FailureCause.Unreachable,
+                Detail = ex.Message,
+                Game = null,
+            });
         }
         catch (Exception ex)
         {
@@ -871,6 +885,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
                 FailureCause.Failed =>
                     "Some games could not be fetched: RomM refused them, or what arrived could not be "
                         + "verified or written here. Syncing again may not fix it, so check the problems listed.",
+                FailureCause.Unreachable =>
+                    "RomM could not be reached, so the sync stopped there. What is already on this device "
+                        + "stays, and syncing again picks up where this left off.",
                 _ => "Some games could not be fetched. Syncing again picks up where this left off.",
             }),
         };

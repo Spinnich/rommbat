@@ -1258,6 +1258,11 @@ public sealed class SyncScreenTests : IDisposable
         Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
         Assert.Contains("picks up where", sync.State.Detail, StringComparison.Ordinal);
 
+        // Said as what happened. The agent tree read "Finished with problems" over "Some games
+        // could not be fetched" with nothing fetched and the server off.
+        Assert.Equal("Could not reach RomM", sync.State.Outcome);
+        Assert.StartsWith("RomM could not be reached", sync.State.Detail, StringComparison.Ordinal);
+
         sync.Dispose();
     }
 
