@@ -26,8 +26,9 @@ the bottom face button is A on an Xbox pad, Cross on a PlayStation pad and B on 
 
 They follow EmulationStation's own: Start opens a menu there too, and Accept picks from it.
 
-**Accept never changes a value.** It opens a list to choose from. To step through choices in
-place, use Left and Right.
+**Accept opens a list to choose from rather than stepping through one.** To step through
+choices in place, use Left and Right. A filter row with a few fixed answers, such as yes, no or
+either, is the one exception: Accept moves it to the next answer.
 
 **Back never saves, deletes or stops anything without asking.** Leaving a screen with
 unsaved changes asks whether to discard them, and stopping a sync or a query asks first.

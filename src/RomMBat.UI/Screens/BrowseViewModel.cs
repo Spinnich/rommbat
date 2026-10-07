@@ -77,6 +77,9 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     /// <summary>The install, for the filter pickers VIEW OPTIONS opens.</summary>
     internal InstallSession Session => _session;
 
+    /// <summary>How those pickers reach the server, which is how this screen does.</summary>
+    internal Func<Uri, RomMConnection>? Connect => _connect;
+
     /// <summary>The facet values, kept so a second visit to the filters does not ask again.</summary>
     internal IReadOnlyDictionary<string, IReadOnlyList<string>>? FacetValues { get; set; }
 
@@ -553,7 +556,15 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     }
 
     /// <summary>Re-reads the current page, because a screen above this one installed or removed.</summary>
-    private void Reload() => Fetch(_state.Page?.Offset ?? 0, landAt: Position);
+    /// <remarks>
+    /// The letters are dropped too. Offline they are this device's, so a removal moves every
+    /// letter after it, and a cached index jumped a row past the letter (R1.1 on #500).
+    /// </remarks>
+    internal void Reload()
+    {
+        _letters = null;
+        Fetch(_state.Page?.Offset ?? 0, landAt: Position);
+    }
 
     /// <summary>
     /// The on-screen keyboard, which is EmulationStation's own and needed no third layer.

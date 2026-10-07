@@ -83,7 +83,7 @@ public sealed class SetEditorViewModel : IScreen, IActionScreen
         var stored = existing?.Scope == CatalogScopeKind.Filter ? SyncSetService.FilterOf(existing) : null;
 
         _searchTerm = stored?.SearchTerm;
-        Filters = new FilterChoices(session, stored);
+        Filters = new FilterChoices(session, stored, connect);
 
         if (existing?.Scope == CatalogScopeKind.Platform)
         {

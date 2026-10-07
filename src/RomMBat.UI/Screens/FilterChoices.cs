@@ -1,4 +1,5 @@
 using System.Globalization;
+using RomM.Client;
 using RomM.Client.Catalog;
 using RomMBat.Core;
 using RomMBat.Core.Sets;
@@ -21,6 +22,7 @@ namespace RomMBat.UI.Screens;
 public sealed class FilterChoices
 {
     private readonly InstallSession _session;
+    private readonly Func<Uri, RomMConnection>? _connect;
 
     private readonly Dictionary<string, HashSet<string>> _facets =
         FilterFacet.Multi.ToDictionary(
@@ -43,10 +45,12 @@ public sealed class FilterChoices
     private readonly Dictionary<string, bool?> _properties =
         FilterFacet.Properties.ToDictionary(property => property, _ => (bool?)null, StringComparer.Ordinal);
 
-    public FilterChoices(InstallSession session, CatalogFilter? from = null)
+    /// <param name="connect">How the values are fetched, so a test can stand a stub in its place.</param>
+    public FilterChoices(InstallSession session, CatalogFilter? from = null, Func<Uri, RomMConnection>? connect = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         _session = session;
+        _connect = connect;
 
         if (from is null)
         {
@@ -73,6 +77,14 @@ public sealed class FilterChoices
     /// network, so without this the operator row could only be checked by hand.
     /// </remarks>
     public IReadOnlyDictionary<string, IReadOnlyList<string>>? Values { get; set; }
+
+    /// <summary>Told the values once a picker has fetched them, so a caller can keep them.</summary>
+    /// <remarks>
+    /// Called when the fetch lands rather than read when the picker closes: a picker is pushed
+    /// before its fetch finishes, so copying <see cref="Values"/> back on the press that opened
+    /// it copied nothing (R1.2 on #500).
+    /// </remarks>
+    public Action<IReadOnlyDictionary<string, IReadOnlyList<string>>>? Fetched { get; init; }
 
     /// <summary>True when nothing is chosen, which matches every game.</summary>
     public bool IsEmpty =>
@@ -293,18 +305,18 @@ public sealed class FilterChoices
             // Fetched once for every picker this holds. Opening a second facet is instant.
             Load = Values is not null ? null : async token =>
             {
-                var attempt = _session.Authenticate();
+                using var connection = UiConnection.Open(_session, _connect);
 
-                if (attempt.Connection is null)
+                if (connection is null)
                 {
-                    return attempt.Problem ?? "This install is not paired with a RomM server.";
+                    return _session.Authenticate().Problem ?? "This install is not paired with a RomM server.";
                 }
-
-                using var connection = attempt.Connection;
 
                 Values = await new CatalogScopeService(connection)
                     .ListFilterValuesAsync(token)
                     .ConfigureAwait(false);
+
+                Fetched?.Invoke(Values);
 
                 available = Values.TryGetValue(facet, out var loaded) ? loaded : [];
                 return null;

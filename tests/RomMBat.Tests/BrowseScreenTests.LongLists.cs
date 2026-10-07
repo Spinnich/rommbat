@@ -342,6 +342,57 @@ public sealed partial class BrowseScreenTests
         Assert.False(rows[3].Available);
     }
 
+    /// <summary>
+    /// Taking a game off reads the letters again, because offline they are this device's.
+    /// </summary>
+    /// <remarks>R1.1 on #500: a cached index outlived the removal and jumped a row past C.</remarks>
+    [Fact]
+    public async Task A_reload_after_a_removal_reads_the_letters_again()
+    {
+        Installed(1, "snes", "Aladdin.sfc", 10);
+        Installed(2, "snes", "Bonk.sfc", 10);
+        Installed(3, "snes", "Contra.sfc", 10);
+
+        using var browse = new BrowseViewModel(_session);
+        await Settled(browse);
+        await Letters(browse);
+
+        _session.Store.Files.Remove(RomMBat.Core.Paths.RelativePath.Create("roms/snes/Aladdin.sfc"));
+        browse.Reload();
+        await Settled(browse);
+
+        var options = await Letters(browse);
+        options.Handle(NavAction.Down);
+        options.Handle(NavAction.Right);
+        Assert.Equal("‹ C ›", LetterRow(options).Value);
+
+        options.Handle(NavAction.Accept).Follow!();
+        Assert.Equal("Contra.sfc", browse.Rows[browse.Cursor].Label);
+    }
+
+    /// <summary>
+    /// The facet values fetched for one visit to the filters serve the next, applied or not.
+    /// </summary>
+    /// <remarks>
+    /// R1.2 on #500: they were copied back before the picker's fetch had landed, so a visit that
+    /// ended in Cancel fetched them again next time.
+    /// </remarks>
+    [Fact]
+    public async Task Facet_values_fetched_on_a_canceled_visit_are_kept_for_the_next()
+    {
+        using var stub = Library(2);
+        Pair();
+        using var browse = new BrowseViewModel(_session, Connect(stub));
+        await Settled(browse);
+
+        var filters = ViewOptionsScreen.Filters(browse);
+        var genres = Assert.IsType<ListScreen>(filters.Handle(NavAction.Accept).Screen);
+        await WaitFor(() => !genres.IsLoading);
+
+        Assert.Equal(ScreenCommandKind.Pop, filters.Handle(NavAction.Back).Kind);
+        Assert.NotNull(browse.FacetValues);
+    }
+
     [Fact]
     public void The_letter_index_is_off_on_every_page_and_on_only_when_asked()
     {

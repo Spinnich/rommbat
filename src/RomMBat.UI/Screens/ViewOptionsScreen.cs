@@ -224,9 +224,12 @@ public sealed class ViewOptionsScreen : IScreen, IWindowedScreen, IPopupScreen, 
         const string ClearRow = "Clear every filter";
         const string ApplyRow = "Show these games";
 
-        var choices = new FilterChoices(browse.Session, browse.State.View.Filter)
+        var choices = new FilterChoices(browse.Session, browse.State.View.Filter, browse.Connect)
         {
             Values = browse.FacetValues,
+
+            // Kept for the next visit, whichever way this one ends.
+            Fetched = values => browse.FacetValues = values,
         };
 
         var opened = choices.Snapshot();
@@ -249,7 +252,6 @@ public sealed class ViewOptionsScreen : IScreen, IWindowedScreen, IPopupScreen, 
                 switch (label)
                 {
                     case ApplyRow:
-                        browse.FacetValues = choices.Values;
                         browse.ApplyFilter(choices.IsEmpty ? null : choices.Build());
                         return ScreenCommand.Pop;
 
@@ -258,10 +260,7 @@ public sealed class ViewOptionsScreen : IScreen, IWindowedScreen, IPopupScreen, 
                         return ScreenCommand.Stay;
 
                     default:
-                        // Kept for the next visit, whichever way this one ends.
-                        var answer = choices.Open(label);
-                        browse.FacetValues ??= choices.Values;
-                        return answer;
+                        return choices.Open(label);
                 }
             },
             acceptLabel: "Change",
