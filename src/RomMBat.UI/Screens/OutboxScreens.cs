@@ -112,7 +112,7 @@ public static class OutboxScreens
             new ListRow(
                 title,
                 Moment(entry.RecordedAtUtc),
-                $"The server refused it: {entry.LastError} Dropping deletes RomMBat's record of it. "
+                $"The server refused it: {Sentence(entry.LastError)} Dropping deletes RomMBat's record of it. "
                     + "Nothing on the drive is deleted.",
                 false),
             () => session.Store.Outbox.DropFailed(entry.Id),
@@ -218,6 +218,11 @@ public static class OutboxScreens
 
     private static string Capitalised(string text) =>
         text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
+
+    /// <summary>The server's message ended as a sentence, which RomM's often are not.</summary>
+    /// <remarks>"end_time is too far in the future Dropping deletes..." ran two into one.</remarks>
+    private static string Sentence(string? message) =>
+        string.IsNullOrWhiteSpace(message) ? "no reason given." : message.TrimEnd().TrimEnd('.') + ".";
 
     private static string Moment(DateTimeOffset moment) =>
         moment.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);

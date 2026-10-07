@@ -84,8 +84,24 @@ public class OutboxScreenTests : IDisposable
         // it rather than dropping again.
         Assert.True(confirm.IsAnswered);
         Assert.StartsWith("Save dropped.", confirm.Question, StringComparison.Ordinal);
+        Assert.DoesNotContain("exists only", confirm.Question, StringComparison.Ordinal);
         Assert.Equal(ListScreen.DoneLabel, Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Accept).Label);
         Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
+    }
+
+    [Fact]
+    public void A_server_reason_without_a_full_stop_still_ends_before_the_next_sentence()
+    {
+        // RomM sends "end_time is too far in the future" bare, and the agent tree read
+        // "...too far in the future Dropping deletes RomMBat's record of it."
+        var id = Enqueue(41);
+        _session.Store.Outbox.MarkFailed(id, "end_time is too far in the future", DateTimeOffset.UtcNow);
+
+        var navigator = new Navigator(OutboxScreens.List(_session));
+        navigator.Handle(NavAction.Accept);
+
+        var confirm = Assert.IsType<ConfirmScreen>(navigator.Current);
+        Assert.Contains("in the future. Dropping deletes", Assert.Single(confirm.Details()).Detail, StringComparison.Ordinal);
     }
 
     [Fact]
