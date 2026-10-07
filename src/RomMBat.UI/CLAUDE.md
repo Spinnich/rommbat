@@ -43,7 +43,7 @@ and the outbox are Core's.
 - **A row or field never shows a raw slot or scope kind.** Show `SaveSlotLabel.Describe` and
   `SyncSetStore.ScopeLabel`; the screens say Check for changes, What it holds, Waiting to upload,
   Pending settings and Browse library, and the glossary pairs each with its term. Core's
-  sentences from a flush or a conflict resolution still name the raw slot (#502).
+  sentences from a flush or a conflict resolution already use the label.
 - **Every color is a `Shell/Theme` token** copied from the carbon theme (RB-425); a screen never
   names a brush. Inside a `Window`, `Theme` is the window's own property, so `ShellWindow` aliases
   the class as `EsTheme`.

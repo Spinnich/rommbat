@@ -372,7 +372,11 @@ public class SaveSyncTests
         // Not a failure: the server offers it again on every flush, and nothing here can fix it.
         Assert.Equal(0, outcome.Failed);
         Assert.Contains("refused, not a save", outcome.Summary, StringComparison.Ordinal);
-        Assert.Contains("'null'", Assert.Single(outcome.Problems), StringComparison.Ordinal);
+        var problem = Assert.Single(outcome.Problems);
+        Assert.Contains("'null'", problem, StringComparison.Ordinal);
+
+        // Both front ends print this line, so it names the game and the save in a player's words.
+        Assert.StartsWith("Old Towers (World) (Unl).zip, Save (autosave): ", problem, StringComparison.Ordinal);
 
         Assert.False(File.Exists(fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm")));
         Assert.Empty(fixture.Stub.Acknowledged);
@@ -486,6 +490,7 @@ public class SaveSyncTests
 
         Assert.True(outcome.Resolved, outcome.Message);
         Assert.Contains("nothing written", outcome.Message, StringComparison.Ordinal);
+        Assert.Contains("its Battery save for this game", outcome.Message, StringComparison.Ordinal);
         Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
         Assert.False(File.Exists(local));
         Assert.Equal(serverSaves, fixture.Stub.Saves.Count);
@@ -1944,7 +1949,30 @@ public class SaveSyncTests
         var batch = Assert.Single(outcome.Problems, problem => problem.Contains("are one save", StringComparison.Ordinal));
 
         Assert.Contains("1 of 2 files", batch, StringComparison.Ordinal);
-        Assert.Contains("libretro:battery", batch, StringComparison.Ordinal);
+        Assert.StartsWith("Battle Garegga (Japan).chd, Battery save: ", batch, StringComparison.Ordinal);
+        Assert.DoesNotContain("libretro:", batch, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_problem_for_a_rom_this_device_holds_no_file_for_names_it_by_its_id()
+    {
+        // A save outlives its ROM's record when the game is removed after the scan, and the line
+        // still has to say which game it is about.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(9, "saturn", "Battle Garegga (Japan)", ".chd", ".bcr", "the big one");
+        File.WriteAllText(fixture.Resolve("saves/saturn/Battle Garegga (Japan).bkr"), "the small one");
+        Assert.Equal(2, fixture.Scan().Found);
+
+        Assert.True(fixture.Store.Files.Remove(RelativePath.Create("roms/saturn/Battle Garegga (Japan).chd")));
+
+        fixture.Stub.NegotiateActions[(9, "libretro:battery:bcr")] = "upload";
+        fixture.Stub.NegotiateActions[(9, "libretro:battery:bkr")] = "upload";
+        fixture.Stub.RefuseUploadForSlot = "libretro:battery:bkr";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        var batch = Assert.Single(outcome.Problems, problem => problem.Contains("are one save", StringComparison.Ordinal));
+        Assert.StartsWith("rom 9, Battery save: ", batch, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -3609,7 +3637,8 @@ public class SaveSyncTests
 
         Assert.Equal("autosave", conflict.Slot);
         Assert.Equal("saves/gb/Tetris (World).srm", conflict.LocalPath.Value);
-        Assert.Contains("libretro:battery", conflict.Reason, StringComparison.Ordinal);
+        Assert.Contains("this device's Battery save", conflict.Reason, StringComparison.Ordinal);
+        Assert.DoesNotContain("libretro:", conflict.Reason, StringComparison.Ordinal);
 
         // And it stays a conflict rather than being re-offered into a write on the next pass.
         fixture.Scan();
