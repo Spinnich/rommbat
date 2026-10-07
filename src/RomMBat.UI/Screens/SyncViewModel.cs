@@ -546,7 +546,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         }
 
         _stopping = true;
-        Publish(state => state with { Detail = "Stopping, and putting back the game in progress..." });
+        Publish(state => state with { Detail = "Stopping, and removing the game in progress..." });
         _run.Cancel();
     }
 
@@ -826,7 +826,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
 
             Core.Sets.SyncState.Stopped => (
                 SyncStage.Stopped,
-                "Stopped. Everything that finished is on this device, and the game in progress was put back."),
+                "Stopped. Everything that finished is on this device, and the game in progress was removed."),
 
             Core.Sets.SyncState.Rejected => (
                 SyncStage.Rejected,
