@@ -25,7 +25,7 @@ namespace RomMBat.Tests;
 /// it breaks silently and only at scale: a screen that appended would look identical for the
 /// first few pages and hold the library by the end. That is the first test below.
 /// </remarks>
-public sealed class BrowseScreenTests : IDisposable
+public sealed partial class BrowseScreenTests : IDisposable
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 1, 12, 0, 0, TimeSpan.Zero);
     private static readonly Uri Origin = new("https://romm.invalid/");

@@ -135,6 +135,18 @@ Verified: RomM 5.2.0, 2026-09-01, and 5.3.1, 2026-09-28. How: compared `total` f
 7,568. The route treats an unrecognized query parameter as absent rather than as an error, so a
 misspelt scope reads as a scope that matched everything. `CatalogQuery` sends `platform_ids`.
 
+## RB-427. `char_index` is the offset of each first character in the query's own order, and only by name
+
+Verified: RomM 5.3.1, 2026-10-06. How: asked one SNES platform and the whole library for `limit=1` with the index on, under each order and direction, and fetched the row at each offset.
+Keys are lowercased first characters, digits folded into `0`, each mapped to the offset of the
+first row under it. The offsets follow the scope, the search and `order_dir=desc`. Under
+`fs_size_bytes`, `created_at`, `first_release_date`, `average_rating` or `last_played`, all of
+which sort, the index is empty; an `order_by` the server does not know sorts by name. Symbols are
+keyed one by one: the library opens on seven before `a` and ends on three after `z`. A platform
+of 3,454 answered 8.7 KB in 85 ms, the 95,976-ROM library 7.4 KB in 0.2 to 0.4 s. RomMBat reads
+it in one request per view for the library's letter jump, folds digits and symbols into `#`, and
+offers the jump only under a name sort.
+
 ## RM-1. `utils/platform_aliases.py` maps RomM's folder names to its slugs
 
 Verified: RomM 5.3.1 source, 2026-09-28. How: diffed the vendored `reference/romm-platform_aliases.py` against the tag and ran `reference/verify.py`.

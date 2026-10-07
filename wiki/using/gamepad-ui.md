@@ -20,6 +20,9 @@ the bottom face button is A on an Xbox pad, Cross on a PlayStation pad and B on 
 | Start               | Open the screen's menu, which lists everything that screen can do                                   |
 | Left face button    | A shortcut to the screen's most common action, such as Sync now, or Search                          |
 | Top face button     | A shortcut to the next most common, such as Query                                                   |
+| L1 and R1           | Move up or down one screen of a list at a time, stopping at the top and the bottom                  |
+| L2 and R2           | In Find a game, the previous or next platform                                                       |
+| Select              | In Find a game, the view options: search, jump to a letter, sort and filters                        |
 
 They follow EmulationStation's own: Start opens a menu there too, and Accept picks from it.
 

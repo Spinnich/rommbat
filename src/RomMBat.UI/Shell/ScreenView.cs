@@ -89,12 +89,15 @@ internal static class ScreenView
         _ => null,
     };
 
-    /// <summary>The shoulders and Start, which every layout does spell the same way.</summary>
+    /// <summary>The shoulders, the triggers, Start and Select, which every layout spells the same way.</summary>
     private static string ButtonWord(NavAction action) => action switch
     {
         NavAction.Start => "Start",
         NavAction.PageUp => "L1",
         NavAction.PageDown => "R1",
+        NavAction.Options => "Select",
+        NavAction.PreviousGroup => "L2",
+        NavAction.NextGroup => "R2",
         _ => action.ToString(),
     };
 
@@ -116,6 +119,9 @@ internal static class ScreenView
             NavAction.Start => "button_start",
             NavAction.PageUp => "button_l",
             NavAction.PageDown => "button_r",
+            NavAction.Options => "button_select",
+            NavAction.PreviousGroup => "button_lt",
+            NavAction.NextGroup => "button_rt",
             _ => "dpad_all",
         };
 
@@ -1128,12 +1134,13 @@ internal static class ScreenView
     public static Control? Overlay(IScreen screen) => screen switch
     {
         ActionMenuScreen menu => MenuPanel(menu),
+        ViewOptionsScreen options => MenuPanel(options),
         ConfirmScreen { Underneath: not null } confirm => ConfirmPanel(confirm),
         _ => null,
     };
 
-    /// <summary>The actions menu: the same rows a list draws, in a panel of fixed width.</summary>
-    private static Border MenuPanel(ActionMenuScreen menu)
+    /// <summary>A menu popup: the same rows a list draws, in a panel of fixed width.</summary>
+    private static Border MenuPanel(IWindowedScreen menu)
     {
         var stack = new StackPanel { Spacing = ListWindow.RowSpacing };
         var window = menu.Window;

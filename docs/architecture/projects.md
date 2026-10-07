@@ -210,10 +210,12 @@ rather than a connection, so the lock is still taken before anything is asked of
 
 **Browse holds one page and moves by page**, 50 rows, and it is the only screen that is not a
 `ListScreen`: everything else has all its rows the moment it opens. It starts on the platform
-list rather than the library, asks for name order, degrades to what this device holds when there
+list rather than the library, asks for name order unless VIEW OPTIONS picks another, degrades to what this device holds when there
 is no server and says which of the two it is showing, and its cursor **stops** at the end of the
 last page where every other list wraps, because a paged list that wraps to page one silently
-undoes the paging. Both draw through one body in `ScreenView`, so the windowing and the edge
+undoes the paging. L1 and R1 move a screen and fetch the neighboring page when they leave this
+one; a letter jump fetches the page that starts at the letter's offset, from RomM's letter index
+read once per view (RB-427). Both draw through one body in `ScreenView`, so the windowing and the edge
 markers cannot be right in one and wrong in the other.
 
 **A list of choices and a pane of facts are drawn differently, and `ListScreen.Reading` is which

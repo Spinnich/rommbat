@@ -85,6 +85,43 @@ public sealed record BrowsePage(
     bool IsLastPage,
     string? Problem = null);
 
+/// <summary>The orders a browse can be read in.</summary>
+/// <remarks>
+/// Five of the orders <c>GET /api/roms</c> honors, measured on 5.3.1 (RB-427). Only the two by
+/// name carry a letter index, so a letter jump is a name-order feature.
+/// </remarks>
+public enum BrowseOrder
+{
+    NameAscending,
+    NameDescending,
+    ReleaseNewest,
+    ReleaseOldest,
+    RatingHighest,
+}
+
+/// <summary>How a browse is narrowed and ordered, which is what VIEW OPTIONS changes.</summary>
+/// <param name="Search">A term typed now, or null.</param>
+/// <param name="Filter">RomM's facets and properties, or null for none.</param>
+public sealed record BrowseView(
+    string? Search = null,
+    BrowseOrder Order = BrowseOrder.NameAscending,
+    CatalogFilter? Filter = null)
+{
+    /// <summary>True when the order has a letter index to jump through.</summary>
+    public bool ByName => Order is BrowseOrder.NameAscending or BrowseOrder.NameDescending;
+
+    /// <summary>True when a filter is set, which the page this device holds cannot apply.</summary>
+    public bool Filtered => Filter is { IsEmpty: false };
+}
+
+/// <summary>Where one first character begins in a browse's order.</summary>
+/// <param name="Label">The letter as shown, capitalized, or <c>#</c> for digits and symbols.</param>
+/// <param name="Offset">The row it begins at, which is the offset a page is fetched from.</param>
+public sealed record BrowseLetter(string Label, int Offset);
+
+/// <summary>A browse's letters in its own order, or why there are none.</summary>
+public sealed record BrowseLetters(IReadOnlyList<BrowseLetter> Letters, string? Problem = null);
+
 /// <summary>
 /// Reading the library a page at a time, and falling back to this device when there is no server.
 /// </summary>
@@ -142,43 +179,27 @@ public sealed class BrowseService
     /// <param name="connection">Null browses this device, which is also what an unreachable server gets.</param>
     /// <param name="platformId">A RomM platform id to narrow to, or null for everything.</param>
     /// <param name="folder">The RetroBat folder the platform maps to, which is how the offline page narrows.</param>
-    /// <param name="search">A term typed now.</param>
+    /// <param name="view">
+    /// The search, order and filter. This device's page applies the search only: it holds no
+    /// release dates, ratings or facets, so it is always by name, and the screen says so.
+    /// </param>
     public async Task<BrowsePage> PageAsync(
         RomMConnection? connection,
         int offset,
         string? platformId = null,
         string? folder = null,
-        string? search = null,
+        BrowseView? view = null,
         CancellationToken cancellationToken = default)
     {
+        view ??= new BrowseView();
+        var search = view.Search;
+
         if (connection is null)
         {
             return Local(offset, folder, search);
         }
 
-        var query = new CatalogQuery
-        {
-            Scope = platformId is null ? CatalogScopeKind.Filter : CatalogScopeKind.Platform,
-            ScopeId = platformId,
-            SearchTerm = search,
-
-            // By name, not by id. `CatalogQuery`'s default is ascending id, and that is right
-            // for a resolve: RomM hands out ascending ids, so a ROM added mid-walk lands past
-            // the cursor instead of shifting every later page. Browse is not resumable and
-            // nobody scrolls a library by id.
-            //
-            // It looked alphabetical and was not, which is worse than being obviously unsorted.
-            // A library imported in name order carries ids in roughly that order, so the list
-            // reads as sorted until it is not: measured on the live instance, an id-ordered snes
-            // page put '3 Ninjas Kick Back' before '3-jigen Kakutou Ballz' and then dropped the
-            // latter out of sequence entirely. Found from the couch as "there's something else
-            // sorting the list on top of that".
-            //
-            // Named rather than left empty, which the schema documents as ordering by search
-            // relevance on MySQL and by name everywhere else. A list whose order depends on
-            // which database the server runs is not one a person can learn.
-            OrderBy = "name",
-        };
+        var query = Query(platformId, view);
 
         RomMResponse<RomPage> response;
 
@@ -232,6 +253,115 @@ public sealed class BrowseService
             // shrank mid-walk from reading as one more page forever. Same rule RomPager uses.
             rows.Count == 0 || offset + rows.Count >= page.Total);
     }
+
+    /// <summary>The query a browse pages, and the one its letter index is read against.</summary>
+    /// <remarks>One builder for both, so a jump lands on an offset in the order being shown.</remarks>
+    private static CatalogQuery Query(string? platformId, BrowseView view)
+    {
+        var (orderBy, direction) = view.Order switch
+        {
+            BrowseOrder.NameDescending => ("name", "desc"),
+
+            // Newest and highest first, which is what a person sorting by either came for.
+            BrowseOrder.ReleaseNewest => ("first_release_date", "desc"),
+            BrowseOrder.ReleaseOldest => ("first_release_date", "asc"),
+            BrowseOrder.RatingHighest => ("average_rating", "desc"),
+
+            // By name, not by id. `CatalogQuery`'s default is ascending id, and that is right
+            // for a resolve: RomM hands out ascending ids, so a ROM added mid-walk lands past
+            // the cursor instead of shifting every later page. Browse is not resumable and
+            // nobody scrolls a library by id.
+            //
+            // It looked alphabetical and was not, which is worse than being obviously unsorted.
+            // A library imported in name order carries ids in roughly that order, so the list
+            // reads as sorted until it is not: measured on the live instance, an id-ordered snes
+            // page put '3 Ninjas Kick Back' before '3-jigen Kakutou Ballz' and then dropped the
+            // latter out of sequence entirely. Found from the couch as "there's something else
+            // sorting the list on top of that".
+            //
+            // Named rather than left empty, which the schema documents as ordering by search
+            // relevance on MySQL and by name everywhere else. A list whose order depends on
+            // which database the server runs is not one a person can learn.
+            _ => ("name", "asc"),
+        };
+
+        return new CatalogQuery
+        {
+            Scope = platformId is null ? CatalogScopeKind.Filter : CatalogScopeKind.Platform,
+            ScopeId = platformId,
+            Filter = view.Filtered ? view.Filter : null,
+            SearchTerm = view.Search,
+            OrderBy = orderBy,
+            OrderDirection = direction,
+        };
+    }
+
+    /// <summary>
+    /// Where each first character begins, in the order <paramref name="view"/> reads.
+    /// </summary>
+    /// <param name="source">
+    /// Which page the letters are for. Asked of the same place the page came from, because an
+    /// offset into RomM's library means nothing on this device's page, and the reverse.
+    /// </param>
+    /// <remarks>
+    /// <b>One request of its own, never a page's.</b> RomM's <c>char_index</c> is off on every
+    /// page of a walk (RB-354), and on its own it is about 8 KB and 85 ms for a platform
+    /// (RB-427), so it is asked for once per view rather than resent with every page.
+    /// </remarks>
+    public async Task<BrowseLetters> LettersAsync(
+        RomMConnection? connection,
+        BrowseSource source,
+        string? platformId = null,
+        string? folder = null,
+        BrowseView? view = null,
+        CancellationToken cancellationToken = default)
+    {
+        view ??= new BrowseView();
+
+        if (source == BrowseSource.ThisDevice || connection is null)
+        {
+            return new BrowseLetters(Fold(_session.Store.Files.InstalledLetters(folder, view.Search)));
+        }
+
+        if (!view.ByName)
+        {
+            return new BrowseLetters([], "RomM indexes letters only in name order.");
+        }
+
+        RomMResponse<IReadOnlyDictionary<string, int>> response;
+
+        try
+        {
+            response = await connection
+                .GetCharIndexAsync(Query(platformId, view), cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (RomMUnreachableException unreachable)
+        {
+            return new BrowseLetters([], unreachable.Message);
+        }
+
+        return response.IsSuccess
+            ? new BrowseLetters(Fold(response.Value!.Select(pair => (pair.Key, pair.Value))))
+            : new BrowseLetters([], response.Message);
+    }
+
+    /// <summary>
+    /// Every letter on its own and every digit and symbol as one <c>#</c>, in the list's order.
+    /// </summary>
+    /// <remarks>
+    /// RomM keys each symbol separately, so an ascending library opens on seven of them before
+    /// the first letter and ends on three more past <c>z</c> (RB-427). A stepper through those
+    /// is noise, and <c>#</c> lands on the first of them.
+    /// </remarks>
+    private static IReadOnlyList<BrowseLetter> Fold(IEnumerable<(string First, int Offset)> index) =>
+    [
+        .. index
+            .Where(entry => entry.First.Length > 0)
+            .GroupBy(entry => char.IsLetter(entry.First[0]) ? entry.First.ToUpperInvariant() : "#")
+            .Select(group => new BrowseLetter(group.Key, group.Min(entry => entry.Offset)))
+            .OrderBy(letter => letter.Offset),
+    ];
 
     private static readonly RomPlacement Nowhere = new([], 0);
 

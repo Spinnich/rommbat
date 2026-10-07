@@ -312,6 +312,9 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// <summary>How many pages of <c>/api/roms</c> were served.</summary>
     public int RomPagesServed { get; private set; }
 
+    /// <summary>How many of those asked for the letter index.</summary>
+    public int CharIndexRequests { get; private set; }
+
     /// <summary>
     /// Holds every <c>/api/roms</c> page open until it is completed.
     /// </summary>
@@ -854,13 +857,41 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
         var platform = query["platform_ids"];
         var search = query["search_term"];
 
-        var matching = Library
+        var genres = query.GetValues("genres") ?? [];
+
+        var filtered = Library
             .Where(rom => platform is null || rom.PlatformId.ToString(CultureInfo.InvariantCulture) == platform)
             .Where(rom => search is null || rom.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(rom => rom.Id)
+            .Where(rom => genres.Length == 0 || (rom.Metadata?.Genres ?? []).Any(genres.Contains));
+
+        // Name and id, the two orders a test asks for. Anything else is id order, which is how
+        // the real server's answer to an order it does not know is told apart in an assertion.
+        var byName = query["order_by"] == "name";
+        var descending = query["order_dir"] == "desc";
+
+        var matching = (byName
+                ? descending
+                    ? filtered.OrderByDescending(rom => rom.Name, StringComparer.OrdinalIgnoreCase)
+                    : filtered.OrderBy(rom => rom.Name, StringComparer.OrdinalIgnoreCase)
+                : filtered.OrderBy(rom => rom.Id))
             .ToList();
 
         var items = matching.Skip(offset).Take(limit).Select(Project).ToArray();
+
+        // As the measured server keys it: the lowercased first character, digits folded into
+        // 0, each at the first row under it, and empty outside name order (RB-427).
+        var charIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        if (query["with_char_index"] == "true" && byName)
+        {
+            CharIndexRequests++;
+
+            for (var index = 0; index < matching.Count; index++)
+            {
+                var first = matching[index].Name[..1].ToLowerInvariant();
+                charIndex.TryAdd(char.IsDigit(first[0]) ? "0" : first, index);
+            }
+        }
 
         return Json(HttpStatusCode.OK, new
         {
@@ -868,6 +899,7 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
             total = TotalOverride ?? matching.Count,
             limit,
             offset,
+            char_index = charIndex,
         });
     }
 

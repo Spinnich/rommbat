@@ -368,6 +368,10 @@ public sealed record CatalogQuery
     /// never while paging: RB-354 measured the sidecars at a flat 1 MB resent on every
     /// request.
     /// </param>
+    /// <param name="withCharIndex">
+    /// Turns the letter index back on, for the one request a letter jump makes. Never while
+    /// paging, for the same reason.
+    /// </param>
     /// <exception cref="InvalidOperationException">
     /// The scope is <see cref="CatalogScopeKind.Picked"/>, which the endpoint cannot express.
     /// <b>Refused rather than paged.</b> Every scoping parameter this method can send is
@@ -375,7 +379,7 @@ public sealed record CatalogQuery
     /// entire library and reads as a picked set resolving to everything. A picked scope
     /// reaching the pager is a bug rather than a filter, and it fails where it happened.
     /// </exception>
-    public string ToQueryString(int limit, int offset, bool withFilterValues = false)
+    public string ToQueryString(int limit, int offset, bool withFilterValues = false, bool withCharIndex = false)
     {
         if (Scope == CatalogScopeKind.Picked)
         {
@@ -388,7 +392,7 @@ public sealed record CatalogQuery
         {
             // Off on every page. Whole-library index and filter metadata, not per-page data,
             // and the server resends them in full each time.
-            new("with_char_index", "false"),
+            new("with_char_index", withCharIndex ? "true" : "false"),
 
             // Off under every scope too. Every id the scope matches, resent on every page: 63 KiB
             // a page on a 9,194-ROM platform and 114 KiB on a 16,687-ROM virtual collection, at
