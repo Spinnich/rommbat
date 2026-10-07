@@ -269,8 +269,8 @@ which of the two reaches the network.
 **A player reads plain words, and the code and the command line keep the design's.** The screens
 say Check for changes for a resolve, What it holds for a scope, Waiting to upload for the outbox,
 Pending settings for queued `es_settings.cfg` changes and Browse library for browse; the glossary
-pairs each with its term. A conflict or outbox row shows its slot through
-`SaveSlotLabel.Describe` ("Battery save", "Save state 3", "Memory card") and a set shows its scope
+pairs each with its term. A conflict shows its slot through `SaveSlotLabel.Describe` ("Battery
+save", "Save state 3", "Memory card"), a refused play session shows none, and a set shows its scope
 kind through `SyncSetStore.ScopeLabel`, while the agent prints the raw slot that `saves resolve`
 takes back. Sentences Core returns from a flush or a conflict resolution still name the raw slot.
 
