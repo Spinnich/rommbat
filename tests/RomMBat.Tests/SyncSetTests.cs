@@ -452,6 +452,10 @@ public class SyncSetTests : IDisposable
         Assert.Equal(ResolutionOutcome.Interrupted, first.Outcome);
         Assert.Equal(4, _store.Cursors.Read($"roms:set:{set.Id}")!.ResumeOffset);
 
+        // The gamepad UI prints this summary after "Stopped.", so it says what happens next in a
+        // player's words rather than naming the walk.
+        Assert.EndsWith("the rest is checked next time", first.Summary, StringComparison.Ordinal);
+
         var second = await ResolveSegment(
             set,
             connection,

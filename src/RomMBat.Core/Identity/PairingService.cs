@@ -97,8 +97,8 @@ public sealed class PairingService
             {
                 throw new ServerChangeRefusedException(
                     $"This install is paired with {paired} and holds {pending} unsent item(s) "
-                        + $"that name that server's games. Let them send, or drop them from RomMBat's Outbox or with "
-                        + $"'rommbat-agent outbox drop --all-pending --apply', before pointing at {origin}.");
+                        + "that name that server's games. Let them send, or drop them from RomMBat's Waiting to "
+                        + $"upload list or with 'rommbat-agent outbox drop --all-pending --apply', before pointing at {origin}.");
             }
 
             return identifier;
@@ -189,7 +189,7 @@ public sealed class PairingService
                 null,
                 null,
                 $"{pending} item(s) were queued for {oldOrigin} while pairing waited. "
-                    + "Let them send, or drop them from RomMBat's Outbox or with "
+                    + "Let them send, or drop them from RomMBat's Waiting to upload list or with "
                     + "'rommbat-agent outbox drop --all-pending --apply', then pair again.");
         }
 

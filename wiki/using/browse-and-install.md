@@ -1,11 +1,11 @@
-# Find a game
+# Browse library
 
-Find a game lets you look up one game and put it on this device, or take it off, without making
+Browse library lets you look up one game and put it on this device, or take it off, without making
 a sync set for it. It also shows what is already here.
 
 ## Look something up
 
-1. Choose Find a game on the main menu.
+1. Choose Browse library on the main menu.
 2. Pick one platform, or Every platform.
 3. Press the left face button to search, type part of the game's name, and press Start. To clear
    a search, search again with nothing typed.

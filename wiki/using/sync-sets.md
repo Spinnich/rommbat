@@ -12,8 +12,8 @@ that part in step as the library changes.
 | Collection         | One of your RomM collections                                                         |
 | Smart collection   | One of your RomM smart collections, which RomM keeps up to date by its own rules     |
 | Virtual collection | One RomM builds for you, such as by genre. Made from a terminal only (`sets add`)    |
-| Filter             | A search: part of a name, and any of RomM's filters, such as genre, region or rating |
-| Picked             | Single games you installed from [Find a game](browse-and-install.md)                 |
+| Saved filter       | A search: part of a name, and any of RomM's filters, such as genre, region or rating |
+| Picked games       | Single games you installed from [Browse library](browse-and-install.md)              |
 
 Collections need the `collections.read` permission from [pairing](../getting-started/pairing.md).
 A set asks RomM what it holds each time it syncs, so a game added to a collection in RomM comes
@@ -25,17 +25,18 @@ Choose Sync sets on the main menu. On the list:
 
 - Accept opens the set under the cursor.
 - The left face button syncs every set.
-- The top face button queries every set.
+- The top face button checks every set for changes.
 - Start opens the menu, which has New set, as in [Your first sync](../getting-started/first-sync.md).
 
-On a set, the left face button syncs it and the top face button queries it. Delete set is in its
+On a set, the left face button syncs it and the top face button checks it for changes. Delete set is in its
 Start menu.
-The set's screen shows what it holds, how much RomM says that weighs, how much it takes up on this
-device with artwork, when it was last queried, and the games it skipped and why.
+The set's screen shows what it holds, how many games that is and what RomM says they weigh, how
+much it takes up on this device with artwork, when it was last checked, and the games it skipped
+and why.
 
-**Querying only asks RomM what is in a set, and downloads nothing.** Syncing queries first and
-then downloads. Both need the server. Querying a large set takes minutes; press Back and choose
-Stop to stop, and the next query continues from where it stopped.
+**Checking for changes only asks RomM what is in a set, and downloads nothing.** Syncing checks
+first and then downloads. Both need the server. Checking a large set takes minutes; press Back and
+choose Stop to stop, and the next check continues from where it stopped.
 
 ## Limits on one set
 

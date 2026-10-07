@@ -57,7 +57,7 @@ public class OutboxScreenTests : IDisposable
 
         Assert.Equal("Super Metroid (USA)", list.Rows[0].Label);
         Assert.Equal("save refused", list.Rows[0].Value);
-        Assert.Contains("bad slot", list.Rows[0].Detail!, StringComparison.Ordinal);
+        Assert.Equal("Battery save. HTTP 422: bad slot.", list.Rows[0].Detail);
 
         // No metadata for the second, so it falls back to the id rather than a blank label.
         Assert.Equal("Game 42", list.Rows[1].Label);
@@ -162,17 +162,31 @@ public class OutboxScreenTests : IDisposable
             () => new GamepadStatus(GamepadAvailability.NoDevice, null, null, "No controller is connected."),
             new RootScreens.RootRoutes { OpenOutbox = () => OutboxScreens.List(_session) }));
 
-        Assert.Equal("1 waiting, 1 refused", menu.Rows.Single(row => row.Label == "Outbox").Value);
+        Assert.Equal("1 waiting, 1 refused", menu.Rows.Single(row => row.Label == "Waiting to upload").Value);
 
         var navigator = new Navigator(menu);
-        RootMenuDriver.Open(navigator, "Outbox");
+        RootMenuDriver.Open(navigator, "Waiting to upload");
 
-        Assert.Equal("Outbox", Assert.IsType<ListScreen>(navigator.Current).Title);
+        Assert.Equal("Waiting to upload", Assert.IsType<ListScreen>(navigator.Current).Title);
+    }
+
+    [Fact]
+    public void A_refused_play_session_names_no_save()
+    {
+        // A session carries its emulator's battery slot, and calling it a battery save would name
+        // something that is not in the entry.
+        _session.Store.Outbox.Enqueue(OutboxKind.PlaySession, DateTimeOffset.UtcNow, romId: 41, slot: "libretro:battery");
+        Refuse(_session.Store.Outbox.Pending()[^1].Id);
+
+        var row = Assert.Single(Assert.IsType<ListScreen>(OutboxScreens.List(_session)).Rows);
+
+        Assert.Equal("play session refused", row.Value);
+        Assert.Equal("HTTP 422: bad slot.", row.Detail);
     }
 
     private long Enqueue(int romId)
     {
-        _session.Store.Outbox.Enqueue(OutboxKind.Save, DateTimeOffset.UtcNow, romId: romId, slot: "1");
+        _session.Store.Outbox.Enqueue(OutboxKind.Save, DateTimeOffset.UtcNow, romId: romId, slot: "libretro:battery");
         var pending = _session.Store.Outbox.Pending();
         return pending[^1].Id;
     }

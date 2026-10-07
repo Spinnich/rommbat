@@ -88,7 +88,7 @@ public sealed record ContentPlan
         {
             if (Steps.Count == 0)
             {
-                return "nothing to sync: the set resolves to no games";
+                return "nothing to sync: the set holds no games";
             }
 
             if (IsNoOp)

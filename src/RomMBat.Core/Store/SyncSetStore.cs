@@ -719,6 +719,21 @@ public sealed class SyncSetStore
         return summaries;
     }
 
+    /// <summary>
+    /// What a set holds, as a player reads it: "Smart collection" where the store and the command
+    /// line say <c>smart_collection</c>.
+    /// </summary>
+    public static string ScopeLabel(CatalogScopeKind scope) => scope switch
+    {
+        CatalogScopeKind.Collection => "Collection",
+        CatalogScopeKind.SmartCollection => "Smart collection",
+        CatalogScopeKind.VirtualCollection => "Virtual collection",
+        CatalogScopeKind.Platform => "Platform",
+        CatalogScopeKind.Filter => "Saved filter",
+        CatalogScopeKind.Picked => "Picked games",
+        _ => throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unknown scope kind."),
+    };
+
     public static string ScopeText(CatalogScopeKind scope) => scope switch
     {
         CatalogScopeKind.Collection => "collection",

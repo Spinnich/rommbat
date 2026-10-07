@@ -20,7 +20,7 @@ with Stopped by the disk budget. The games that did fit are all there.
 **RomMBat never picks games to delete on its own.** You choose what goes:
 
 - Delete a sync set and choose to take its games off (see [Sync sets](sync-sets.md#deleting-a-set)).
-- Take one game off from its screen in [Find a game](browse-and-install.md#take-one-game-off).
+- Take one game off from its screen in [Browse library](browse-and-install.md#take-one-game-off).
 
 Both show what would go before anything goes. A game another set still wants is kept, and saves
 and save states are never removed.

@@ -95,7 +95,7 @@ public static class RootScreens
                 routes.OpenSets);
 
             Add(
-                new ListRow("Find a game", null, "Search the library, or read what is already here."),
+                new ListRow("Browse library", null, "Search the library, or read what is already here."),
                 routes.OpenBrowse);
 
             Add(
@@ -120,7 +120,7 @@ public static class RootScreens
 
             Add(
                 new ListRow(
-                    "Queued changes",
+                    "Pending settings",
                     // "3 waitings" for the same reason.
                     queued == 0 ? "none" : Counted(queued, "waiting"),
                     queued == 0
@@ -130,7 +130,7 @@ public static class RootScreens
 
             Add(
                 new ListRow(
-                    "Outbox",
+                    "Waiting to upload",
                     (outbox, refused) switch
                     {
                         (0, 0) => "empty",

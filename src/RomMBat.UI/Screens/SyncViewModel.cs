@@ -248,6 +248,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     /// <summary>The one game, when this screen is installing rather than syncing a set.</summary>
     private readonly SyncSetMember? _installing;
 
+    /// <summary>Why the set that stopped the run was refused, in the resolver's words.</summary>
+    private string? _refusal;
+
     /// <summary>How an install mirrors the pick that started it, or null for a set's sync.</summary>
     private readonly Func<CancellationToken, Task<RoamingPush>>? _roam;
 
@@ -702,6 +705,11 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
                 break;
 
             case SetResolved(var resolve):
+                if (resolve.State is ResolveState.Refused or ResolveState.NeedsFolderChoice)
+                {
+                    _refusal = resolve.Problem ?? resolve.Summary;
+                }
+
                 Publish(state => state with { Pass = $"Asking RomM what '{resolve.SetName}' contains...", Game = null });
                 break;
 
@@ -820,7 +828,8 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
 
             Core.Sets.SyncState.Refused => (
                 SyncStage.Refused,
-                "A sync set could not be resolved, so nothing was fetched."),
+                // The resolver's sentence names the set and what to do; the run stops at it.
+                $"{_refusal ?? "RomM refused a sync set."} Nothing was fetched."),
 
             // Only an unreachable server clears itself, so only that run is told to sync again.
             _ => (SyncStage.Incomplete, report.Cause switch

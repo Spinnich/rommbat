@@ -62,7 +62,7 @@ public static class QueuedChangeScreens
         ListScreen? screen = null;
 
         screen = new ListScreen(
-            "Queued changes",
+            "Pending settings",
             Rows,
             index => shown[index].IsOutstanding
                 ? ScreenCommand.Push(CancelConfirm(session, shown[index], screen))
@@ -233,7 +233,7 @@ public static class QueuedChangeScreens
                         return box!.Answer(queued.Ok
                             ? $"Memory card change queued for '{title}'. RomMBat makes the change when "
                                 + "you next quit EmulationStation. Until then nothing is written, and "
-                                + "Queued changes can cancel it."
+                                + "Pending settings can cancel it."
                             : $"Nothing queued for '{title}'. {queued.Detail}");
                     })
                 {

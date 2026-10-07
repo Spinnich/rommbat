@@ -140,7 +140,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
         var platforms = new SyncSetService(session).PlatformsKnownHere();
 
         return new ListScreen(
-            "Find a game",
+            "Browse library",
             [
                 new ListRow("Every platform", $"{platforms.Count} known here", "Everything RomM holds."),
                 .. platforms.Select(platform => new ListRow(
@@ -155,7 +155,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
             acceptLabel: "Show these games",
             backLabel: "Back")
         {
-            EmptyMessage = "No platforms known yet. Sync or query a set once and they appear.",
+            EmptyMessage = "No platforms known yet. Sync a set or check one for changes once and they appear.",
         };
     }
 

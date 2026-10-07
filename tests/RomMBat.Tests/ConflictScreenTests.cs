@@ -72,10 +72,11 @@ public class ConflictScreenTests : IDisposable
         Assert.Equal("Chrono Trigger", row.Label);
 
         // And the file name under it, for the reason browse measured: a title alone
-        // cannot be matched against what is on disk. The slot is there too, because four slots
-        // on one game make four otherwise identical rows.
+        // cannot be matched against what is on disk. The slot is there too, in plain words,
+        // because four slots on one game make four otherwise identical rows.
         Assert.Contains("Chrono Trigger (USA).sfc", row.Detail!, StringComparison.Ordinal);
-        Assert.Contains("battery", row.Detail!, StringComparison.Ordinal);
+        Assert.Contains("(Battery save)", row.Detail!, StringComparison.Ordinal);
+        Assert.DoesNotContain("libretro:battery", row.Detail!, StringComparison.Ordinal);
 
         var navigator = new Navigator(list);
         navigator.Handle(NavAction.Accept);
@@ -92,7 +93,8 @@ public class ConflictScreenTests : IDisposable
         var labels = detail.Rows.Select(r => r.Label).ToList();
 
         Assert.Contains("Game", labels);
-        Assert.Contains("Slot", labels);
+        Assert.Contains("Save", labels);
+        Assert.Equal("Battery save", detail.Rows.Single(r => r.Label == "Save").Value);
         Assert.Contains("This device", labels);
         Assert.Contains("The server", labels);
 
@@ -133,7 +135,7 @@ public class ConflictScreenTests : IDisposable
         var row = Assert.Single(list.Rows);
 
         Assert.Equal("Game 7", row.Label);
-        Assert.Contains("battery", row.Detail!, StringComparison.Ordinal);
+        Assert.StartsWith("Battery save.", row.Detail!, StringComparison.Ordinal);
     }
 
     [Fact]

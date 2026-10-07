@@ -10,8 +10,8 @@ until you decide. The main menu's Conflicts row counts how many are waiting.
 ## Choose a side
 
 1. Choose Conflicts on the main menu, and open the save.
-2. The screen shows when the conflict was found, the save on this device, and the save on the
-   server with when it last changed.
+2. The screen shows which save it is, such as Battery save or Memory card, when the conflict was
+   found, the save on this device, and the save on the server with when it last changed.
 3. Press Accept, then choose This device's or The server's. Decide later is selected first.
 4. Confirm.
 

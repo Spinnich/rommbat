@@ -13,7 +13,7 @@ the drive until only the amount under Always leave free remains.
 
 **On a new install, the platform list starts empty.** Nothing on the controller fills it yet
 ([#325](https://github.com/Spinnich/rommbat/issues/325)). Before you make a platform sync set,
-or install a single game from Find a game, run this once from a terminal in your RetroBat folder
+or install a single game from Browse library, run this once from a terminal in your RetroBat folder
 while the server is reachable:
 
 ```powershell
@@ -26,15 +26,15 @@ A collection or a filter sync set does not need it, because RomMBat asks RomM fo
 
 1. On the main menu, choose Sync sets.
 2. Press Start for the menu, and choose New set.
-3. On Scope, press Accept and choose what the set holds: a platform, one of your collections, or
-   a filter.
+3. On What it holds, press Accept and choose a platform, one of your collections, or a saved
+   filter.
 4. Choose the platform or collection. A filter asks for a name, and then for what to match.
 5. Choose Create set, the last row.
 
 RomMBat names a platform or collection set after what you chose, so you type nothing. It then
 asks RomM which games are in the set straight away, which on a large library can take a few
 minutes. Press Back and choose Stop to stop early: what it found so far is kept, and the next
-query carries on from there. When it finishes, press Accept to reach the set.
+check carries on from there. When it finishes, press Accept to reach the set.
 
 ## Sync it
 

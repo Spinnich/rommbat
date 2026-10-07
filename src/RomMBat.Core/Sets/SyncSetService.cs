@@ -387,7 +387,7 @@ public sealed class SyncSetService
 
                 return new ScopeOption(
                     kind,
-                    SyncSetStore.ScopeText(kind),
+                    SyncSetStore.ScopeLabel(kind),
                     !missingGrant && cannotList is null,
                     missingGrant ? unavailable : cannotList);
             }),
@@ -445,7 +445,7 @@ public sealed class SyncSetService
         {
             return SetOutcome.No(
                 SetRefusal.MissingValue,
-                $"A {SyncSetStore.ScopeText(draft.Scope)} scope needs a value.");
+                $"A set that holds a {SyncSetStore.ScopeLabel(draft.Scope).ToLowerInvariant()} needs to say which one.");
         }
 
         // A platform scope takes the fs_slug the mapping table lists as readily as the numeric
@@ -588,7 +588,7 @@ public sealed class SyncSetService
         MemberState.ExcludedFilesystemLimit => "skipped, too large for this drive's filesystem",
         MemberState.ExcludedOverCount => "past the game cap",
         MemberState.ExcludedOverBytes => "past the byte budget",
-        MemberState.Departed => "no longer in the scope",
+        MemberState.Departed => "no longer in the set",
         _ => "in the set",
     };
 

@@ -241,7 +241,7 @@ holds no saves. `rommbat-agent evict` is unchanged.
 That is EmulationStation's own grammar (RB-421 to RB-424). A screen lists its verbs as
 `ScreenAction`s; the navigator opens `ActionMenuScreen` on Start and runs the Alternate, Extra and
 Options shortcuts from the same list, so the footer, the menu and the shortcuts cannot disagree. A verb
-keeps one shortcut everywhere (Sync on Alternate, Query on Extra), and a destructive one has
+keeps one shortcut everywhere (Sync on Alternate, Check for changes on Extra), and a destructive one has
 none. An editor saves from its last row, and Back with unsaved changes asks.
 
 **Every confirmation is one `ConfirmScreen`**, ES's message box with the safe answer selected
@@ -253,20 +253,28 @@ automatic choice) turns into its outcome with a single Done, as ES's own boxes r
 
 **Two screens run minutes-long work, and both ask before Back stops them**, then stay so the
 screen can say what happened. The sync screen's question says its stop removes the game it was
-in; the resolve screen's says what it found is kept. Both own their cancellation and are
+in; the check-for-changes screen's says what it found is kept. Both own their cancellation and are
 disposed when left.
 
 **A screen that has finished says so three times, because a full progress bar and a stalled one
-are the same picture.** The title turns past tense ("Queried 'X'", "Synced 'X'"), an outcome
+are the same picture.** The title turns past tense ("Checked 'X' for changes", "Synced 'X'"), an outcome
 word sits above the sentence ("Finished", "Stopped", "Finished with problems", "Did not
 finish"), and the footer reads **Done** instead of offering a stop. That last one is the rule:
 **if the footer offers a stop the work is running, and if it says Done it is over**, which is
 the only thing a person has to learn to know whether to keep waiting. Done sits on Accept,
-because moving on is progress, and Back leaves too. The sets screen's
-footer offers **Query** rather than Check, beside Sync, because "Query" names the act of asking
-the server and so says which of the two reaches the network.
+because moving on is progress, and Back leaves too. The sets screen offers **Check for changes**
+rather than Check alone, beside Sync, because the full phrase says it asks the server and so
+which of the two reaches the network.
 
-**Nothing on a screen that runs work moves while it runs.** The sync and query screens expose
+**A player reads plain words, and the code and the command line keep the design's.** The screens
+say Check for changes for a resolve, What it holds for a scope, Waiting to upload for the outbox,
+Pending settings for queued `es_settings.cfg` changes and Browse library for browse; the glossary
+pairs each with its term. A conflict shows its slot through `SaveSlotLabel.Describe` ("Battery
+save", "Save state 3", "Memory card"), a refused play session shows none, and a set shows its scope
+kind through `SyncSetStore.ScopeLabel`, while the agent prints the raw slot that `saves resolve`
+takes back. Sentences Core returns from a flush or a conflict resolution still name the raw slot.
+
+**Nothing on a screen that runs work moves while it runs.** The sync and check-for-changes screens expose
 `Layout`, a fixed list of `ProgressSlot`s from `ProgressLayout`, and `ScreenView` draws every slot
 at its reserved height in every state: an empty slot is blank, an unknown bar is its empty track,
 and the sentence and the problems box are cut at their line budgets. The problems box keeps the

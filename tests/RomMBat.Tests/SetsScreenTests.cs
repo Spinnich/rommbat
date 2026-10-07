@@ -821,7 +821,7 @@ public sealed class SetsScreenTests : IDisposable
 
         // No Name row either. A platform and a collection are named by RomM already, and the
         // set takes that name, so only a filter needs one typed. The last row creates the set.
-        Assert.Equal(["Scope", "Platform", "Create set"], editor.Rows.Select(row => row.Label));
+        Assert.Equal(["What it holds", "Platform", "Create set"], editor.Rows.Select(row => row.Label));
     }
 
     [Fact]
@@ -833,8 +833,8 @@ public sealed class SetsScreenTests : IDisposable
         Assert.DoesNotContain(editor.Rows, row => row.Label == "Name");
 
         // A filter is the one scope that is not a mirror of something RomM has already named.
-        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, "Scope"));
-        MoveTo(scopes, SyncSetStore.ScopeText(CatalogScopeKind.Filter));
+        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, "What it holds"));
+        MoveTo(scopes, SyncSetStore.ScopeLabel(CatalogScopeKind.Filter));
         scopes.Handle(NavAction.Accept);
 
         Assert.Contains(editor.Rows, row => row.Label == "Name");
@@ -966,8 +966,8 @@ public sealed class SetsScreenTests : IDisposable
         var typed = editor.Rows.Single(row => row.Label == "Name").Value;
         Assert.NotEqual("not set", typed);
 
-        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, "Scope"));
-        MoveTo(scopes, SyncSetStore.ScopeText(CatalogScopeKind.Platform));
+        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, "What it holds"));
+        MoveTo(scopes, SyncSetStore.ScopeLabel(CatalogScopeKind.Platform));
         scopes.Handle(NavAction.Accept);
 
         var platforms = Assert.IsType<ListScreen>(OpenRow(editor, "Platform"));
@@ -990,7 +990,7 @@ public sealed class SetsScreenTests : IDisposable
         var detail = SetsScreens.Detail(_session, set.Name, null);
         var list = Assert.IsType<ListScreen>(detail);
 
-        Assert.Contains(list.Rows, row => row.Label == "Holds" && row.Value == "0 games, 0 B");
+        Assert.Contains(list.Rows, row => row.Label == "Games" && row.Value == "0 games, 0 B");
 
         // Stand in for what a resolve writes. It happens on a screen above this one, so rows
         // read once would leave the counts and the last-resolved time saying what they said
@@ -1004,7 +1004,7 @@ public sealed class SetsScreenTests : IDisposable
 
         list.Returned();
 
-        Assert.Contains(list.Rows, row => row.Label == "Holds" && row.Value!.StartsWith("1 game", StringComparison.Ordinal));
+        Assert.Contains(list.Rows, row => row.Label == "Games" && row.Value!.StartsWith("1 game", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -1424,13 +1424,13 @@ public sealed class SetsScreenTests : IDisposable
     private SetEditorViewModel FilterEditor()
     {
         var editor = SetEditorViewModel.ForNew(_session);
-        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, "Scope"));
+        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, "What it holds"));
 
         // Walked by label rather than by counting presses. The cursor skips unavailable rows,
         // so pressing down N times does not land on index N, and virtual collections are
         // unavailable. Counting put the cursor on the wrong scope and the test that followed
         // then searched for a row that did not exist.
-        MoveTo(scopes, SyncSetStore.ScopeText(CatalogScopeKind.Filter));
+        MoveTo(scopes, SyncSetStore.ScopeLabel(CatalogScopeKind.Filter));
         scopes.Handle(NavAction.Accept);
 
         return editor;

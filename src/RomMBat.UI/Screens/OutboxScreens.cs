@@ -2,6 +2,7 @@ using System.Globalization;
 using RomMBat.Core;
 using RomMBat.Core.Metadata;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 using RomMBat.UI.Input;
 using RomMBat.UI.Shell;
 
@@ -77,7 +78,7 @@ public static class OutboxScreens
         }
 
         screen = new ListScreen(
-            "Outbox",
+            "Waiting to upload",
             Rows,
             index => ScreenCommand.Push(destinations[index]()),
             acceptLabel: "Drop",
@@ -98,8 +99,9 @@ public static class OutboxScreens
         new(
             title,
             $"{Kind(entry.Kind)} refused",
-            entry.Slot is { } slot
-                ? $"Slot {slot}. {entry.LastError}"
+            // A play session carries its emulator's battery slot, which names no save of its own.
+            entry.Slot is { } slot && entry.Kind != OutboxKind.PlaySession
+                ? $"{SaveSlotLabel.Describe(slot)}. {entry.LastError}"
                 : entry.LastError);
 
     /// <summary>Dropping one refused entry.</summary>

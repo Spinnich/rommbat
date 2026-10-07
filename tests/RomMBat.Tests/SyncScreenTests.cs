@@ -437,7 +437,7 @@ public sealed class SyncScreenTests : IDisposable
     [Fact]
     public async Task A_finished_run_says_so_in_its_title_its_outcome_and_its_footer()
     {
-        // A hands-on pass sat on a resolve reading "Querying 'X'" over a full bar
+        // A hands-on pass sat on a resolve reading "Checking 'X' for changes" over a full bar
         // and 107 of 107, and could not tell a finished screen from a stuck one. A full bar and
         // a stalled bar are the same picture, so the screen has to say which it is. Three
         // places, because the title is what a person reads first and the footer is where they
@@ -499,12 +499,12 @@ public sealed class SyncScreenTests : IDisposable
 
         var resolve = new ResolveViewModel(_session, Set(), Connect(stub));
 
-        Assert.StartsWith("Querying", resolve.Title, StringComparison.Ordinal);
+        Assert.StartsWith("Checking", resolve.Title, StringComparison.Ordinal);
         Assert.Null(resolve.Outcome);
 
         await SettledAsync(resolve);
 
-        Assert.StartsWith("Queried", resolve.Title, StringComparison.Ordinal);
+        Assert.StartsWith("Checked", resolve.Title, StringComparison.Ordinal);
         Assert.Equal("Finished", resolve.Outcome);
         Assert.Equal(ListScreen.DoneLabel, Assert.Single(resolve.Hints, hint => hint.Action == NavAction.Accept).Label);
 
@@ -524,7 +524,7 @@ public sealed class SyncScreenTests : IDisposable
 
         var confirm = Assert.IsType<ConfirmScreen>(resolve.Handle(NavAction.Back).Screen);
         Assert.Same(resolve, confirm.Underneath);
-        Assert.Equal("Keep querying", confirm.Buttons[confirm.Selected].Label);
+        Assert.Equal("Keep checking", confirm.Buttons[confirm.Selected].Label);
         Assert.Contains("kept", confirm.Question, StringComparison.Ordinal);
 
         // Keeping it changes nothing, and the run finishes on its own.
@@ -565,6 +565,29 @@ public sealed class SyncScreenTests : IDisposable
         Assert.Contains(seen, state => state.Outcome is not null);
 
         Assert.Single(seen.Select(state => Shape(state.Layout)).Distinct());
+
+        sync.Dispose();
+    }
+
+    [Fact]
+    public async Task A_refused_set_says_why_rather_than_that_it_could_not_be_checked()
+    {
+        // A hands-on pass read "A sync set could not be checked for changes" over a set that had
+        // been checked and refused, which named neither the set nor what to do about it.
+        using var stub = new StubRomMServer();
+        stub.Library.Add(new StubRom(1, 2, "arcade", "arcade", "Some Arcade Game", "sag.zip", "zip", 1_000));
+        Pair();
+        var set = _session.Store.SyncSets.Add(
+            new SyncSetDefinition { Name = "arcade", Scope = CatalogScopeKind.Platform, ScopeValue = "2" },
+            Now);
+
+        var sync = new SyncViewModel(_session, set, Connect(stub));
+        await SettledAsync(sync);
+
+        Assert.Equal(SyncStage.Refused, sync.State.Stage);
+        Assert.Contains("mame", sync.State.Detail, StringComparison.Ordinal);
+        Assert.EndsWith("Nothing was fetched.", sync.State.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("could not be checked", sync.State.Detail, StringComparison.Ordinal);
 
         sync.Dispose();
     }

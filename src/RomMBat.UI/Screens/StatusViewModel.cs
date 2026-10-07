@@ -249,7 +249,7 @@ public sealed class StatusViewModel : IScreen
         var rows = new List<StatusRow>
         {
             new(
-                "Outbox",
+                "Waiting to upload",
                 outbox == 0 ? "empty" : Plural(outbox, "item"),
                 outbox == 0 ? null : "Saves, states and play sessions waiting for the server."),
             new(
@@ -257,7 +257,7 @@ public sealed class StatusViewModel : IScreen
                 conflicts == 0 ? "none" : Plural(conflicts, "save"),
                 conflicts == 0 ? null : "Both sides were kept. Nothing was overwritten."),
             new(
-                "Queued changes",
+                "Pending settings",
                 queued.Count == 0 ? "none" : Plural(queued.Count, "change"),
                 queued.Count == 0
                     ? null

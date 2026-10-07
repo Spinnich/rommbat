@@ -39,9 +39,10 @@ startup, newer warns. See `CLAUDE.md`, "Version floor".
 **Sync set, or set.** A named, saved selection of games to mirror onto the device. Its
 **scope** is one platform, collection, smart collection, virtual collection or saved filter
 (`CatalogScopeKind`). A set is re-resolved on demand, so its membership moves with the library.
+The gamepad UI calls the scope **What it holds**.
 
 **Resolve.** Asking the server which games a set holds now. Reaches the network; a sync is a
-resolve followed by downloads.
+resolve followed by downloads. The gamepad UI calls it **Check for changes**.
 
 **Budget.** The install-wide cap on bytes RomMBat may place on the device. A sync skips each game
 that would go over it and names it. Removing content to make room is always a separate decision a
@@ -65,7 +66,8 @@ install is often neither one directory nor one file (`SaveUnit`).
 
 **Slot.** The name a save is filed under on the server, such as `libretro:battery`. Negotiation
 keys on it, so a server save with no slot is outside the protocol: never fetched, never in
-conflict. See `save-sync`, "The slot is the key to everything".
+conflict. See `save-sync`, "The slot is the key to everything". The gamepad UI's conflict screens show
+`SaveSlotLabel.Describe` instead, such as "Battery save" or "Save state 3".
 
 **Conflict.** A slot where this device and the server both changed since they last agreed.
 Never resolved silently; a person keeps the local side or the server's.
@@ -84,7 +86,8 @@ hook cannot open the database, so this is how an event is recorded.
 
 **Outbox.** Everything produced on the device that the server has not yet accepted: saves,
 states and play sessions, each with its real local time and content hash. An entry the server
-answers for and refuses is marked failed instead of retried.
+answers for and refuses is marked failed instead of retried. The gamepad UI calls it **Waiting to
+upload**.
 
 **Flush.** One pass that drains the spool and sends the outbox. Safe to replay, because the
 server deduplicates what it has already seen.
@@ -96,4 +99,5 @@ server deduplicates what it has already seen.
 get it exits, because another process is doing the work. The UI never takes it.
 
 **Pending config.** An `es_settings.cfg` change queued in the store, because EmulationStation
-discards a write made while it runs. `background quit` applies it once ES has exited.
+discards a write made while it runs. `background quit` applies it once ES has exited. The
+gamepad UI calls these **Pending settings**.

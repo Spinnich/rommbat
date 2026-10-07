@@ -71,7 +71,7 @@ public sealed class PickedSetTests : IDisposable
         Assert.Equal(2_048, member.SizeBytes);
 
         // Stamped as resolved even though nothing was walked, because it is: the membership
-        // written here is current as of this moment, and a set reading "last resolved never"
+        // written here is current as of this moment, and a set reading "last checked never"
         // while holding exactly the right games would be the sets list telling a lie.
         Assert.Equal(Now, outcome.Set.LastResolvedAt);
         Assert.Contains("1 picked game", outcome.Set.LastResolutionSummary, StringComparison.Ordinal);

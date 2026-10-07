@@ -916,7 +916,7 @@ public sealed partial class BrowseScreenTests : IDisposable
 
         var navigator = new Navigator(root);
 
-        RootMenuDriver.Open(navigator, "Find a game");
+        RootMenuDriver.Open(navigator, "Browse library");
         var browse = Assert.IsType<BrowseViewModel>(navigator.Current);
         await Settled(browse);
 

@@ -72,7 +72,7 @@ public static class PlatformScreens
             acceptLabel: "Change where these land",
             backLabel: "Back")
         {
-            EmptyMessage = "No platforms known yet. Sync or query a set once, or open a game in "
+            EmptyMessage = "No platforms known yet. Sync a set or check one for changes, or open a game in "
                 + "browse, and they appear.",
             Note = () => Note(platforms),
         };
@@ -274,7 +274,7 @@ public static class PlatformScreens
                         session.Store.PlatformMap.ClearOverride(platform.FsSlug, DateTimeOffset.UtcNow);
 
                         return box!.Answer(
-                            $"Stopped choosing for {platform.Label}. The next time RomMBat resolves this "
+                            $"Stopped choosing for {platform.Label}. The next time RomMBat meets this "
                                 + "platform it works the folder out again. Until then it has none.");
                     }),
                 new ConfirmButton("Back", () => ScreenCommand.Pop),

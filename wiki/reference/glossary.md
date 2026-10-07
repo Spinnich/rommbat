@@ -5,6 +5,9 @@ The words this guide uses in a particular sense.
 **BIOS, or firmware.** A file copied from an original console that some emulators need before a
 game will start. See [BIOS and firmware](../using/bios.md).
 
+**Check for changes.** Asking RomM which games a sync set holds now, without downloading any. A
+sync does this first.
+
 **Conflict.** A save that changed on this device and on another one since they last agreed.
 RomMBat keeps both until you choose. See [Conflicts](../saves/conflicts.md).
 
@@ -33,8 +36,6 @@ games or sending saves. RomM calls these scopes.
 
 **Platform.** A console as RomM names it, such as Super Nintendo. Each platform's games go into
 one system folder.
-
-**Query.** Asking RomM which games a sync set holds, without downloading any.
 
 **Row.** One emulator on one system, and one core where the emulator has several, such as `snes`
 under `libretro`/`snes9x`. RomMBat is tested one row at a time. See

@@ -112,9 +112,9 @@ public class StatusScreenTests
 
         var waiting = model.Sections().Single(section => section.Title == "Waiting");
 
-        Assert.Equal("empty", waiting.Rows.Single(row => row.Label == "Outbox").Value);
+        Assert.Equal("empty", waiting.Rows.Single(row => row.Label == "Waiting to upload").Value);
         Assert.Equal("none", waiting.Rows.Single(row => row.Label == "Conflicts").Value);
-        Assert.Equal("none", waiting.Rows.Single(row => row.Label == "Queued changes").Value);
+        Assert.Equal("none", waiting.Rows.Single(row => row.Label == "Pending settings").Value);
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public class StatusScreenTests
         });
 
         var waiting = model.Sections().Single(section => section.Title == "Waiting");
-        var summary = waiting.Rows.Single(row => row.Label == "Queued changes");
+        var summary = waiting.Rows.Single(row => row.Label == "Pending settings");
 
         Assert.Equal("1 change", summary.Value);
 
