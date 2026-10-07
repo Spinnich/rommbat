@@ -274,8 +274,10 @@ say Check for changes for a resolve, What it holds for a scope, Waiting to uploa
 Pending settings for queued `es_settings.cfg` changes and Browse library for browse; the glossary
 pairs each with its term. A conflict shows its slot through `SaveSlotLabel.Describe` ("Battery
 save", "Save state 3", "Memory card"), a refused play session shows none, and a set shows its scope
-kind through `SyncSetStore.ScopeLabel`, while the agent prints the raw slot that `saves resolve`
-takes back. Sentences Core returns from a flush or a conflict resolution still name the raw slot.
+kind through `SyncSetStore.ScopeLabel`, while the agent's conflict listing prints the raw slot that
+`saves resolve` takes back. Sentences Core returns from a flush or a conflict resolution reach both
+front ends, so they name a save by its game's file and that label too ("Super Metroid (USA).sfc,
+Battery save").
 
 **Nothing on a screen that runs work moves while it runs.** The sync and check-for-changes screens expose
 `Layout`, a fixed list of `ProgressSlot`s from `ProgressLayout`, and `ScreenView` draws every slot

@@ -66,8 +66,9 @@ install is often neither one directory nor one file (`SaveUnit`).
 
 **Slot.** The name a save is filed under on the server, such as `libretro:battery`. Negotiation
 keys on it, so a server save with no slot is outside the protocol: never fetched, never in
-conflict. See `save-sync`, "The slot is the key to everything". The gamepad UI's conflict screens show
-`SaveSlotLabel.Describe` instead, such as "Battery save" or "Save state 3".
+conflict. See `save-sync`, "The slot is the key to everything". A player reads
+`SaveSlotLabel.Describe` instead, such as "Battery save" or "Save state 3", on the gamepad UI and in
+every flush problem; only the agent's conflict listing prints the slot, for `saves resolve`.
 
 **Conflict.** A slot where this device and the server both changed since they last agreed.
 Never resolved silently; a person keeps the local side or the server's.

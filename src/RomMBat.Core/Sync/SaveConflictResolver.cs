@@ -207,8 +207,8 @@ public sealed class SaveConflictResolver
 
             return ConflictResolutionOutcome.Failed(
                 save is null
-                    ? $"This device no longer holds a save in slot {conflict.Slot}, so there is "
-                        + "nothing local to keep. Take the server's copy instead."
+                    ? $"This device no longer holds its {SaveSlotLabel.Describe(conflict.Slot)} for "
+                        + "this game, so there is nothing local to keep. Take the server's copy instead."
                     : $"{save.Path} is gone, so there is nothing to send. Take the server's copy instead.");
         }
 
@@ -352,8 +352,9 @@ public sealed class SaveConflictResolver
 
         return new ConflictResolutionOutcome(
             true,
-            $"Closed the conflict with nothing written: this device no longer holds a save in slot "
-                + $"{conflict.Slot}, and the server's copy is not a save.{copy}");
+            $"Closed the conflict with nothing written: this device no longer holds its "
+                + $"{SaveSlotLabel.Describe(conflict.Slot)} for this game, and the server's copy is "
+                + $"not a save.{copy}");
     }
 
     private static ConflictResolutionOutcome NotASaveKept(string reason) =>

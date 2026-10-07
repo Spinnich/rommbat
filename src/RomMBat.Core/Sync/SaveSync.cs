@@ -423,9 +423,9 @@ public sealed class SaveSync
             {
                 superseded++;
                 problems.Add(
-                    $"{older.Path}: slot {older.Slot} on rom {older.RomId} is held by "
-                        + $"{ordered[0].Path}, written more recently, so it was not sent. Remove it "
-                        + "once the newer file is the one the emulator reads.");
+                    $"{older.Path}: {NameSave(older.RomId, older.Slot)} is also held by "
+                        + $"{ordered[0].Path}, written more recently, so this one was not sent. "
+                        + "Remove it once the newer file is the one the emulator reads.");
             }
         }
 
@@ -549,7 +549,7 @@ public sealed class SaveSync
                     if (local is not null && NotASave(operation.ServerContentHash) is { } heldOver)
                     {
                         rejected++;
-                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: not written "
+                        problems.Add($"{NameSave(operation.RomId, operation.Slot)}: not written "
                             + $"because {heldOver}");
                         break;
                     }
@@ -587,7 +587,7 @@ public sealed class SaveSync
                     if (NotASave(operation.ServerContentHash) is { } offered)
                     {
                         rejected++;
-                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: not written "
+                        problems.Add($"{NameSave(operation.RomId, operation.Slot)}: not written "
                             + $"because {offered}");
                         break;
                     }
@@ -600,7 +600,7 @@ public sealed class SaveSync
                     {
                         failed++;
                         problems.Add(
-                            $"rom {operation.RomId} slot {operation.Slot}: this is a directory "
+                            $"{NameSave(operation.RomId, operation.Slot)}: this is a directory "
                                 + "save and this device holds none for that game yet, so there is "
                                 + "no folder to put it in. Run the game once, then flush again.");
                         break;
@@ -609,7 +609,7 @@ public sealed class SaveSync
                     if (ReasonFor(targetProblem, operation) is { } explained)
                     {
                         failed++;
-                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: {explained}");
+                        problems.Add($"{NameSave(operation.RomId, operation.Slot)}: {explained}");
                         break;
                     }
 
@@ -617,7 +617,7 @@ public sealed class SaveSync
                     {
                         failed++;
                         problems.Add(
-                            $"rom {operation.RomId} slot {operation.Slot}: nowhere to write it. "
+                            $"{NameSave(operation.RomId, operation.Slot)}: nowhere to write it. "
                                 + "The server named no file and this device holds no save in "
                                 + "that slot.");
                         break;
@@ -650,8 +650,7 @@ public sealed class SaveSync
                         conflicts.Add(RecordConflict(
                             operation,
                             holder,
-                            $"the server offers slot {operation.Slot} for a save this device keeps "
-                                + $"in slot {holder.Slot}, and both name {destination}."));
+                            OfferedOntoAnotherSlot(operation.Slot, holder.Slot, destination)));
                         break;
                     }
 
@@ -671,13 +670,13 @@ public sealed class SaveSync
                         // lands it. Reported per operation rather than as a bare count because
                         // the answer to "why is my save not here" is which game was running.
                         deferred++;
-                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: not written "
+                        problems.Add($"{NameSave(operation.RomId, operation.Slot)}: not written "
                             + $"because {waiting}. The next flush writes it.");
                     }
                     else if (download.Rejected is { } notASave)
                     {
                         rejected++;
-                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: not written "
+                        problems.Add($"{NameSave(operation.RomId, operation.Slot)}: not written "
                             + $"because {notASave}");
                     }
                     else if (download.Problem is { } downloadProblem)
@@ -704,7 +703,7 @@ public sealed class SaveSync
                 default:
                     failed++;
                     problems.Add(
-                        $"rom {operation.RomId} slot {operation.Slot}: the server asked for "
+                        $"{NameSave(operation.RomId, operation.Slot)}: the server asked for "
                             + $"'{operation.Action}' and there is no local save to act on.");
                     break;
             }
@@ -790,14 +789,47 @@ public sealed class SaveSync
     /// batch that failed whole is already one message per file saying the same thing.
     /// </para>
     /// </remarks>
-    private static IEnumerable<string> DescribePartialBatches(List<(long RomId, string Slot, bool Ok)> sent) =>
+    private IEnumerable<string> DescribePartialBatches(List<(long RomId, string Slot, bool Ok)> sent) =>
         sent
             .GroupBy(entry => (entry.RomId, Batch: BatchKeyFor(entry.Slot)))
             .Where(batch => batch.Count() > 1 && batch.Any(entry => entry.Ok) && batch.Any(entry => !entry.Ok))
             .Select(batch =>
-                $"rom {batch.Key.RomId}: {batch.Count(entry => entry.Ok)} of {batch.Count()} files in "
-                    + $"the {batch.Key.Batch} save reached the server. They are one save, so the "
-                    + "next flush sends the rest; until then the server holds a partial one.");
+                $"{NameSave(batch.Key.RomId, batch.Key.Batch)}: {batch.Count(entry => entry.Ok)} of "
+                    + $"{batch.Count()} files reached the server. They are one save, so the next flush "
+                    + "sends the rest; until then the server holds a partial one.");
+
+    /// <summary>
+    /// A save as a problem line names it, such as "Super Metroid (USA).sfc, Battery save".
+    /// </summary>
+    /// <remarks>
+    /// <b>The gamepad UI and the agent print these lines alike</b>, so they carry the game's file
+    /// and <see cref="SaveSlotLabel"/>'s words rather than a rom id and a raw slot. Nobody types a
+    /// flush problem back into a command; the raw slot stays where <c>saves resolve</c> needs it,
+    /// in the conflict listing. A ROM this device holds no file for falls back to its id.
+    /// </remarks>
+    private string NameSave(long? romId, string? slot)
+    {
+        var game = romId is { } id && _store.Files.ForRom((int)id, LocalFileKind.Rom) is [{ } rom, ..]
+            ? rom.FileName
+            : $"rom {romId}";
+
+        return $"{game}, {SaveSlotLabel.Describe(slot)}";
+    }
+
+    /// <summary>Why a slot's download was held rather than written over another slot's file.</summary>
+    /// <remarks>
+    /// Two slots from different emulators read the same, "Battery save" against "Battery save",
+    /// so the sentence says which is which rather than leaving two equal labels to compare.
+    /// </remarks>
+    private static string OfferedOntoAnotherSlot(string? offered, string held, RelativePath destination)
+    {
+        var (theirs, ours) = (SaveSlotLabel.Describe(offered), SaveSlotLabel.Describe(held));
+
+        return theirs == ours
+            ? $"the server's {theirs}, from another emulator, would land on {destination}, which "
+                + $"holds this device's own {ours}."
+            : $"the server's {theirs} would land on {destination}, which holds this device's {ours}.";
+    }
 
     /// <summary>
     /// What ties two slots into one save.
