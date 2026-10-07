@@ -269,9 +269,10 @@ which of the two reaches the network.
 **A player reads plain words, and the code and the command line keep the design's.** The screens
 say Check for changes for a resolve, What it holds for a scope, Waiting to upload for the outbox,
 Pending settings for queued `es_settings.cfg` changes and Browse library for browse; the glossary
-pairs each with its term. A slot is shown through `SaveSlotLabel.Describe` ("Battery save",
-"Save state 3", "Memory card") and a scope kind through `SyncSetStore.ScopeLabel`, while the
-agent prints the raw slot that `saves resolve` takes back.
+pairs each with its term. A conflict or outbox row shows its slot through
+`SaveSlotLabel.Describe` ("Battery save", "Save state 3", "Memory card") and a set shows its scope
+kind through `SyncSetStore.ScopeLabel`, while the agent prints the raw slot that `saves resolve`
+takes back. Sentences Core returns from a flush or a conflict resolution still name the raw slot.
 
 **Nothing on a screen that runs work moves while it runs.** The sync and check-for-changes screens expose
 `Layout`, a fixed list of `ProgressSlot`s from `ProgressLayout`, and `ScreenView` draws every slot
