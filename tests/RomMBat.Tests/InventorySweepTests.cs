@@ -40,7 +40,8 @@ public sealed class InventorySweepTests : IDisposable
         Row("roms/snes/gone.sfc", 4_000, onDisk: false);
         Row("roms/fbneo/gone.zip", 8_000, onDisk: false);
 
-        var report = new InventorySweep(_session.Install, _session.Store).Plan();
+        var report = new InventorySweep(_session.Install, _session.Store)
+            .Plan(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(3, report.Rows);
         Assert.Equal(2, report.Missing.Count);
@@ -56,7 +57,8 @@ public sealed class InventorySweepTests : IDisposable
     {
         Row("roms/snes/here.sfc", 1_000, onDisk: true);
 
-        var report = new InventorySweep(_session.Install, _session.Store).Plan();
+        var report = new InventorySweep(_session.Install, _session.Store)
+            .Plan(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(report.IsClean);
         Assert.Contains("all present", report.Summary, StringComparison.Ordinal);
@@ -75,7 +77,7 @@ public sealed class InventorySweepTests : IDisposable
         Row("roms/snes/here.sfc", 1_000, onDisk: true);
 
         var sweep = new InventorySweep(_session.Install, _session.Store);
-        var report = sweep.Plan();
+        var report = sweep.Plan(cancellationToken: TestContext.Current.CancellationToken);
 
         using var stop = new CancellationTokenSource();
         var progress = new Immediate<(int Done, int Total)>(step =>
@@ -90,7 +92,7 @@ public sealed class InventorySweepTests : IDisposable
 
         // Stopped where it was asked to: the first hundred are gone, the rest are still there
         // for the next check to find.
-        Assert.Equal(201, sweep.Plan().Rows);
+        Assert.Equal(201, sweep.Plan(cancellationToken: TestContext.Current.CancellationToken).Rows);
     }
 
     [Fact]
@@ -138,7 +140,8 @@ public sealed class InventorySweepTests : IDisposable
         Assert.Equal(5_000, _session.Store.Files.SyncedBytes());
 
         var sweep = new InventorySweep(_session.Install, _session.Store);
-        var repaired = sweep.Apply(sweep.Plan(), cancellationToken: TestContext.Current.CancellationToken);
+        var token = TestContext.Current.CancellationToken;
+        var repaired = sweep.Apply(sweep.Plan(cancellationToken: token), cancellationToken: token);
 
         Assert.Equal(1, repaired.Removed);
         Assert.Equal(4_000, repaired.BytesReclaimed);
@@ -164,7 +167,7 @@ public sealed class InventorySweepTests : IDisposable
         Row("roms/snes/gone.sfc", 4_000, onDisk: false);
 
         var sweep = new InventorySweep(_session.Install, _session.Store);
-        var report = sweep.Plan();
+        var report = sweep.Plan(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Single(report.Missing);
 
@@ -201,7 +204,7 @@ public sealed class InventorySweepTests : IDisposable
         Row("roms/snes/two.sfc", 2_000, onDisk: false);
 
         var sweep = new InventorySweep(_session.Install, _session.Store);
-        var report = sweep.Plan();
+        var report = sweep.Plan(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(report.NothingFound);
         Assert.Contains("does not look like the tree", report.Summary, StringComparison.Ordinal);
@@ -221,7 +224,7 @@ public sealed class InventorySweepTests : IDisposable
         Row("roms/snes/two.sfc", 4_000, onDisk: false);
 
         var sweep = new InventorySweep(_session.Install, _session.Store);
-        var report = sweep.Plan();
+        var report = sweep.Plan(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(report.NothingFound);
         Assert.Equal(2, sweep.Apply(report, cancellationToken: TestContext.Current.CancellationToken).Removed);
@@ -244,7 +247,7 @@ public sealed class InventorySweepTests : IDisposable
         File.Delete(Path.Combine(_tree.Root, "saves", "gb", "Dr. Mario (World).srm"));
 
         var sweep = new InventorySweep(_session.Install, _session.Store);
-        var report = sweep.Plan();
+        var report = sweep.Plan(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(2, report.SaveRows);
         Assert.Equal("saves/gb/Dr. Mario (World).srm", Assert.Single(report.MissingSaves).Path.Value);
@@ -269,7 +272,8 @@ public sealed class InventorySweepTests : IDisposable
 
         Directory.Delete(Path.Combine(_tree.Root, "saves", "psp", "SAVEDATA", "ULUS10064DATA00"), recursive: true);
 
-        var report = new InventorySweep(_session.Install, _session.Store).Plan();
+        var report = new InventorySweep(_session.Install, _session.Store)
+            .Plan(cancellationToken: TestContext.Current.CancellationToken);
 
         var missing = Assert.Single(report.MissingSaves);
         Assert.StartsWith("ULUS10064", missing.UnitKey, StringComparison.OrdinalIgnoreCase);
