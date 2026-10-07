@@ -24,11 +24,6 @@ namespace RomMBat.UI.Shell;
 /// </remarks>
 internal static class ScreenView
 {
-    private static readonly IBrush Ink = Brushes.White;
-    private static readonly IBrush Muted = new SolidColorBrush(Color.FromRgb(0x9A, 0xA3, 0xB2));
-    private static readonly IBrush Accent = new SolidColorBrush(Color.FromRgb(0x6E, 0xA8, 0xFE));
-    private static readonly IBrush Panel = new SolidColorBrush(Color.FromRgb(0x1B, 0x1F, 0x29));
-    private static readonly IBrush Warn = new SolidColorBrush(Color.FromRgb(0xFF, 0xA5, 0x7A));
 
     public static Control Build(IScreen screen) => screen switch
     {
@@ -59,7 +54,7 @@ internal static class ScreenView
             empty: "Nothing matched. Search for something else, or widen the platform.",
             pager: true),
 
-        _ => new TextBlock { Text = screen.Title, Foreground = Ink },
+        _ => new TextBlock { Text = screen.Title, Foreground = Theme.Text },
     };
 
     /// <summary>
@@ -103,36 +98,124 @@ internal static class ScreenView
         _ => action.ToString(),
     };
 
+    /// <summary>
+    /// ES's own help icon for each action, from <c>resources/help</c> (RB-426).
+    /// </summary>
+    /// <remarks>
+    /// The face buttons are the four-dot diamonds, which name a position as the glyphs below
+    /// do, so the rule above holds whichever is drawn.
+    /// </remarks>
+    private static string IconName(FooterHint hint) => hint.IsDirectional
+        ? "dpad_all"
+        : hint.Action switch
+        {
+            NavAction.Accept => "buttons_south",
+            NavAction.Back => "buttons_east",
+            NavAction.Alternate => "buttons_west",
+            NavAction.Extra => "buttons_north",
+            NavAction.Start => "button_start",
+            NavAction.PageUp => "button_l",
+            NavAction.PageDown => "button_r",
+            _ => "dpad_all",
+        };
+
+    /// <summary>Each icon as read, null when it could not be, so a redraw never touches the disk.</summary>
+    private static readonly Dictionary<string, IReadOnlyList<IconShape>?> Icons = new(StringComparer.Ordinal);
+
+    /// <summary>How tall a help icon is drawn.</summary>
+    private const double IconSize = 30;
+
     public static Control Hint(FooterHint hint)
     {
         ArgumentNullException.ThrowIfNull(hint);
 
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
 
-        Control glyph = hint.IsDirectional
-            ? PadGlyph()
-            : FacePosition(hint.Action) is { } filled
-                ? FaceGlyph(filled)
-                : new TextBlock { Text = ButtonWord(hint.Action), Foreground = Accent, FontSize = 17 };
+        row.Children.Add(EsGlyph(IconName(hint)) ?? DrawnGlyph(hint));
 
-        row.Children.Add(new Border
-        {
-            Background = Panel,
-            CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(10, 3, 10, 3),
-            Child = glyph,
-        });
-
+        // In capitals and the help font, as ES's help bar reads (RB-423).
         row.Children.Add(new TextBlock
         {
-            Text = hint.Label,
-            Foreground = Muted,
-            FontSize = 17,
+            Text = hint.Label.ToUpperInvariant(),
+            Foreground = Theme.HelpText,
+            FontFamily = Theme.HelpFont,
+            FontSize = 26,
             VerticalAlignment = VerticalAlignment.Center,
         });
 
         return row;
     }
+
+    /// <summary>One of ES's help icons in the theme's tint, or null when the install has none to read.</summary>
+    private static Viewbox? EsGlyph(string name)
+    {
+        if (Theme.HelpIcons is not { } directory)
+        {
+            return null;
+        }
+
+        if (!Icons.TryGetValue(name, out var shapes))
+        {
+            shapes = EsIcon.Read(System.IO.Path.Combine(directory, name + ".svg"));
+
+            // Parsed once here to vet the markup, because a path Avalonia cannot read throws
+            // while the footer is being built.
+            try
+            {
+                foreach (var shape in shapes ?? [])
+                {
+                    Geometry.Parse(shape.Data);
+                }
+            }
+            catch (Exception exception) when (exception is FormatException or InvalidDataException or ArgumentException)
+            {
+                shapes = null;
+            }
+
+            Icons[name] = shapes;
+        }
+
+        if (shapes is null)
+        {
+            return null;
+        }
+
+        var canvas = new Canvas { Width = EsIcon.Size, Height = EsIcon.Size };
+
+        foreach (var shape in shapes)
+        {
+            canvas.Children.Add(new Avalonia.Controls.Shapes.Path
+            {
+                Data = Geometry.Parse(shape.Data),
+                Fill = shape.Filled ? Theme.Base : null,
+                Stroke = shape.Filled ? null : Theme.Base,
+                StrokeThickness = shape.StrokeWidth,
+                StrokeJoin = PenLineJoin.Round,
+            });
+        }
+
+        return new Viewbox
+        {
+            Width = IconSize,
+            Height = IconSize,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = canvas,
+        };
+    }
+
+    /// <summary>RomMBat's own glyph, for an install whose icons are missing or unreadable.</summary>
+    private static Control DrawnGlyph(FooterHint hint) => hint.IsDirectional
+        ? PadGlyph()
+        : FacePosition(hint.Action) is { } filled
+            ? FaceGlyph(filled)
+            : new TextBlock
+            {
+                Text = ButtonWord(hint.Action),
+                Foreground = Theme.Base,
+                FontFamily = Theme.HelpFont,
+                    FontSize = 22,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
 
     private static StackPanel Status(StatusViewModel status)
     {
@@ -170,8 +253,9 @@ internal static class ScreenView
                 ? new TextBlock
                 {
                     Text = title.ToUpperInvariant(),
-                    Foreground = Accent,
-                    FontSize = 15,
+                    Foreground = Theme.Group,
+                    FontSize = 16,
+                    FontWeight = FontWeight.Bold,
                     Margin = new Thickness(0, index == window.Start ? 0 : 12, 0, 4),
                 }
                 : Row(row!));
@@ -191,12 +275,12 @@ internal static class ScreenView
         line.Children.Add(new TextBlock
         {
             Text = row.Label,
-            Foreground = Muted,
+            Foreground = Theme.Dim,
             FontSize = 19,
             Width = 220,
         });
 
-        line.Children.Add(new TextBlock { Text = row.Value, Foreground = Ink, FontSize = 19 });
+        line.Children.Add(new TextBlock { Text = row.Value, Foreground = Theme.Text, FontSize = 19 });
         lines.Children.Add(line);
 
         if (row.Detail is { } detail)
@@ -204,7 +288,7 @@ internal static class ScreenView
             lines.Children.Add(new TextBlock
             {
                 Text = detail,
-                Foreground = Muted,
+                Foreground = Theme.Dim,
                 FontSize = 16,
                 Margin = new Thickness(234, 0, 0, 6),
                 TextWrapping = TextWrapping.Wrap,
@@ -221,7 +305,7 @@ internal static class ScreenView
         stack.Children.Add(new TextBlock
         {
             Text = keyboard.Prompt,
-            Foreground = Muted,
+            Foreground = Theme.Dim,
             FontSize = 19,
             HorizontalAlignment = HorizontalAlignment.Center,
         });
@@ -229,7 +313,7 @@ internal static class ScreenView
         // What has been typed, in a box, so it reads as the thing being edited.
         stack.Children.Add(new Border
         {
-            Background = Panel,
+            Background = Theme.Well,
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(20, 14, 20, 14),
             MinWidth = 620,
@@ -237,9 +321,8 @@ internal static class ScreenView
             Child = new TextBlock
             {
                 Text = keyboard.Text.Length == 0 ? " " : keyboard.Text,
-                Foreground = Ink,
+                Foreground = Theme.Selected,
                 FontSize = 30,
-                FontFamily = new FontFamily("Consolas, monospace"),
                 HorizontalAlignment = HorizontalAlignment.Center,
             },
         });
@@ -250,7 +333,7 @@ internal static class ScreenView
             stack.Children.Add(new TextBlock
             {
                 Text = problem,
-                Foreground = Warn,
+                Foreground = Theme.Warn,
                 FontSize = 17,
                 MaxWidth = 700,
                 TextWrapping = TextWrapping.Wrap,
@@ -304,14 +387,14 @@ internal static class ScreenView
                 // Margin rather than size, so the box is identical selected or not and the grid
                 // never shifts under the cursor.
                 Margin = new Thickness(Gap / 2),
-                Background = selected ? Accent : engaged ? Warn : Panel,
-                BorderBrush = selected ? Ink : Panel,
+                Background = selected ? Theme.Selector : engaged ? Theme.Group : Theme.Well,
+                BorderBrush = Brushes.Transparent,
                 BorderThickness = new Thickness(2),
                 CornerRadius = new CornerRadius(8),
                 Child = new TextBlock
                 {
                     Text = face,
-                    Foreground = selected || engaged ? Brushes.Black : Ink,
+                    Foreground = selected || engaged ? Theme.Selected : Theme.Text,
                     FontSize = face.Length <= 3 ? 26 : 15,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,
@@ -336,7 +419,7 @@ internal static class ScreenView
         stack.Children.Add(new TextBlock
         {
             Text = pairing.Detail,
-            Foreground = Ink,
+            Foreground = Theme.Text,
             FontSize = 20,
             MaxWidth = 900,
             TextWrapping = TextWrapping.Wrap,
@@ -462,7 +545,7 @@ internal static class ScreenView
             stack.Children.Add(new TextBlock
             {
                 Text = note,
-                Foreground = Muted,
+                Foreground = Theme.Dim,
                 FontSize = 17,
                 LineHeight = NoteLine,
                 Height = ListWindow.NoteLines * NoteLine,
@@ -490,7 +573,7 @@ internal static class ScreenView
             body.Children.Add(new TextBlock
             {
                 Text = loadingMessage ?? "Working...",
-                Foreground = Muted,
+                Foreground = Theme.Dim,
                 FontSize = 20,
                 MaxWidth = 760,
                 TextWrapping = TextWrapping.Wrap,
@@ -511,7 +594,7 @@ internal static class ScreenView
                 body.Children.Add(new TextBlock
                 {
                     Text = progress?.Counted ?? string.Empty,
-                    Foreground = Muted,
+                    Foreground = Theme.Dim,
                     FontSize = 17,
                     Height = 24,
                     TextAlignment = TextAlignment.Center,
@@ -527,7 +610,7 @@ internal static class ScreenView
             body.Children.Add(new TextBlock
             {
                 Text = empty ?? "Nothing here.",
-                Foreground = Muted,
+                Foreground = Theme.Dim,
                 FontSize = 20,
                 MaxWidth = 760,
                 TextWrapping = TextWrapping.Wrap,
@@ -570,7 +653,7 @@ internal static class ScreenView
         new()
         {
             Text = count > 0 ? $"{count} more {direction}" : string.Empty,
-            Foreground = Muted,
+            Foreground = Theme.Dim,
             FontSize = 15,
 
             // Reserved whether or not it says anything, so the block does not change height as
@@ -618,12 +701,12 @@ internal static class ScreenView
 
         // Dimmed rather than removed, and both halves the same, so it reads as one unavailable
         // thing rather than as a row with a missing value.
-        var ink = row.Available ? Ink : Muted;
+        var ink = row.Available ? Theme.Text : Theme.Dim;
 
         var label = new TextBlock
         {
             Text = row.Label,
-            Foreground = selected ? Brushes.Black : ink,
+            Foreground = selected ? Theme.Selected : ink,
             FontSize = 21,
 
             // A name longer than the row is trimmed rather than allowed to widen it. The live
@@ -641,7 +724,7 @@ internal static class ScreenView
             var right = new TextBlock
             {
                 Text = value,
-                Foreground = selected ? Brushes.Black : Muted,
+                Foreground = selected ? Theme.Selected : Theme.Dim,
                 FontSize = 19,
                 Margin = new Thickness(18, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -658,7 +741,7 @@ internal static class ScreenView
             lines.Children.Add(new TextBlock
             {
                 Text = detail,
-                Foreground = selected ? Brushes.Black : Muted,
+                Foreground = selected ? Theme.Selected : Theme.Dim,
                 FontSize = 16,
                 MaxWidth = 860,
 
@@ -673,13 +756,11 @@ internal static class ScreenView
 
         return new Border
         {
-            // Fill and ring only on a list of choices. A row is the same size selected or not,
-            // so a held d-pad never makes the list shift under the cursor.
-            Background = selected ? Accent : Panel,
-            BorderBrush = selected ? Ink : Panel,
-            BorderThickness = new Thickness(2),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(18, 12, 18, 12),
+            // Bare at rest and barred when selected, as ES draws a menu row (RB-425). A row is
+            // the same size selected or not, so a held d-pad never makes the list shift under
+            // the cursor.
+            Background = selected ? Theme.Selector : Brushes.Transparent,
+            Padding = new Thickness(20, 14, 20, 14),
 
             // Every row the same height whether or not it carries a second line. A window of a
             // fixed number of rows whose heights differ is a block whose height changes as the
@@ -742,7 +823,7 @@ internal static class ScreenView
             stack.Children.Add(new TextBlock
             {
                 Text = text,
-                Foreground = Warn,
+                Foreground = Theme.Warn,
                 FontSize = 18,
                 MaxWidth = 860,
                 TextWrapping = TextWrapping.Wrap,
@@ -772,7 +853,7 @@ internal static class ScreenView
         head.Children.Add(new TextBlock
         {
             Text = row.Label,
-            Foreground = selected ? Brushes.Black : Ink,
+            Foreground = selected ? Theme.Selected : Theme.Text,
             FontSize = 21,
             MinWidth = 300,
         });
@@ -780,7 +861,7 @@ internal static class ScreenView
         head.Children.Add(new TextBlock
         {
             Text = row.Steps ? $"‹  {row.Value}  ›" : row.Value,
-            Foreground = selected ? Brushes.Black : Muted,
+            Foreground = selected ? Theme.Selected : Theme.Dim,
             FontSize = 19,
             VerticalAlignment = VerticalAlignment.Center,
         });
@@ -792,7 +873,7 @@ internal static class ScreenView
             lines.Children.Add(new TextBlock
             {
                 Text = detail,
-                Foreground = selected ? Brushes.Black : Muted,
+                Foreground = selected ? Theme.Selected : Theme.Dim,
                 FontSize = 16,
                 MaxWidth = 860,
                 TextWrapping = TextWrapping.Wrap,
@@ -801,11 +882,8 @@ internal static class ScreenView
 
         return new Border
         {
-            Background = selected ? Accent : Panel,
-            BorderBrush = selected ? Ink : Panel,
-            BorderThickness = new Thickness(2),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(18, 12, 18, 12),
+            Background = selected ? Theme.Selector : Brushes.Transparent,
+            Padding = new Thickness(20, 14, 20, 14),
             Child = lines,
         };
     }
@@ -865,28 +943,28 @@ internal static class ScreenView
     }
 
     /// <summary>A size, a color and a line height for each style of text slot.</summary>
-    private static (double Size, double Line, IBrush Ink, double Width) Look(SlotStyle style) => style switch
+    private static (double Size, double Line, IBrush Color, double Width) Look(SlotStyle style) => style switch
     {
         // The outcome in the accent color above the sentence, in the treatment the problems
         // heading uses, so it reads as a label on the screen rather than one more line of
         // detail. A finished bar and a stalled one are the same picture; this word is the
         // difference.
-        SlotStyle.Outcome => (15, 20, Accent, SyncColumn),
-        SlotStyle.Detail => (21, 28, Ink, ProgressText),
-        SlotStyle.Pass => (15, 20, Accent, SyncColumn),
-        SlotStyle.Lead => (24, 32, Ink, SyncColumn),
-        SlotStyle.Count => (21, 28, Muted, SyncColumn),
-        _ => (15, 20, Muted, SyncColumn),
+        SlotStyle.Outcome => (15, 20, Theme.Group, SyncColumn),
+        SlotStyle.Detail => (21, 28, Theme.Text, ProgressText),
+        SlotStyle.Pass => (15, 20, Theme.Group, SyncColumn),
+        SlotStyle.Lead => (24, 32, Theme.Text, SyncColumn),
+        SlotStyle.Count => (21, 28, Theme.Dim, SyncColumn),
+        _ => (15, 20, Theme.Dim, SyncColumn),
     };
 
     private static TextBlock SlotText(ProgressSlot slot)
     {
-        var (size, line, ink, width) = Look(slot.Style);
+        var (size, line, color, width) = Look(slot.Style);
 
         return new TextBlock
         {
             Text = slot.Style == SlotStyle.Outcome ? slot.Text.ToUpperInvariant() : slot.Text,
-            Foreground = ink,
+            Foreground = color,
             FontSize = size,
             LineHeight = line,
             Width = width,
@@ -914,7 +992,7 @@ internal static class ScreenView
     private static Border Bar(double? fraction, double above) =>
         new()
         {
-            Background = Panel,
+            Background = Theme.Well,
             CornerRadius = new CornerRadius(6),
             Height = 18,
             Width = SyncColumn,
@@ -923,7 +1001,7 @@ internal static class ScreenView
             Child = fraction is { } far
                 ? new Border
                 {
-                    Background = Accent,
+                    Background = Theme.Base,
                     CornerRadius = new CornerRadius(6),
                     Width = Math.Max(6, SyncColumn * far),
                     HorizontalAlignment = HorizontalAlignment.Left,
@@ -952,7 +1030,7 @@ internal static class ScreenView
         var moved = new TextBlock
         {
             Text = slot.Text,
-            Foreground = Muted,
+            Foreground = Theme.Dim,
             FontSize = 15,
             TextAlignment = TextAlignment.Right,
             Margin = new Thickness(0, 0, 18, 0),
@@ -964,7 +1042,7 @@ internal static class ScreenView
         var rate = new TextBlock
         {
             Text = slot.Right,
-            Foreground = Muted,
+            Foreground = Theme.Dim,
             FontSize = 15,
             TextAlignment = TextAlignment.Left,
             Margin = new Thickness(18, 0, 0, 0),
@@ -1005,7 +1083,7 @@ internal static class ScreenView
             lines.Children.Add(new TextBlock
             {
                 Text = item.Text,
-                Foreground = Muted,
+                Foreground = Theme.Dim,
                 FontSize = 15,
                 LineHeight = Line,
                 Height = item.Lines * Line,
@@ -1020,7 +1098,7 @@ internal static class ScreenView
         box.Children.Add(new TextBlock
         {
             Text = slot.Heading,
-            Foreground = Accent,
+            Foreground = Theme.Group,
             FontSize = 13,
             Height = 18,
         });
@@ -1071,8 +1149,8 @@ internal static class ScreenView
 
         return new Border
         {
-            Background = PopupPanel,
-            BorderBrush = Muted,
+            Background = Theme.MenuPanel,
+            BorderBrush = Theme.MenuEdge,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(12),
             Padding = new Thickness(24, 12, 24, 12),
@@ -1097,7 +1175,7 @@ internal static class ScreenView
         stack.Children.Add(new TextBlock
         {
             Text = confirm.Question,
-            Foreground = Ink,
+            Foreground = Theme.Text,
             FontSize = 22,
             TextWrapping = TextWrapping.Wrap,
         });
@@ -1121,8 +1199,8 @@ internal static class ScreenView
 
             buttons.Children.Add(new Border
             {
-                Background = selected ? Accent : Panel,
-                BorderBrush = selected ? Ink : Panel,
+                Background = selected ? Theme.Selector : Theme.Well,
+                BorderBrush = Brushes.Transparent,
                 BorderThickness = new Thickness(2),
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(22, 10, 22, 10),
@@ -1130,7 +1208,7 @@ internal static class ScreenView
                 Child = new TextBlock
                 {
                     Text = button.Label,
-                    Foreground = selected ? Brushes.Black : button.Enabled ? Ink : Muted,
+                    Foreground = selected ? Theme.Selected : button.Enabled ? Theme.Text : Theme.Dim,
                     FontSize = 20,
                     HorizontalAlignment = HorizontalAlignment.Center,
                 },
@@ -1141,8 +1219,8 @@ internal static class ScreenView
 
         return new Border
         {
-            Background = PopupPanel,
-            BorderBrush = Muted,
+            Background = Theme.MenuPanel,
+            BorderBrush = Theme.MenuEdge,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(12),
             Padding = new Thickness(32, 26, 32, 26),
@@ -1164,7 +1242,7 @@ internal static class ScreenView
             area.Children.Add(new TextBlock
             {
                 Text = confirm.IsLoading ? confirm.LoadingMessage : confirm.LoadProblem,
-                Foreground = confirm.IsLoading ? Muted : Warn,
+                Foreground = confirm.IsLoading ? Theme.Dim : Theme.Warn,
                 FontSize = 19,
                 TextWrapping = TextWrapping.Wrap,
             });
@@ -1195,7 +1273,6 @@ internal static class ScreenView
     /// <summary>How wide a popup is, fixed so it cannot breathe as its cursor moves.</summary>
     private const double PopupWidth = 760;
 
-    private static readonly IBrush PopupPanel = new SolidColorBrush(Color.FromRgb(0x24, 0x24, 0x24));
 
     /// <summary>A screen whose only content is one sentence about work in progress.</summary>
     private static StackPanel Working(string detail)
@@ -1210,7 +1287,7 @@ internal static class ScreenView
         stack.Children.Add(new TextBlock
         {
             Text = detail,
-            Foreground = Ink,
+            Foreground = Theme.Text,
             FontSize = 21,
             MaxWidth = 860,
             TextWrapping = TextWrapping.Wrap,
@@ -1224,11 +1301,11 @@ internal static class ScreenView
     private static StackPanel Labelled(string label, string value, double size)
     {
         var stack = new StackPanel { Spacing = 2 };
-        stack.Children.Add(new TextBlock { Text = label.ToUpperInvariant(), Foreground = Accent, FontSize = 13 });
+        stack.Children.Add(new TextBlock { Text = label.ToUpperInvariant(), Foreground = Theme.Group, FontSize = 13 });
         stack.Children.Add(new TextBlock
         {
             Text = value,
-            Foreground = Ink,
+            Foreground = Theme.Text,
             FontSize = size,
             MaxWidth = 620,
             TextWrapping = TextWrapping.Wrap,
@@ -1291,7 +1368,7 @@ internal static class ScreenView
         new()
         {
             Text = message.Message,
-            Foreground = Ink,
+            Foreground = Theme.Text,
             FontSize = 22,
             MaxWidth = 900,
             TextWrapping = TextWrapping.Wrap,
@@ -1306,7 +1383,7 @@ internal static class ScreenView
     /// <remarks>
     /// <b>The three unfilled dots are the whole point and have to be visible.</b> They are what
     /// turns one lit dot into a <i>position</i>; without them the glyph is a blue speck that
-    /// says nothing. Drawn as outlined rings rather than filled with <c>Panel</c>, which is
+    /// says nothing. Drawn as outlined rings rather than filled with <c>Theme.Well</c>, which is
     /// within a few values of the footer's own background and disappeared on a television.
     /// </remarks>
     /// <summary>
@@ -1329,7 +1406,7 @@ internal static class ScreenView
             {
                 Width = width,
                 Height = height,
-                Fill = Accent,
+                Fill = Theme.Base,
                 RadiusX = 2,
                 RadiusY = 2,
             };
@@ -1358,8 +1435,8 @@ internal static class ScreenView
             {
                 Width = Dot,
                 Height = Dot,
-                Fill = lit ? Accent : Brushes.Transparent,
-                Stroke = lit ? Accent : Muted,
+                Fill = lit ? Theme.Base : Brushes.Transparent,
+                Stroke = lit ? Theme.Base : Theme.Dim,
                 StrokeThickness = 1.5,
             };
 

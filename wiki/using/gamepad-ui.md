@@ -2,12 +2,13 @@
 
 RomMBat opens full screen from EmulationStation's menu and is built for a controller. Everything
 it does day to day works from the couch, and nothing needs a mouse. When you leave it, you are
-back in EmulationStation.
+back in EmulationStation. It looks like EmulationStation's own menus, using the fonts and button
+icons from your RetroBat install.
 
 ## Buttons
 
 RomMBat reads the controller layout you set up in EmulationStation, so the buttons do the same
-jobs there as here. The footer at the bottom of each screen shows what each button does on that
+jobs there as here. The help bar at the bottom of each screen shows what each button does on that
 screen. It draws buttons by their position on the controller rather than by a letter, because
 the bottom face button is A on an Xbox pad, Cross on a PlayStation pad and B on a Switch Pro.
 

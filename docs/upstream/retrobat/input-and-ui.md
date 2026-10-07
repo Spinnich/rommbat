@@ -134,6 +134,29 @@ that opens another. GAME OPTIONS, which holding the bottom button on a game open
 list drawn as a panel from the right edge. RomMBat's actions menu opens and closes on Start and
 selects on the bottom button.
 
+## RB-425. The carbon theme draws every ES menu in Cabin, on a dark panel with a blue gradient bar
+
+Verified: RetroBat 8.2.1, 2026-10-06. How: read `views/menu.xml` and `subsets/colorsets/blue.xml` under `emulationstation/.emulationstation/themes/es-theme-carbon` on the agent tree, and sampled MAIN MENU's pixels at 1920x1080.
+`es_settings.cfg` names `es-theme-carbon` as the `ThemeSet`, and the theme sits in
+`emulationstation/.emulationstation/themes`, with its fonts in `art/fonts`. `menu.xml` draws the
+title in `Cabin-Bold.ttf`, `FAFAFA`, and rows in `Cabin-Regular.ttf`, `969696`, turning
+`FFFFFF` on a horizontal gradient from `selectorColor` to `selectorColorEnd`, which the blue
+colorset sets to `3675CA` and `00205b`. The panel is `242424` and group headings take
+`groupColor`, `5178C3`; the background is `051222`. On screen the panel is about 1080 px wide,
+its rows about 42 px tall, and the bar spans the whole row. RomMBat's `Theme` holds these values.
+
+## RB-426. ES's help icons are flat 64-unit SVGs, and its help bar falls back to ES's own font
+
+Verified: RetroBat 8.2.1, 2026-10-06. How: listed `emulationstation/resources/help` on the agent tree, read every file's elements, and compared MAIN MENU's help bar with the theme's `subsets/help` files.
+The 38 files use only `circle`, `polygon`, `line`, `path` and `g`, in a `0 0 64 64` box drawn in
+white for ES to tint. Only `F1.svg` and `button_lr.svg` add a `transform` or a `clip-path`.
+`buttons_south.svg` and its three siblings are the four-dot diamond with one dot filled (RB-230),
+`button_start.svg`, `button_l.svg` and `button_r.svg` are labeled pills, and `dpad_all.svg` and
+`dpad_updown.svg` are the d-pad. Carbon's default help subset tints them `baseColor` and names
+`./../art/fonts/Cabin-Regular.ttf`, a path that from `subsets/help` resolves to nothing, so the
+labels are drawn in ES's `resources/opensans_hebrew_condensed_regular.ttf`, gray, in capitals,
+along the bottom left. RomMBat draws its help bar from the same files.
+
 ## RB-424. ES's message box selects YES first, and the right button answers no
 
 Verified: RetroBat 8.2.1, 2026-10-06. How: opened DELETE GAME's confirmation on a synced game, pressed the right button, and checked the file was still in `roms/snes`.
