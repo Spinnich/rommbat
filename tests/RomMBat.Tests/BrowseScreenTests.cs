@@ -1010,7 +1010,7 @@ public sealed partial class BrowseScreenTests : IDisposable
     /// </summary>
     /// <remarks>
     /// #503. The picker always lists Every platform, so it is never empty and an empty message
-    /// set on it never drew: a hands-on pass with the map emptied read only "0 known here".
+    /// could not draw; the hint is that row's detail.
     /// </remarks>
     [Fact]
     public void The_platform_picker_says_how_platforms_become_known_when_none_are()
