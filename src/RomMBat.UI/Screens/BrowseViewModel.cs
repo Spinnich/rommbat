@@ -245,8 +245,9 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
                 return "Nothing to show.";
             }
 
+            // "none that match" rather than "nothing", which read "Showing RomM's library, nothing."
             var counted = page.Total == 0
-                ? "nothing"
+                ? "none that match"
                 : string.Create(
                     CultureInfo.CurrentCulture,
                     $"{page.Offset + 1:N0} to {page.Offset + page.Games.Count:N0} of {page.Total:N0}");

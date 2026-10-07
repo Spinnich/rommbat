@@ -92,9 +92,9 @@ public sealed record KeyboardKey(
 /// </para>
 /// <para>
 /// <b>Reset is the one key that does not do what upstream's does.</b> ES's commits the empty
-/// string and closes, which is how a setting is cleared there. Neither field RomMBat asks for
-/// may be empty, so the same key in the same place under the same word puts back the text the
-/// screen opened with, which is the useful reading of it here and identical on an empty field.
+/// string and closes, which is how a setting is cleared there. Here it puts back the text the
+/// screen opened with, under the same word in the same place. On the search, which may be
+/// empty, that undoes edits rather than clearing it; the delete key clears it.
 /// </para>
 /// <para>
 /// <b>Movement crosses a key rather than a cell</b>, so a wide key is one press to leave and

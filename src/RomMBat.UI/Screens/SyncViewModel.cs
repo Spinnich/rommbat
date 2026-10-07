@@ -866,7 +866,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
                 SyncStage.Done,
                 _installing is { } game
                     ? $"'{game.DisplayName}' is on this device and EmulationStation has been told."
-                    : "Everything in these sync sets is on this device."),
+                    : _sets.Count == 1
+                        ? "Everything in this sync set is on this device."
+                        : "Everything in these sync sets is on this device."),
 
             Core.Sets.SyncState.Stopped => (
                 SyncStage.Stopped,

@@ -317,8 +317,10 @@ public static class BrowseScreens
         rows.Add(new ListRow(
             "Wanted by",
             game.Sets.Count == 0 ? "no sync set" : string.Join(", ", game.Sets),
+            // The eviction warning only for a game that is here to be evicted. On one that is
+            // not, "Nothing is keeping this game here" described a game that was not.
             game.Sets.Count == 0
-                ? "Nothing is keeping this game here, so the next eviction may take it."
+                ? game.IsHere ? "Nothing is keeping this game here, so the next eviction may take it." : null
                 : "Taking it off is refused while another of these still wants it.",
             false));
 
@@ -348,8 +350,7 @@ public static class BrowseScreens
             new(
                 ready.Plan.Selected.Count == 0 ? "It would stay" : "It goes",
                 ready.Plan.Selected.Count == 0 ? null : ByteSize.Format(ready.Plan.BytesFreed),
-                "Saves and save states are never removed. They live in different tables and "
-                    + "nothing that removes content can reach them.",
+                "Taking a game off never touches its saves or save states.",
                 false),
         };
 

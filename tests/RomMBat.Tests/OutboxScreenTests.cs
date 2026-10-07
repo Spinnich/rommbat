@@ -101,7 +101,7 @@ public class OutboxScreenTests : IDisposable
         navigator.Handle(NavAction.Accept);
 
         var confirm = Assert.IsType<ConfirmScreen>(navigator.Current);
-        Assert.Contains("in the future. Dropping deletes", Assert.Single(confirm.Details()).Detail, StringComparison.Ordinal);
+        Assert.Contains("in the future. Dropping deletes", Assert.Single(confirm.Details!()).Detail ?? string.Empty, StringComparison.Ordinal);
     }
 
     [Fact]
