@@ -256,19 +256,18 @@ screen can say what happened. The sync screen's question says its stop removes t
 in; the check-for-changes screen's says what it found is kept. Both own their cancellation and are
 disposed when left.
 
-**A screen that has finished says so three times, because a full progress bar and a stalled one
-are the same picture.** The title turns past tense when the work finished ("Checked 'X' for changes", "Synced 'X'")
-and says how it ended otherwise ("Sync of 'X' stopped", "... did not finish"), an outcome
-word sits above the sentence ("Finished", "Stopped", "Finished with problems", "Could not
-reach RomM", "Did not finish"), and the footer reads **Done** instead of offering a stop. That last one is the rule:
-**if the footer offers a stop the work is running, and if it says Done it is over**, which is
-the only thing a person has to learn to know whether to keep waiting. Done sits on Accept,
-because moving on is progress, and Back leaves too. A screen whose loader changes something
+**A screen that has finished says so three times, because a full progress bar and a stalled one are
+the same picture.** The title turns past tense when the work finished ("Checked 'X' for changes",
+"Synced 'X'") and says how it ended otherwise ("Sync of 'X' stopped", "... did not finish"), an
+outcome word sits above the sentence ("Finished", "Stopped", "Finished with problems", "Could not
+reach RomM", "Did not finish"), and the footer reads **Done** instead of offering a stop. That last
+one is the rule: **if the footer offers a stop the work is running, and if it says Done it is
+over**, which is the only thing a person has to learn to know whether to keep waiting. Done sits on
+Accept, because moving on is progress, and Back leaves too. A screen whose loader changes something
 (`ListScreen.AsksBeforeStopping`) offers Stop on Back while it runs and asks first, as the sync
 screen does, because leaving cancels the work part way. The sets screen offers **Check for
-changes**
-rather than Check alone, beside Sync, because the full phrase says it asks the server and so
-which of the two reaches the network.
+changes** rather than Check alone, beside Sync, because the full phrase says it asks the server and
+so which of the two reaches the network.
 
 **A player reads plain words, and the code and the command line keep the design's.** The screens
 say Check for changes for a resolve, What it holds for a scope, Waiting to upload for the outbox,
