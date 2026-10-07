@@ -294,8 +294,9 @@ public interface IReturnAware
 /// A screen that changes without being pressed, and needs redrawing when it does.
 /// </summary>
 /// <remarks>
-/// <b>Only pairing needs this so far, and it needs it badly.</b> A countdown that does not tick
-/// and an approval that never appears are the same screen as a hung one, from the couch.
+/// <b>Any screen whose work outlives a key press needs this.</b> A pairing countdown that does
+/// not tick and a sync that never says it finished are the same screen as a hung one, from the
+/// couch.
 /// <para>
 /// <b>Raised from whatever thread did the work</b>, so the shell marshals it. Screens have no
 /// business knowing which thread they are on.

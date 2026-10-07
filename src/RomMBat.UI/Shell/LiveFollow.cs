@@ -5,9 +5,8 @@ namespace RomMBat.UI.Shell;
 /// </summary>
 /// <remarks>
 /// <b>Because a popup draws the screen it came from, so that screen is on display too.</b>
-/// Following only the top screen left a sync run frozen behind its own "Stop syncing?"
-/// question, still showing a run that had already finished (#496). So the chain of
-/// <see cref="IPopupScreen.Underneath"/> is followed as well, to its end.
+/// The whole chain of <see cref="IPopupScreen.Underneath"/> is followed, so a sync run dimmed
+/// behind its own "Stop syncing?" question still shows the moment it finishes.
 /// <para>
 /// A screen is subscribed once however many times it appears, so one change is one redraw.
 /// </para>
