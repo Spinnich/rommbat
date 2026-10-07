@@ -257,7 +257,8 @@ in; the check-for-changes screen's says what it found is kept. Both own their ca
 disposed when left.
 
 **A screen that has finished says so three times, because a full progress bar and a stalled one
-are the same picture.** The title turns past tense ("Checked 'X' for changes", "Synced 'X'"), an outcome
+are the same picture.** The title turns past tense when the work finished ("Checked 'X' for changes", "Synced 'X'")
+and says how it ended otherwise ("Sync of 'X' stopped", "... did not finish"), an outcome
 word sits above the sentence ("Finished", "Stopped", "Finished with problems", "Could not
 reach RomM", "Did not finish"), and the footer reads **Done** instead of offering a stop. That last one is the rule:
 **if the footer offers a stop the work is running, and if it says Done it is over**, which is

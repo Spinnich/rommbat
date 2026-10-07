@@ -126,13 +126,22 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     /// and it was the thing saying the wrong one.
     /// </para>
     /// </remarks>
-    public string Title => Stage == ResolveStage.Working
-        ? _sets.Count == 1
-            ? $"Checking '{_sets[0].Name}' for changes"
-            : $"Checking {_sets.Count} sync sets for changes"
-        : _sets.Count == 1
-            ? $"Checked '{_sets[0].Name}' for changes"
-            : $"Checked {_sets.Count} sync sets for changes";
+    public string Title
+    {
+        get
+        {
+            var subject = _sets.Count == 1 ? $"'{_sets[0].Name}'" : $"{_sets.Count} sync sets";
+
+            // Past tense only for a check that finished, as the sync screen's title is.
+            return Stage switch
+            {
+                ResolveStage.Working => $"Checking {subject} for changes",
+                ResolveStage.Done => $"Checked {subject} for changes",
+                ResolveStage.Stopped => $"Check of {subject} stopped",
+                _ => $"Check of {subject} did not finish",
+            };
+        }
+    }
 
     /// <summary>
     /// One word for how it ended, or null while it is still going.

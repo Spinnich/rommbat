@@ -52,7 +52,7 @@ any problems as they happen. In order, a sync:
 The first sync also adds RomMBat to EmulationStation's menu and sets up the hooks that send your
 saves and playtime back.
 
-When it finishes, the title changes to Synced and the footer to Done. Press Accept to leave. If
+When it finishes, the title changes to Synced and the footer to Done. A sync that stopped or could not finish says so in its title instead. Press Accept to leave. If
 some games could not come down, the screen says why, and syncing again picks up where it left
 off.
 

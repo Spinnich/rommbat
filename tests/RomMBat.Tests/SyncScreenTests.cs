@@ -1268,6 +1268,10 @@ public sealed class SyncScreenTests : IDisposable
         Assert.Equal("Could not reach RomM", sync.State.Outcome);
         Assert.StartsWith("RomM could not be reached", sync.State.Detail, StringComparison.Ordinal);
 
+        // Past tense only for a sync that finished. Ruled with Spinnich after the agent tree
+        // titled a stopped run "Synced 'gg'".
+        Assert.Equal("Sync of 'games' did not finish", sync.Title);
+
         sync.Dispose();
     }
 

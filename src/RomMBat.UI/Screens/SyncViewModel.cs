@@ -373,24 +373,30 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     /// What the screen is doing, in the tense it is doing it in.
     /// </summary>
     /// <remarks>
-    /// Past tense once the work is over. The present tense is a claim that it is still running,
-    /// and a finished run under a full bar is otherwise indistinguishable from a stuck one.
+    /// Past tense once the work finished, and saying it ended otherwise. The present tense is a
+    /// claim that it is still running, and a finished run under a full bar is otherwise
+    /// indistinguishable from a stuck one.
     /// See <see cref="ResolveViewModel.Title"/>, where a hands-on pass found it.
     /// </remarks>
     public string Title
     {
         get
         {
-            var working = _state.Stage == SyncStage.Working;
+            var subject = _installing is { } game
+                ? $"'{game.DisplayName}'"
+                : _sets.Count == 1 ? $"'{_sets[0].Name}'" : $"{_sets.Count} sync sets";
 
-            if (_installing is { } game)
+            // Past tense only for a run that finished. "Synced 'gg'" over STOPPED at 397 of 755
+            // claimed a sync that had not happened; ruled with Spinnich.
+            var installing = _installing is not null;
+            return _state.Stage switch
             {
-                return working ? $"Installing '{game.DisplayName}'" : $"Installed '{game.DisplayName}'";
-            }
-
-            return _sets.Count == 1
-                ? working ? $"Syncing '{_sets[0].Name}'" : $"Synced '{_sets[0].Name}'"
-                : working ? $"Syncing {_sets.Count} sync sets" : $"Synced {_sets.Count} sync sets";
+                SyncStage.Working => installing ? $"Installing {subject}" : $"Syncing {subject}",
+                SyncStage.Done => installing ? $"Installed {subject}" : $"Synced {subject}",
+                SyncStage.Stopped or SyncStage.Blocked =>
+                    installing ? $"Install of {subject} stopped" : $"Sync of {subject} stopped",
+                _ => installing ? $"Install of {subject} did not finish" : $"Sync of {subject} did not finish",
+            };
         }
     }
 
