@@ -405,6 +405,9 @@ public class SaveConflictTests
 
         Assert.True(reopened.IsOpen);
 
+        // A new conflict, so it dates from now rather than from the one already decided.
+        Assert.Equal(reopened.LastSeenAtUtc, reopened.FirstSeenAtUtc);
+
         // The decision let go of the first conflict's copy, so this one needs its own rather
         // than inheriting a path to the first conflict's local side.
         Assert.NotNull(reopened.LocalCopyPath);
