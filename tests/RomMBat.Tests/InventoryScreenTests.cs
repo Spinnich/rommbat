@@ -102,7 +102,8 @@ public sealed class InventoryScreenTests : IDisposable
         await Settled(repair);
         await Settled(check);
 
-        var now = new InventorySweep(_session.Install, _session.Store).Plan();
+        var now = new InventorySweep(_session.Install, _session.Store)
+            .Plan(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal($"{now.Rows:N0} files", Assert.Single(check.Rows, row => row.Label == "Recorded").Value);
 
         if (now.IsClean)
