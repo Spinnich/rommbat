@@ -303,7 +303,15 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     public IReadOnlyList<ScreenAction> Actions =>
     [
         new ScreenAction("Search", () => ScreenCommand.Push(SearchKeyboard())) { Shortcut = NavAction.Alternate },
-        new ScreenAction("View options", () => ScreenCommand.Push(new ViewOptionsScreen(this))) { Shortcut = NavAction.Options },
+        // Swallowed while a page is on its way, as a step is: every pick in it starts a fetch, and
+        // Fetch refuses one while another runs, so a pick made then would close the popup and
+        // change nothing. Kept available so the footer does not reflow on every page.
+        new ScreenAction(
+            "View options",
+            () => _state.IsLoading ? ScreenCommand.Stay : ScreenCommand.Push(new ViewOptionsScreen(this)))
+        {
+            Shortcut = NavAction.Options,
+        },
     ];
 
     /// <summary>How each order reads on screen.</summary>
@@ -558,7 +566,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     /// <summary>Re-reads the current page, because a screen above this one installed or removed.</summary>
     /// <remarks>
     /// The letters are dropped too. Offline they are this device's, so a removal moves every
-    /// letter after it, and a cached index jumped a row past the letter (R1.1 on #500).
+    /// letter after it, and a kept index would land a row past the letter.
     /// </remarks>
     internal void Reload()
     {

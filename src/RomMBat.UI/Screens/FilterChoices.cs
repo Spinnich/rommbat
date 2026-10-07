@@ -80,9 +80,8 @@ public sealed class FilterChoices
 
     /// <summary>Told the values once a picker has fetched them, so a caller can keep them.</summary>
     /// <remarks>
-    /// Called when the fetch lands rather than read when the picker closes: a picker is pushed
-    /// before its fetch finishes, so copying <see cref="Values"/> back on the press that opened
-    /// it copied nothing (R1.2 on #500).
+    /// Called when the fetch lands, because a picker is pushed before its fetch finishes and
+    /// <see cref="Values"/> read on the press that opened it is still empty.
     /// </remarks>
     public Action<IReadOnlyDictionary<string, IReadOnlyList<string>>>? Fetched { get; init; }
 

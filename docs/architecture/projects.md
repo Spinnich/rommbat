@@ -239,8 +239,8 @@ holds no saves. `rommbat-agent evict` is unchanged.
 
 **Start opens a menu and never commits, Accept confirms or moves on, and Back never commits.**
 That is EmulationStation's own grammar (RB-421 to RB-424). A screen lists its verbs as
-`ScreenAction`s; the navigator opens `ActionMenuScreen` on Start and runs the Alternate and Extra
-shortcuts from the same list, so the footer, the menu and the shortcuts cannot disagree. A verb
+`ScreenAction`s; the navigator opens `ActionMenuScreen` on Start and runs the Alternate, Extra and
+Options shortcuts from the same list, so the footer, the menu and the shortcuts cannot disagree. A verb
 keeps one shortcut everywhere (Sync on Alternate, Query on Extra), and a destructive one has
 none. An editor saves from its last row, and Back with unsaved changes asks.
 

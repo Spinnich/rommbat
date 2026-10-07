@@ -188,6 +188,31 @@ public sealed partial class BrowseScreenTests
         Assert.Equal(ScreenCommandKind.Pop, options.Handle(NavAction.Options).Kind);
     }
 
+    /// <summary>
+    /// Select while a page is on its way does nothing, as a step does, rather than opening a
+    /// popup whose every pick would be refused.
+    /// </summary>
+    [Fact]
+    public async Task Select_while_a_page_is_loading_opens_nothing()
+    {
+        using var stub = Library(3);
+        Pair();
+        var held = new TaskCompletionSource();
+        stub.HoldRomPages = held;
+
+        using var browse = new BrowseViewModel(_session, Connect(stub));
+        await WaitFor(() => stub.RomPagesRequested == 1);
+
+        Assert.Equal(ScreenCommandKind.Stay, Navigator.Press(browse, NavAction.Options).Kind);
+        Assert.Contains(browse.Hints, hint => hint.Action == NavAction.Options);
+
+        stub.HoldRomPages = null;
+        held.SetResult();
+        await Settled(browse);
+
+        Assert.IsType<ViewOptionsScreen>(Navigator.Press(browse, NavAction.Options).Screen);
+    }
+
     [Fact]
     public async Task The_letter_jump_reads_RomMs_index_once_and_lands_on_the_letter()
     {
