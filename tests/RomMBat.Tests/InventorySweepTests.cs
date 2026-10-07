@@ -110,7 +110,7 @@ public sealed class InventorySweepTests : IDisposable
         Assert.Equal(5_000, _session.Store.Files.SyncedBytes());
 
         var sweep = new InventorySweep(_session.Install, _session.Store);
-        var repaired = sweep.Apply(sweep.Plan());
+        var repaired = sweep.Apply(sweep.Plan(), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, repaired.Removed);
         Assert.Equal(4_000, repaired.BytesReclaimed);
@@ -144,7 +144,7 @@ public sealed class InventorySweepTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
         File.WriteAllBytes(absolute, new byte[4_000]);
 
-        var repaired = sweep.Apply(report);
+        var repaired = sweep.Apply(report, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, repaired.Removed);
         Assert.Equal(1, repaired.Returned);
@@ -178,7 +178,7 @@ public sealed class InventorySweepTests : IDisposable
         Assert.True(report.NothingFound);
         Assert.Contains("does not look like the tree", report.Summary, StringComparison.Ordinal);
 
-        var repaired = sweep.Apply(report);
+        var repaired = sweep.Apply(report, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, repaired.Removed);
         Assert.Equal(3_000, _session.Store.Files.SyncedBytes());
@@ -196,7 +196,7 @@ public sealed class InventorySweepTests : IDisposable
         var report = sweep.Plan();
 
         Assert.False(report.NothingFound);
-        Assert.Equal(2, sweep.Apply(report).Removed);
+        Assert.Equal(2, sweep.Apply(report, cancellationToken: TestContext.Current.CancellationToken).Removed);
     }
 
     [Fact]
@@ -222,7 +222,7 @@ public sealed class InventorySweepTests : IDisposable
         Assert.Equal("saves/gb/Dr. Mario (World).srm", Assert.Single(report.MissingSaves).Path.Value);
         Assert.Contains("1 not on this drive", report.SavesSummary, StringComparison.Ordinal);
 
-        Assert.Equal(1, sweep.Apply(report).Removed);
+        Assert.Equal(1, sweep.Apply(report, cancellationToken: TestContext.Current.CancellationToken).Removed);
         Assert.Equal(2, _session.Store.Saves.List().Count);
     }
 

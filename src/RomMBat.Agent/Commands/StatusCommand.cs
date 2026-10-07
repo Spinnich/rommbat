@@ -93,7 +93,7 @@ internal static class StatusCommand
                 // Safe by the rollback's own argument: a row must never outlive its bytes, and
                 // the row is the claim that is wrong. The next sync re-downloads, which is what
                 // would have happened anyway.
-                Console.WriteLine($"  repaired:        {sweep.Apply(inventory).Summary}");
+                Console.WriteLine($"  repaired:        {sweep.Apply(inventory, cancellationToken: cancellationToken).Summary}");
             }
             else if (inventory.NothingFound)
             {
