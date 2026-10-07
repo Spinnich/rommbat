@@ -76,8 +76,8 @@ public static class ConflictScreens
     /// file name alone is a romset code on some platforms. With neither, a row reads
     /// "Game 295079".
     /// <para>
-    /// The slot is on the row too, because a game with four save slots produces four rows that
-    /// are otherwise identical.
+    /// The slot is on the row too, as <see cref="SaveSlotLabel"/> words it, because a game with
+    /// four save slots produces four rows that are otherwise identical.
     /// </para>
     /// </remarks>
     private static ListRow ToRow(OpenConflict open)
@@ -88,8 +88,8 @@ public static class ConflictScreens
             open.Title ?? $"Game {conflict.RomId}",
             Moment(conflict.FirstSeenAtUtc),
             open.FileName is { } file
-                ? $"{file} ({conflict.Slot}). {conflict.Reason}"
-                : $"Slot {conflict.Slot}. {conflict.Reason}");
+                ? $"{file} ({SaveSlotLabel.Describe(conflict.Slot)}). {conflict.Reason}"
+                : $"{SaveSlotLabel.Describe(conflict.Slot)}. {conflict.Reason}");
     }
 
     /// <summary>
@@ -145,7 +145,7 @@ public static class ConflictScreens
             // The file name here rather than only on the list, because this is the screen a
             // decision is made on and "which game is this" must not need a press to answer.
             new("Game", open.FileName ?? $"id {conflict.RomId}", null, false),
-            new("Slot", conflict.Slot, null, false),
+            new("Save", SaveSlotLabel.Describe(conflict.Slot), null, false),
             new("Why", conflict.Reason, null, false),
             new("First seen", Moment(conflict.FirstSeenAtUtc), null, false),
             new(
@@ -254,7 +254,7 @@ public static class ConflictScreens
             [
                 new ListRow(
                     keepingLocal ? "Sent to RomM" : "Fetched from RomM",
-                    $"slot {conflict.Slot}",
+                    SaveSlotLabel.Describe(conflict.Slot),
                     keepingLocal
                         ? "The save on this device is uploaded and becomes the one every other "
                             + "device takes. RomM keeps what was there as an earlier version."
@@ -276,7 +276,7 @@ public static class ConflictScreens
         ConflictOutcome? outcome = null;
 
         return new ListScreen(
-            "Resolving",
+            "Settling the conflict",
             () => outcome is { } done
                 ?
                 [

@@ -58,7 +58,7 @@ where they are, but RomMBat forgets what it knew of the old server's saves, game
 any save conflicts still open, and asks again on the next sync. Your sync set choices are kept, and
 so is the record of which games RomMBat downloaded, so they can still be removed to free space. It will not switch servers while saves,
 states or play sessions are still waiting to be sent to the old one: let them send, or discard
-them when the old server is gone, from Not sent yet on the main menu's Outbox or with
+them when the old server is gone, from Not sent yet on the main menu's Waiting to upload or with
 `rommbat-agent outbox drop --all-pending --apply`.
 
 ## The pairing on a portable drive

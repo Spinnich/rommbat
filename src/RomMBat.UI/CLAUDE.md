@@ -40,6 +40,9 @@ and the outbox are Core's.
 - **A finished screen says so**: past-tense title, an outcome word, and a footer reading Done on
   Accept instead of offering a stop. `ListScreen` moves Done to Accept whenever its back label
   reads `ListScreen.DoneLabel`.
+- **A player never reads a slot or a scope kind.** Show `SaveSlotLabel.Describe` and
+  `SyncSetStore.ScopeLabel`; the screens say Check for changes, What it holds, Waiting to upload,
+  Pending settings and Browse library, and the glossary pairs each with its term.
 - **Every color is a `Shell/Theme` token** copied from the carbon theme (RB-425); a screen never
   names a brush. Inside a `Window`, `Theme` is the window's own property, so `ShellWindow` aliases
   the class as `EsTheme`.

@@ -89,7 +89,7 @@ public static class SetsScreens
                     // Every set at once, because doing them one at a time is the hassle a person
                     // notices first.
                     new ScreenAction(
-                        "Query every set",
+                        "Check every set for changes",
                         () => ScreenCommand.Push(Resolve(session, [.. sets.Select(summary => summary.Set)], connect)))
                     {
                         Shortcut = NavAction.Extra,
@@ -117,9 +117,9 @@ public static class SetsScreens
             summary.OnDiskBytes > 0
                 ? $"{summary.Games} games, {ByteSize.Format(summary.OnDiskBytes)} here"
                 : $"{summary.Games} games, {ByteSize.Format(summary.Bytes)}",
-            $"{SyncSetStore.ScopeText(summary.Set.Scope)}; "
+            $"{SyncSetStore.ScopeLabel(summary.Set.Scope)}; "
                 + (capped ? $"{summary.Policy}; " : string.Empty)
-                + $"last resolved {Moment(summary.Set.LastResolvedAt)}");
+                + $"last checked {Moment(summary.Set.LastResolvedAt)}");
     }
 
     /// <summary>One set: what it holds, and the three things that can be done to it.</summary>
@@ -163,7 +163,7 @@ public static class SetsScreens
             acceptLabel: "Change folder",
             backLabel: "Back")
         {
-            // The same shortcuts as the list's, so Sync and Query sit on the same buttons on both
+            // The same shortcuts as the list's, so Sync and Check for changes sit on the same buttons on both
             // screens. Delete has none: a destructive verb is two presses into the menu, never
             // one beside the confirm button.
             ActionList = () =>
@@ -172,7 +172,7 @@ public static class SetsScreens
                 {
                     Shortcut = NavAction.Alternate,
                 },
-                new ScreenAction("Query this set", () => ScreenCommand.Push(Resolve(session, [detail!.Set], connect)))
+                new ScreenAction("Check for changes", () => ScreenCommand.Push(Resolve(session, [detail!.Set], connect)))
                 {
                     Shortcut = NavAction.Extra,
                 },
@@ -185,7 +185,7 @@ public static class SetsScreens
             // and the accept hint was suppressed while Verbs went on handling the press. The
             // edit worked and the footer never said so.
             AlwaysOfferAccept = editable,
-            Note = () => "Syncing puts this set on the device. Querying only asks RomM what is "
+            Note = () => "Syncing puts this set on the device. Checking for changes only asks RomM what is "
                 + "in it, and downloads nothing. Both need the network.",
             Verbs = (action, _) => action switch
             {
@@ -202,9 +202,9 @@ public static class SetsScreens
     {
         var rows = new List<ListRow>
         {
-            new("Scope", ScopeValue(session, detail.Set), null, false),
+            new("What it holds", ScopeValue(session, detail.Set), null, false),
             new(
-                "Holds",
+                "Games",
                 $"{detail.Games} games, {ByteSize.Format(detail.Bytes)}",
                 "What RomM says these games weigh. Artwork has no size until it is fetched.",
                 false),
@@ -213,7 +213,7 @@ public static class SetsScreens
                 ByteSize.Format(detail.OnDiskBytes),
                 "Everything this set has put here, artwork included.",
                 false),
-            new("Last resolved", Moment(detail.Set.LastResolvedAt), detail.Set.LastResolutionSummary, false),
+            new("Last checked", Moment(detail.Set.LastResolvedAt), detail.Set.LastResolutionSummary, false),
         };
 
         // Only when there is one. Every set made from the interface has no caps now, so the row
@@ -579,10 +579,10 @@ public static class SetsScreens
         Func<Uri, RomMConnection>? connect) =>
         new ResolveViewModel(session, sets, connect);
 
-    /// <summary>The scope, with a platform's id shown as the name a person recognizes.</summary>
+    /// <summary>What the set holds, with a platform's id shown as the name a person recognizes.</summary>
     private static string ScopeValue(InstallSession session, SyncSetDefinition set)
     {
-        var text = SyncSetStore.ScopeText(set.Scope);
+        var text = SyncSetStore.ScopeLabel(set.Scope);
 
         if (set.Scope != CatalogScopeKind.Platform)
         {

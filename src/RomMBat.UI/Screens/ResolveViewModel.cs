@@ -113,10 +113,10 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     /// the name, because that is what the operation is called everywhere else in the codebase
     /// and renaming it would cost more than it buys; what a person sees says what it does.
     /// <para>
-    /// <b>"Query" rather than the "Check" that first replaced it.</b> Check is plain but says
-    /// nothing about what is being checked or against what, and a footer offering "Check every
-    /// set" beside one offering "Sync" gave no clue which one reaches the network. Query names
-    /// the act: this asks the server and writes down the answer. Spinnich's word.
+    /// <b>"Check for changes", never "Check" alone.</b> Check alone says nothing about what is
+    /// being checked or against what, and a footer offering "Check every set" beside one offering
+    /// "Sync" gave no clue which one reaches the network. The full phrase says it asks the server
+    /// what moved since last time, which is the maintainer's ruling for the gamepad UI (#493).
     /// </para>
     /// <para>
     /// <b>Past tense once the work is over, because the present tense is a claim that it is
@@ -128,11 +128,11 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     /// </remarks>
     public string Title => Stage == ResolveStage.Working
         ? _sets.Count == 1
-            ? $"Querying '{_sets[0].Name}'"
-            : $"Querying {_sets.Count} sync sets"
+            ? $"Checking '{_sets[0].Name}' for changes"
+            : $"Checking {_sets.Count} sync sets for changes"
         : _sets.Count == 1
-            ? $"Queried '{_sets[0].Name}'"
-            : $"Queried {_sets.Count} sync sets";
+            ? $"Checked '{_sets[0].Name}' for changes"
+            : $"Checked {_sets.Count} sync sets for changes";
 
     /// <summary>
     /// One word for how it ended, or null while it is still going.
@@ -233,20 +233,20 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     {
         switch (action)
         {
-            // Asked first, as the sync screen's stop is: a query of a large set takes minutes,
+            // Asked first, as the sync screen's stop is: checking a large set takes minutes,
             // and a stray press should not throw that time away. A yes closes the question and
             // stays, because this screen is the only place that can say which set was
             // interrupted (#107).
             case NavAction.Back when Stage == ResolveStage.Working:
                 return ScreenCommand.Push(ConfirmScreen.YesNo(
-                    "Stop querying? What it has found so far is kept, and the next query carries on from there.",
+                    "Stop checking? What it has found so far is kept, and the next check carries on from there.",
                     "Stop",
                     () =>
                     {
                         Stop();
                         return ScreenCommand.Pop;
                     },
-                    "Keep querying",
+                    "Keep checking",
                     this));
 
             case NavAction.Accept when Stage != ResolveStage.Working:
@@ -353,13 +353,13 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
             // Reports[0] named set one of three while set three was the one that stopped.
             Detail = cancelled.Reports.Count > 0
                 ? $"Stopped. {cancelled.Reports[^1].Summary}"
-                : "Stopped. The next resolve continues from here.";
+                : "Stopped. The next check continues from here.";
             Raise();
         }
         catch (OperationCanceledException)
         {
             Stage = ResolveStage.Stopped;
-            Detail = "Stopped. The next resolve continues from here.";
+            Detail = "Stopped. The next check continues from here.";
             Raise();
         }
         catch (RomMUnreachableException ex)
@@ -416,12 +416,12 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         if (report is null)
         {
             Stage = ResolveStage.Stopped;
-            Detail = "Nothing was resolved.";
+            Detail = "Nothing was checked.";
         }
         else if (reports.Count > 1 && report.State == ResolveState.Resolved)
         {
             Stage = ResolveStage.Done;
-            Detail = $"{reports.Count} sync sets resolved.";
+            Detail = $"{reports.Count} sync sets checked.";
         }
         else
         {
@@ -432,12 +432,12 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
                 ResolveState.NeedsFolderChoice => (
                     ResolveStage.Refused,
                     (report.Problem ?? report.Summary)
-                        + " Set a folder on this set and resolve it again."),
+                        + " Set a folder on this set and check it for changes again."),
                 _ => (
                     ResolveStage.Stopped,
                     report.Problem
                         ?? $"{report.Summary} Stopped at {report.Offset:N0} of {report.Total:N0}; "
-                            + "the next resolve continues from there."),
+                            + "the next check continues from there."),
             };
         }
 

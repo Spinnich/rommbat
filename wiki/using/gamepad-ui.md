@@ -19,10 +19,10 @@ the bottom face button is A on an Xbox pad, Cross on a PlayStation pad and B on 
 | Back                | Leave this screen or cancel, or on the main menu go back to EmulationStation                        |
 | Start               | Open the screen's menu, which lists everything that screen can do                                   |
 | Left face button    | A shortcut to the screen's most common action, such as Sync now, or Search                          |
-| Top face button     | A shortcut to the next most common, such as Query                                                   |
+| Top face button     | A shortcut to the next most common, such as Check for changes                                       |
 | L1 and R1           | Move up or down one screen of a list at a time, stopping at the top and the bottom                  |
-| L2 and R2           | In Find a game, the previous or next platform                                                       |
-| Select              | In Find a game, the view options: search, jump to a letter, sort and filters                        |
+| L2 and R2           | In Browse library, the previous or next platform                                                    |
+| Select              | In Browse library, the view options: search, jump to a letter, sort and filters                     |
 
 They follow EmulationStation's own: Start opens a menu there too, and Accept picks from it.
 
@@ -31,7 +31,7 @@ choices in place, use Left and Right. A filter row with a few fixed answers, suc
 either, is the one exception: Accept moves it to the next answer.
 
 **Back never saves, deletes or stops anything without asking.** Leaving a screen with
-unsaved changes asks whether to discard them, and stopping a sync or a query asks first.
+unsaved changes asks whether to discard them, and stopping a sync or a check for changes asks first.
 
 **Every question looks the same:** a box over the screen it is about, with its answers in a row.
 Left and Right choose an answer, Accept gives it, and Back always gives the answer that changes
@@ -46,17 +46,17 @@ When a screen has finished its work, its footer says Done, and Accept or Back le
 
 Each row says what it is for, and the ones that need attention carry a count.
 
-| Row            | What it is for                                                                                                       |
-| -------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Sync sets      | What this device keeps. See [Sync sets](sync-sets.md)                                                                |
-| Find a game    | Search your library, or look through what is on this device. See [Find a game](browse-and-install.md)                |
-| Conflicts      | Saves that changed here and on another device. See [Conflicts](../saves/conflicts.md)                                |
-| Platforms      | Where each RomM platform's games land in RetroBat. See [Sync sets](sync-sets.md#when-games-land-in-the-wrong-folder) |
-| Queued changes | Settings waiting for you to quit EmulationStation. See [Memory cards](../saves/memory-cards.md)                      |
-| Outbox         | Saves, states and play sessions not yet sent to RomM, and any the server refused. Drop them here                     |
-| Disk space     | How much room RomMBat may use. See [Disk space](disk-budget.md)                                                      |
-| Pair with RomM | Sign in to your server, or sign in again. See [Pairing](../getting-started/pairing.md)                               |
-| This device    | Your RetroBat version, the server, what is waiting to be sent, and the controller                                    |
+| Row               | What it is for                                                                                                       |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Sync sets         | What this device keeps. See [Sync sets](sync-sets.md)                                                                |
+| Browse library    | Search your library, or look through what is on this device. See [Browse library](browse-and-install.md)             |
+| Conflicts         | Saves that changed here and on another device. See [Conflicts](../saves/conflicts.md)                                |
+| Platforms         | Where each RomM platform's games land in RetroBat. See [Sync sets](sync-sets.md#when-games-land-in-the-wrong-folder) |
+| Pending settings  | Settings waiting for you to quit EmulationStation. See [Memory cards](../saves/memory-cards.md)                      |
+| Waiting to upload | Saves, states and play sessions not yet sent to RomM, and any the server refused. Drop them here                     |
+| Disk space        | How much room RomMBat may use. See [Disk space](disk-budget.md)                                                      |
+| Pair with RomM    | Sign in to your server, or sign in again. See [Pairing](../getting-started/pairing.md)                               |
+| This device       | Your RetroBat version, the server, what is waiting to be sent, and the controller                                    |
 
 Every row works without the server except the ones that have to ask RomM something. Those say
 so when it cannot be reached.

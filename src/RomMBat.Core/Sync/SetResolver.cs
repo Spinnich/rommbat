@@ -871,8 +871,8 @@ public sealed class SetResolver
         Outcome = ResolutionOutcome.Refused,
         ScopeTotal = total,
         Problem =
-            $"'{set.Name}' matches {total:N0} games and has no game or size cap, so resolving it would hold the "
-                + "whole library. Give it a cap, or narrow the scope.",
+            $"'{set.Name}' matches {total:N0} games and has no game or size cap, so it would hold the whole "
+                + "library. Give it a cap, or narrow what it holds.",
         Summary = $"refused: {total:N0} games with no cap",
     };
 

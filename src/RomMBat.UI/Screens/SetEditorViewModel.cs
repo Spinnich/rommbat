@@ -215,7 +215,7 @@ public sealed class SetEditorViewModel : IScreen, IActionScreen
 
             if (rows.Count == 0)
             {
-                return [new EditorRow("Nothing to change", "this set is defined by its scope", null, false)];
+                return [new EditorRow("Nothing to change", "this set is defined by what it holds", null, false)];
             }
 
             // Last, where ES puts the button that closes a form, and pressed like any other row.
@@ -230,7 +230,7 @@ public sealed class SetEditorViewModel : IScreen, IActionScreen
 
         if (IsNew)
         {
-            rows.Add(new EditorRow("Scope", SyncSetStore.ScopeText(_scope), null, false));
+            rows.Add(new EditorRow("What it holds", SyncSetStore.ScopeLabel(_scope), null, false));
 
             if (_scope == CatalogScopeKind.Platform)
             {
@@ -377,7 +377,7 @@ public sealed class SetEditorViewModel : IScreen, IActionScreen
             },
             _session.EmulationStationLanguage())),
 
-        "Scope" => ScreenCommand.Push(ScopePicker()),
+        "What it holds" => ScreenCommand.Push(ScopePicker()),
 
         "Platform" => ScreenCommand.Push(PlatformPicker()),
 
@@ -530,7 +530,7 @@ public sealed class SetEditorViewModel : IScreen, IActionScreen
             acceptLabel: "Use this")
         {
             LoadingMessage = "Asking RomM which collections it has...",
-            EmptyMessage = $"This RomM has no {SyncSetStore.ScopeText(scope)} to choose from.",
+            EmptyMessage = $"This RomM has no {SyncSetStore.ScopeLabel(scope).ToLowerInvariant()} to choose from.",
             Load = async token =>
             {
                 var attempt = _session.Authenticate();

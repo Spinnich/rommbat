@@ -820,7 +820,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
 
             Core.Sets.SyncState.Refused => (
                 SyncStage.Refused,
-                "A sync set could not be resolved, so nothing was fetched."),
+                "A sync set could not be checked for changes, so nothing was fetched."),
 
             // Only an unreachable server clears itself, so only that run is told to sync again.
             _ => (SyncStage.Incomplete, report.Cause switch

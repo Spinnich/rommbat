@@ -185,7 +185,8 @@ public sealed class RemovalService
     private List<string> FailedOutboxWarning() =>
         _session.Store.Outbox.FailedCount() is > 0 and var failed
             ? [$"{failed} save or play record was refused by the server and will not be retried, so it exists only on "
-                + "this device and uninstalling loses it. RomMBat's Outbox, or 'rommbat-agent outbox', lists them."]
+                + "this device and uninstalling loses it. RomMBat's Waiting to upload list, or "
+                + "'rommbat-agent outbox', lists them."]
             : [];
 
     /// <summary>Carries out a report, after asking every question again.</summary>
