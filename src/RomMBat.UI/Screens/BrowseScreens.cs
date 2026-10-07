@@ -38,9 +38,25 @@ public static class BrowseScreens
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(game);
 
+        // The game as the store has it now. The record is the row the list held when this
+        // opened, and an install or removal on a screen above changes where it is and who wants
+        // it: read once, the menu went on offering "Take it off" for a game already gone.
+        BrowseGame Current()
+        {
+            var placement = session.Store.Files.PlacementFor([game.RomId])
+                .GetValueOrDefault(game.RomId, new RomPlacement([], 0));
+
+            return game with
+            {
+                Folders = placement.Folders,
+                BytesOnDevice = placement.Bytes,
+                Sets = session.Store.SyncSets.SetsClaiming([game.RomId]).GetValueOrDefault(game.RomId, []),
+            };
+        }
+
         // Re-read on return, because installing and removing both happen on screens above this
         // one, and rows read once would go on saying what they said before the press.
-        IReadOnlyList<ListRow> Rows() => DetailRows(session, game);
+        IReadOnlyList<ListRow> Rows() => DetailRows(session, Current());
 
         // Kept so the removal question can draw over this screen.
         ListScreen? screen = null;
@@ -67,7 +83,7 @@ public static class BrowseScreens
                 .. game.Row is not null
                     ? new[] { new ScreenAction("Put this game on the device", () => Install(session, game, connect, changed)) }
                     : [],
-                .. game.IsHere
+                .. Current().IsHere
                     ? new[] { new ScreenAction("Take it off this device", () => ScreenCommand.Push(ConfirmRemoval(session, game, connect, changed, screen))) }
                     : [],
                 .. QueuedChangeScreens.CanConvert(session, game.RomId)

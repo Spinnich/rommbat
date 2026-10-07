@@ -52,7 +52,7 @@ namespace RomMBat.UI.Screens;
 /// accident.
 /// </para>
 /// </remarks>
-public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IActionScreen, IDisposable
+public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IActionScreen, IReturnAware, IDisposable
 {
     private readonly InstallSession _session;
     private readonly Func<Uri, RomMConnection>? _connect;
@@ -63,6 +63,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     private volatile BrowseState _state = new(null, true, new BrowseView(), null, null, null, 0, false);
     private RomMConnection? _connection;
     private bool _disposed;
+    private volatile bool _changed;
 
     /// <summary>What L2 and R2 step through: every platform first, then the picker's list.</summary>
     private readonly IReadOnlyList<PlatformOption?> _platforms;
@@ -386,7 +387,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
                     _session,
                     opened.Games[state.Cursor],
                     _connect,
-                    Reload));
+                    MarkChanged));
 
             case NavAction.PageUp:
                 Move(-ListWindow.Capacity);
@@ -560,6 +561,28 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
             _disposed = true;
             _connection?.Dispose();
             _connection = null;
+        }
+    }
+
+    /// <summary>Notes that a screen above this one installed or removed, for <see cref="Returned"/>.</summary>
+    /// <remarks>
+    /// <b>Not a reload there and then.</b> An install calls this before the sync it opens has
+    /// fetched anything, so a page read at that moment showed the game in its new set and still
+    /// "not here", and nothing read it again once the file landed.
+    /// </remarks>
+    internal void MarkChanged() => _changed = true;
+
+    /// <summary>Re-reads the page once something above it has installed or removed.</summary>
+    /// <remarks>
+    /// Only then, because this is raised on every pop, a menu or the view options included, and
+    /// a page read from RomM for each of those is a round trip that changes nothing.
+    /// </remarks>
+    public void Returned()
+    {
+        if (_changed)
+        {
+            _changed = false;
+            Reload();
         }
     }
 
