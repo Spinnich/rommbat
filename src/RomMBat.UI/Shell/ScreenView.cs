@@ -945,7 +945,7 @@ internal static class ScreenView
     /// <summary>A size, a color and a line height for each style of text slot.</summary>
     private static (double Size, double Line, IBrush Color, double Width) Look(SlotStyle style) => style switch
     {
-        // The outcome in the accent color above the sentence, in the treatment the problems
+        // The outcome in the group color above the sentence, in the treatment the problems
         // heading uses, so it reads as a label on the screen rather than one more line of
         // detail. A finished bar and a stalled one are the same picture; this word is the
         // difference.
@@ -1383,8 +1383,8 @@ internal static class ScreenView
     /// <remarks>
     /// <b>The three unfilled dots are the whole point and have to be visible.</b> They are what
     /// turns one lit dot into a <i>position</i>; without them the glyph is a blue speck that
-    /// says nothing. Drawn as outlined rings rather than filled with <c>Theme.Well</c>, which is
-    /// within a few values of the footer's own background and disappeared on a television.
+    /// says nothing. Drawn as outlined rings rather than filled dark, because a dark dot on the
+    /// help bar's near-black strip disappeared on a television.
     /// </remarks>
     /// <summary>
     /// A cross, for a hint that means every direction rather than one of them.
