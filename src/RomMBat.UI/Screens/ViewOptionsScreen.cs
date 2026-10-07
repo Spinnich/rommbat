@@ -98,18 +98,20 @@ public sealed class ViewOptionsScreen : IScreen, IWindowedScreen, IPopupScreen, 
     {
         var view = _browse.State.View;
 
-        // Said once for both rows that need RomM, in the words the list's own note uses.
-        const string NeedsRomM = "RomM's library could not be read, so this device's games are shown by name.";
+        // In the words the list's own note uses, and one reason each: sharing Sort's told a
+        // person why Filters was dimmed by saying the games are shown by name.
+        const string SortNeedsRomM = "RomM's library could not be read, so this device's games are shown by name.";
+        const string FiltersNeedRomM = "RomM's library could not be read, and filters are answered by RomM, so they wait until it can be.";
 
         return
         [
             new ListRow(SearchRow, view.Search ?? "anything"),
             LetterListRow(view),
-            new ListRow(SortRow, BrowseViewModel.OrderText(view.Order), Offline ? NeedsRomM : null, !Offline),
+            new ListRow(SortRow, BrowseViewModel.OrderText(view.Order), Offline ? SortNeedsRomM : null, !Offline),
             new ListRow(
                 FilterRow,
                 view.Filtered ? FilterCount(view) : "none",
-                Offline ? NeedsRomM : null,
+                Offline ? FiltersNeedRomM : null,
                 !Offline),
         ];
     }

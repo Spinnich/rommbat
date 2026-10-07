@@ -365,6 +365,11 @@ public sealed partial class BrowseScreenTests
         var rows = ((IWindowedScreen)options).Rows;
         Assert.False(rows[2].Available);
         Assert.False(rows[3].Available);
+
+        // Each says why it waits. Filters once borrowed Sort's reason, that the games are
+        // shown by name, which says nothing about filters.
+        Assert.Contains("by name", rows[2].Detail, StringComparison.Ordinal);
+        Assert.Contains("filters", rows[3].Detail, StringComparison.Ordinal);
     }
 
     /// <summary>
