@@ -569,6 +569,29 @@ public sealed class SyncScreenTests : IDisposable
         sync.Dispose();
     }
 
+    [Fact]
+    public async Task A_refused_set_says_why_rather_than_that_it_could_not_be_checked()
+    {
+        // A hands-on pass read "A sync set could not be checked for changes" over a set that had
+        // been checked and refused, which named neither the set nor what to do about it.
+        using var stub = new StubRomMServer();
+        stub.Library.Add(new StubRom(1, 2, "arcade", "arcade", "Some Arcade Game", "sag.zip", "zip", 1_000));
+        Pair();
+        var set = _session.Store.SyncSets.Add(
+            new SyncSetDefinition { Name = "arcade", Scope = CatalogScopeKind.Platform, ScopeValue = "2" },
+            Now);
+
+        var sync = new SyncViewModel(_session, set, Connect(stub));
+        await SettledAsync(sync);
+
+        Assert.Equal(SyncStage.Refused, sync.State.Stage);
+        Assert.Contains("mame", sync.State.Detail, StringComparison.Ordinal);
+        Assert.EndsWith("Nothing was fetched.", sync.State.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("could not be checked", sync.State.Detail, StringComparison.Ordinal);
+
+        sync.Dispose();
+    }
+
     [Theory]
     [InlineData(SyncStage.Working)]
     [InlineData(SyncStage.Done)]
