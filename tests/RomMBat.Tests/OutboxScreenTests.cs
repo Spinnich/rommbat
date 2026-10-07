@@ -102,7 +102,12 @@ public class OutboxScreenTests : IDisposable
 
         Assert.Equal(0, _session.Store.Outbox.FailedCount());
         Assert.Equal(1, _session.Store.Outbox.PendingCount());
-        Assert.StartsWith("Refused entries dropped.", Assert.IsType<ConfirmScreen>(navigator.Current).Question, StringComparison.Ordinal);
+        var answer = Assert.IsType<ConfirmScreen>(navigator.Current).Question;
+        Assert.StartsWith("Refused entries dropped.", answer, StringComparison.Ordinal);
+
+        // Not "they exist only on this device", which read as the opposite of dropped.
+        Assert.Contains("RomM never got", answer, StringComparison.Ordinal);
+        Assert.DoesNotContain("exist only", answer, StringComparison.Ordinal);
     }
 
     [Fact]
