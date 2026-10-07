@@ -1,6 +1,7 @@
 using RomMBat.Core;
 using RomMBat.Core.Content;
 using RomMBat.Core.Paths;
+using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
 using RomMBat.Tests.Support;
 using Xunit;
@@ -59,6 +60,37 @@ public sealed class InventorySweepTests : IDisposable
 
         Assert.True(report.IsClean);
         Assert.Contains("all present", report.Summary, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_stopped_repair_forgets_what_it_reached_and_leaves_the_rest()
+    {
+        // On the agent tree, Stop on a 60,000-row repair left the screen while every row went
+        // on being removed, because nothing between the rows looked at the stop.
+        for (var index = 0; index < 300; index++)
+        {
+            Row($"roms/snes/gone-{index:000}.sfc", 1_000, onDisk: false);
+        }
+
+        Row("roms/snes/here.sfc", 1_000, onDisk: true);
+
+        var sweep = new InventorySweep(_session.Install, _session.Store);
+        var report = sweep.Plan();
+
+        using var stop = new CancellationTokenSource();
+        var progress = new Immediate<(int Done, int Total)>(step =>
+        {
+            if (step.Done >= 100)
+            {
+                stop.Cancel();
+            }
+        });
+
+        Assert.Throws<OperationCanceledException>(() => sweep.Apply(report, progress, stop.Token));
+
+        // Stopped where it was asked to: the first hundred are gone, the rest are still there
+        // for the next check to find.
+        Assert.Equal(201, sweep.Plan().Rows);
     }
 
     /// <summary>

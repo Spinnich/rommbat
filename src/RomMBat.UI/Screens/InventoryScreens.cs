@@ -94,7 +94,7 @@ public static class InventoryScreens
             Load = token =>
             {
                 repaired = new InventorySweep(session.Install, session.Store)
-                    .Apply(report, screen!.Reporter);
+                    .Apply(report, screen!.Reporter, token);
 
                 token.ThrowIfCancellationRequested();
                 return Task.FromResult<string?>(null);
