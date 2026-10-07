@@ -29,6 +29,7 @@ public static class InventoryScreens
 
         var sweep = new InventorySweep(session.Install, session.Store);
         InventoryReport? report = null;
+        var repairing = Task.CompletedTask;
         ListScreen? screen = null;
 
         screen = new ListScreen(
@@ -46,16 +47,26 @@ public static class InventoryScreens
             // here the screen counts the problem and names no way to fix it from the couch: the
             // footer says Back and nothing else while Start quietly works.
             OfferAcceptWhen = () => report is { IsClean: false, NothingFound: false },
-            Load = token =>
+            Load = async token =>
             {
+                // A stopped repair can still be removing its last row, and both read one store.
+                await repairing.WaitAsync(token).ConfigureAwait(false);
+
                 report = sweep.Plan(screen!.Reporter);
                 token.ThrowIfCancellationRequested();
-                return Task.FromResult<string?>(null);
+                return null;
             },
             Verbs = (action, _) => action switch
             {
                 NavAction.Accept when report is { IsClean: false, NothingFound: false } found =>
-                    ScreenCommand.Push(Repair(session, found)),
+                    ScreenCommand.Push(Repair(session, found, closed: work =>
+                    {
+                        // Planned again rather than trusted, finished or stopped: the report
+                        // went on listing every row the repair had just forgotten (#505).
+                        repairing = work;
+                        report = null;
+                        screen!.Reload();
+                    })),
                 _ => null,
             },
         };
@@ -63,7 +74,11 @@ public static class InventoryScreens
         return screen.Started();
     }
 
-    private static ListScreen Repair(InstallSession session, InventoryReport report)
+    /// <param name="closed">
+    /// Called with the repair's work as the screen closes, whichever way it closes: Done, or
+    /// a Stop with the work still running or already finished.
+    /// </param>
+    private static ListScreen Repair(InstallSession session, InventoryReport report, Action<Task> closed)
     {
         InventoryRepair? repaired = null;
         ListScreen? screen = null;
@@ -89,6 +104,7 @@ public static class InventoryScreens
         {
             AsksBeforeStopping = true,
             Reading = true,
+            OnClose = () => closed(screen!.Loaded),
             LoadingMessage = "Removing records for files that are gone...",
             Counts = true,
             Load = token =>

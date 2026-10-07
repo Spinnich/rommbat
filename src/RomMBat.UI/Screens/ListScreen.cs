@@ -429,6 +429,29 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// <summary>Why the load failed, when it did.</summary>
     public string? LoadProblem { get; private set; }
 
+    /// <summary>
+    /// The loader's run, which ends once it has finished, failed or been stopped, and never
+    /// throws.
+    /// </summary>
+    /// <remarks>
+    /// For a screen underneath that reads what this one writes, and must not read it while a
+    /// stopped write is still unwinding.
+    /// </remarks>
+    public Task Loaded { get; private set; } = Task.CompletedTask;
+
+    /// <summary>
+    /// Called once as this screen closes, however it is left: Done, Back, or a Stop on work
+    /// still running.
+    /// </summary>
+    /// <remarks>
+    /// <b>Not <see cref="OnBack"/>, which a Stop on running work skips</b>, because what it
+    /// closes is only stale once the work has finished. The screen under the file repair is
+    /// stale either way, and through <c>OnBack</c> it went on listing 1,538 rows a stopped
+    /// repair had forgotten (#505). Raised from <see cref="Dispose"/>, which the navigator
+    /// calls on every pop before the screen underneath hears it has been returned to.
+    /// </remarks>
+    public Action? OnClose { get; init; }
+
     public event EventHandler? Invalidated;
 
     /// <summary>Starts the loader. Called by whoever pushes the screen.</summary>
@@ -459,7 +482,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
         _started = true;
         IsLoading = hideRows;
 
-        _ = Task.Run(
+        Loaded = Task.Run(
             async () =>
             {
                 try
@@ -497,6 +520,25 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
         return this;
     }
 
+    /// <summary>Runs the loader again, behind the loading state, as when the screen opened.</summary>
+    /// <remarks>
+    /// For a screen whose rows a screen above it has made wrong. The file check planned once,
+    /// so after its repair forgot 60,000 rows it went on listing all of them, and offering to
+    /// forget them again (#505).
+    /// </remarks>
+    public void Reload()
+    {
+        if (_disposed || Load is null || IsLoading)
+        {
+            return;
+        }
+
+        _started = false;
+        Progress = null;
+        LoadProblem = null;
+        Begin(hideRows: true);
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -508,6 +550,8 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
 
         // Canceled, never disposed: a request still unwinding can register on this token.
         _load.Cancel();
+
+        OnClose?.Invoke();
     }
 
     public IReadOnlyList<FooterHint> Hints

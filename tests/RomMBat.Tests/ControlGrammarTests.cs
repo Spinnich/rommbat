@@ -382,6 +382,45 @@ public sealed class ControlGrammarTests
     }
 
     [Fact]
+    public async Task A_stop_on_running_work_closes_through_OnClose_as_Done_does()
+    {
+        // OnBack is skipped by a stop on running work, so the file check under its repair went
+        // on listing what the stopped repair had forgotten (#505). The screen under it hears the
+        // close through OnClose, with the work it must wait for.
+        var release = new TaskCompletionSource();
+        var closes = new List<Task>();
+        ListScreen? applying = null;
+
+        applying = new ListScreen("Removing", () => [], _ => ScreenCommand.Stay, string.Empty, ListScreen.DoneLabel)
+        {
+            Reading = true,
+            AsksBeforeStopping = true,
+            Load = async token =>
+            {
+                await release.Task.WaitAsync(token);
+                return null;
+            },
+            OnClose = () => closes.Add(applying!.Loaded),
+        };
+
+        var pushed = new ListScreen("Root", [new ListRow("Open")], _ => ScreenCommand.Push(applying.Started()));
+        var navigator = new Navigator(pushed);
+        navigator.Handle(NavAction.Accept);
+        Assert.Same(applying, navigator.Current);
+
+        navigator.Handle(NavAction.Back);
+        navigator.Handle(NavAction.Left);
+        navigator.Handle(NavAction.Accept);
+
+        Assert.Same(pushed, navigator.Current);
+        var closed = Assert.Single(closes);
+
+        // Handed over while the work is still unwinding, so the screen under it can wait.
+        await closed.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        Assert.Same(closed, Assert.Single(closes));
+    }
+
+    [Fact]
     public void A_search_can_be_cleared_and_nothing_else_accepts_no_text()
     {
         string? searched = "old";
