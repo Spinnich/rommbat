@@ -438,7 +438,7 @@ public sealed class SetResolver
 
         if (resolution.Outcome == ResolutionOutcome.Interrupted)
         {
-            parts.Add("walk interrupted, will resume");
+            parts.Add("the rest is checked next time");
         }
 
         return string.Join("; ", parts);
