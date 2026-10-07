@@ -628,7 +628,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
                 return ScreenCommand.Push(ConfirmScreen.YesNo(
                     StopQuestion,
                     "Stop",
-                    () => ScreenCommand.PopMany(2),
+                    StopAnswered,
                     "Keep going",
                     this));
 
@@ -639,6 +639,22 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
             default:
                 return ScreenCommand.Stay;
         }
+    }
+
+    /// <summary>
+    /// What choosing Stop does, decided when it is chosen. The question can sit open while the
+    /// work finishes underneath it, and then there is nothing to stop: leave as Done does,
+    /// with the question closed too, rather than landing on a screen the work made meaningless.
+    /// </summary>
+    private ScreenCommand StopAnswered()
+    {
+        if (IsLoading || OnBack is not { } leave)
+        {
+            return ScreenCommand.PopMany(2);
+        }
+
+        var left = leave();
+        return left.Kind == ScreenCommandKind.Pop ? left with { Depth = left.Depth + 1 } : left;
     }
 
     /// <summary>

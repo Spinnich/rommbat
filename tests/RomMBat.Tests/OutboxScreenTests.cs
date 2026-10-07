@@ -104,6 +104,21 @@ public class OutboxScreenTests : IDisposable
         Assert.Contains("in the future. Dropping deletes", Assert.Single(confirm.Details!()).Detail ?? string.Empty, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("Is the clock right?", "Is the clock right? Dropping deletes")]
+    [InlineData("Too late!", "Too late! Dropping deletes")]
+    public void A_server_reason_that_already_ends_a_sentence_gets_no_full_stop_after_it(string reason, string expected)
+    {
+        var id = Enqueue(41);
+        _session.Store.Outbox.MarkFailed(id, reason, DateTimeOffset.UtcNow);
+
+        var navigator = new Navigator(OutboxScreens.List(_session));
+        navigator.Handle(NavAction.Accept);
+
+        var confirm = Assert.IsType<ConfirmScreen>(navigator.Current);
+        Assert.Contains(expected, Assert.Single(confirm.Details!()).Detail ?? string.Empty, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Every_refused_entry_goes_together_and_no_pending_one_with_them()
     {

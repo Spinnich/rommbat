@@ -333,8 +333,33 @@ public sealed class SyncScreenTests : IDisposable
         var resolve = new ResolveViewModel(_session, Set(), Throwing(stub, "/api/"));
         await SettledAsync(resolve);
 
-        Assert.Equal(ResolveStage.Stopped, resolve.Stage);
+        // An error nobody asked for is not a stop: the person pressed nothing, so the screen
+        // says the check did not finish, as the sync screen's matching catch does.
+        Assert.Equal(ResolveStage.Failed, resolve.Stage);
+        Assert.Equal("Check of 'games' did not finish", resolve.Title);
+        Assert.Equal("Did not finish", resolve.Outcome);
         Assert.Contains("nothing expected this", resolve.Detail, StringComparison.Ordinal);
+
+        resolve.Dispose();
+    }
+
+    [Fact]
+    public async Task A_check_that_cannot_reach_the_server_says_so_as_the_sync_screen_does()
+    {
+        using var stub = Library(1);
+        Pair();
+        Seed("games", 1);
+
+        var resolve = new ResolveViewModel(
+            _session,
+            Set(),
+            Throwing(stub, "/api/", new RomMUnreachableException(UnreachableReason.ConnectTimeout, "RomM did not answer.")));
+        await SettledAsync(resolve);
+
+        Assert.Equal(ResolveStage.Unreachable, resolve.Stage);
+        Assert.Equal("Check of 'games' did not finish", resolve.Title);
+        Assert.Equal("Could not reach RomM", resolve.Outcome);
+        Assert.StartsWith("RomM did not answer.", resolve.Detail, StringComparison.Ordinal);
 
         resolve.Dispose();
     }
@@ -1548,16 +1573,16 @@ public sealed class SyncScreenTests : IDisposable
     }
 
     /// <summary>The stub, behind a handler that throws what no caller expects on matching paths.</summary>
-    private static Func<Uri, RomMConnection> Throwing(StubRomMServer stub, string path) =>
+    private static Func<Uri, RomMConnection> Throwing(StubRomMServer stub, string path, Exception? error = null) =>
         _ => new RomMConnection(
             new RomMClientOptions { Origin = Origin, AccessToken = "rmm_test" },
-            new ThrowingHandler(stub, path));
+            new ThrowingHandler(stub, path, error ?? new InvalidOperationException("nothing expected this")));
 
-    private sealed class ThrowingHandler(HttpMessageHandler inner, string path) : DelegatingHandler(inner)
+    private sealed class ThrowingHandler(HttpMessageHandler inner, string path, Exception error) : DelegatingHandler(inner)
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             request.RequestUri!.AbsolutePath.Contains(path, StringComparison.Ordinal)
-                ? throw new InvalidOperationException("nothing expected this")
+                ? throw error
                 : base.SendAsync(request, cancellationToken);
     }
 

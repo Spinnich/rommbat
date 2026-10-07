@@ -219,10 +219,18 @@ public static class OutboxScreens
     private static string Capitalised(string text) =>
         text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
 
-    /// <summary>The server's message ended as a sentence, which RomM's often are not.</summary>
+    /// <summary>The server's message ended as a sentence, which RomM's often are not; one that asks or exclaims already is.</summary>
     /// <remarks>"end_time is too far in the future Dropping deletes..." ran two into one.</remarks>
-    private static string Sentence(string? message) =>
-        string.IsNullOrWhiteSpace(message) ? "no reason given." : message.TrimEnd().TrimEnd('.') + ".";
+    private static string Sentence(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return "no reason given.";
+        }
+
+        var text = message.TrimEnd();
+        return text[^1] is '?' or '!' ? text : text.TrimEnd('.') + ".";
+    }
 
     private static string Moment(DateTimeOffset moment) =>
         moment.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture);

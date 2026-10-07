@@ -292,6 +292,45 @@ public sealed class ControlGrammarTests
     }
 
     [Fact]
+    public async Task Stop_answered_after_the_work_finished_leaves_as_Done_does()
+    {
+        // The question stays open while the removal finishes underneath it. Stopping then has
+        // nothing to stop, and a fixed pop would land on the detail screen of a set that no
+        // longer exists, skipping the summary and the screen's own way out.
+        var release = new TaskCompletionSource();
+
+        var applying = new ListScreen("Removing", () => [], _ => ScreenCommand.Stay, string.Empty, ListScreen.DoneLabel)
+        {
+            Reading = true,
+            AsksBeforeStopping = true,
+            Load = async token =>
+            {
+                await release.Task.WaitAsync(token);
+                return null;
+            },
+            OnBack = () => ScreenCommand.PopMany(2),
+        }.Started();
+
+        var question = Assert.IsType<ConfirmScreen>(applying.Handle(NavAction.Back).Screen);
+        question.Handle(NavAction.Left);
+
+        release.SetResult();
+
+        for (var attempt = 0; attempt < 200 && applying.IsLoading; attempt++)
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        var stopped = question.Handle(NavAction.Accept);
+
+        // The question, this screen, and the one OnBack closes with it.
+        Assert.Equal(ScreenCommandKind.Pop, stopped.Kind);
+        Assert.Equal(3, stopped.Depth);
+
+        applying.Dispose();
+    }
+
+    [Fact]
     public async Task Done_does_not_leave_while_the_work_behind_it_is_still_running()
     {
         // A screen labeled Done that is still loading is still doing the work, and leaving it

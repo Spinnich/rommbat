@@ -21,6 +21,12 @@ public enum ResolveStage
     /// <summary>Stopped part way. The offset is recorded and the next run continues.</summary>
     Stopped,
 
+    /// <summary>An error nothing expected ended the check. Nobody pressed Stop.</summary>
+    Failed,
+
+    /// <summary>RomM could not be reached, so there was nothing to check against.</summary>
+    Unreachable,
+
     /// <summary>The server refused, or the set needs a folder chosen.</summary>
     Refused,
 
@@ -157,6 +163,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         ResolveStage.Working => null,
         ResolveStage.Done => "Finished",
         ResolveStage.Stopped => "Stopped",
+        ResolveStage.Unreachable => "Could not reach RomM",
         _ => "Did not finish",
     };
 
@@ -378,7 +385,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         catch (RomMUnreachableException ex)
         {
             // Offline is a working state, so this is a sentence rather than an error screen.
-            Stage = ResolveStage.Stopped;
+            Stage = ResolveStage.Unreachable;
             Detail = ex.Message;
             Raise();
         }
@@ -386,7 +393,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         {
             // Broad on purpose, for the reason SyncViewModel gives: uncaught, the screen goes on
             // saying it is checking, with Stop offered, for good.
-            Stage = ResolveStage.Stopped;
+            Stage = ResolveStage.Failed;
             Detail = $"The check stopped on an error: {ex.Message}";
             Raise();
         }
@@ -454,11 +461,16 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
                     ResolveStage.Refused,
                     (report.Problem ?? report.Summary)
                         + " Set a folder on this set and check it for changes again."),
+
+                // A problem means a failure ended the walk, which nobody asked for. Without one,
+                // the walk was stopped on purpose and the offset is where it continues.
+                _ when report.Problem is not null => (
+                    report.Cause == FailureCause.Unreachable ? ResolveStage.Unreachable : ResolveStage.Failed,
+                    report.Problem),
                 _ => (
                     ResolveStage.Stopped,
-                    report.Problem
-                        ?? $"{report.Summary} Stopped at {report.Offset:N0} of {report.Total:N0}; "
-                            + "the next check continues from there."),
+                    $"{report.Summary} Stopped at {report.Offset:N0} of {report.Total:N0}; "
+                        + "the next check continues from there."),
             };
         }
 
