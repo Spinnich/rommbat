@@ -25,7 +25,7 @@ internal static class Theme
     /// <summary>The panel's edge, where ES draws its frame's shadow.</summary>
     public static IBrush MenuEdge { get; } = Solid(0x0D0E0E);
 
-    /// <summary><c>menutext</c>'s color: every row, and secondary text.</summary>
+    /// <summary><c>menutext</c>'s color: every row, and body text.</summary>
     public static IBrush Text { get; } = Solid(0x969696);
 
     /// <summary>
@@ -55,7 +55,8 @@ internal static class Theme
     /// <summary>Laid over the screen a popup opens from.</summary>
     public static IBrush Scrim { get; } = new SolidColorBrush(Color.FromArgb(0x90, 0x00, 0x00, 0x00));
 
-    /// <summary><c>menugrid</c>'s row separator.</summary>
+    /// <summary>The rule under the title, after <c>menugrid</c>'s separator.</summary>
+    /// <remarks>Carbon's is <c>FFFFFF08</c>; at that alpha the rule vanished on a television, so it is doubled.</remarks>
     public static IBrush Separator { get; } = new SolidColorBrush(Color.FromArgb(0x10, 0xFF, 0xFF, 0xFF));
 
     /// <summary>A key, button or bar track at rest, a step lighter than the panel.</summary>
