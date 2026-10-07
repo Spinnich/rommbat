@@ -133,6 +133,10 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     /// Every platform is still an option on that screen, so nothing is taken away; it is one
     /// press rather than the default.
     /// </para>
+    /// <para>
+    /// That row means the list is never empty, so the hint for an install that knows no
+    /// platform yet is the row's own detail rather than an empty message, which would never draw.
+    /// </para>
     /// </remarks>
     public static IScreen Start(InstallSession session, Func<Uri, RomMConnection>? connect = null)
     {
@@ -143,7 +147,12 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
         return new ListScreen(
             "Browse library",
             [
-                new ListRow("Every platform", $"{platforms.Count} known here", "Everything RomM holds."),
+                new ListRow(
+                    "Every platform",
+                    $"{platforms.Count} known here",
+                    platforms.Count == 0
+                        ? "No platforms known yet. Sync a set or check one for changes once and they appear."
+                        : "Everything RomM holds."),
                 .. platforms.Select(platform => new ListRow(
                     platform.Label,
                     platform.Folder ?? "no folder",
@@ -154,10 +163,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
             index => ScreenCommand.Push(
                 new BrowseViewModel(session, connect, index == 0 ? null : platforms[index - 1])),
             acceptLabel: "Show these games",
-            backLabel: "Back")
-        {
-            EmptyMessage = "No platforms known yet. Sync a set or check one for changes once and they appear.",
-        };
+            backLabel: "Back");
     }
 
     public event EventHandler? Invalidated;

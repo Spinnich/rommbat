@@ -1005,6 +1005,28 @@ public sealed partial class BrowseScreenTests : IDisposable
         Assert.Equal(before, opened);
     }
 
+    /// <summary>
+    /// With no platform known, the platform picker says how one becomes known, on the row it shows.
+    /// </summary>
+    /// <remarks>
+    /// #503. The picker always lists Every platform, so it is never empty and an empty message
+    /// could not draw; the hint is that row's detail.
+    /// </remarks>
+    [Fact]
+    public void The_platform_picker_says_how_platforms_become_known_when_none_are()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+
+        var empty = Assert.IsType<ListScreen>(BrowseViewModel.Start(session));
+        var every = Assert.Single(empty.Rows);
+        Assert.Equal("Every platform", every.Label);
+        Assert.Contains("Sync a set or check one for changes", every.Detail, StringComparison.Ordinal);
+
+        var known = Assert.IsType<ListScreen>(BrowseViewModel.Start(_session));
+        Assert.Equal("Everything RomM holds.", known.Rows[0].Detail);
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private static IEnumerable<string> Everything(BrowseViewModel browse)
