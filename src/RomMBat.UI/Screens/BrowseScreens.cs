@@ -245,6 +245,7 @@ public static class BrowseScreens
             acceptLabel: string.Empty,
             backLabel: "Done")
         {
+            AsksBeforeStopping = true,
             Reading = true,
             LoadingMessage = "Removing the game and rewriting the list EmulationStation reads...",
             Load = async token =>

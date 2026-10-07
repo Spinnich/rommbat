@@ -87,6 +87,7 @@ public static class InventoryScreens
             acceptLabel: string.Empty,
             backLabel: "Done")
         {
+            AsksBeforeStopping = true,
             Reading = true,
             LoadingMessage = "Removing records for files that are gone...",
             Counts = true,

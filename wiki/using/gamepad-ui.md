@@ -40,7 +40,7 @@ safe. When there is something to read first, such as which games a delete would 
 in the box above the answers, and Up and Down scroll it. Once you answer, the box says what
 happened, and Done closes it.
 
-When a screen has finished its work, its footer says Done, and Accept or Back leaves it.
+When a screen has finished its work, its footer says Done, and Accept or Back leaves it. While it is still taking a game off, removing a set, settling a conflict or forgetting files, Back says Stop and asks first, with Keep going selected.
 
 ## The main menu
 

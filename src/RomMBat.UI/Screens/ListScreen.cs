@@ -178,6 +178,19 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// </remarks>
     private bool IsDone => BackLabel == DoneLabel && !IsLoading;
 
+    /// <summary>True while the work a Done screen reports on is still running.</summary>
+    private bool IsWorking => AsksBeforeStopping && BackLabel == DoneLabel && IsLoading;
+
+    /// <summary>
+    /// True on a screen whose loader changes something, so leaving it mid-way stops that.
+    /// </summary>
+    /// <remarks>A picker that is only reading its values is left without a question.</remarks>
+    public bool AsksBeforeStopping { get; init; }
+
+    /// <summary>What Back asks while the work runs, because leaving stops it part way.</summary>
+    public string StopQuestion { get; init; } =
+        "Stop now? What is already done stays done, and the rest is left as it was.";
+
     /// <summary>
     /// Which row is selected, and <b>never any of them on a reading list</b>.
     /// </summary>
@@ -526,7 +539,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
 
             if (!IsDone || offerAccept)
             {
-                hints.Add(new FooterHint(NavAction.Back, BackLabel));
+                hints.Add(new FooterHint(NavAction.Back, IsWorking ? "Stop" : BackLabel));
             }
 
             return hints;
@@ -607,6 +620,17 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
 
                 return answer;
             }
+
+            // Asked first, as the sync screen asks, because leaving cancels the work part way:
+            // a removal stopped half done leaves some of the games gone. Ruled with Spinnich
+            // after the help bar offered Done on a press that did exactly that, unannounced.
+            case NavAction.Back when IsWorking:
+                return ScreenCommand.Push(ConfirmScreen.YesNo(
+                    StopQuestion,
+                    "Stop",
+                    () => ScreenCommand.PopMany(2),
+                    "Keep going",
+                    this));
 
             case NavAction.Back:
             case NavAction.Accept when IsDone:

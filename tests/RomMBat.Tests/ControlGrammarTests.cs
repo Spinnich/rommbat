@@ -302,6 +302,7 @@ public sealed class ControlGrammarTests
         var applying = new ListScreen("Removing", () => [], _ => ScreenCommand.Stay, string.Empty, ListScreen.DoneLabel)
         {
             Reading = true,
+            AsksBeforeStopping = true,
             Load = async token =>
             {
                 await release.Task.WaitAsync(token);
@@ -312,6 +313,20 @@ public sealed class ControlGrammarTests
         Assert.True(applying.IsLoading);
         Assert.DoesNotContain(applying.Hints, hint => hint.Action == NavAction.Accept);
         Assert.Equal(ScreenCommandKind.Stay, applying.Handle(NavAction.Accept).Kind);
+
+        // Back says what it does and asks first, with the safe answer selected, rather than
+        // reading Done and stopping the work unannounced. Ruled with Spinnich.
+        Assert.Equal("Stop", Assert.Single(applying.Hints, hint => hint.Action == NavAction.Back).Label);
+        var asked = applying.Handle(NavAction.Back);
+        var question = Assert.IsType<ConfirmScreen>(asked.Screen);
+        Assert.Equal("Keep going", question.Buttons[question.Selected].Label);
+        Assert.Equal(ScreenCommandKind.Pop, question.Handle(NavAction.Back).Kind);
+        Assert.True(applying.IsLoading);
+
+        question.Handle(NavAction.Left);
+        var stopped = question.Handle(NavAction.Accept);
+        Assert.Equal(ScreenCommandKind.Pop, stopped.Kind);
+        Assert.Equal(2, stopped.Depth);
 
         release.SetResult();
 

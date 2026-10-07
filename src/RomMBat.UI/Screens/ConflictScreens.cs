@@ -291,6 +291,7 @@ public static class ConflictScreens
             acceptLabel: string.Empty,
             backLabel: "Done")
         {
+            AsksBeforeStopping = true,
             Reading = true,
             LoadingMessage = resolution == ConflictResolution.KeepLocal
                 ? "Sending this device's save to RomM..."
