@@ -419,7 +419,15 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         [
             .. OffersPairing ? new[] { new ScreenAction("Pair with RomM", () => ScreenCommand.Push(_pair())) } : [],
             .. ProgressLayout.Hides(_state.Problems)
-                ? new[] { new ScreenAction(SeeAll(_state.Problems.Count), () => ScreenCommand.Push(AllProblems(_state.Problems))) }
+                ? new[]
+                {
+                    // On a button, so the help bar says the box is not all of it. Only in the
+                    // menu, a run with seventeen problems showed three and said nothing more.
+                    new ScreenAction(SeeAll(_state.Problems.Count), () => ScreenCommand.Push(AllProblems(_state.Problems)))
+                    {
+                        Shortcut = NavAction.Extra,
+                    },
+                }
                 : [],
         ];
 
@@ -456,18 +464,14 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     /// walk them anyway, because a list of nothing but unavailable rows otherwise does not
     /// scroll.
     /// <para>
-    /// Numbered oldest first, which is the order they happened. The run screen keeps the newest
+    /// Oldest first, which is the order they happened, and each across the whole width. The run screen keeps the newest
     /// few for the opposite reason, that the tail says what was going on most recently.
     /// </para>
     /// </remarks>
     private static ListScreen AllProblems(IReadOnlyList<string> problems) =>
         new ListScreen(
             problems.Count == 1 ? "The problem" : $"{problems.Count} problems",
-            [.. problems.Select((problem, index) => new ListRow(
-                (index + 1).ToString(CultureInfo.CurrentCulture),
-                null,
-                problem,
-                false))],
+            [.. problems.Select(problem => new ListRow(string.Empty, null, problem, false))],
             _ => ScreenCommand.Stay,
             acceptLabel: string.Empty)
         {
@@ -949,12 +953,14 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         });
     }
 
-    /// <summary>Adds a problem, in arrival order, and never the same one twice in a row.</summary>
+    /// <summary>Adds a problem, in arrival order, and never one already listed.</summary>
     private void Note(string problem)
     {
         lock (_gate)
         {
-            if (_problems.Count > 0 && string.Equals(_problems[^1], problem, StringComparison.Ordinal))
+            // Anywhere in the list, not only the last: a game of eight releases rolled back once
+            // per release, and the same sentence filled the box eight times.
+            if (_problems.Contains(problem, StringComparer.Ordinal))
             {
                 return;
             }

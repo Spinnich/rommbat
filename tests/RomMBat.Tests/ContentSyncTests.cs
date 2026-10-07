@@ -211,7 +211,7 @@ public sealed class ContentSyncTests : IDisposable
 
         await ResolveAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
-        var blocked = Members(store).First();
+        var blocked = Members(store)[0];
         Directory.CreateDirectory(Absolute(blocked));
 
         foreach (var run in new[] { "first", "second" })

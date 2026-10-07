@@ -857,6 +857,15 @@ public sealed class SyncScreenTests : IDisposable
         // Nothing to choose, so no row promises a press that does nothing.
         Assert.All(all.Rows, row => Assert.False(row.Available));
 
+        // Each one across the whole width rather than under a number in a third of it, and on
+        // a button, so the help bar says the box is not all of it. On the agent tree a run with
+        // seventeen showed three and offered the rest only from the Start menu.
+        Assert.All(all.Rows, row => Assert.True(row.IsParagraph));
+        Assert.Equal(NavAction.Extra, offer.Shortcut);
+
+        // And never the same sentence twice, which eight releases of one game did eight times.
+        Assert.Equal(sync.State.Problems.Count, sync.State.Problems.Distinct(StringComparer.Ordinal).Count());
+
         sync.Dispose();
     }
 
@@ -1514,11 +1523,6 @@ public sealed class SyncScreenTests : IDisposable
             request.RequestUri!.AbsolutePath.Contains(path, StringComparison.Ordinal)
                 ? throw new InvalidOperationException("nothing expected this")
                 : base.SendAsync(request, cancellationToken);
-
-        // The stub is the test's to dispose.
-        protected override void Dispose(bool disposing)
-        {
-        }
     }
 
     private static Func<Uri, RomMConnection> Connect(StubRomMServer stub) =>
