@@ -166,8 +166,10 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     /// Resolving several reported only a running count of games, so from the couch it read as
     /// one long operation that kept starting over rather than as five in a row.
     /// </remarks>
-    public string? Progressing =>
-        _progress is { } step
+    public string? Progressing => Where(_progress);
+
+    private static string? Where(SetResolveProgress? progress) =>
+        progress is { } step
             ? step.SetCount > 1
                 ? string.Create(
                     CultureInfo.CurrentCulture,
@@ -176,14 +178,44 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
             : null;
 
     /// <summary>The count as a person reads it, or null before the first page.</summary>
-    public string? Counted =>
-        _progress is { Total: > 0 } progress
+    public string? Counted => Count(_progress);
+
+    private static string? Count(SetResolveProgress? progress) =>
+        progress is { Total: > 0 } known
             ? string.Create(
                 CultureInfo.CurrentCulture,
-                $"{progress.Offset:N0} of {progress.Total:N0} games looked at")
-            : _progress is { } started
+                $"{known.Offset:N0} of {known.Total:N0} games looked at")
+            : progress is { } started
                 ? string.Create(CultureInfo.CurrentCulture, $"{started.Offset:N0} games looked at")
                 : null;
+
+    /// <summary>
+    /// Everything the screen draws, as the same slots in every stage.
+    /// </summary>
+    /// <remarks>
+    /// <b>The count is the point of the screen.</b> A platform resolve measured 8m 15s against
+    /// a live instance, and one that cannot show movement is, from a sofa, the same screen as a
+    /// hung one. The bar is the empty track until the server has said how big the scope is,
+    /// because a fraction before that would sit at zero and look stuck. The progress is read
+    /// once and every slot is derived from that copy, because the walk publishes from the thread
+    /// pool and two reads could pair a set name from one page with a count from the next.
+    /// </remarks>
+    public IReadOnlyList<ProgressSlot> Layout
+    {
+        get
+        {
+            var progress = _progress;
+
+            return
+            [
+                new("outcome", SlotStyle.Outcome, 1) { Text = Outcome ?? string.Empty },
+                new("detail", SlotStyle.Detail, ProgressLayout.DetailLines) { Text = Detail },
+                new("set", SlotStyle.Lead, 1) { Text = Where(progress) ?? string.Empty },
+                new("count", SlotStyle.Count, 1) { Text = Count(progress) ?? string.Empty },
+                new("bar", SlotStyle.Bar, 1) { Fraction = progress?.Fraction },
+            ];
+        }
+    }
 
     public IReadOnlyList<FooterHint> Hints => Stage switch
     {

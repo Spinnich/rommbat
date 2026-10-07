@@ -40,6 +40,7 @@ public static class InventoryScreens
         {
             Reading = true,
             LoadingMessage = "Checking every recorded file against the drive...",
+            Counts = true,
 
             // Accept, and only once the check says there is something to forget. Without a hint
             // here the screen counts the problem and names no way to fix it from the couch: the
@@ -88,6 +89,7 @@ public static class InventoryScreens
         {
             Reading = true,
             LoadingMessage = "Removing records for files that are gone...",
+            Counts = true,
             Load = token =>
             {
                 repaired = new InventorySweep(session.Install, session.Store)

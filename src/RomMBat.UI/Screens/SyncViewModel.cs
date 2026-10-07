@@ -164,6 +164,30 @@ public sealed record SyncSnapshot(
     public string? Held => Blocked > 0
         ? $"{Blocked} {(Blocked == 1 ? "ROM was" : "ROMs were")} left out, the disk budget is full"
         : null;
+
+    /// <summary>
+    /// Everything the screen draws, as the same slots in every stage.
+    /// </summary>
+    /// <remarks>
+    /// The game's own progress is text rather than a second bar: on a set of small ROMs a
+    /// per-game bar fills and empties several times a second, which a hands-on pass reported as
+    /// flashing. The disk line is here because this is where the disk is being spent, and the
+    /// held line beside it because the budget is what took them.
+    /// </remarks>
+    public IReadOnlyList<ProgressSlot> Layout =>
+    [
+        new("outcome", SlotStyle.Outcome, 1) { Text = Outcome ?? string.Empty },
+        new("detail", SlotStyle.Detail, ProgressLayout.DetailLines) { Text = Detail },
+        new("pass", SlotStyle.Pass, 1) { Text = Pass ?? string.Empty },
+        new("game", SlotStyle.Lead, 1) { Text = Game ?? string.Empty },
+        new("game progress", SlotStyle.Small, 1) { Text = GameProgress ?? string.Empty },
+        new("count", SlotStyle.Count, 1) { Text = Counted ?? string.Empty },
+        new("bar", SlotStyle.Bar, 1) { Fraction = Fraction },
+        new("transferred", SlotStyle.Split, 1) { Text = Transferred ?? string.Empty, Right = Speed ?? string.Empty },
+        new("disk", SlotStyle.Small, 1) { Text = Budget is { } budget ? $"Disk used  {budget}" : string.Empty },
+        new("held", SlotStyle.Small, 1) { Text = Held ?? string.Empty },
+        ProgressLayout.Problems(Problems),
+    ];
 }
 
 /// <summary>
@@ -378,28 +402,24 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     /// </summary>
     /// <remarks>
     /// Nothing while it runs, so Start cannot open a menu over a transfer in progress. The
-    /// problems are offered only past <see cref="ProblemsShown"/>, because offering two that
-    /// are already on screen is a press that appears to do nothing.
+    /// problems are offered only once the box has had to leave some out or cut one short,
+    /// because offering two that are already on screen whole is a press that appears to do
+    /// nothing. Both read <see cref="ProgressLayout.Fit"/>: a screen showing six while the footer stays silent about
+    /// twenty-seven is what a hands-on pass found, with no way to reach the other twenty-one.
     /// </remarks>
     public IReadOnlyList<ScreenAction> Actions => _state.Stage == SyncStage.Working
         ? []
         :
         [
             .. OffersPairing ? new[] { new ScreenAction("Pair with RomM", () => ScreenCommand.Push(_pair())) } : [],
-            .. _state.Problems.Count > ProblemsShown
-                ? new[] { new ScreenAction($"See all {_state.Problems.Count} problems", () => ScreenCommand.Push(AllProblems(_state.Problems))) }
+            .. ProgressLayout.Hides(_state.Problems)
+                ? new[] { new ScreenAction(SeeAll(_state.Problems.Count), () => ScreenCommand.Push(AllProblems(_state.Problems))) }
                 : [],
         ];
 
-    /// <summary>
-    /// How many problems the run screen itself shows.
-    /// </summary>
-    /// <remarks>
-    /// The renderer shows this many and the footer offers the rest, so the two have to agree:
-    /// a screen showing six while the footer stays silent about twenty-seven is what a hands-on
-    /// pass found, with no way to reach the other twenty-one.
-    /// </remarks>
-    public const int ProblemsShown = 6;
+    /// <summary>The offer's label, singular when one long problem is all there is.</summary>
+    internal static string SeeAll(int count) =>
+        count == 1 ? "See the whole problem" : $"See all {count} problems";
 
     /// <summary>
     /// Whether pairing again is the remedy, so the footer offers it.

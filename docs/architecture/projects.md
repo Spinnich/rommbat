@@ -264,6 +264,14 @@ because moving on is progress, and Back leaves too. The sets screen's
 footer offers **Query** rather than Check, beside Sync, because "Query" names the act of asking
 the server and so says which of the two reaches the network.
 
+**Nothing on a screen that runs work moves while it runs.** The sync and query screens expose
+`Layout`, a fixed list of `ProgressSlot`s from `ProgressLayout`, and `ScreenView` draws every slot
+at its reserved height in every state: an empty slot is blank, an unknown bar is its empty track,
+and the sentence and the problems box are cut at their line budgets. The problems box keeps the
+newest that fit, and the sync screen offers every problem exactly when `ProgressLayout.Fit` left
+one out. A list's note is reserved whenever the screen has one, a counting loader draws its track
+from the start, and browse holds its rows at a full page's height while the next one loads.
+
 **The on-screen keyboard is EmulationStation's own, key for key.** `KeyboardLayouts` holds a
 transcription of the three grids compiled into `emulationstation.exe`, in upstream's shape, and
 `OnScreenKeyboard` builds them into a 13-column grid of spanning keys with four faces each. The

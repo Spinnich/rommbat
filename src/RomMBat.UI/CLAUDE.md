@@ -34,6 +34,9 @@ and the outbox are Core's.
 - **Reference `Avalonia.Win32`, `Avalonia.Skia` and `Avalonia.HarfBuzz`, never
   `Avalonia.Desktop`.** The last pulls in a package that fails `-warnaserror`. Without
   `UseHarfBuzz` the app builds clean and throws at startup; `TextShapingTests` guards it.
+- **A line on a progress screen is a slot, never a conditional child.** Sync and Resolve lay
+  out `ProgressLayout` slots, and a slot with nothing to say is drawn blank at its height. A line
+  added only when it has a value moves everything under it, because the body is centered.
 - **A finished screen says so**: past-tense title, an outcome word, and a footer reading Done on
   Accept instead of offering a stop. `ListScreen` moves Done to Accept whenever its back label
   reads `ListScreen.DoneLabel`.

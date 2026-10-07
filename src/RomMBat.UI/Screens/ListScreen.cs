@@ -381,6 +381,16 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// </remarks>
     public LoadProgress? Progress { get; private set; }
 
+    /// <summary>
+    /// Whether <see cref="Load"/> reports through <see cref="Reporter"/>.
+    /// </summary>
+    /// <remarks>
+    /// Said up front, so the bar's track and the count line are reserved from the moment the
+    /// load starts. Drawn only once the first report landed, they pushed the loading message up
+    /// a line and a bar's height mid-load (#490).
+    /// </remarks>
+    public bool Counts { get; init; }
+
     /// <summary>Records how far a load has got, and asks for a redraw.</summary>
     /// <remarks>
     /// Handed to <see cref="Load"/> as an <see cref="IProgress{T}"/> so the work reports rather
