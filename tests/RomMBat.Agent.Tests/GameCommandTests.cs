@@ -92,7 +92,7 @@ public sealed class GameCommandTests : IDisposable
         var run = await AgentRunner.RunAgainstAsync(_tree, _stub, "game", "install", "7");
 
         Assert.True(run.ExitCode == ExitCode.Ok, run.Error);
-        Assert.True(run.Wrote("devices.write was not granted"), run.Out);
+        Assert.True(run.Wrote("Your sync sets are saved on this device only"), run.Out);
         Assert.True(File.Exists(Absolute(RomPath)), run.Out);
         Assert.Null(_stub.StoredSyncConfig);
     }
@@ -217,7 +217,7 @@ public sealed class GameCommandTests : IDisposable
         var run = await AgentRunner.RunAgainstAsync(_tree, _stub, "game", "remove", "7", "--apply");
 
         Assert.True(run.ExitCode == ExitCode.Ok, run.Error);
-        Assert.True(run.Wrote("devices.write was not granted"), run.Out);
+        Assert.True(run.Wrote("Your sync sets are saved on this device only"), run.Out);
         Assert.False(File.Exists(Absolute(RomPath)), run.Out);
         Assert.Empty(WithSession(session => new PickedSetService(session).Picks()));
     }
