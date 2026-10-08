@@ -47,9 +47,9 @@ namespace RomMBat.UI.Screens;
 /// Ruled with Spinnich.
 /// </para>
 /// <para>
-/// <b>No cover art.</b> Text rows, like every other screen. Art is its own stage with its own
-/// measurement, and "just the selected row" is the version of it that gets reintroduced by
-/// accident.
+/// <b>The highlighted game's box art sits beside the list</b>, in a box of one size whatever it
+/// holds, as ES's detailed view draws it. One layout whatever ES's GAMELIST VIEW STYLE says,
+/// ruled with Spinnich. Which file and when it is read are <see cref="CoverSlot"/>'s.
 /// </para>
 /// </remarks>
 public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IActionScreen, IReturnAware, IDisposable
@@ -59,6 +59,8 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     private readonly BrowseService _service;
     private readonly CancellationTokenSource _load = new();
     private readonly Lock _gate = new();
+    private readonly CoverSlot _cover;
+    private readonly CoverCache _covers;
 
     private volatile BrowseState _state = new(null, true, new BrowseView(), null, null, null, 0, false);
     private RomMConnection? _connection;
@@ -99,15 +101,22 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     /// How the screen reaches the server. Taken so a test can stand a stub in its place, the way
     /// every other screen that talks to RomM already does.
     /// </param>
+    /// <param name="covers">The session's covers, or <see cref="CoverCache.Shared"/>.</param>
+    /// <param name="coverRest">How long the cursor rests before RomM is asked for a cover.</param>
     public BrowseViewModel(
         InstallSession session,
         Func<Uri, RomMConnection>? connect = null,
-        PlatformOption? platform = null)
+        PlatformOption? platform = null,
+        CoverCache? covers = null,
+        TimeSpan? coverRest = null)
     {
         ArgumentNullException.ThrowIfNull(session);
 
         _session = session;
         _connect = connect;
+        _covers = covers ?? CoverCache.Shared;
+        _cover = new CoverSlot(session, Connection, _covers, coverRest);
+        _cover.Changed += (_, _) => Invalidated?.Invoke(this, EventArgs.Empty);
         _service = new BrowseService(session);
         _platforms = [null, .. new SyncSetService(session).PlatformsKnownHere()];
 
@@ -199,6 +208,15 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     ];
 
     public int Cursor => _state.Cursor;
+
+    /// <summary>What the art box shows: the highlighted game's cover, or why there is none.</summary>
+    public Cover Cover => _cover.Current;
+
+    /// <summary>The game under the cursor, or null while a page loads or on the end row.</summary>
+    private static BrowseGame? Selected(BrowseState state) =>
+        !state.IsLoading && state.Page is { } page && state.Cursor >= 0 && state.Cursor < page.Games.Count
+            ? page.Games[state.Cursor]
+            : null;
 
     /// <summary>
     /// Ordinary rows, not reading rows, and the renderer is told rather than assuming.
@@ -390,11 +408,20 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
 
             case NavAction.Accept when state.Page is { } opened
                 && state.Cursor >= 0 && state.Cursor < opened.Games.Count:
+            {
+                var game = opened.Games[state.Cursor];
+
+                // The same art, at once: the rest is for a cursor moving, and this one has stopped.
+                var cover = new CoverSlot(_session, Connection, _covers, TimeSpan.Zero);
+                cover.Show(game);
+
                 return ScreenCommand.Push(BrowseScreens.Detail(
                     _session,
-                    opened.Games[state.Cursor],
+                    game,
                     _connect,
-                    MarkChanged));
+                    MarkChanged,
+                    cover));
+            }
 
             case NavAction.PageUp:
                 Move(-ListWindow.Capacity);
@@ -554,6 +581,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     {
         // Canceled, never disposed: a request still unwinding can register on this token.
         _load.Cancel();
+        _cover.Dispose();
 
         // Under the same lock the fetch opens it under. This runs on the thread that draws and
         // a fetch still unwinding reads the same field from the pool. The flag is set inside it
@@ -672,6 +700,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
             asked = _state;
         }
 
+        _cover.Show(null);
         Invalidated?.Invoke(this, EventArgs.Empty);
 
         _ = Task.Run(
@@ -821,11 +850,15 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     /// <summary>Applies a change under the lock, then redraws off whatever thread did the work.</summary>
     private void Publish(Func<BrowseState, BrowseState> change)
     {
+        BrowseState state;
+
         lock (_gate)
         {
             _state = change(_state);
+            state = _state;
         }
 
+        _cover.Show(Selected(state));
         Invalidated?.Invoke(this, EventArgs.Empty);
     }
 }

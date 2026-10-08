@@ -33,6 +33,7 @@ internal static class ScreenView
         OnScreenKeyboard keyboard => Keyboard(keyboard),
         PairingViewModel pairing => Pairing(pairing),
         MessageScreen message => Message(message),
+        ListScreen { Cover: { } cover } list => WithCover(List(list), cover.Current),
         ListScreen list => List(list),
         SetEditorViewModel editor => Editor(editor.Rows, editor.Cursor, editor.Window, editor.Problem),
         BudgetViewModel budget => Editor(budget.Rows, budget.Cursor, budget.Window, null),
@@ -46,13 +47,15 @@ internal static class ScreenView
         // The same body a ListScreen draws, given the same things. Browse is a list with a pager
         // behind it rather than a different picture, and a second copy of this in the file most
         // likely to grow worst is not worth having.
-        BrowseViewModel browse => List(
-            browse,
-            note: browse.Note,
-            isLoading: browse.IsLoading,
-            loadingMessage: browse.LoadingMessage,
-            empty: "Nothing matched. Search for something else, or widen the platform.",
-            pager: true),
+        BrowseViewModel browse => WithCover(
+            List(
+                browse,
+                note: browse.Note,
+                isLoading: browse.IsLoading,
+                loadingMessage: browse.LoadingMessage,
+                empty: "Nothing matched. Search for something else, or widen the platform.",
+                pager: true),
+            browse.Cover),
 
         _ => new TextBlock { Text = screen.Title, Foreground = Theme.Text },
     };
@@ -647,6 +650,136 @@ internal static class ScreenView
 
         return stack;
     }
+
+    /// <summary>
+    /// A list with the highlighted game's box art to its right, as ES's detailed view lays it out.
+    /// </summary>
+    /// <remarks>
+    /// <b>The box is one size in every state</b>, empty, placeholder or image, so the list beside
+    /// it never moves as covers arrive (#490). A cover is fitted inside it, never stretched.
+    /// </remarks>
+    /// <summary>How much wider the panel is drawn for a screen with an art box beside its list.</summary>
+    public const double CoverSpan = CoverGap + CoverWidth;
+
+    /// <summary>
+    /// True when the screen, or the one a popup is drawn over, has an art box beside its list.
+    /// </summary>
+    /// <remarks>
+    /// Asked of the popup's underneath too, so opening VIEW OPTIONS over browse does not narrow
+    /// the panel and move the list the popup is dimming.
+    /// </remarks>
+    public static bool HasCover(IScreen screen)
+    {
+        var seen = new HashSet<IScreen>(ReferenceEqualityComparer.Instance);
+
+        for (IScreen? current = screen; current is not null && seen.Add(current); current = (current as IPopupScreen)?.Underneath)
+        {
+            if (current is BrowseViewModel or ListScreen { Cover: not null })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static StackPanel WithCover(Control list, Cover cover)
+    {
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = CoverGap,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+
+        row.Children.Add(list);
+        row.Children.Add(CoverBox(cover));
+
+        return row;
+    }
+
+    private static Border CoverBox(Cover cover)
+    {
+        var image = cover is { State: CoverState.Ready, Bytes: { } bytes } ? Decode(bytes) : null;
+
+        return new Border
+        {
+            Width = CoverWidth,
+            Height = CoverHeight,
+            VerticalAlignment = VerticalAlignment.Center,
+
+            // A well while there is no picture, so the slot reads as a place art goes rather
+            // than as a gap; bare under a picture, whose own edges are the frame.
+            Background = image is null ? Theme.Well : Brushes.Transparent,
+            Child = image is not null
+                ? new Image { Source = image, Stretch = Stretch.Uniform }
+                : cover.State is CoverState.Ready or CoverState.Missing
+                    ? new TextBlock
+                    {
+                        Text = "No cover art",
+                        Foreground = Theme.Dim,
+                        FontSize = 17,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                    }
+                    : null,
+        };
+    }
+
+    /// <summary>
+    /// A cover's bytes as a bitmap, kept for the last few so a redraw does not decode again.
+    /// </summary>
+    /// <remarks>
+    /// Keyed by the array itself, which <see cref="CoverCache"/> hands back unchanged for one
+    /// game. Decoded to the box's width, so a large local image costs what the box shows and
+    /// not what the file holds. Null for bytes that are not an image.
+    /// </remarks>
+    private static Avalonia.Media.Imaging.Bitmap? Decode(byte[] bytes)
+    {
+        var index = Decoded.FindIndex(entry => ReferenceEquals(entry.Bytes, bytes));
+
+        if (index >= 0)
+        {
+            return Decoded[index].Image;
+        }
+
+        Avalonia.Media.Imaging.Bitmap? image;
+
+        try
+        {
+            using var stream = new MemoryStream(bytes);
+            image = Avalonia.Media.Imaging.Bitmap.DecodeToWidth(stream, (int)CoverWidth);
+        }
+        catch (Exception)
+        {
+            // Broad, because the decoder's failures are not documented and a throw here is a
+            // screen that cannot draw. A file that is not an image is a game with no cover.
+            image = null;
+        }
+
+        Decoded.Insert(0, (bytes, image));
+
+        if (Decoded.Count > DecodedKept)
+        {
+            Decoded.RemoveAt(Decoded.Count - 1);
+        }
+
+        return image;
+    }
+
+    /// <summary>The covers decoded most recently, newest first. Drawn on the UI thread only.</summary>
+    private static readonly List<(byte[] Bytes, Avalonia.Media.Imaging.Bitmap? Image)> Decoded = [];
+
+    /// <summary>Enough for a cursor moving back and forth over a few rows.</summary>
+    private const int DecodedKept = 6;
+
+    /// <summary>The art box, portrait as box art is, and shorter than a full page of rows.</summary>
+    private const double CoverWidth = 440;
+
+    private const double CoverHeight = 600;
+
+    /// <summary>Between the list and the art box.</summary>
+    private const double CoverGap = 48;
 
     /// <summary>
     /// How much of the list is off screen, said rather than implied.
