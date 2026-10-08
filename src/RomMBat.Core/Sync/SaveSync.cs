@@ -2015,8 +2015,9 @@ public sealed class SaveSync
     /// <para>
     /// <b>Only the measured refusals, from the rule's <see cref="BatteryRule.RefusesPlain"/>.</b>
     /// Elsewhere mednafen reads and saves into the plain file, mesen's on <c>nes</c>, mGBA's on
-    /// <c>gb</c> but for an MBC2 cartridge's (RB-429) and libretro's <c>.srm</c> on <c>snes</c>, and that file goes up under its first
-    /// owner's slot, so a guard on the naming alone would also stop two mednafen devices sharing.
+    /// <c>gb</c> but for an MBC2 cartridge's (RB-429) and libretro's <c>.srm</c> on <c>snes</c>, and
+    /// that file goes up under its first owner's slot, so a guard on the naming alone would also
+    /// stop two mednafen devices sharing.
     /// An unknown emulator or no ROM here answers false and the save is placed.
     /// </para>
     /// </remarks>

@@ -8,8 +8,9 @@ read-when: Before relying on how a `gb` row stores an MBC2 or clock save, or whe
 A targeted pass, not a re-certification: each row stays certified for what [index.md](index.md)
 records. It covers the two cartridge kinds Pokemon Yellow, the certifying game, does not: MBC2's
 512 half-bytes of RAM, and a real-time clock saved in game on every row rather than only the stock
-one. **Every file either game wrote lands in a slot an existing `gb` rule reads**, so no rule
-changed; what moved is two cross-row facts, below.
+one. **Every file either game wrote lands in a slot an existing `gb` rule reads**, but for
+Silver's under `jgenesis/gbc/`, the gap [index.md](index.md#a-cartridge-with-a-clock-pokemon-silver-on-gb)
+records, so no rule changed; what moved is two cross-row facts, below.
 
 ## Test games
 
