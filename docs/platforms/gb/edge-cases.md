@@ -44,8 +44,9 @@ that row's own form, and then saved in game.
 | `bizhawk`/`Gambatte`                              | `bizhawk/Final Fantasy Adventure (USA).SaveRAM` | 8,192 B               | `bizhawk:battery`  |
 | `bizhawk`/`GBHawk`, `SameBoy`                     | the same `.SaveRAM`                             | 512 B                 | `bizhawk:battery`  |
 
-The forms are in RB-428. Each row read the file the row before it left. The one break is between
-the two rows sharing `<rom>.sav`: **`mednafen` refuses mGBA's 256 B file and the game does not
+The forms are in RB-428. Each row continued from the save the row before it left, given in its own
+form where it keeps its own file; the rows sharing a file read each other's form there. The one
+break is between the two rows sharing `<rom>.sav`: **`mednafen` refuses mGBA's 256 B file and the game does not
 start** (RB-429). On Yellow it reads that file, so `refuses_plain` stays off for `gb` and the case
 is tracked in #514 rather than held back.
 
