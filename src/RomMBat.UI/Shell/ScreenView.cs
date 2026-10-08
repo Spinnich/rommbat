@@ -651,13 +651,6 @@ internal static class ScreenView
         return stack;
     }
 
-    /// <summary>
-    /// A list with the highlighted game's box art to its right, as ES's detailed view lays it out.
-    /// </summary>
-    /// <remarks>
-    /// <b>The box is one size in every state</b>, empty, placeholder or image, so the list beside
-    /// it never moves as covers arrive (#490). A cover is fitted inside it, never stretched.
-    /// </remarks>
     /// <summary>How much wider the panel is drawn for a screen with an art box beside its list.</summary>
     public const double CoverSpan = CoverGap + CoverWidth;
 
@@ -683,6 +676,13 @@ internal static class ScreenView
         return false;
     }
 
+    /// <summary>
+    /// A list with the highlighted game's box art to its right, as ES's detailed view lays it out.
+    /// </summary>
+    /// <remarks>
+    /// <b>The box is one size in every state</b>, empty, placeholder or image, so the list beside
+    /// it never moves as covers arrive (#490). A cover is fitted inside it, never stretched.
+    /// </remarks>
     private static StackPanel WithCover(Control list, Cover cover)
     {
         var row = new StackPanel

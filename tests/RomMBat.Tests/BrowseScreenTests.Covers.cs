@@ -40,14 +40,17 @@ public sealed partial class BrowseScreenTests
     /// A cursor that never rests asks RomM for nothing, and the box waits for the row it is on.
     /// </summary>
     /// <remarks>
-    /// Key repeat moves every 90 ms, well inside the 250 ms rest, so this is a held d-pad.
+    /// Key repeat moves every 90 ms, well inside the 250 ms rest, so this is a held d-pad. The
+    /// clock is held, so no rest ever ends: each row starts one and none is waited out, which
+    /// proves the read sits behind the rest without waiting on the wall clock.
     /// </remarks>
     [Fact]
     public async Task A_moving_cursor_fetches_no_cover()
     {
         using var stub = CoveredLibrary(10);
         Pair();
-        using var browse = new BrowseViewModel(_session, Connect(stub), covers: new CoverCache(), coverRest: NeverRests);
+        var clock = new HeldClock();
+        using var browse = new BrowseViewModel(_session, Connect(stub), covers: new CoverCache(), coverClock: clock);
 
         await Settled(browse);
 
@@ -56,8 +59,7 @@ public sealed partial class BrowseScreenTests
             browse.Handle(NavAction.Down);
         }
 
-        await Task.Delay(100, TestContext.Current.CancellationToken);
-
+        Assert.Equal(Enumerable.Repeat(CoverSlot.DefaultRest, 6), clock.Asked);
         Assert.Empty(stub.AssetRequests);
         Assert.Equal(new Cover(CoverState.Waiting, 6), browse.Cover);
     }
@@ -187,6 +189,44 @@ public sealed partial class BrowseScreenTests
         Assert.True(cache.TryGet(1, out _));
         Assert.False(cache.TryGet(2, out _));
         Assert.True(cache.TryGet(4, out _));
+    }
+
+    /// <summary>A clock whose timers are recorded and never fire.</summary>
+    private sealed class HeldClock : TimeProvider
+    {
+        private readonly List<TimeSpan> _asked = [];
+
+        public IReadOnlyList<TimeSpan> Asked
+        {
+            get
+            {
+                lock (_asked)
+                {
+                    return [.. _asked];
+                }
+            }
+        }
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            lock (_asked)
+            {
+                _asked.Add(dueTime);
+            }
+
+            return new Held();
+        }
+
+        private sealed class Held : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+
+            public void Dispose()
+            {
+            }
+
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
     }
 
     private static byte[] CoverBytes(int id) => [0x89, 0x50, 0x4E, 0x47, (byte)id];

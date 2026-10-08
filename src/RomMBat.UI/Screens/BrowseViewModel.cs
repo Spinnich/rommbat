@@ -103,19 +103,21 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     /// </param>
     /// <param name="covers">The session's covers, or <see cref="CoverCache.Shared"/>.</param>
     /// <param name="coverRest">How long the cursor rests before RomM is asked for a cover.</param>
+    /// <param name="coverClock">The clock that rest is timed on.</param>
     public BrowseViewModel(
         InstallSession session,
         Func<Uri, RomMConnection>? connect = null,
         PlatformOption? platform = null,
         CoverCache? covers = null,
-        TimeSpan? coverRest = null)
+        TimeSpan? coverRest = null,
+        TimeProvider? coverClock = null)
     {
         ArgumentNullException.ThrowIfNull(session);
 
         _session = session;
         _connect = connect;
         _covers = covers ?? CoverCache.Shared;
-        _cover = new CoverSlot(session, Connection, _covers, coverRest);
+        _cover = new CoverSlot(session, Connection, _covers, coverRest, coverClock);
         _cover.Changed += (_, _) => Invalidated?.Invoke(this, EventArgs.Empty);
         _service = new BrowseService(session);
         _platforms = [null, .. new SyncSetService(session).PlatformsKnownHere()];
@@ -698,9 +700,9 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
             _fetching = true;
             _state = (change?.Invoke(_state) ?? _state) with { IsLoading = true };
             asked = _state;
+            _cover.Show(null);
         }
 
-        _cover.Show(null);
         Invalidated?.Invoke(this, EventArgs.Empty);
 
         _ = Task.Run(
@@ -848,17 +850,19 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     private static string? Blank(string text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
 
     /// <summary>Applies a change under the lock, then redraws off whatever thread did the work.</summary>
+    /// <remarks>
+    /// The art box is pointed inside the lock too. A page landing on the pool and a press on the
+    /// drawing thread publish one after the other, and pointed outside it the earlier state could
+    /// reach the box last, leaving it on the row the cursor had left.
+    /// </remarks>
     private void Publish(Func<BrowseState, BrowseState> change)
     {
-        BrowseState state;
-
         lock (_gate)
         {
             _state = change(_state);
-            state = _state;
+            _cover.Show(Selected(_state));
         }
 
-        _cover.Show(Selected(state));
         Invalidated?.Invoke(this, EventArgs.Empty);
     }
 }

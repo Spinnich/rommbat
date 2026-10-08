@@ -130,6 +130,7 @@ public sealed class CoverSlot : IDisposable
     private readonly Func<RomMConnection?> _connection;
     private readonly CoverCache _cache;
     private readonly TimeSpan _rest;
+    private readonly TimeProvider _time;
     private readonly Lock _gate = new();
 
     private Cover _current = Cover.Nothing;
@@ -137,11 +138,13 @@ public sealed class CoverSlot : IDisposable
     private bool _disposed;
 
     /// <param name="connection">Null when there is no server, which leaves only this device's copies.</param>
+    /// <param name="time">The clock the rest is timed on, so a test can hold it.</param>
     public CoverSlot(
         InstallSession session,
         Func<RomMConnection?> connection,
         CoverCache? cache = null,
-        TimeSpan? rest = null)
+        TimeSpan? rest = null,
+        TimeProvider? time = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(connection);
@@ -150,6 +153,7 @@ public sealed class CoverSlot : IDisposable
         _connection = connection;
         _cache = cache ?? CoverCache.Shared;
         _rest = rest ?? DefaultRest;
+        _time = time ?? TimeProvider.System;
     }
 
     /// <summary>The cover changed, raised from whatever thread read it.</summary>
@@ -223,7 +227,7 @@ public sealed class CoverSlot : IDisposable
         {
             if (wait > TimeSpan.Zero)
             {
-                await Task.Delay(wait, token).ConfigureAwait(false);
+                await Task.Delay(wait, _time, token).ConfigureAwait(false);
             }
 
             bytes = await GameCover.ReadAsync(_session, game, _connection(), token).ConfigureAwait(false);
