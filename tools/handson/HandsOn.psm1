@@ -301,6 +301,20 @@ function Invoke-ES {
     }
 }
 
+function Start-TreeProcess {
+    # Git Bash exports HOME, and mednafen reads %HOME%\.mednafen before the tree's own config, so
+    # a launch from the agent's shell got no pad and saved outside the tree. RetroBat started
+    # from Explorer has no HOME, so the child gets none either.
+    param([Parameter(Mandatory)] [string] $FilePath, [string] $ArgumentList, [Parameter(Mandatory)] [string] $WorkingDirectory)
+    $home_ = $env:HOME
+    Remove-Item Env:HOME -ErrorAction SilentlyContinue
+    try {
+        if ($ArgumentList) { Start-Process -FilePath $FilePath -ArgumentList $ArgumentList -WorkingDirectory $WorkingDirectory | Out-Null }
+        else { Start-Process -FilePath $FilePath -WorkingDirectory $WorkingDirectory | Out-Null }
+    }
+    finally { if ($null -ne $home_) { $env:HOME = $home_ } }
+}
+
 function Start-ES {
     <#
     .SYNOPSIS
@@ -310,7 +324,7 @@ function Start-ES {
     Assert-TakeoverAllowed
     Show-AgentBanner
     $root = Get-AgentRoot
-    Start-Process -FilePath (Join-Path $root 'RetroBat.exe') -WorkingDirectory $root | Out-Null
+    Start-TreeProcess -FilePath (Join-Path $root 'RetroBat.exe') -WorkingDirectory $root
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     while ((Get-Date) -lt $deadline) {
         try { $null = Invoke-ES '/caps' -TimeoutSec 5; Write-Host 'ES is up'; return } catch { Start-Sleep -Milliseconds 500 }
@@ -373,8 +387,8 @@ function Start-EmulatorLauncher {
     $romPath = if ([IO.Path]::IsPathRooted($Rom)) { $Rom } else { Join-Path $root "roms\$System\$Rom" }
     if (-not (Test-Path -LiteralPath $romPath)) { throw "No ROM at $romPath" }
     $arguments = "-system $System -emulator $Emulator$(if ($Core) { " -core $Core" }) -rom `"$romPath`""
-    Start-Process -FilePath (Join-Path $root 'emulationstation\emulatorLauncher.exe') -ArgumentList $arguments `
-        -WorkingDirectory (Join-Path $root 'emulationstation') | Out-Null
+    Start-TreeProcess -FilePath (Join-Path $root 'emulationstation\emulatorLauncher.exe') -ArgumentList $arguments `
+        -WorkingDirectory (Join-Path $root 'emulationstation')
     Write-Host "Launched $System/$Emulator$(if ($Core) { "/$Core" }) on $(Split-Path $romPath -Leaf)"
     $null = Wait-Emulator -TimeoutSec $TimeoutSec
 }

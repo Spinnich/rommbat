@@ -385,7 +385,8 @@ produces a row that RomMBat can neither reconcile nor collide with. Measured end
   entry, then `<system>.emulator`, then the first `es_systems.cfg` emulator). Never widen it to
   the hashed naming alone: mednafen reads and saves into the plain file on `nes`, `gb` and `snes`,
   that file goes up under its first owner's slot, and holding it back stops two mednafen devices
-  sharing. On `gba` the plain file goes up as `mgba:battery` whoever wrote it, so mesen's save
+  sharing. On `gb` the one exception is an MBC2 cartridge, whose 256 B mGBA file mednafen refuses
+  (RB-429); the key is the system, so that download is not held back. On `gba` the plain file goes up as `mgba:battery` whoever wrote it, so mesen's save
   and mednafen's own progress saved into it, both at a size mednafen takes, are held back with
   mGBA's, the latter from a second mednafen device under a summary that names another emulator.
   `saves restore` has no such guard: it is an explicit choice and its preview names the file.

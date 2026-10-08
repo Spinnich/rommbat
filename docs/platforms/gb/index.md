@@ -31,6 +31,7 @@ the drive at `5.3.0`, since nothing they exercise changed between the two. Nothi
 | This file                      | Steps 1, 2 and 3, which are the system's, with which rows need firmware; what the first boots wrote; Pokemon Silver, brought in for a clock cartridge; what the pass turned up that is not a row, and the upstream reports it drafted |
 | [libretro.md](libretro.md)     | The six `libretro` rows                                                                                                                                                                                                               |
 | [standalone.md](standalone.md) | The eight standalone rows                                                                                                                                                                                                             |
+| [edge-cases.md](edge-cases.md) | An MBC2 cartridge on every row and the clock cartridge saved off the stock row, against the save rules                                                                                                                                |
 | [facts.md](facts.md)           | The measured facts about `gb`'s emulators, with RB- IDs                                                                                                                                                                               |
 
 ## The install this was measured on
@@ -270,11 +271,11 @@ it with "Couldn't find required firmware GBC+World" unless `gbc_bios.bin` is in 
 
 - **Nothing about `gb` under any build but these.** Every row was measured on RetroBat 8.2.1 and
   RomM `5.3.0`.
-- **Nothing about another game.** Yellow is one MBC5 cartridge with 32 KB of RAM and no clock. A
-  game with an MBC2's 512 half-bytes, or MBC3 with a clock, may be sized and named differently.
-- **Nothing about a clock cartridge's clock on any row but the stock one.** Silver was booted under
-  all fourteen and driven only under `libretro`/`gambatte`. Under `jgenesis` its saves sit in
-  `jgenesis/gbc/`, which the `gb` rule does not read, so they are reported and not synced.
+- **Nothing about a cartridge type but MBC5, MBC2 and MBC3 with a clock.** Yellow, Final Fantasy
+  Adventure and Silver are the three driven, the last two in [edge-cases.md](edge-cases.md).
+- **Nothing about a clock carried between rows.** Silver's RAM moves between them and its clock
+  does not (RB-430). Under `jgenesis` its saves sit in `jgenesis/gbc/`, which the `gb` rule does
+  not read, so they are reported and not synced.
 - **Nothing about GBHawk on the two Color-flagged games without `gbc_bios.bin`.** It refuses them,
   and `bios gb` now fetches the file.
 - **Nothing about headers beyond the 107.** RomM holds 1,776 `gb` games; only the set's headers and

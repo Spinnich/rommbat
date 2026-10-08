@@ -42,6 +42,9 @@ The rest each keep their own.
 
 - **A game with a clock can lose its time when you change emulator**, since each emulator keeps
   the clock its own way. On the default emulator, the clock syncs with the save.
+- A game with the Game Boy's smallest save chip, such as Final Fantasy Adventure, saved in the
+  standalone mGBA will not start in the standalone Mednafen, which stops with "Unexpected EOF".
+  Keep such a game on one of the two.
 - Under jgenesis, the save of a Game Boy Color game kept in the `gb` folder, such as Pokemon Silver,
   does not sync. Play those from the Game Boy Color system instead.
 - RetroArch's TGB Dual, DoubleCherryGB and SameBoy cores rewrite a small clock file every time you
