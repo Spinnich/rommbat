@@ -108,7 +108,7 @@ public static class OutboxScreens
     private static ConfirmScreen DropOne(InstallSession session, OutboxEntry entry, string title, IScreen? underneath) =>
         Confirm(
             $"Drop this {Kind(entry.Kind)}?",
-            $"{Capitalised(Kind(entry.Kind))} dropped",
+            $"{Capitalized(Kind(entry.Kind))} dropped",
             new ListRow(
                 title,
                 Moment(entry.RecordedAtUtc),
@@ -216,7 +216,7 @@ public static class OutboxScreens
         _ => "entry",
     };
 
-    private static string Capitalised(string text) =>
+    private static string Capitalized(string text) =>
         text.Length == 0 ? text : char.ToUpperInvariant(text[0]) + text[1..];
 
     /// <summary>The server's message ended as a sentence, which RomM's often are not; one that asks or exclaims already is.</summary>

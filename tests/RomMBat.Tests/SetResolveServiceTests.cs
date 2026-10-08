@@ -94,7 +94,7 @@ public sealed class SetResolveServiceTests : IDisposable
 
         using var cancel = new CancellationTokenSource();
 
-        await Assert.ThrowsAsync<SetResolveCancelledException>(() =>
+        await Assert.ThrowsAsync<SetResolveCanceledException>(() =>
             new SetResolveService(_session, connection).ResolveAsync(
                 [set],
                 new Immediate<SetResolveProgress>(p =>
@@ -215,7 +215,7 @@ public sealed class SetResolveServiceTests : IDisposable
 
         using var cancel = new CancellationTokenSource();
 
-        await Assert.ThrowsAsync<SetResolveCancelledException>(() =>
+        await Assert.ThrowsAsync<SetResolveCanceledException>(() =>
             new SetResolveService(_session, connection).ResolveAsync(
                 [set],
                 new Immediate<SetResolveProgress>(p =>
@@ -251,7 +251,7 @@ public sealed class SetResolveServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Cancelling_a_walk_records_where_it_stopped_rather_than_throwing_the_pages_away()
+    public async Task Canceling_a_walk_records_where_it_stopped_rather_than_throwing_the_pages_away()
     {
         using var stub = Library(600);
         using var connection = Connect(stub);
@@ -259,7 +259,7 @@ public sealed class SetResolveServiceTests : IDisposable
 
         using var cancel = new CancellationTokenSource();
 
-        var thrown = await Assert.ThrowsAsync<SetResolveCancelledException>(() =>
+        var thrown = await Assert.ThrowsAsync<SetResolveCanceledException>(() =>
             new SetResolveService(_session, connection).ResolveAsync(
                 [set],
                 // Cancel as soon as the first page lands, which is a person pressing back.
@@ -286,7 +286,7 @@ public sealed class SetResolveServiceTests : IDisposable
 
         using var cancel = new CancellationTokenSource();
 
-        await Assert.ThrowsAsync<SetResolveCancelledException>(() =>
+        await Assert.ThrowsAsync<SetResolveCanceledException>(() =>
             new SetResolveService(_session, connection).ResolveAsync(
                 [set],
                 new Immediate<SetResolveProgress>(_ => cancel.Cancel()),
@@ -309,7 +309,7 @@ public sealed class SetResolveServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task A_cancelled_walk_keeps_the_games_it_had_already_found()
+    public async Task A_canceled_walk_keeps_the_games_it_had_already_found()
     {
         using var stub = Library(600);
         using var connection = Connect(stub);
@@ -317,7 +317,7 @@ public sealed class SetResolveServiceTests : IDisposable
 
         using var cancel = new CancellationTokenSource();
 
-        await Assert.ThrowsAsync<SetResolveCancelledException>(() =>
+        await Assert.ThrowsAsync<SetResolveCanceledException>(() =>
             new SetResolveService(_session, connection).ResolveAsync(
                 [set],
                 // Cancel once two pages are in, so there is something to lose.
@@ -379,7 +379,7 @@ public sealed class SetResolveServiceTests : IDisposable
 
         using var cancel = new CancellationTokenSource();
 
-        await Assert.ThrowsAsync<SetResolveCancelledException>(() =>
+        await Assert.ThrowsAsync<SetResolveCanceledException>(() =>
             new SetResolveService(_session, connection).ResolveAsync(
                 [set],
                 new Immediate<SetResolveProgress>(progress =>
@@ -401,7 +401,7 @@ public sealed class SetResolveServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task A_cancelled_walk_does_not_retire_membership_because_half_a_walk_proves_nothing()
+    public async Task A_canceled_walk_does_not_retire_membership_because_half_a_walk_proves_nothing()
     {
         using var stub = Library(600);
         using var connection = Connect(stub);
@@ -416,7 +416,7 @@ public sealed class SetResolveServiceTests : IDisposable
 
         using var cancel = new CancellationTokenSource();
 
-        await Assert.ThrowsAsync<SetResolveCancelledException>(() =>
+        await Assert.ThrowsAsync<SetResolveCanceledException>(() =>
             new SetResolveService(_session, connection).ResolveAsync(
                 [set],
                 new Immediate<SetResolveProgress>(_ => cancel.Cancel()),
@@ -487,7 +487,7 @@ public sealed class SetResolveServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task A_cancelled_run_carries_its_reports_in_walk_order()
+    public async Task A_canceled_run_carries_its_reports_in_walk_order()
     {
         // What the resolve screen reads to name the set it stopped on. It took the first
         // report, so stopping during the third of three printed the first one's summary under
@@ -499,7 +499,7 @@ public sealed class SetResolveServiceTests : IDisposable
 
         using var cancel = new CancellationTokenSource();
 
-        var thrown = await Assert.ThrowsAsync<SetResolveCancelledException>(() =>
+        var thrown = await Assert.ThrowsAsync<SetResolveCanceledException>(() =>
             new SetResolveService(_session, connection).ResolveAsync(
                 sets,
                 new Immediate<SetResolveProgress>(p =>

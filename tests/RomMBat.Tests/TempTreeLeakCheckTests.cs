@@ -19,10 +19,10 @@ public sealed class TempTreeLeakCheckTests : IDisposable
     public void Dispose() => _field.Dispose();
 
     [Fact]
-    public void A_tree_made_in_a_field_initialiser_still_knows_its_test()
+    public void A_tree_made_in_a_field_initializer_still_knows_its_test()
     {
         Assert.Contains(
-            nameof(A_tree_made_in_a_field_initialiser_still_knows_its_test),
+            nameof(A_tree_made_in_a_field_initializer_still_knows_its_test),
             TempRetroBatTree.Explain(_field.Root),
             StringComparison.Ordinal);
     }

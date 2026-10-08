@@ -362,7 +362,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
 
             Settle(reports);
         }
-        catch (SetResolveCancelledException cancelled)
+        catch (SetResolveCanceledException canceled)
         {
             // Not a failure. The offset is recorded and the next resolve continues from it,
             // which is the whole reason stopping is offered at all.
@@ -371,8 +371,8 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
             // The last report is the set that was interrupted, because reports are appended in
             // walk order and the cancel is raised straight after the current set is recorded.
             // Reports[0] named set one of three while set three was the one that stopped.
-            Detail = cancelled.Reports.Count > 0
-                ? $"Stopped. {cancelled.Reports[^1].Summary}"
+            Detail = canceled.Reports.Count > 0
+                ? $"Stopped. {canceled.Reports[^1].Summary}"
                 : "Stopped. The next check continues from here.";
             Raise();
         }

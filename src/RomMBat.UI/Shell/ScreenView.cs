@@ -448,18 +448,18 @@ internal static class ScreenView
 
             var side = new StackPanel { Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
 
-            side.Children.Add(Labelled("Address", pairing.VerificationUri?.ToString() ?? string.Empty, 18));
-            side.Children.Add(Labelled("Code", pairing.DisplayCode ?? string.Empty, 40));
+            side.Children.Add(Labeled("Address", pairing.VerificationUri?.ToString() ?? string.Empty, 18));
+            side.Children.Add(Labeled("Code", pairing.DisplayCode ?? string.Empty, 40));
 
             if (pairing.Remaining is { } left)
             {
-                side.Children.Add(Labelled(
+                side.Children.Add(Labeled(
                     "Expires in",
                     $"{(int)left.TotalMinutes}:{left.Seconds:00}",
                     22));
             }
 
-            side.Children.Add(Labelled("Asks for", string.Join(", ", PairingViewModel.RequestedScopes), 15));
+            side.Children.Add(Labeled("Asks for", string.Join(", ", PairingViewModel.RequestedScopes), 15));
 
             row.Children.Add(side);
             stack.Children.Add(row);
@@ -467,14 +467,14 @@ internal static class ScreenView
 
         if (pairing.Completion is { IsPaired: true } done)
         {
-            stack.Children.Add(Labelled("Device", done.RomMDeviceId ?? "unknown", 18));
-            stack.Children.Add(Labelled("Granted", string.Join(", ", done.Scopes.All), 15));
+            stack.Children.Add(Labeled("Device", done.RomMDeviceId ?? "unknown", 18));
+            stack.Children.Add(Labeled("Granted", string.Join(", ", done.Scopes.All), 15));
 
             // A feature quietly missing is worse than a late 403, so the narrowing is on screen
             // at the moment it happens rather than only later on the status screen.
             foreach (var (requirement, missing) in done.Scopes.Degradations)
             {
-                stack.Children.Add(Labelled(
+                stack.Children.Add(Labeled(
                     "Turned off",
                     $"{requirement.Name} (missing {string.Join(", ", missing)})",
                     15));
@@ -482,7 +482,7 @@ internal static class ScreenView
 
             if (pairing.DeviceCheck is { } check)
             {
-                stack.Children.Add(Labelled(check.IsWarning ? "Warning" : "Device check", check.Message, 15));
+                stack.Children.Add(Labeled(check.IsWarning ? "Warning" : "Device check", check.Message, 15));
             }
         }
 
@@ -1456,7 +1456,7 @@ internal static class ScreenView
         return stack;
     }
 
-    private static StackPanel Labelled(string label, string value, double size)
+    private static StackPanel Labeled(string label, string value, double size)
     {
         var stack = new StackPanel { Spacing = 2 };
         stack.Children.Add(new TextBlock { Text = label.ToUpperInvariant(), Foreground = Theme.Group, FontSize = 13 });

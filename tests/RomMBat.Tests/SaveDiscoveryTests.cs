@@ -53,7 +53,7 @@ public class SaveDiscoveryTests
     [InlineData("saturn", "kronos/bkram.bin")]
     [InlineData("pcengine", "ares/PC Engine/PC Engine.bram")]
     [InlineData("ps2", "pcsx2/memcards/Mcd001.ps2")]
-    public void A_shared_container_is_recognised_by_name_because_nothing_else_distinguishes_it(
+    public void A_shared_container_is_recognized_by_name_because_nothing_else_distinguishes_it(
         string system,
         string path)
     {

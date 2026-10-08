@@ -209,7 +209,7 @@ public class CatalogPagingTests
     }
 
     [Fact]
-    public async Task A_rom_larger_than_two_gigabytes_survives_deserialisation()
+    public async Task A_rom_larger_than_two_gigabytes_survives_deserialization()
     {
         using var stub = new StubRomMServer();
 

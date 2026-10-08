@@ -93,7 +93,7 @@ public sealed class PendingConfigTests : IDisposable
     }
 
     [Fact]
-    public void Cancelling_an_unapplied_change_takes_it_out_and_leaves_no_trace()
+    public void Canceling_an_unapplied_change_takes_it_out_and_leaves_no_trace()
     {
         // The one case that deletes rather than recording an outcome: nothing was written, so
         // there is nothing a later reader could want.
@@ -106,7 +106,7 @@ public sealed class PendingConfigTests : IDisposable
     }
 
     [Fact]
-    public void Cancelling_never_reaches_a_change_that_has_already_been_applied()
+    public void Canceling_never_reaches_a_change_that_has_already_been_applied()
     {
         // Once it is on disk, canceling it is not a thing the queue can do. Reverting is, and
         // that is a new queued change rather than the removal of an old one.

@@ -455,7 +455,7 @@ public class LocalStoreTests
                 seed,
                 """
                 INSERT INTO sync_set (id, name, scope_kind, scope_value, created_at, updated_at)
-                VALUES (7, 'favourites', 'platform', '1', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+                VALUES (7, 'favorites', 'platform', '1', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
 
                 INSERT INTO sync_set_member (sync_set_id, rom_id, state, resolved_at)
                 VALUES (7, 42, 'member', '2026-01-01T00:00:00Z');
@@ -484,7 +484,7 @@ public class LocalStoreTests
         Assert.Equal(LocalStore.ExpectedSchemaVersion, store.SchemaVersion);
 
         var set = Assert.Single(store.SyncSets.List());
-        Assert.Equal("favourites", set.Name);
+        Assert.Equal("favorites", set.Name);
         Assert.Null(set.FolderOverride);
 
         var member = Assert.Single(store.SyncSets.Members(set.Id));
@@ -614,7 +614,7 @@ public class LocalStoreTests
                 seed,
                 """
                 INSERT INTO unsyncable (system, emulator, reason_kind, detail, file_count, observed_at_utc)
-                VALUES ('nes', 'libretro', 'unknown_shape', '.sav is not an extension RomMBat recognises as a save', 2,
+                VALUES ('nes', 'libretro', 'unknown_shape', '.sav is not an extension RomMBat recognizes as a save', 2,
                         '2026-01-01T00:00:00Z');
 
                 PRAGMA user_version = 10;
@@ -630,7 +630,7 @@ public class LocalStoreTests
         Assert.Equal("libretro", row.Emulator);
         Assert.Equal(UnsyncableReason.UnknownShape, row.Reason);
         Assert.Equal(2, row.FileCount);
-        Assert.Equal(".sav is not an extension RomMBat recognises as a save", row.Detail);
+        Assert.Equal(".sav is not an extension RomMBat recognizes as a save", row.Detail);
     }
 
     [Fact]

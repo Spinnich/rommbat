@@ -111,6 +111,11 @@ public sealed record SyncSetDefinition
     /// </remarks>
     public SetOrdering Ordering { get; init; } = SyncSetStore.DefaultOrdering;
 
+    /// <remarks>
+    /// <c>keep_favourites</c> keeps its British spelling because it is a stored value, not
+    /// prose: the shipped migrations default to it and other devices read it from the roaming
+    /// config.
+    /// </remarks>
     public string EvictionPolicy { get; init; } = "keep_favourites";
 
     public bool Enabled { get; init; } = true;

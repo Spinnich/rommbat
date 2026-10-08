@@ -122,7 +122,7 @@ internal static class Program
         {
             Console.Error.WriteLine();
             Console.Error.WriteLine("Canceled.");
-            return ExitCode.Cancelled;
+            return ExitCode.Canceled;
         }
         catch (RomMUnreachableException ex)
         {

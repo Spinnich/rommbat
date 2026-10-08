@@ -148,7 +148,7 @@ public sealed class SetResolveService
 
                 if (cancellationToken.IsCancellationRequested)
                 {
-                    throw new SetResolveCancelledException(reports);
+                    throw new SetResolveCanceledException(reports);
                 }
 
                 if (reports[^1] is { State: ResolveState.Interrupted, Problem: not null })
@@ -191,7 +191,7 @@ public sealed class SetResolveService
             {
                 // The ordinary way a resolve ends on a handheld, and the caller has to be able
                 // to tell it from a walk that finished.
-                throw new SetResolveCancelledException(reports);
+                throw new SetResolveCanceledException(reports);
             }
 
             if (report.State == ResolveState.Interrupted && report.Problem is not null)
@@ -344,20 +344,20 @@ public sealed class SetResolveService
 /// back" apart from "the walk finished", while still being able to show where it stopped.
 /// Plain <see cref="OperationCanceledException"/> would carry neither.
 /// </remarks>
-public sealed class SetResolveCancelledException : OperationCanceledException
+public sealed class SetResolveCanceledException : OperationCanceledException
 {
-    public SetResolveCancelledException(IReadOnlyList<ResolveReport> reports) =>
+    public SetResolveCanceledException(IReadOnlyList<ResolveReport> reports) =>
         Reports = reports;
 
-    public SetResolveCancelledException()
+    public SetResolveCanceledException()
         : this([])
     {
     }
 
-    public SetResolveCancelledException(string message)
+    public SetResolveCanceledException(string message)
         : base(message) => Reports = [];
 
-    public SetResolveCancelledException(string message, Exception innerException)
+    public SetResolveCanceledException(string message, Exception innerException)
         : base(message, innerException) => Reports = [];
 
     /// <summary>What was recorded before the cancel, one entry per set that was walked.</summary>

@@ -365,13 +365,13 @@ public class NavigationTests
             return new TypedResult(null);
         }
 
-        var cancelling = new OnScreenKeyboard("t", "p", "abc", Take);
-        var cancel = new Navigator(cancelling);
+        var canceling = new OnScreenKeyboard("t", "p", "abc", Take);
+        var cancel = new Navigator(canceling);
         var clock = T0;
 
         // Bottom row, last key.
         Press(cancel, "up", ref clock);
-        while (cancelling.Selected.Kind != KeyKind.Cancel)
+        while (canceling.Selected.Kind != KeyKind.Cancel)
         {
             Press(cancel, "right", ref clock);
         }

@@ -184,9 +184,9 @@ internal static class UninstallCommand
             Problem(step.Problem);
         }
 
-        if (applied.Cancelled > 0)
+        if (applied.Canceled > 0)
         {
-            Console.WriteLine($"  called off {applied.Cancelled} queued memory card change(s). Nothing had been written.");
+            Console.WriteLine($"  called off {applied.Canceled} queued memory card change(s). Nothing had been written.");
         }
 
         foreach (var result in applied.Reverted ?? [])

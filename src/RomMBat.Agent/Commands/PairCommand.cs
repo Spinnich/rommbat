@@ -119,7 +119,7 @@ internal static class PairCommand
 
             if (completion is null)
             {
-                return ExitCode.Cancelled;
+                return ExitCode.Canceled;
             }
 
             if (!completion.IsPaired)

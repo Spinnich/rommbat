@@ -2138,7 +2138,7 @@ public class SaveSyncTests
     }
 
     [Fact]
-    public async Task A_bundled_save_this_device_uploaded_is_recognised_rather_than_fetched_again()
+    public async Task A_bundled_save_this_device_uploaded_is_recognized_rather_than_fetched_again()
     {
         // The download skip for a bundled unit: the server offering back this device's own
         // upload is recognized by hash and not fetched. Noticed on the K: install when the skip

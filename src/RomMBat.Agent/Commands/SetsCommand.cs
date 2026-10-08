@@ -108,7 +108,7 @@ internal static class SetsCommand
         if (scope == CatalogScopeKind.Filter && command.Value("value") is { Length: > 0 })
         {
             return Usage(
-                "a filter scope is built from --search, --favourite, --genres, --regions, "
+                "a filter scope is built from --search, --favorite, --genres, --regions, "
                     + "--languages and --tags, so --value has nothing to name. Without this "
                     + "refusal the filter would be empty, which matches the whole library.");
         }
@@ -122,7 +122,8 @@ internal static class SetsCommand
                 ? new CatalogFilter
                 {
                     SearchTerm = command.Value("search"),
-                    Favorite = command.Has("favourite") || command.Has("favorite") ? true : null,
+                    // Both spellings are accepted, and the help names --favorite.
+                    Favorite = command.Has("favorite") || command.Has("favourite") ? true : null,
                     Genres = Split(command.Value("genres")),
                     Regions = Split(command.Value("regions")),
                     Languages = Split(command.Value("languages")),
@@ -390,7 +391,7 @@ internal static class SetsCommand
         Console.Error.WriteLine("  sets list");
         Console.Error.WriteLine("  sets add <name> --scope platform --value <id> [--max-games N] [--max-bytes 8GB]");
         Console.Error.WriteLine("                  [--order name|size_asc|size_desc|recent] [--folder <retrobat folder>]");
-        Console.Error.WriteLine("  sets add <name> --scope filter [--search TEXT] [--favourite] [--genres A,B]");
+        Console.Error.WriteLine("  sets add <name> --scope filter [--search TEXT] [--favorite] [--genres A,B]");
         Console.Error.WriteLine("  sets show <name>");
         Console.Error.WriteLine("  sets remove <name>");
         Console.Error.WriteLine("  sets resolve [<name>]");

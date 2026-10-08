@@ -32,7 +32,7 @@ public class DevicePairingTests
     [InlineData("k7m2pqrs", "K7M2-PQRS")]
     [InlineData("K7M2-PQRS", "K7M2-PQRS")]
     [InlineData("k7m2 pqrs", "K7M2-PQRS")]
-    public void The_code_is_grouped_for_display_and_normalised_the_way_the_server_does(
+    public void The_code_is_grouped_for_display_and_normalized_the_way_the_server_does(
         string input,
         string expected)
     {

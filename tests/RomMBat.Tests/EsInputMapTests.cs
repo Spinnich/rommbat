@@ -91,7 +91,7 @@ public class EsInputMapTests
     }
 
     [Fact]
-    public void The_keyboards_guid_is_left_alone_by_normalisation()
+    public void The_keyboards_guid_is_left_alone_by_normalization()
     {
         Assert.Equal(EsInputDevice.KeyboardGuid, EsInputMap.NormalizeGuid(EsInputDevice.KeyboardGuid));
         Assert.Equal("not-a-guid", EsInputMap.NormalizeGuid("not-a-guid"));

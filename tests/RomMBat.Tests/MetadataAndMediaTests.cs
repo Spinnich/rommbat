@@ -180,7 +180,7 @@ public sealed class MetadataAndMediaTests
     // ------------------------------------------------------------------ media paths
 
     [Fact]
-    public void Both_shapes_of_media_path_normalise_onto_the_asset_prefix_exactly_once()
+    public void Both_shapes_of_media_path_normalize_onto_the_asset_prefix_exactly_once()
     {
         // A cover arrives already rooted at the prefix, and carries a ?ts= query holding a
         // raw space.
