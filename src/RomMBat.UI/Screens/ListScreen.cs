@@ -452,6 +452,24 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// </remarks>
     public Action? OnClose { get; init; }
 
+    /// <summary>Box art drawn beside the rows, or null for a list without any.</summary>
+    /// <remarks>Disposed with the screen, so a read still running stops when it closes.</remarks>
+    public CoverSlot? Cover
+    {
+        get => _cover;
+        init
+        {
+            _cover = value;
+
+            if (value is not null)
+            {
+                value.Changed += (_, _) => Invalidated?.Invoke(this, EventArgs.Empty);
+            }
+        }
+    }
+
+    private readonly CoverSlot? _cover;
+
     public event EventHandler? Invalidated;
 
     /// <summary>Starts the loader. Called by whoever pushes the screen.</summary>
@@ -550,6 +568,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
 
         // Canceled, never disposed: a request still unwinding can register on this token.
         _load.Cancel();
+        _cover?.Dispose();
 
         OnClose?.Invoke();
     }

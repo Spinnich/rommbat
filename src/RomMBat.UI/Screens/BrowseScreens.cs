@@ -29,11 +29,16 @@ public static class BrowseScreens
     /// Called once something has been installed or removed, so the page behind this screen stops
     /// saying what it said before.
     /// </param>
+    /// <param name="cover">
+    /// The game's box art, drawn beside the rows as browse draws it. Owned by the screen from
+    /// here, which stops its read on close.
+    /// </param>
     public static IScreen Detail(
         InstallSession session,
         BrowseGame game,
         Func<Uri, RomMConnection>? connect = null,
-        Action? changed = null)
+        Action? changed = null,
+        CoverSlot? cover = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(game);
@@ -69,6 +74,7 @@ public static class BrowseScreens
             backLabel: "Back")
         {
             Reading = true,
+            Cover = cover,
 
             // The bottom button installs, as it launches a game in EmulationStation: it is the
             // one thing a person opening a game here most likely came to do. Offered exactly when

@@ -113,7 +113,14 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>How wide the menu panel is: the widest list with a margin either side.</summary>
+    /// <remarks>
+    /// Wider by <see cref="ScreenView.CoverSpan"/> on a screen with box art beside its list,
+    /// as ES's detailed view spreads wider than its menus. Fixed for as long as that screen is
+    /// up, so covers arriving never resize it.
+    /// </remarks>
     private const double PanelWidth = 1100;
+
+    private readonly Border _panel = new();
 
     /// <summary>
     /// EmulationStation's menu: a centered panel holding the title and the screen, over the
@@ -156,18 +163,16 @@ internal sealed class ShellWindow : Window
         inside.Children.Add(rule);
         inside.Children.Add(scroller);
 
-        var panel = new Border
-        {
-            Background = EsTheme.MenuPanel,
-            BorderBrush = EsTheme.MenuEdge,
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            Width = PanelWidth,
-            Margin = new Thickness(0, 16, 0, 12),
-            Padding = new Thickness(24, 0, 24, 8),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Child = inside,
-        };
+        var panel = _panel;
+        panel.Background = EsTheme.MenuPanel;
+        panel.BorderBrush = EsTheme.MenuEdge;
+        panel.BorderThickness = new Thickness(1);
+        panel.CornerRadius = new CornerRadius(8);
+        panel.Width = PanelWidth;
+        panel.Margin = new Thickness(0, 16, 0, 12);
+        panel.Padding = new Thickness(24, 0, 24, 8);
+        panel.HorizontalAlignment = HorizontalAlignment.Center;
+        panel.Child = inside;
 
         _footer.HorizontalAlignment = HorizontalAlignment.Left;
         _footer.VerticalAlignment = VerticalAlignment.Center;
@@ -278,6 +283,7 @@ internal sealed class ShellWindow : Window
 
         // In capitals, as ES titles every menu (RB-423).
         _title.Text = screen.Title.ToUpperInvariant();
+        _panel.Width = PanelWidth + (ScreenView.HasCover(screen) ? ScreenView.CoverSpan : 0);
         _body.Content = ScreenView.Build(screen);
         _overlay.Content = ScreenView.Overlay(screen);
         _scrim.IsVisible = _overlay.Content is not null;

@@ -11,6 +11,11 @@ a sync set for it. It also shows what is already here.
    a search, search again with nothing typed.
 4. Accept opens a game.
 
+The highlighted game's box art is shown to the right of the list. A game already on this device
+shows its own artwork. For any other game, the cover comes from RomM once the cursor stops on it,
+so holding a direction to scroll downloads nothing. Covers from RomM are kept only until RomMBat
+closes, and nothing is saved to the drive for them.
+
 ## Move through a long list
 
 A large library is not something to scroll through, so the game list moves the way
@@ -58,6 +63,7 @@ still wants the game, and the game's screen says which sets those are under Want
 
 ## What the game's screen shows
 
+- Its box art, beside the details.
 - Its platform and size in RomM.
 - Which folder it is in, and how much room it and its artwork take up.
 - Which sync sets want it. A game nothing wants may be removed the next time you make room.
