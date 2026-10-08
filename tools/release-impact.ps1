@@ -73,7 +73,7 @@ $rank = @{ 'semver:patch' = 1; 'semver:minor' = 2; 'semver:major' = 3 }
 $names = @{ 0 = 'none'; 1 = 'patch'; 2 = 'minor'; 3 = 'major' }
 $highest = 0
 $majors = @()
-$unlabelled = @()
+$unlabeled = @()
 foreach ($n in $numbers) {
     $pr = gh pr view $n --json number,title,labels | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) { throw "gh pr view $n failed." }
@@ -81,14 +81,14 @@ foreach ($n in $numbers) {
     # would index the hashtable with it. Measure-Object returns a double, which [int] makes a key
     # the $names lookup finds.
     $impact = [int] ($pr.labels | ForEach-Object { $rank[$_.name] } | Measure-Object -Maximum).Maximum
-    if (-not $impact) { $unlabelled += $pr; continue }
+    if (-not $impact) { $unlabeled += $pr; continue }
     if ($impact -gt $highest) { $highest = $impact }
     if ($impact -eq 3) { $majors += $pr }
 }
 
 $lines = @("**Version impact since ${previous}:** $($names[$highest]), from $($numbers.Count) pull requests.")
-if ($unlabelled) {
-    $lines += "No semver label on: $(($unlabelled | ForEach-Object { "#$($_.number)" }) -join ', ')."
+if ($unlabeled) {
+    $lines += "No semver label on: $(($unlabeled | ForEach-Object { "#$($_.number)" }) -join ', ')."
 }
 if ($majors) {
     $lines += ''

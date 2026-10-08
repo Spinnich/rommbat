@@ -58,7 +58,7 @@ public sealed record RemovalApplied(
     string? Refusal,
     EsHookOutcome? Hooks = null,
     EsMenuOutcome? Menu = null,
-    int Cancelled = 0,
+    int Canceled = 0,
     IReadOnlyList<ConversionResult>? Reverted = null,
     EvictionApplied? Content = null,
     int FirmwareRemoved = 0,
@@ -227,12 +227,12 @@ public sealed class RemovalService
         var hooks = new EsHooks(_session.Install).Uninstall();
         var menu = new EsMenuEntry(_session.Install).Uninstall();
 
-        var cancelled = 0;
+        var canceled = 0;
         foreach (var queued in fresh.Queued)
         {
             if (_session.Store.PendingConfig.Cancel(queued.System, queued.FsName, queued.SettingKey))
             {
-                cancelled++;
+                canceled++;
             }
         }
 
@@ -261,7 +261,7 @@ public sealed class RemovalService
         var firmware = RemoveFirmware(fresh.Firmware, kept, problems);
 
         return new RemovalApplied(
-            null, hooks, menu, cancelled, reverted, content, firmware, kept, problems, fresh.Content?.Plan.Refused ?? []);
+            null, hooks, menu, canceled, reverted, content, firmware, kept, problems, fresh.Content?.Plan.Refused ?? []);
     }
 
     /// <summary>What a reverted game leaves in its own card, once RomMBat is gone.</summary>

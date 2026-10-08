@@ -551,7 +551,7 @@ public sealed class MediaSyncTests : IDisposable
     }
 
     [Fact]
-    public async Task An_install_with_no_readable_settings_file_is_never_a_licence_to_delete()
+    public async Task An_install_with_no_readable_settings_file_is_never_a_license_to_delete()
     {
         // The read and the delete are two questions and only the read has an answer here. An
         // absent key is somebody having turned a switch off, which the test above pins, but an

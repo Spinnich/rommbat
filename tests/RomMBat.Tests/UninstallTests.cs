@@ -118,7 +118,7 @@ public sealed class UninstallTests : IDisposable
 
         var applied = await Service().ApplyAsync(report, TestContext.Current.CancellationToken);
 
-        Assert.Equal(1, applied.Cancelled);
+        Assert.Equal(1, applied.Canceled);
         Assert.Empty(_session.Store.PendingConfig.ListOutstanding());
     }
 

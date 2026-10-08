@@ -85,7 +85,7 @@ public class EsSystemsFileTests
     }
 
     [Fact]
-    public void Extensions_are_normalised_and_matched_either_way()
+    public void Extensions_are_normalized_and_matched_either_way()
     {
         var systems = Fixtures.LoadEsSystems();
 
@@ -102,7 +102,7 @@ public class EsSystemsFileTests
     }
 
     [Fact]
-    public void Archives_are_honoured_per_system_rather_than_assumed_universal()
+    public void Archives_are_honored_per_system_rather_than_assumed_universal()
     {
         var systems = Fixtures.LoadEsSystems();
 

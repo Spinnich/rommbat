@@ -53,7 +53,7 @@ public class QueuedChangeScreenTests : IDisposable
     }
 
     [Fact]
-    public void An_outstanding_change_can_be_cancelled_and_the_row_goes()
+    public void An_outstanding_change_can_be_canceled_and_the_row_goes()
     {
         _session.Store.PendingConfig.Queue(Request());
 

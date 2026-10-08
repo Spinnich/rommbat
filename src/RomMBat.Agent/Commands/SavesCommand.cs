@@ -629,9 +629,9 @@ internal static class SavesCommand
         }
 
         // Before anything else: a --revert while something is queued means the queued thing.
-        if (revert && CancelQueued(context, romId) is { } cancelled)
+        if (revert && CancelQueued(context, romId) is { } canceled)
         {
-            Console.WriteLine(cancelled);
+            Console.WriteLine(canceled);
             return ExitCode.Ok;
         }
 

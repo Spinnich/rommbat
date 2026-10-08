@@ -12,7 +12,7 @@ namespace RomMBat.Tests;
 public class RootDiscoveryTests
 {
     [Fact]
-    public void A_stock_tree_is_recognised()
+    public void A_stock_tree_is_recognized()
     {
         using var tree = TempRetroBatTree.Create();
 

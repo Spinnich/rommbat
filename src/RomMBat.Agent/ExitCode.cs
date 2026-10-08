@@ -35,7 +35,7 @@ internal static class ExitCode
     public const int Offline = 5;
 
     /// <summary>The user canceled.</summary>
-    public const int Cancelled = 6;
+    public const int Canceled = 6;
 
     /// <summary>
     /// The run failed at something it attempted, and the rest landed. Never a report about data

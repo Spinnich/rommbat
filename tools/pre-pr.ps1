@@ -173,8 +173,8 @@ Write-Host "`n==> Summary" -ForegroundColor Cyan
 $failed = $false
 foreach ($gate in $results.Keys) {
     $state = $results[$gate]
-    $colour = switch -Wildcard ($state) { 'passed' { 'Green' } 'skipped*' { 'Yellow' } default { 'Red' } }
-    if ($colour -eq 'Red') { $failed = $true }
-    Write-Host ('  {0,-13} {1}' -f $gate, $state) -ForegroundColor $colour
+    $color = switch -Wildcard ($state) { 'passed' { 'Green' } 'skipped*' { 'Yellow' } default { 'Red' } }
+    if ($color -eq 'Red') { $failed = $true }
+    Write-Host ('  {0,-13} {1}' -f $gate, $state) -ForegroundColor $color
 }
 exit ([int] $failed)

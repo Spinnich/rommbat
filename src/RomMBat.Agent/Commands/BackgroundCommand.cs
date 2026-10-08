@@ -89,7 +89,7 @@ internal static class BackgroundCommand
         catch (OperationCanceledException)
         {
             log.Write($"background {hookEvent} canceled");
-            return ExitCode.Cancelled;
+            return ExitCode.Canceled;
         }
     }
 

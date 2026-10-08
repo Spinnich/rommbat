@@ -8,12 +8,12 @@ import upstream_watch as watch
 
 
 def release(tag: str, prerelease: bool = False) -> watch.Release:
-    found = watch.normalise(tag, prerelease, "2026-10-06T11:04:59Z")
+    found = watch.normalize(tag, prerelease, "2026-10-06T11:04:59Z")
     assert found is not None
     return found
 
 
-class NormaliseTest(unittest.TestCase):
+class NormalizeTest(unittest.TestCase):
     def test_romm_prerelease(self) -> None:
         r = release("5.4.0-alpha.1", True)
         self.assertEqual((r.version, r.line), ("5.4.0-alpha.1", "5.4"))
@@ -28,7 +28,7 @@ class NormaliseTest(unittest.TestCase):
         self.assertEqual(release("v5.3.1").version, "5.3.1")
 
     def test_a_tag_that_is_not_a_version_is_skipped(self) -> None:
-        self.assertIsNone(watch.normalise("continuous", True, ""))
+        self.assertIsNone(watch.normalize("continuous", True, ""))
 
     def test_the_prerelease_flag_ranks_even_an_unsuffixed_tag_below_its_release(self) -> None:
         self.assertLess(release("8.3.0", True).key, release("8.3.0").key)

@@ -56,7 +56,7 @@ public class RelativePathTests
 
     [Theory]
     [MemberData(nameof(Accepted))]
-    public void Normalises_to_forward_slashes(string input, string expected)
+    public void Normalizes_to_forward_slashes(string input, string expected)
     {
         Assert.True(RelativePath.TryCreate(input, out var path));
         Assert.Equal(expected, path.Value);

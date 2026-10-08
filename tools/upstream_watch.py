@@ -65,7 +65,7 @@ class Action:
     body: str = ""
 
 
-def normalise(tag: str, prerelease: bool, published: str) -> Release | None:
+def normalize(tag: str, prerelease: bool, published: str) -> Release | None:
     match = TAG.match(tag)
     if not match:
         return None
@@ -167,7 +167,7 @@ def gh(*args: str, stdin: str | None = None) -> str:
 def fetch_releases(repo: str) -> list[Release]:
     raw = json.loads(gh("api", f"repos/{repo}/releases?per_page=50"))
     found = (
-        normalise(r["tag_name"], r["prerelease"], r["published_at"] or "")
+        normalize(r["tag_name"], r["prerelease"], r["published_at"] or "")
         for r in raw
         if not r["draft"]
     )

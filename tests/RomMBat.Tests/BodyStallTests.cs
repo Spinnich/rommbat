@@ -42,7 +42,7 @@ public class BodyStallTests
 
     [Theory]
     [MemberData(nameof(Routes))]
-    public async Task Cancelling_a_stalled_body_stays_a_cancellation(string route)
+    public async Task Canceling_a_stalled_body_stays_a_cancellation(string route)
     {
         using var handler = new StallingHandler();
 

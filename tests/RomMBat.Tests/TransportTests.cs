@@ -76,11 +76,11 @@ public class TransportTests
         using var source = new CancellationTokenSource();
         source.Cancel();
 
-        var cancelled = new TaskCanceledException("canceled");
+        var canceled = new TaskCanceledException("canceled");
 
-        var classified = RomMTransportErrors.Classify(cancelled, Origin, source.Token);
+        var classified = RomMTransportErrors.Classify(canceled, Origin, source.Token);
 
-        Assert.Same(cancelled, classified);
+        Assert.Same(canceled, classified);
         Assert.IsNotType<RomMUnreachableException>(classified);
     }
 
@@ -99,7 +99,7 @@ public class TransportTests
     }
 
     [Fact]
-    public void Anything_unrecognised_is_returned_unchanged_rather_than_called_offline()
+    public void Anything_unrecognized_is_returned_unchanged_rather_than_called_offline()
     {
         var unrelated = new InvalidOperationException("something else went wrong");
 
