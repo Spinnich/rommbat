@@ -86,6 +86,10 @@ with `Enter` as Start, `Backspace` as Select and `Home` and `End` as L2 and R2.
   `Assert-TakeoverAllowed -WhilePlaying` put it up. It is topmost, click-through and never takes
   focus, `Save-Screenshot` hides it for a full-screen capture, and it goes away 3 min after the
   kit last acted, or on `Hide-AgentBanner`. An emulator in exclusive full screen can draw over it.
+- **What the kit starts gets no `HOME`.** Git Bash exports it, and `mednafen` then reads
+  `%HOME%\.mednafen` instead of the tree's `emulators\mednafen\mednafen.cfg`, so it takes no pad
+  and saves outside the tree. `Start-ES` and `Start-EmulatorLauncher` clear it for the child, as
+  a RetroBat started from Explorer has none; a launch made any other way from the shell should too.
 - **A disconnected session cannot be driven.** With no RDP client attached, screenshots come back
   black and keys go nowhere. `Test-HandsOnEnv -Gui` reports the state; record the GUI half as
   unproven rather than sending keys blind.
