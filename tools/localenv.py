@@ -4,7 +4,8 @@
 does not have a copy, so this looks in the main checkout first. Bash cannot source it safely
 (`ROMMBAT_AGENT_ROOT=D:\\retrobat-agent` loses its backslashes), so Python reads it here and
 `tools/handson/HandsOn.psm1` reads it for PowerShell. Both parse a line as `KEY=value`, drop a
-trailing ` # note` and strip one pair of double quotes.
+trailing ` # note` (even inside quotes, so a path holding ` #` is cut) and trim the
+double quotes around the value.
 
     import localenv; localenv.apply()      # fill os.environ, never overriding a variable already set
     python tools/localenv.py               # which keys are set, which file, never a value
