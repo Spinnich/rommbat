@@ -236,8 +236,8 @@ all nine; step 6 is N/A because `nes` has no class D.
 row, then `bizhawk`/`Genplus-gx`, `jgenesis`, `mednafen` and `ares`, once each had a megadrive
 battery rule and the last two a state declaration. **Four were driven and are not certified**:
 `libretro`/`fbneo` boots no game named by No-Intro, since FBNeo takes its driver from the file
-name (RB-278), and the three `kega-fusion` rows fail step 4, because Kega Fusion writes its
-battery saves outside `saves/` where RetroBat 8.2.1's `Fusion.ini` sent them (RB-283), which 8.3.0 moves into `saves/` (#519).
+name (RB-278), and the three `kega-fusion` rows are not certified: RetroBat 8.2.1 sent Kega's
+battery saves outside `saves/`, and 8.3.0 writes the loose `.srm` the `libretro` cores share but its states into a folder the supplement does not name (RB-283, #519).
 
 **Nine of `gba`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22:
 `libretro` under `mgba`, the stock row, `gpsp` and `mednafen_gba`, then `mgba` standalone,
@@ -294,7 +294,7 @@ steps, and each record's "Where each row stands" states the result.
 
 **Wave 4 has begun with `gamegear`: five of its nine rows certified at RomM `5.3.1`** on 2026-10-05, both `libretro` cores that boot the library, mednafen, ares and BizHawk's SMSHawk, with no firmware needed by any row. The three standalone rows needed a battery rule each and `mednafen` and `ares` a state declaration, and because ares writes 32 KB of `0xFF` for every cartridge, the scanner now passes over a battery file that is entirely `0xFF` (#453, RB-408, RB-409). `libretro`/`fbneo` refuses the No-Intro names, and `jgenesis` is not certified until #522: 8.3.0 launches it as a Game Gear and the intro plays in color (RB-410, RB-412). `blastem` and `libretro`/`gearsystem` are untested (#521). [gamegear/](gamegear/index.md) is the record.
 
-**Wave 6 has begun with `sega32x`: four of its six rows certified at RomM `5.3.1`** on 2026-10-05, `libretro`/`picodrive`, ares, BizHawk's PicoDrive and jgenesis, with no firmware needed by any row. The extension keeps its own `roms\sega32x` and `saves\sega32x`, but two emulators reach into the parent's names: ares writes its 32X states to `ares/Mega Drive/`, which the supplement's `megadrive` entry declares for `sega32x` too, and Kega Fusion writes them to `saves/sega32x/kega-fusion/sstates/` at 8.3.0, a folder the supplement does not name (RB-413, RB-416). The three standalone rows needed a battery rule each (#464). Kega Fusion is driven and not certified, for `megadrive`'s reason (RB-283), and ares and BizHawk keep no serial EEPROM, so NBA Jam TE and NFL Quarterback Club keep no save under either (RB-415). [sega32x/](sega32x/index.md) is the record.
+**Wave 6 has begun with `sega32x`: four of its six rows certified at RomM `5.3.1`** on 2026-10-05, `libretro`/`picodrive`, ares, BizHawk's PicoDrive and jgenesis, with no firmware needed by any row. The extension keeps its own `roms\sega32x` and `saves\sega32x`, but ares reaches into the parent's names, writing its 32X states to `ares/Mega Drive/`, which the supplement's `megadrive` entry declares for `sega32x` too, while Kega Fusion writes them at 8.3.0 to the 32X's own `saves/sega32x/kega-fusion/sstates/`, a folder the supplement does not name (RB-413, RB-416). The three standalone rows needed a battery rule each (#464). Kega Fusion is driven and not certified, because that states folder is not declared (RB-416, #519), and ares and BizHawk keep no serial EEPROM, so NBA Jam TE and NFL Quarterback Club keep no save under either (RB-415). [sega32x/](sega32x/index.md) is the record.
 
 **Read all eleven as narrowly as they are written.** They certify one hundred
 `(system, emulator, core)` rows on one install, wave 1's seventy-five, `psx`'s seven, `n64`'s nine, `gamegear`'s five and `sega32x`'s four, each at the

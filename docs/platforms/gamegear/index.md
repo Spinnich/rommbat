@@ -111,9 +111,9 @@ From the live `es_systems.cfg`:
 527 hold a `.gg` and **19 hold a `.sms`, Game Gear cartridges that run in Master System mode**. So
 `gamegear` has no multi-disc or multi-file shape to settle. Castle of Illusion Starring Mickey Mouse
 (USA, Europe, Brazil) (En), one of the nineteen, was launched on every row: Genesis Plus GX,
-mednafen, ares and jgenesis play it at the Master System's frame, BizHawk plays it cropped to a Game
-Gear screen, PicoDrive plays it cropped and in the wrong colors (RB-411), and FBNeo refuses it for its
-name.
+mednafen and ares play it at the Master System's frame, BizHawk plays it cropped to a Game Gear
+screen, PicoDrive plays it cropped and in the wrong colors, jgenesis, which 8.3.0 starts as Game Gear
+hardware, shows a black screen with blue bars (RB-411), and FBNeo refuses it for its name.
 
 ### 3. BIOS
 

@@ -17,8 +17,8 @@ with step 6 N/A because `mastersystem` has no class D. Seven were driven at RomM
 
 The two `kega-fusion` rows, `auto` and `mastersystem`, are certified at RomM `5.3.1` on
 2026-10-01, steps 4 and 9 driven then and the rest carried from 2026-09-24. Kega writes its
-battery save as `<rom>.ssm` into `emulators/kega-fusion/`, outside `saves/`, where RetroBat's
-template `Fusion.ini` sends it (RB-283), and **a battery rule anchored at the RetroBat root reads
+battery save as `<rom>.ssm` into `emulators/kega-fusion/`, outside `saves/`, where `Fusion.ini`'s
+`SxMFiles` sends it (RB-283), and **a battery rule anchored at the RetroBat root reads
 it there (#381).**
 
 **One is driven and not certified**, as on `megadrive` and for the same reason: `libretro`/`fbneo`

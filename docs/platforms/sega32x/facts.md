@@ -20,7 +20,7 @@ Knuckles' Chaotix left a 1,024 B `.SaveRAM`, NBA Jam 8,192 B and Doom, which has
 ## RB-415. ares and BizHawk do not keep a `sega32x` serial EEPROM
 
 Verified: RetroBat 8.3.0, 2026-10-14. How: with the EEPROM file deleted, launched NBA Jam - Tournament Edition (World) under `ares`/`Mega32X` and `bizhawk`/`PicoDrive` through `emulatorLauncher`, ran 60 s at the title, closed each and read the file; then seeded ares with PicoDrive's 256 B and ran it 40 s.
-The game formats a blank 24C02 at boot: PicoDrive under libretro, jgenesis and Kega Fusion each wrote the same 256 B within seconds, holding `Snake 1995` at `0x08`. ares wrote 512 B of `0xFF`, which the scanner passes over as erased, and BizHawk 8,192 B of `0x00`. Seeded with PicoDrive's 256 B and run through `emulatorLauncher` for 40 s, ares kept the seed in the first 256 B and wrote the file back on exit as 512 B, the rest `0xFF`., so an Acclaim EEPROM cartridge (NBA Jam TE, NFL Quarterback Club) keeps no save under either row
+The game formats a blank 24C02 at boot: PicoDrive under libretro, jgenesis and Kega Fusion each wrote the same 256 B within seconds, holding `Snake 1995` at `0x08`. ares wrote 512 B of `0xFF`, which the scanner passes over as erased, and BizHawk 8,192 B of `0x00`. Seeded with PicoDrive's 256 B and run through `emulatorLauncher` for 40 s, ares kept the seed in the first 256 B and wrote the file back on exit as 512 B, the rest `0xFF`, so an Acclaim EEPROM cartridge (NBA Jam TE, NFL Quarterback Club) keeps no save under either row
 
 ## RB-416. Kega Fusion writes a `sega32x` game's save loose in `saves/sega32x/` and its states under `saves/sega32x/kega-fusion/sstates/`, where only the `.srm` is read
 
