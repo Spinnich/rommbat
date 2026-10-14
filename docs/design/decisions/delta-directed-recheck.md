@@ -17,7 +17,10 @@ changelog; the emulator builds a release downloads, because RetroBat ships more 
 RetroBat's own tree between the two tags, whose templates seed a fresh install's emulator configs.
 For RomM: the source diff between the two tags and the diff of the pinned OpenAPI schema. A fact is
 touched when its heading or body names a system, emulator, core, option, file, path, endpoint,
-field, scope or config key that one of these changed. A changelog line nobody measured counts as
+field, scope or config key that one of these changed in a way that could alter what the fact
+says: a generator change confined to monitor selection, lightgun software, controller mapping or
+exit-code logging does not touch a fact about saves, files or launch arguments, and the carry
+reason names the change so a reviewer can disagree. A changelog line nobody measured counts as
 touching, as it does for a platform record's steps (`platform-certification`, "When the floor
 moves").
 

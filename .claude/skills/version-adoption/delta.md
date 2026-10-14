@@ -27,8 +27,11 @@ commits with `?sha=master`; on the default branch the 8.3.0 window held none.
 
 ## Which facts a delta touches
 
-**A fact is touched when the delta names something its heading or body names.** The subjects
-differ by project.
+**A fact is touched when the delta names something its heading or body names, and the change
+could alter what the fact says.** A generator change confined to monitor selection, lightgun
+software, controller mapping or exit-code logging names the emulator but does not touch a fact
+about its saves, files or launch arguments; the carry reason names the change, so a reviewer can
+disagree line by line. The subjects differ by project.
 
 **RetroBat**: a system, an emulator or core, an `es_features.cfg` option, a file or a path under
 `saves/`, `bios/` or `emulators/`, and EmulationStation's own surface: an event hook, an
