@@ -158,11 +158,13 @@ sent, unless the server's hash already equals the local one, and records a `down
 
 ## RB-276. RomM keeps a save whose bytes are the JSON literal `null`
 
-Verified: RomM 5.3.0, 2026-09-21. How: read the rows a flush had placed on `megadrive` and `nes`, and their hashes.
-RomM's browser player uploaded the four bytes `null` when it had no save to send, md5
-`37a6259cc0c1dae299a7866489dff0bd`, and the server stored them in `autosave`, in
-`libretro:battery` and slotless. Rom 189465 held three. Placed as a battery save, one replaces a
-real save with a file no emulator loads. `SaveSync` refuses that hash before the transfer and those
+Verified: RomM 5.4.0, 2026-10-14, live, and 5.3.1 in source. How: uploaded the four bytes to `autosave`, a `libretro:` slot and no slot, read each back and deleted it; read `add_save` at the `5.3.1` tag, and the player's Save & Quit at `5.2.0` and `5.3.1`.
+The server stores whatever bytes it is sent. The four bytes `null`, md5
+`37a6259cc0c1dae299a7866489dff0bd`, land in all three places and come back unchanged. RomM
+5.2.0's browser player sent them: its Save & Quit uploaded `getSaveFile()` unchecked, which is
+`null` for a game with no SRAM. 5.3.0 checks `byteLength` first, but the rows an older player left
+stay on the server, three on one rom of the library measured. Placed as a battery save, one
+replaces a real save with a file no emulator loads. `SaveSync` refuses that hash before the transfer and those
 bytes after it, never acknowledges the row, and counts it apart from failures.
 
 ## RB-303. A zipped save's `content_hash` is a digest of its members, not of its bytes
@@ -193,10 +195,11 @@ makes that acknowledgment, with no transfer.
 
 ## RB-327. RomM's browser player can rewrite a save another emulator made, in a format of its own
 
-Verified: RomM 5.3.0, 2026-09-24. How: read the row an accidental EmulatorJS launch wrote during a `mastersystem` pass, and what the next flush did with it.
+Verified: RomM 5.3.0, 2026-09-24, driven, and 5.3.1, 2026-10-14, in source. How: read the row an accidental EmulatorJS launch wrote during a `mastersystem` pass, and what the next flush did with it; read `_EJS_CORES_MAP` at the `5.3.1` tag.
 It wrote save 496 into `libretro:battery` with no device, named after PicoDrive's upload two
 minutes earlier and holding 8,191 B: PicoDrive's 32 KB save as Genesis Plus GX, which EmulatorJS
-runs, trims it. The next flush found the local `.srm` unchanged since it was last in step,
+runs, trims it. `sms` has no other EmulatorJS core, and a session's first write lands in the
+newest slotted save's slot (RM-4). The next flush found the local `.srm` unchanged since it was last in step,
 downloaded the newer row, and kept the displaced file in `emulators/rommbat/replaced/`.
 
 ## RM-3. `/api/memory-cards` is a card per `(user, emulator)`, with no ROM

@@ -97,7 +97,7 @@ Verified: RetroBat 8.2.0, 2026-08-08. How: seven launches, then a crossover that
 `game-start` produced no record for any game whose `<name>` held a space and a record for every
 game whose name did not, and the behavior followed the name across the swap. ES fires the event
 in every case (RB-395); the `.bat` is what never starts. Nearly every scraped name holds a space.
-Filed upstream as [#2196](../issues.md#rb-342-2196-the-es-hook-bug-moved-repository).
+Filed upstream as [#2196](../issues.md#rb-342-2196-the-es-hook-bug-filed-with-batocera).
 
 ## RB-396. Only an `.exe` hook survives a real game name
 

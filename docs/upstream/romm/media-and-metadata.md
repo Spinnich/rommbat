@@ -75,17 +75,18 @@ is negative, so a pre-1970 date is unobserved rather than impossible. The export
 
 ## RB-96. `metadatum.average_rating` is on a 0 to 100 scale
 
-Verified: RomM 5.3.1, 2026-09-29, for the RomM half; RetroBat 8.2.0, 2026-08-11, for the gamelist half. How: read all 57,221 ratings in the library and the exporter; counted `<rating>` values in 32 gamelists of a real scraped install.
+Verified: RomM 5.3.1, 2026-09-29, for the RomM half; RetroBat 8.2.0, 2026-08-11, for the gamelist counts, and 8.3.0, 2026-10-14, for the scraper that writes them. How: read all 57,221 ratings in the library and the exporter; counted `<rating>` values in 32 gamelists of a real scraped install; read `ScreenScraper.cpp` at ES `45f37fd7`.
 Every value is between 5.0 and 100.0, and none is 1.0 or below. A gamelist `<rating>` is 0 to 1
-with two decimals, and a scraped install's ratings sit on 17 values in 0.05 steps, which is
-ScreenScraper's score out of 20. The exporter divides by 100, and so does
+with two decimals, and a scraped install's ratings sit on 17 values in 0.05 steps, because ES's
+scraper divides ScreenScraper's score out of 20 by 20. The exporter divides by 100, and so does
 `GameMetadata.RatingOf`, which clamps above 100.
 
 ## RB-97. `player_count` is already EmulationStation's `<players>` form
 
-Verified: RomM 5.3.1, 2026-09-29, for the RomM half; RetroBat 8.2.0, 2026-08-11, for the gamelist half. How: counted the library's values; read `<players>` in 32 gamelists of a real scraped install.
+Verified: RomM 5.3.1, 2026-09-29, for the RomM half; RetroBat 8.2.0, 2026-08-11, for the gamelist counts, and 8.3.0, 2026-10-14, for the scraper that writes them. How: counted the library's values; read `<players>` in 32 gamelists of a real scraped install; read `ScreenScraper.cpp` at ES `45f37fd7`.
 It is a string: `1` 61,005, `1-2` 24,148, `1-4` 6,628, `2` 1,161, across 45 distinct values up
-to `1-16`. A scraped install's `<players>` uses the same vocabulary. RomMBat copies it
+to `1-16`. A scraped install's `<players>` uses the same vocabulary, because ES's scraper copies
+ScreenScraper's `joueurs` text as it comes. RomMBat copies it
 unchanged, the only metadata field it does not convert.
 
 ## RB-98. `metadatum.companies` merges developer and publisher and sorts them, so neither role survives
@@ -104,17 +105,19 @@ writes `<developer>` as `companies` deduplicated and comma-joined, which claims 
 
 ## RB-99. RomM's arrays become comma-joined gamelist text, as a scraped install already writes
 
-Verified: RomM 5.3.1, 2026-09-29, for the RomM half; RetroBat 8.2.0, 2026-08-11, for the gamelist half. How: counted repeated franchises in the library; read `<genre>` in 32 gamelists of a real scraped install.
+Verified: RomM 5.3.1, 2026-09-29, for the RomM half; RetroBat 8.2.0, 2026-08-11, for the gamelist counts, and 8.3.0, 2026-10-14, for the scraper that writes them. How: counted repeated franchises in the library; read `<genre>` in 32 gamelists of a real scraped install; read `ScreenScraper.cpp` at ES `45f37fd7`.
 In the scraped install, 2,079 of 4,440 `<genre>` values contain a comma or a slash (`Racing,
-Driving`, `Action / Adventure`), across 111 distinct values. So joining with a comma and a space
-follows the existing convention. `franchises` repeats a name on 147 rows, so
+Driving`, `Action / Adventure`), across 111 distinct values: ES's scraper joins ScreenScraper's
+genre and subgenre with ` / `. So joining with a comma and a space follows the existing
+convention. `franchises` repeats a name on 147 rows, so
 `GameMetadata` deduplicates before joining or picking the first.
 
 ## RB-100. `regions` and `languages` use different vocabularies from a gamelist
 
-Verified: RomM 5.3.1, 2026-09-29, for the RomM half; RetroBat 8.2.0, 2026-08-11, for the gamelist half. How: counted the library's values; read `<region>` and `<lang>` in 32 gamelists of a real scraped install.
+Verified: RomM 5.3.1, 2026-09-29, for the RomM half; RetroBat 8.2.0, 2026-08-11, for the gamelist counts, and 8.3.0, 2026-10-14, for the code that writes them. How: counted the library's values; read `<region>` and `<lang>` in 32 gamelists of a real scraped install; read `LangParser.cpp` and `FileData::detectLanguageAndRegion` at ES `45f37fd7`.
 RomM writes `Japan`, `USA`, `Europe`, `World` and `Unlicensed`, and a gamelist writes `jp`, `us`,
-`eu`, `wr`. RomM writes `English`, `French`, and ES writes `en,fr` comma-joined. 15,145 rows
+`eu`, `wr`. RomM writes `English`, `French`, and ES writes `en,fr` comma-joined. ES does not
+scrape either field: it parses both from the rom file name. 15,145 rows
 carry more than one region while `<region>` holds one, and `languages` is on only 15.5% of rows.
 `EsVocabulary` maps both to ES codes rather than copying them.
 

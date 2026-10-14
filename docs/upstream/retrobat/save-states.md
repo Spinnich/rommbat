@@ -58,8 +58,8 @@ Verified: RetroBat 8.2.0, 2026-08-08. How: snapshotted the whole `saves/<system>
 | `dolphin`     | gamecube | `.s01`           | absent    | `GW7E69`                     | live    |
 | `gopher64`    | n64      | `.state0`        | absent    | `TWINE-72E3E7B4...` (sha256) | live    |
 
-Four more are in RB-370, and `flycast`, whose declared directory 8.2.0 left empty, is in
-RB-343. The declared `<file>` was right for every emulator driven, so
+Four more are in RB-370, and `flycast`, which reaches its declared directory through the
+launcher's mirror, is in RB-343. The declared `<file>` was right for every emulator driven, so
 `StateScanner` attributes a state by its `{{romfilename}}` stem with no Game ID. A manual save
 reaches the declared directory about 120 ms after the keypress, while the emulator runs. An
 autosave state, driven here through `<system>.autosave=1`, appears only at exit, and the

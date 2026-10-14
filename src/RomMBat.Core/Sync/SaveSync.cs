@@ -1718,9 +1718,9 @@ public sealed class SaveSync
     /// Why a server save with this content hash must not be written, or null when it may be.
     /// </summary>
     /// <remarks>
-    /// <b>RomM's browser player uploads the JSON literal <c>null</c> into slot <c>autosave</c></b>
-    /// when it has no save to send, and the server keeps those four bytes like any other save.
-    /// Placed as a battery save it replaces a real one with a file no emulator loads, measured on
+    /// <b>A server can hold the JSON literal <c>null</c> as a save</b>: RomM 5.2.0's browser player
+    /// uploaded it when it had no save to send, and the server keeps those rows like any other
+    /// (RB-276). Placed as a battery save it replaces a real one with a file no emulator loads, measured on
     /// <c>megadrive</c> and twice on <c>nes</c>. The hash is the whole test, since no emulator
     /// writes a save of exactly those bytes.
     /// </remarks>
