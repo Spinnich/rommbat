@@ -68,7 +68,7 @@ reason runs to `How:` and is not read for builds. A later carry replaces an earl
 The reason says what was read and why it does not reach the fact; "unchanged" is not one, and a
 clause without a reason carries nothing and stays on the stale list. `--stale` lists the carried
 facts apart so the reasons can be read. A fact is touched, and re-measured, when the delta names what its heading or body
-names ([delta.md](../../.claude/skills/version-adoption/delta.md), "Which facts a delta touches").
+names and the change could alter what the fact says ([delta.md](../../.claude/skills/version-adoption/delta.md), "Which facts a delta touches").
 
 ## IDs
 
