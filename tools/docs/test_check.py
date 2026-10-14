@@ -266,6 +266,28 @@ class StaleTest(unittest.TestCase):
             [(3, "RB-379", "Verified: RetroBat 8.2.1, 2026-09-28."), (8, "RB-380", None)],
         )
 
+    def test_a_carried_fact_counts_at_the_build_it_is_carried_to(self) -> None:
+        stamp = "Verified: RetroBat 8.2.1, 2026-10-04. Carried: RetroBat 8.3.0, 2026-10-14, not in the launcher delta."
+        floor = check.floors(check.floor_overrides(["--stale", "--floor", "retrobat=8.3.0"]))
+        self.assertEqual(check.stamps_below(stamp, floor), [])
+        self.assertEqual(check.carried_reason(stamp), (True, "not in the launcher delta"))
+
+    def test_a_carried_stamp_with_no_reason_carries_nothing(self) -> None:
+        for stamp in (
+            "Verified: RetroBat 8.2.1, 2026-10-04. Carried: RetroBat 8.3.0, 2026-10-14.",
+            "Verified: RetroBat 8.2.1, 2026-10-04. Carried: RetroBat 8.3.0, 2026-10-14, unchanged.",
+            "Verified: RetroBat 8.2.1, 2026-10-04. Carried: RetroBat 8.3.0.",
+        ):
+            self.assertEqual(check.carried_reason(stamp), (True, None), stamp)
+
+    def test_a_plain_stamp_is_not_carried(self) -> None:
+        self.assertEqual(check.carried_reason("Verified: RetroBat 8.3.0, 2026-10-14. How: ran it."), (False, None))
+
+    def test_carried_text_after_how_is_not_read(self) -> None:
+        self.assertEqual(
+            check.carried_reason("Verified: RetroBat 8.3.0, 2026-10-14. How: Carried: nothing."), (False, None)
+        )
+
     def test_floor_is_read_from_code(self) -> None:
         floor = check.floors()
         self.assertEqual(set(floor), {"RetroBat", "RomM"})

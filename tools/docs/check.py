@@ -13,7 +13,8 @@ Usage:
   python tools/docs/check.py --quiet    errors only
   python tools/docs/check.py --stale    list the facts owed a re-check at the current floor: each
                                         fact whose `Verified:` stamp names a RetroBat or RomM
-                                        build below it, and each fact with no stamp
+                                        build below it, and each fact with no stamp; a fact carried
+                                        to the floor with a reason is listed apart, to be read
   python tools/docs/check.py --hook     PostToolUse hook: read the tool call from stdin and
                                         check the one file it wrote, exit 2 on an error
 """
@@ -412,6 +413,9 @@ FLOOR_SOURCES = {
 }
 FLOOR = re.compile(r"\bMinimum\s*\{\s*get;\s*\}\s*=\s*ProductVersion\.Parse\(\"([^\"]+)\"\)")
 STAMP = re.compile(r"^Verified:")
+# A fact the floor move did not touch is carried, not re-measured: "Carried: RetroBat 8.3.0,
+# 2026-10-14, <why the delta does not reach it>." The reason is what a reviewer reads.
+CARRIED = re.compile(r"Carried:\s*(?:RetroBat|RomM)\s+\d[^,\s]*,\s*\d{4}-\d{2}-\d{2},\s*(\S.{14,}?)\.(?:\s|$)")
 # A bare version belongs to the project named before it: "RetroBat 8.2.0, 2026-08-16, and 8.2.1".
 STAMP_TOKEN = re.compile(r"\b(RetroBat|RomM)\b|\b(\d+(?:\.\d+)+)(-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?")
 
@@ -481,6 +485,15 @@ def stamps_below(stamp: str, floor: dict[str, tuple[str, tuple]]) -> list[str]:
     return [label for project, (key, label) in sorted(newest.items()) if key < floor[project][1]]
 
 
+def carried_reason(stamp: str) -> tuple[bool, str | None]:
+    """Whether a stamp carries its fact, and the reason it gives. No reason is a stamp that carries nothing."""
+    head = stamp.partition("How:")[0]
+    if "Carried:" not in head:
+        return False, None
+    match = CARRIED.search(head)
+    return True, match.group(1) if match else None
+
+
 def fact_stamps(text: str):
     """Yield (line, fact ID, its Verified line or None) for each fact heading."""
     current: list | None = None
@@ -500,23 +513,33 @@ def run_stale(overrides: dict[str, str] | None = None) -> int:
     floor = floors(overrides)
     stale: list[str] = []
     unstamped: list[str] = []
+    carried: list[str] = []
     for rel in tracked_files():
         if not rel.endswith(".md"):
             continue
         for number, fact, stamp in fact_stamps(read_text(rel) or ""):
             if stamp is None:
                 unstamped.append(f"{rel}:{number}: {fact}")
-            else:
-                below = stamps_below(stamp, floor)
-                if below:
-                    stale.append(f"{rel}:{number}: {fact}, {', '.join(below)}")
+                continue
+            is_carried, reason = carried_reason(stamp)
+            if is_carried and reason is None:
+                stale.append(f"{rel}:{number}: {fact}, carried with no reason")
+                continue
+            below = stamps_below(stamp, floor)
+            if below:
+                stale.append(f"{rel}:{number}: {fact}, {', '.join(below)}")
+            elif is_carried:
+                carried.append(f"{rel}:{number}: {fact}: {reason}")
 
     print("floor: " + ", ".join(f"{project} {raw}" for project, (raw, _) in floor.items()))
-    print(f"stale ({len(stale)}): stamped below the floor")
+    print(f"stale ({len(stale)}): stamped below the floor, or carried with no reason")
     for line in stale:
         print(f"  {line}")
     print(f"unstamped ({len(unstamped)}): no Verified line")
     for line in unstamped:
+        print(f"  {line}")
+    print(f"carried ({len(carried)}): not re-measured at the floor, for the reason given")
+    for line in carried:
         print(f"  {line}")
     return 0
 
