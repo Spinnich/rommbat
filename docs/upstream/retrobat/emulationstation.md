@@ -108,7 +108,7 @@ after writing gamelists, and the games appear when the user leaves it.
 
 ## RB-208. `POST /launch` starts the game whose path it is given
 
-Verified: RetroBat 8.2.1, 2026-10-04. Carried: RetroBat 8.3.0, 2026-10-14, f600b969 changes /launch only for a game in a grouped system, which it launched twice, and nes is in no group. How: posted the `path` that `/systems/nes/games` reports, as the raw body, to a running ES on an idle tree, then watched the processes and `emulatorLauncher.log`.
+Verified: RetroBat 8.2.1, 2026-10-04. How: posted the `path` that `/systems/nes/games` reports, as the raw body, to a running ES on an idle tree, then watched the processes and `emulatorLauncher.log`.
 The response was 200 with an empty body, `emulatorLauncher.log` grew by 1.9 KB, and
 `emulatorLauncher` and `retroarch` were running 12 s later. ES runs the `game-start` and
 `game-end` hooks around it as for a player, so a hands-on pass over them can be scripted. Ending
@@ -116,7 +116,7 @@ the game still takes the emulator's own exit (RB-35).
 
 ## RB-419. `POST /launch` passes no pad the player has not touched in ES
 
-Verified: RetroBat 8.2.1, 2026-10-06. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's InputManager changes how pads are enumerated (812f6cd6, the dropped XInput view), not when a pad is assigned to a player, and f600b969 changes /launch only for grouped systems. How: on the agent tree, launched Super Mario Kart (USA) with `POST /launch` straight after ES started, then from the pad in ES's menu, and read each `[Startup]` line in `emulatorLauncher.log`.
+Verified: RetroBat 8.2.1, 2026-10-06. How: on the agent tree, launched Super Mario Kart (USA) with `POST /launch` straight after ES started, then from the pad in ES's menu, and read each `[Startup]` line in `emulatorLauncher.log`.
 The `POST /launch` made before any pad input reached `emulatorLauncher` with no `-p1*` arguments,
 and RetroArch ran with no controller mapped, so the pad did nothing in the game. Launched from the
 pad, the same game carried `-p1index 0`, `-p1name "Xbox 360 Controller"` and the rest, and played.
