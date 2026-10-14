@@ -40,7 +40,7 @@ why `EsSystemsFile` loads the file with `XDocument`.
 
 ## RB-173. A disc marker is always `(Disc N)`, and text can follow it
 
-Verified: RetroBat 8.2.0, 2026-08-24. How: swept every filename under a real install's `roms/`, read-only.
+Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, it sweeps the user's own ROM filenames, which no RetroBat build writes. How: swept every filename under a real install's `roms/`, read-only.
 202 files carry a marker, across `psx`, `saturn`, `dreamcast`, `gamecube`, `3do` and `ps2`, and
 every one is `(Disc N)` with N numeric. No `(Disk`, `(CD` or `(Side` appears. 53 of the 202
 carry text after the marker, such as `(Rev 1)`, `(Unl)` and translation tags. So `DiscSet` takes a
