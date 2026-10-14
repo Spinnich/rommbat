@@ -153,7 +153,7 @@ short name, so the basename is the key, but this library cannot demonstrate the 
 
 ## RB-253. A system's save shape depends on the emulator
 
-Verified: RetroBat 8.2.1, 2026-09-13. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0 moves no nes row's files: its launcher changes these emulators only by BizHawk's .m3u hand-off, jgenesis's portable.txt (whose save paths held in PR #532), mednafen's display index and Mesen's Sinden cleanup, its reference diff has no nes line, and its changelog bumps none of their builds. How: drove all nine `nes` rows from EmulationStation, confirming each emulator from `emulatorLauncher.log`.
+Verified: RetroBat 8.2.1, 2026-09-13. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0 moves no nes row's files: none of its launcher changes to these emulators reaches a save, file or launch argument (BizHawk's .m3u hand-off, jgenesis's portable.txt whose save paths held in PR #532, display index and Sinden cleanup, libretro's monitor, rumble and bezel defaults), its reference diff has no nes line, and its changelog bumps none of their builds. How: drove all nine `nes` rows from EmulationStation, confirming each emulator from `emulatorLauncher.log`.
 Three libretro cores share one `saves/nes/<rom>.srm`, so switching core continues the same save,
 measured on Kirby's Adventure under `nestopia` then `fceumm`. The other six rows write four other
 shapes in their own subdirectories or under other extensions. So `nes` is class A on libretro and
