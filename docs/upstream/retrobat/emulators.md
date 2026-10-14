@@ -112,16 +112,15 @@ timeout. The launcher stays running until the dialog is answered, so a game can 
 ended. Right, then Enter answers No, which deletes `roms\.uncompressed`. NO\$GBA itself exits on
 `WM_CLOSE`.
 
-## RB-374. BizHawk crashes when `emulatorLauncher` is run without `-core`
+## RB-374. BizHawk gets one input port when `emulatorLauncher` is run without `-core`
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: launched `bizhawk` with and without `-core`, then read `Bizhawk.Controllers.cs`.
-Without it the launcher throws `KeyNotFoundException` in
-`BizhawkGenerator.CreateControllerConfiguration`, because `inputPortNb[core]` is an unguarded
-dictionary lookup and an empty core is not a key. All 36 BizHawk cores that `es_systems.cfg`
-declares are among its 42 keys, and ES always passes one, so only a direct invocation or an
-unlisted core reaches it. Upstream will not fix it
-([emulatorlauncher#1337](https://github.com/RetroBat-Official/emulatorlauncher/issues/1337)), so
-anything that runs `emulatorLauncher` itself passes `-core`.
+Verified: RetroBat 8.3.0, 2026-10-14. How: launched `nes` under `bizhawk` with no `-core` through `Start-EmulatorLauncher` and read `emulatorLauncher.log`; read `Bizhawk.Controllers.cs` at `79f5b1aa`; counted the cores in `es_systems.cfg`.
+Without it the launcher fills in `fceumm`, logs `Unknown or missing BizHawk core 'fceumm',
+defaulting to 1 input port`, and EmuHawk starts. `BizhawkGenerator.CreateControllerConfiguration`
+looks the core up in `inputPortNb` and falls back to one port for any core the dictionary lacks.
+All 39 BizHawk cores that `es_systems.cfg` declares are among its 42 keys, and ES always passes
+one, so only a direct invocation or an unlisted core reaches the fallback. Anything that runs
+`emulatorLauncher` itself passes `-core`, so every player gets a pad.
 
 ## RB-370. DeSmuME, Mupen64, jgenesis and BizHawk states reach their declared directories
 

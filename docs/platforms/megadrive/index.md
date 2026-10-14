@@ -132,8 +132,9 @@ that is not one game's own save.
 
 ### Another client's `null` save, refused (RB-276)
 
-**RomMBat downloaded four bytes reading `null` and wrote them as a battery save.** RomM's browser
-player uploads the JSON literal when it has no save to send, and the server keeps it as a save.
+**RomMBat downloaded four bytes reading `null` and wrote them as a battery save.** RomM 5.2.0's
+browser player uploaded the JSON literal when it had no save to send, and the server keeps it as a
+save.
 This install held one at `saves/megadrive/Bare Knuckle III (Japan) [T-En by Twilight Translations
 v1.0].srm`, md5 `37a6259cc0c1dae299a7866489dff0bd`, written at 18:10 local by the build before this
 branch; earlier ones had landed on `nes` as Ninja Gaiden II and Super Mario Bros. It was moved out of

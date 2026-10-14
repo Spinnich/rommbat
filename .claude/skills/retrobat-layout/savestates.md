@@ -157,9 +157,8 @@ for the binary before promising state sync for a system.
 
 **And installation is not launchability.** Launching an uninstalled emulator raises a modal
 "install now?" dialog with **no window title and no timeout**, which blocks that launch
-indefinitely; launchers were found still waiting on it seven hours later. And **`bizhawk`
-crashes in `BizhawkGenerator.CreateControllerConfiguration` when the launcher is invoked
-without `-core`** (`inputPortNb[core]` is unguarded), which ES never does but a direct
-invocation easily does, so **always pass `-core` when driving `emulatorLauncher` yourself**.
-Both failures leave the launcher hung or gone with no game started, so detect them from the
-launcher rather than recording a play session that did not happen.
+indefinitely; launchers were found still waiting on it seven hours later. Detect it from the
+launcher rather than recording a play session that did not happen. And `bizhawk` configures
+one input port when the launcher is invoked without `-core` (RB-374), which ES never does but a
+direct invocation easily does, so **always pass `-core` when driving `emulatorLauncher`
+yourself**.
