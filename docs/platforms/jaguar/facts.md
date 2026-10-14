@@ -9,14 +9,17 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../../upstrea
 
 ## RB-166. Refuted. The two describe opposite sides of a mirror
 
+Verified: RetroBat 8.2.0, 2026-08-23. Carried: RetroBat 8.3.0, 2026-10-14, BigPEmu's generator changes only its Display key (8.3.0), its es_savestates.cfg entry is unchanged in both reference diffs, and neither changelog bumps it. How: recovered from the findings ledger, which recorded it during the issue sweep after M6 stage 2b (eec7a6a) on the 8.2.0 install its header names; the method is the text below.
 The claim being checked: `bigpemu` declares `001`/`999` against a two-digit `{{slot2d}}`, so its own file is internally inconsistent (**#34**, the `save-sync` skill)
 
 The probe says: **Refuted. The two describe opposite sides of a mirror.** Driven on the real install: BigPEmu writes **three-digit** names in its own tree, `emulators/bigpemu/userdata/game4F7E323A69447A71_state001.bigpstate`, keyed by an internal game id; RetroBat mirrors each to `saves/jaguar/bigpemu/Rayman (World)_state01.bigpstate`, **two-digit and rom-named**, byte-identical in length. So `firstslot`/`lastslot` describe the emulator's native slot range and `<file>` describes the mirror, and neither contradicts the other. Six states driven through the gamepad overlay, slots 1 to 6; `SaveAutoIncr: 1` in `BigPEmuConfig.bigpcfg` is why they came out consecutively. RomMBat read all six correctly off the declared path. **Whether the mirror writes `_state100` past slot 99 is still unmeasured**, and reaching it needs ~94 more saves of one game
 
 ## RB-167. The Jaguar battery save never leaves the emulator's own tree
 
+Verified: RetroBat 8.2.0, 2026-08-23. Carried: RetroBat 8.3.0, 2026-10-14, BigPEmu's generator changes only its Display key (8.3.0), its es_savestates.cfg entry is unchanged in both reference diffs, and neither changelog bumps it. How: recovered from the findings ledger, which recorded it during the issue sweep after M6 stage 2b (eec7a6a) on the 8.2.0 install its header names; the method is the text below.
 `game4F7E323A69447A71_eeprom.bigpeep`, 128 bytes, sits in `emulators/bigpemu/userdata/` with no counterpart anywhere under `saves/jaguar/`, so not everything `bigpemu` writes reaches `saves/`. Same class of trap as openMSX's states landing in `bios/openmsx/savestates/`: a client reading only the declared tree concludes the game has no battery save. `jaguar` is in `save_shapes.json`'s `_unclassified` list and this is the concrete reason it has to stay there until the native path is modeled
 
 ## RB-168. `bigpemu` writes a `.txt` sidecar, and its contents map the mirror's names to the native ones
 
+Verified: RetroBat 8.2.0, 2026-08-23. Carried: RetroBat 8.3.0, 2026-10-14, BigPEmu's generator changes only its Display key (8.3.0), its es_savestates.cfg entry is unchanged in both reference diffs, and neither changelog bumps it. How: recovered from the findings ledger, which recorded it during the issue sweep after M6 stage 2b (eec7a6a) on the 8.2.0 install its header names; the method is the text below.
 `saves/jaguar/bigpemu/Rayman (World).txt` holds `game4F7E323A69447A71`, which is exactly the key BigPEmu's native filenames use. So it is the same shape as PPSSPP's `ULES01513_1.00`: not a console serial, but a stable per-game identifier that joins the mirror back to the native tree. It carries no underscore, so the first-underscore split in `GameIdAttributor.FromSidecar` returns it whole

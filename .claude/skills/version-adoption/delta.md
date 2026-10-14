@@ -10,6 +10,9 @@ The traps in working out what changed between two upstream builds, for both trac
 when it truncates, so a delta that size reads as complete while hiding whichever files sort last.
 `5.3.0-alpha.3` to `5.3.0-beta.1` hit exactly 300 and hid the browser save writer, which a
 finding turned on. Diff blob shas from `git/trees/{ref}?recursive=1` at both tags instead.
+Under the cap, a file's `patch` can still be missing: the 8.2.1-to-8.3.0 launcher compare returned
+141 files and no patch for 19 of them, `es_features.cfg`, `Program.cs` and `Installer.cs` among
+them. Diff those from their raw content at both refs.
 
 **Read RomM from source.** The release notes are cumulative from the last minor and can say the
 opposite of the code: 5.3's say ordinary browser play goes to `autosave`, and RM-4 is what the
@@ -18,7 +21,9 @@ player does for a game RomMBat syncs.
 **RetroBat ships more than its repo.** A release's `build.ini` downloads emulatorlauncher and
 EmulationStation from rolling `continuous` builds, so no tag pins them. `refresh.sh` takes the
 last emulatorlauncher commit at or before the release was published, and the scout tree is what
-the release actually installs. Where the two disagree, the tree wins.
+the release actually installs. Where the two disagree, the tree wins. EmulationStation's
+`continuous-master` build comes from its `master` branch, not the default `autopull`, so list its
+commits with `?sha=master`; on the default branch the 8.3.0 window held none.
 
 ## Which facts a delta touches
 
@@ -40,6 +45,12 @@ each for the fact's subject:
    launch at whatever build its updater names, so a fact about an emulator's own behavior can be
    touched by a build that no repo commit shows. Name the build in a fact's `How:` when it is
    known, and treat a moved build as touching.
+5. **RetroBat's own tree between the two tags**, `compare/<previous>...<new>` on
+   `RetroBat-Official/retrobat`. `system/templates/`, through `templates_files.lst`, seeds an
+   emulator's config on a fresh install, so a template dropped or edited touches a fact whose path
+   or key it held, unless the emulator's generator writes that key itself. `system/es_menu/`,
+   `system/padtokey/` and the EmulationStation templates (`es_input.cfg`, `es_padtokey.cfg`,
+   `gamecontrollerdb.txt`) ship as they are.
 
 **RomM**: an endpoint, a request or response field, a scope, a config key, a status code or a
 behavior of the server. Read the source diff between the two tags, from the trees (see above), and

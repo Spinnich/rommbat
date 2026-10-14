@@ -9,48 +9,58 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../../upstrea
 
 ## RB-36. Neither is stale
 
+Verified: RetroBat 8.2.0, 2026-08-09. How: recovered from the findings ledger, which recorded it in M0's probes (d608a87) on the 8.2.0 install its header names; the method is the text below.
 Plan says: PPSSPP's two populated state directories mean the declared template is wrong (probe 2, earlier)
 
 Measurement says: **Neither is stale.** RetroBat mirrors native to ES-facing about 120 ms after each save, live. The declared template is correct and `saves/psp/ppsspp/` is authoritative
 
 ## RB-37. A downloaded PPSSPP state reaches the emulator through the ES-facing path
 
+Verified: RetroBat 8.2.0, 2026-08-09. How: recovered from the findings ledger, which recorded it in M0's probes (d608a87) on the 8.2.0 install its header names; the method is the text below.
 ES passes `-state_slot` and `-state_file` naming the **ES-facing** path, and the launcher hands it to PPSSPP as `--state=`. Writing there is sufficient; the native copy is rebuilt from it
 
 ## RB-154. Confirmed on a second, independently produced sample
 
+Verified: RetroBat 8.2.0, 2026-08-17. Carried: RetroBat 8.3.0, 2026-10-14, the directory name is the game's own PSP save format, which an emulator build passes through. How: recovered from the findings ledger, which recorded it during M6 stage 2b's hands-on pass (74e9529) on the 8.2.0 install its header names; the method is the text below.
 The claim being checked: The PSP unit key is a prefix of the directory name (141, measured on `E:`)
 
 The pass says: **Confirmed on a second, independently produced sample.** PPSSPP wrote `SAVEDATA/ULUS100570000/`, four files and 91,607 B, and the key extracted as `ULUS10057`. Matching the whole segment would have found nothing
 
 ## RB-155. True, and it works
 
+Verified: RetroBat 8.2.0, 2026-08-17. Carried: RetroBat 8.3.0, 2026-10-14, it measures RomMBat's launch-window attribution, keyed on launch-log lines RB-118 carries. How: recovered from the findings ledger, which recorded it during M6 stage 2b's hands-on pass (74e9529) on the 8.2.0 install its header names; the method is the text below.
 The claim being checked: Route 1 is the only route that can attribute a PSP save (143, 144, 145)
 
 The pass says: **True, and it works.** No `.cso` header and no state sidecar existed, and the launch window bound it: `Bust-A-Move - Deluxe (USA).cso was running when ULUS10057 was last written`. The hook fired all four events and the launch log carried `-system psp -emulator ppsspp`
 
 ## RB-159. PPSSPP loads a save unit RomMBat restored
 
+Verified: RetroBat 8.2.0, 2026-08-17. How: recovered from the findings ledger, which recorded it during M6 stage 2b's hands-on pass (74e9529) on the 8.2.0 install its header names; the method is the text below.
 The staged restore (not atomic, #38) put the server's four files into `SAVEDATA/ULUS100570000/` and Bust-A-Move loaded the save. With the fold proving the bytes identical, a real save round-trips the same way
 
 ## RB-304. `libretro`/`ppsspp` keeps its memory stick in the standalone's, so both rows write one container
 
+Verified: RetroBat 8.2.1, 2026-09-23. How: recovered from the findings ledger, which recorded it while driving `psp`'s directory save (d88eb42) on the 8.2.1 install the certification records name; the method is the text below.
 The core's `ms0:/PSP/SAVEDATA/ULUS10202003` is `saves/psp/SAVEDATA/ULUS10202003`, beside the standalone's `ULUS10202001`, so both rows write one container and one unit. The game offered three in-game slots as `ULUS10202001` to `003`, one folder each, all under the `ULUS10202` prefix. Its save states go to `saves/psp/libretro.ppsspp/`.
 
 ## RB-305. The class C unit's hash is the server's on every transfer, end to end
 
+Verified: RomM 5.3.0, 2026-09-23. Carried: RomM 5.3.1, 2026-10-14, the 5.3.0-to-5.3.1 source diff (225 files, from the trees) touches nothing under backend/endpoints/saves and no backend line naming content_hash. How: recovered from the findings ledger, which recorded it while driving `psp`'s directory save (d88eb42) against RomM 5.3.0; the method is the text below.
 The `quit` hook's pass uploaded the unit as save 437 with `content_hash` `3f2685c3...`, the local fold and a hand computation of RomM's rule alike; three folders later went up as 439 at `1e1e98ae...`, the same three ways. A peer row staged with no device, 440 holding `001` and `003`, came down at `ab160d10...`, passed the check against the offered hash after extraction, and swapped in with `002` moved to `replaced/`. The next flush was 0 up, 0 down.
 
 ## RB-306. `libretro`/`ppsspp` freezes on each in-game save, though the folders it leaves are whole
 
+Verified: RetroBat 8.2.1, 2026-09-23. How: recovered from the findings ledger, which recorded it while driving `psp`'s directory save (d88eb42) on the 8.2.1 install the certification records name; the method is the text below.
 Each in-game save froze the game, and `es_launch_stdout.log` shows the core writing `ULUS10202003/00000000.000` 1,674 times with `[Rewind] Buffer capacity insufficient` between writes. The folders it left are whole: 42,528 B each, `PARAM.SFO` parsing with the player's own id. Recorded against the core, not the save shape.
 
 ## RB-307. RomM's `save_target` for a rehashed PSP game is the unit key, layout `folder-prefix`
 
+Verified: RomM 5.3.0, 2026-09-23. Carried: RomM 5.3.1, 2026-10-14, the 5.3.0-to-5.3.1 source diff (225 files, from the trees) changes no backend line naming save_target, save_target_layout or title_id. How: recovered from the findings ledger, which recorded it while driving `psp`'s directory save (d88eb42) against RomM 5.3.0; the method is the text below.
 `title_id` and `save_target` `ULUS10202`, layout `folder-prefix`: the key and match rule `save_shapes.json` declares for `psp`, and the binding the launch journal taught. Portable Ops Plus (USA), not rehashed, carries none.
 
 ## RB-366. PPSSPP writes states to two places, and RetroBat mirrors between them (resolved)
 
+Verified: RetroBat 8.2.0, 2026-08-09. How: recovered from the findings ledger, which recorded it in M0's probes (d608a87) on the 8.2.0 install its header names; the method is the text below.
 The same PSP game appears under two different naming schemes at once:
 
 ```text
