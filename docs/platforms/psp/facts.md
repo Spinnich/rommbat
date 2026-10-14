@@ -45,7 +45,7 @@ The core's `ms0:/PSP/SAVEDATA/ULUS10202003` is `saves/psp/SAVEDATA/ULUS10202003`
 
 ## RB-305. The class C unit's hash is the server's on every transfer, end to end
 
-Verified: RomM 5.3.0, 2026-09-23. Carried: RomM 5.3.1, 2026-10-14, the 5.3.0-to-5.3.1 source diff (225 files, from the trees) touches nothing under backend/endpoints/saves and no backend line naming content_hash. How: recovered from the findings ledger, which recorded it while driving `psp`'s directory save (d88eb42) against RomM 5.3.0; the method is the text below.
+Verified: RomM 5.3.0, 2026-09-23. Carried: RomM 5.3.1, 2026-10-14, the 5.3.0-to-5.3.1 source diff (225 files, from the trees) touches nothing under backend/endpoints/saves and no backend line naming `content_hash`. How: recovered from the findings ledger, which recorded it while driving `psp`'s directory save (d88eb42) against RomM 5.3.0; the method is the text below.
 The `quit` hook's pass uploaded the unit as save 437 with `content_hash` `3f2685c3...`, the local fold and a hand computation of RomM's rule alike; three folders later went up as 439 at `1e1e98ae...`, the same three ways. A peer row staged with no device, 440 holding `001` and `003`, came down at `ab160d10...`, passed the check against the offered hash after extraction, and swapped in with `002` moved to `replaced/`. The next flush was 0 up, 0 down.
 
 ## RB-306. `libretro`/`ppsspp` freezes on each in-game save, though the folders it leaves are whole
@@ -55,7 +55,7 @@ Each in-game save froze the game, and `es_launch_stdout.log` shows the core writ
 
 ## RB-307. RomM's `save_target` for a rehashed PSP game is the unit key, layout `folder-prefix`
 
-Verified: RomM 5.3.0, 2026-09-23. Carried: RomM 5.3.1, 2026-10-14, the 5.3.0-to-5.3.1 source diff (225 files, from the trees) changes no backend line naming save_target, save_target_layout or title_id. How: recovered from the findings ledger, which recorded it while driving `psp`'s directory save (d88eb42) against RomM 5.3.0; the method is the text below.
+Verified: RomM 5.3.0, 2026-09-23. Carried: RomM 5.3.1, 2026-10-14, the 5.3.0-to-5.3.1 source diff (225 files, from the trees) changes no backend line naming `save_target`, `save_target_layout` or `title_id`. How: recovered from the findings ledger, which recorded it while driving `psp`'s directory save (d88eb42) against RomM 5.3.0; the method is the text below.
 `title_id` and `save_target` `ULUS10202`, layout `folder-prefix`: the key and match rule `save_shapes.json` declares for `psp`, and the binding the launch journal taught. Portable Ops Plus (USA), not rehashed, carries none.
 
 ## RB-366. PPSSPP writes states to two places, and RetroBat mirrors between them (resolved)

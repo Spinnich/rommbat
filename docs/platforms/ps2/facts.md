@@ -9,7 +9,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../../upstrea
 
 ## RB-172. A real PS2 library is 302 single-disc titles against 7 two-disc sets, with no `.m3u` anywhere and no per-game folders
 
-Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, it counts the user's PS2 library, and ps2's <extension> still lists .m3u, gaining only .decomp in 8.2.1. How: recovered from the findings ledger, which recorded it during M6 stage 2c (ad01b2d) on the 8.2.0 install its header names; the method is the text below.
+Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, it counts the user's PS2 library, and ps2's `<extension>` still lists .m3u, gaining only .decomp in 8.2.1. How: recovered from the findings ledger, which recorded it during M6 stage 2c (ad01b2d) on the 8.2.0 install its header names; the method is the text below.
 So loose sibling files are the only layout the conversion refusal has to read, and RetroBat's `ps2` listing `.m3u` in `<extension>` neither binds a set nor means anything by its absence, which matches its own wiki saying PCSX2 cannot use one
 
 ## RB-175. Both reproduced on PS2, having been measured on PS1
