@@ -122,8 +122,8 @@ Four traps, all confirmed on the emulators driven (RB-368, RB-370):
 
 A declaration is not a promise that the emulator is usable. RetroBat downloads emulators on
 demand, so six of the thirteen declared on 8.2.0 had no executable at all (RB-375); installing one raises a **modal dialog
-with no title and no timeout** that blocks the launch until answered. And `bizhawk` crashes in
-RetroBat's controller generator unless the launcher is given `-core`. Check for the binary, and
+with no title and no timeout** that blocks the launch until answered. And `bizhawk` configures one
+input port unless the launcher is given `-core` (RB-374). Check for the binary, and
 do not promise state sync on the strength of the config alone.
 
 Record emulator, core and version with every state, and never silently restore one made by

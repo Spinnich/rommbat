@@ -252,9 +252,10 @@ replace that row's bytes and clears its emulator. Nothing notices: `RunAsync` ne
 server row, so the next local change overwrites it. Do not build a state conflict route on the
 strength of this; no player write reaches it.
 
-**The browser also writes saves that are not saves: the four bytes `null`.** Measured, not read:
-it uploads the JSON literal when it has no save to send, md5 `37a6259cc0c1dae299a7866489dff0bd`,
-and the server keeps it in `autosave`, in a slotted row, or in none. Placed as a battery save it
+**A server can hold saves that are not saves: the four bytes `null`.** RomM 5.2.0's browser
+player uploaded the JSON literal when it had no save to send, md5
+`37a6259cc0c1dae299a7866489dff0bd`. 5.3.0's player stops it, but the server keeps any bytes, so
+those rows stay, in `autosave`, in a slotted row, or in none. Placed as a battery save it
 replaces a real one with a file no emulator loads, which this client did on `megadrive` and twice on
 `nes` (RB-276). **`SaveSync.DownloadAsync` refuses it**, by the
 server's hash before the transfer and by the bytes after, and never acknowledges it, so the server
