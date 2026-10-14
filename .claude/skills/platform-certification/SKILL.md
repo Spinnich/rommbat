@@ -17,9 +17,9 @@ differ exactly where it costs a save:
   `saves/psx/*.srm` and is class A; `psx` under DuckStation writes a memory card named from
   its internal database title and needs Game-ID attribution. `save_shapes.json` carries a
   `DependsOnEmulator` flag for this.
-- **State directories and filenames are per emulator**, thirteen of them in
-  `es_savestates.cfg`, and **two of the thirteen declare a directory the emulator does not
-  write to**. Which two is not derivable from the system.
+- **State directories and filenames are per emulator**, sixteen of them in
+  `es_savestates.cfg`, and **two of the thirteen measured so far declare a directory the
+  emulator does not write to**. Which two is not derivable from the system.
 - **`libretro` and `bizhawk` are core-scoped** (`{{system}}/libretro.{{core}}`,
   `{{system}}/bizhawk/sstates/{{core}}`), so one game under two cores has independent state
   sets. That is the third element of the triple.

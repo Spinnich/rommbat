@@ -67,5 +67,5 @@ anything launched from the ES menu lives there (RB-384).
     gamelist.xml          must also carry a <game> entry or the app shows as a filename
     media/
       rommbat-logo.png    the artwork that entry points at, written by menu install
-  system/version.info     the version string, e.g. 8.2.1-stable-win64
+  system/version.info     the version string, e.g. 8.3.0-stable-win64
 ```

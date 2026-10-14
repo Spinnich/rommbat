@@ -12,8 +12,9 @@
 Leave RetroBat on its default, RetroArch with the Beetle PSX HW core (`mednafen_psx_hw`). Every
 emulator RetroBat offers for the PlayStation passed RomMBat's tests, but two of them need care:
 
-- **BizHawk's two cores only ever start disc 1** of a game on several discs, because of how
-  RetroBat starts them. Pick another emulator for those games.
+- **BizHawk's two cores have not been checked since RetroBat 8.3.0 began handing them the whole
+  disc set** rather than disc 1. Until they are, pick another emulator for a game on several
+  discs.
 - The standalone Mednafen has no memory card at RetroBat's settings, so a game cannot save. Set
   Emulated Memcards to 2 in the system's settings (Game settings, then Per system advanced
   configuration). It also cannot open a `.chd` disc image.

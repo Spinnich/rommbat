@@ -6,7 +6,7 @@ read-when: Moving the supported RomM or RetroBat version, or touching the startu
 # Version compatibility
 
 Every RomMBat release states the minimum RomM and RetroBat versions it supports. Currently
-**RetroBat 8.2.1** and **RomM 5.3.1**.
+**RetroBat 8.3.0** and **RomM 5.3.1**.
 
 **The floor tracks the newest stable, it does not sit at the oldest version that happens to
 work.** RomMBat adopts a new RomM or RetroBat stable within one release of it appearing and
@@ -15,8 +15,8 @@ moves the minimum with it. Two reasons, both specific to this project. Every fac
 means owning that measurement on every version in the range, on a `(system, emulator, core)`
 matrix that is already two to four passes per row. And RetroBat's own updater moves users
 forward, so a wide floor buys compatibility with installs that mostly do not exist while
-doubling what has to be certified. RetroBat 8.2.1 is the floor because 8.2.0's Flycast
-save-state watcher read the wrong directory, and a release that supported both would have to
+doubling what has to be certified. 8.2.1 showed the cost of a range: 8.2.0's Flycast
+save-state watcher read the wrong directory, and a release that supported both would have had to
 carry the workaround and the fix at once.
 
 What adoption costs, each time: re-run `reference/refresh.sh` and resolve the drift, move the
@@ -49,7 +49,7 @@ writer on its slots (RM-4). Server layout (RM-10) is administration and inert he
   RetroBat version from **`system/version.info`** in the tree.
 - **There is no `build.ini`.** It does not exist anywhere in a RetroBat 8.2
   tree (RB-377). `system/version.info` is a single line carrying a channel and architecture suffix,
-  `8.2.1-stable-win64`, so it is not a bare semantic version and must be split on `-`
+  `8.3.0-stable-win64`, so it is not a bare semantic version and must be split on `-`
   before comparison.
 - **Both version strings can carry prerelease suffixes.** A live instance has
   reported `5.1.1-beta.1`. A comparison that assumes three numeric components will throw on

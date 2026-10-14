@@ -233,7 +233,7 @@ public sealed class BiosPlanner
     /// </summary>
     /// <remarks>
     /// Separate from <see cref="FoldersNeedingBios"/> so a caller can tell an install that has
-    /// synced nothing from one whose systems simply need no firmware. Only 99 of RetroBat's 240
+    /// synced nothing from one whose systems simply need no firmware. Only 101 of RetroBat's 241
     /// systems appear in the manifest, so the second is the ordinary case for a snes, n64 or
     /// atari2600 library and reads as the first if the two are collapsed.
     /// </remarks>

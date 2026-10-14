@@ -258,7 +258,7 @@ columns for that reason.
   **That rule is about a single-entry ROM archive. A multi-member firmware archive is
   hashed as a container** (RM-28): the library's 34-member `neogeo.zip` carries an
   `md5_hash` equal to the md5 of the downloaded bytes exactly. So **a firmware `.zip` joins on
-  md5 only when both sides hold a byte-identical build.** 84 of RetroBat's 355 BIOS
+  md5 only when both sides hold a byte-identical build.** 84 of RetroBat's 360 BIOS
   requirements are zips, and 20 of those carry an md5; the other 64 name no hash and answer
   `Unverifiable` before the join. **Members cannot be compared instead**: the manifest names
   only the container md5 and RomM serves no member hashes, so there is no reference side. A

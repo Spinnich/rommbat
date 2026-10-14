@@ -31,9 +31,14 @@ were measured on.
 
 ## Where each row stands
 
-**Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Steps 1 and 9 were
-re-driven at `5.3.1` on 2026-09-24, in #236, which maps the nine steps. The other steps carry from
-the drive at `5.3.0`, since nothing they exercise changed between the two. Nothing is owed.
+**Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.3.0.** Step 9 was re-driven at
+8.3.0 on 2026-10-14 in #478, on a tree built from a pristine 8.3.0 install: a second sync of the
+record's games downloaded nothing, wrote nothing under `roms/`, and left every gamelist
+byte-identical. Step 8 was re-driven the same day on two ES launches. Steps 1 to 7 carry: no folder
+name, no BIOS entry and no `es_savestates.cfg` entry for an existing row changed, and no generator
+change between 8.2.1 and 8.3.0 touches where an existing row saves. The three `kega-fusion` rows
+stay not certified at 8.2.1: 8.3.0 moves their battery saves under `saves/` and their states to
+`kega-fusion/sstates`, which #519 takes up. `blastem` is new in 8.3.0 and untested (#521).
 
 | File                             | What it holds                                                                                                                           |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -47,7 +52,7 @@ the drive at `5.3.0`, since nothing they exercise changed between the two. Nothi
 
 |           |                                                                       |
 | --------- | --------------------------------------------------------------------- |
-| RetroBat  | `8.2.1-stable-win64`, the supported floor                             |
+| RetroBat  | `8.2.1-stable-win64`, the floor then                                  |
 | RomM      | `5.3.0`, read back by `status` as Supported                           |
 | Root      | `R:\RetroBat`, found by walking up from the executable                |
 | Store     | schema 16 of 16, WAL                                                  |

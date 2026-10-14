@@ -58,8 +58,8 @@ public sealed class BiosCommandTests
     public async Task A_library_of_systems_that_need_no_firmware_is_not_reported_as_unsynced()
     {
         // FoldersNeedingBios() filters by the manifest, so it is empty for a populated library
-        // whose systems have no firmware entry, and that is the ordinary case: only 99 of
-        // RetroBat's 240 systems appear in batocera-systems.json, and snes, n64 and atari2600
+        // whose systems have no firmware entry, and that is the ordinary case: only 101 of
+        // RetroBat's 241 systems appear in batocera-systems.json, and snes, n64 and atari2600
         // are not among them. One sentence for both states told this install to run 'sync'
         // over 3 systems it had already synced.
         using var tree = TempRetroBatTree.Create();
@@ -96,8 +96,8 @@ public sealed class BiosCommandTests
     [Fact]
     public async Task A_real_system_that_needs_no_firmware_says_so_by_name()
     {
-        // The other half, and the reason the manifest cannot answer this alone: only 99 of
-        // RetroBat's 240 systems appear in batocera-systems.json, so absent from it is the
+        // The other half, and the reason the manifest cannot answer this alone: only 101 of
+        // RetroBat's 241 systems appear in batocera-systems.json, so absent from it is the
         // ordinary case rather than the error. snes is a real system RetroBat requires no BIOS
         // for, and that answer has to be distinguishable from the typo above.
         using var tree = TempRetroBatTree.Create();

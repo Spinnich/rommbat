@@ -19,12 +19,15 @@ RetroBat 8.2.1 declares seven rows, each driven here at its default settings:
 
 ## Where each row stands
 
-**Every row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Steps 1 and 3 to 9 were driven
-at `5.3.1` on 2026-09-25 and 2026-09-26, apart from step 7 on `mednafen` and both `bizhawk` rows,
-which was checked on the multi-disc pass. That pass, step 2, was driven at `5.3.0`, and carries:
-`GET /api/roms` and the code that places a multi-disc set did not change, and the `Metal Gear
-Solid` set re-synced at `5.3.1` with nothing to do (#236). Step 7 on those three rows carries on
-the same re-sync, which wrote no media and left `gamelist.xml` byte-identical. Nothing is owed.
+**Every row but the two `bizhawk` rows holds at the floor, RomM `5.3.1` and RetroBat 8.3.0.** Step 9
+was re-driven at 8.3.0 on 2026-10-14 in #478, on a tree built from a pristine 8.3.0 install: a
+second sync of the record's games downloaded nothing, wrote nothing under `roms/`, and left every
+gamelist byte-identical. Step 8 was re-driven the same day on two ES launches. Steps 1 to 7 carry:
+no folder name, no BIOS entry and no `es_savestates.cfg` entry for an existing row changed, and no
+generator change between 8.2.1 and 8.3.0 touches where an existing row saves. **The two `bizhawk`
+rows hold at 8.2.1, with steps 2, 4 and 5 owed at 8.3.0** (#523): 8.3.0 hands EmuHawk the `.m3u`
+rather than disc 1's `.cue` (RB-314), which changes what disc 2 can be reached from and possibly
+what the state mirror is named. Their step 9 passed at 8.3.0 with the rest.
 
 | File                             | What it holds                                                                  |
 | -------------------------------- | ------------------------------------------------------------------------------ |
@@ -39,7 +42,7 @@ the same re-sync, which wrote no media and left `gamelist.xml` byte-identical. N
 
 |           |                                                                                                                                                   |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| RetroBat  | `8.2.1-stable-win64`, the supported floor                                                                                                         |
+| RetroBat  | `8.2.1-stable-win64`, the floor then                                                                                                              |
 | RomM      | `5.3.0` for step 2, and step 7 on `mednafen` and both `bizhawk` rows; the certification pass below ran at `5.3.1`                                 |
 | Root      | `R:\RetroBat`                                                                                                                                     |
 | Test game | Metal Gear Solid, as two RomM roms: (USA) (Rev 1), rom 320306, two `.chd` and an `.m3u`; (USA), rom 320307, two `.bin`/`.cue` pairs and an `.m3u` |
@@ -55,22 +58,23 @@ EmulationStation lists that folder as one game and shows no disc (RB-310). The u
 `data/retrobat/multi_file.json`, and each disc is fetched on its own through `file_ids` so it
 resumes and verifies against its own md5 (RB-315).
 
-| Row                          | Reads the playlist                   | States named after                               |
-| ---------------------------- | ------------------------------------ | ------------------------------------------------ |
-| `libretro`/`mednafen_psx_hw` | yes, both discs, swap driven         | the playlist                                     |
-| `libretro`/`swanstation`     | yes, both discs                      | the playlist                                     |
-| `libretro`/`pcsx_rearmed`    | yes, both discs                      | the playlist                                     |
-| `duckstation`                | yes                                  | disc serial natively, the playlist in the mirror |
-| `mednafen`/`psx`             | yes, `.bin`/`.cue` set               | the playlist and one hash for the set            |
-| `bizhawk`/`Nymashock`        | **no**: the launcher hands it disc 1 | disc 1's file                                    |
-| `bizhawk`/`Octoshock`        | **no**: the launcher hands it disc 1 | disc 1's file                                    |
+| Row                          | Reads the playlist                 | States named after                               |
+| ---------------------------- | ---------------------------------- | ------------------------------------------------ |
+| `libretro`/`mednafen_psx_hw` | yes, both discs, swap driven       | the playlist                                     |
+| `libretro`/`swanstation`     | yes, both discs                    | the playlist                                     |
+| `libretro`/`pcsx_rearmed`    | yes, both discs                    | the playlist                                     |
+| `duckstation`                | yes                                | disc serial natively, the playlist in the mirror |
+| `mednafen`/`psx`             | yes, `.bin`/`.cue` set             | the playlist and one hash for the set            |
+| `bizhawk`/`Nymashock`        | handed it since 8.3.0, owed (#523) | disc 1's file on 8.2.1, owed (#523)              |
+| `bizhawk`/`Octoshock`        | handed it since 8.3.0, owed (#523) | disc 1's file on 8.2.1, owed (#523)              |
 
-**The two BizHawk rows boot disc 1 only, whatever the layout.** `emulatorLauncher` replaces the
-`.m3u` with the first disc's `.cue` before EmuHawk starts (RB-314), so no arrangement of files
-reaches disc 2 from the game entry. That is RetroBat's behavior, reported upstream as
-[emulatorlauncher#1391](https://github.com/RetroBat-Official/emulatorlauncher/issues/1391), and it is why
-the layout serves the five rows that read a playlist rather than waiting on a layout none could
-find.
+**The two BizHawk rows are handed the playlist since 8.3.0.** On 8.2.1 `emulatorLauncher`
+replaced the `.m3u` with the first disc's `.cue` before EmuHawk started, so no arrangement of files
+reached disc 2 from the game entry, which is why the layout serves the rows that read a playlist.
+8.3.0 fixed it
+([emulatorlauncher#1391](https://github.com/RetroBat-Official/emulatorlauncher/issues/1391)): MGS
+boots from its `.m3u` under `Nymashock` (RB-314). Whether disc 2 is now reachable, and what the
+states are named, are owed (#523).
 
 `<extension>` for `psx` on 8.2.1, read from the live `es_systems.cfg`: `.cue .img .mdf .pbp .toc
 .cbn .m3u .ccd .chd .zip .7z .iso .cso .squashfs .decomp`. `.m3u` is in it, so ES lists the

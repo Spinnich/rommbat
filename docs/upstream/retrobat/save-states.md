@@ -7,11 +7,11 @@ read-when: Before reading `es_savestates.cfg`, deriving a state slot, or syncing
 
 Facts RomMBat relies on, one per heading. [The upstream reference](../README.md) says what an entry holds and how IDs are kept.
 
-## RB-360. `es_savestates.cfg` declares 13 emulators, and its attributes carry four traps
+## RB-360. `es_savestates.cfg` declares 16 emulators, and its attributes carry four traps
 
-Verified: RetroBat 8.2.0, 2026-08-08, and 8.2.1, 2026-08-25. How: diffed the live file against the copy vendored in `reference/`, on each build.
-The live file is byte-identical to `reference/es_savestates.cfg`, and 8.2.1 left it unchanged.
-Its 13 emulators are all of RetroBat's machine-readable state knowledge. `libretro` and `bizhawk`
+Verified: RetroBat 8.3.0, 2026-10-14. How: diffed the live file of a pristine install against the copy vendored in `reference/`, and read each entry's attributes.
+The live file is byte-identical to `reference/es_savestates.cfg`.
+Its 16 emulators are all of RetroBat's machine-readable state knowledge. `libretro` and `bizhawk`
 are both core-scoped (`{{system}}/bizhawk/sstates/{{core}}`), so each core keeps its own state
 set for a game.
 

@@ -80,7 +80,7 @@ configuration. Each `<system>` carries `<name>`, `<fullname>`, `<manufacturer>`,
 `<hardware>`, `<release>`, `<path>`, `<extension>` and `<command>`.
 
 **The folder is `<path>`, not `<name>`.** They are different vocabularies and five systems
-in the shipped 8.2.1 file disagree: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`,
+in the shipped 8.3.0 file disagree: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`,
 `casloopy` to `loopy`, `Windows` to `windows`, and `starship` is used **twice**, for
 `ghostship` and `starship`, so `<name>` is not even unique. Three entries own no folder under
 `roms/` (`library`, `screenshots`, and `retrobat` at `system/es_menu`) and `mess` declares no

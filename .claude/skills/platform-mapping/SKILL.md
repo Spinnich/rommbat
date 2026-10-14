@@ -13,15 +13,15 @@ Reproduce with `cd reference && ./refresh.sh`.
 
 |                                           |                             |
 | ----------------------------------------- | --------------------------- |
-| RetroBat systems                          | 240                         |
+| RetroBat systems                          | 241                         |
 | RomM known platform slugs                 | 459                         |
 | Folder aliases upstream publishes         | 138                         |
-| Of those, RetroBat system folders         | 94                          |
-| Of those, naming folders RetroBat lacks   | 44                          |
+| Of those, RetroBat system folders         | 93                          |
+| Of those, naming folders RetroBat lacks   | 45                          |
 | RetroBat folders resolving to a RomM slug | 166                         |
-| Of those, by identity                     | 72                          |
-| Of those, via the alias table             | 94                          |
-| RetroBat systems with no mapping          | 74 (31%)                    |
+| Of those, by identity                     | 73                          |
+| Of those, via the alias table             | 93                          |
+| RetroBat systems with no mapping          | 75 (31%)                    |
 | Of those, resolved by normalization       | 1                           |
 | RomM slugs mapping to several folders     | 10 (`arcade` fans out to 7) |
 
@@ -35,7 +35,7 @@ Both are vendored, as `reference/romm-platform_aliases.py` and
 `reference/romm-platform_slugs.py`.
 
 **`tools/build-platform-map.py` walks RetroBat's system list, not upstream's alias keys.**
-`PLATFORM_FS_ALIASES` is a Batocera / RetroBat / ES-DE union and 44 of its 138 keys name
+`PLATFORM_FS_ALIASES` is a Batocera / RetroBat / ES-DE union and 45 of its 138 keys name
 folders no RetroBat install has (`atarijaguar`, `atarilynx`, `gc`, `megadrivejp` against
 RetroBat's `jaguar`, `lynx`, `gamecube`, `megadrive`). Walking from RetroBat's side never sees
 them, which is core principle 3 applied rather than restated, and it is why the generator

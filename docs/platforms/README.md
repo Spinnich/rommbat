@@ -12,8 +12,8 @@ a file per emulator or group of rows holds the rest, and `facts.md` holds the me
 **The unit is `(system, emulator, core)`, never the system alone.** Two emulators for one
 console differ exactly where it costs a save: `psx` under libretro writes a plain `.srm` and is
 class A, while `psx` under DuckStation writes a memory card named from an internal database
-title and needs Game-ID attribution. State directories and filenames are per emulator, thirteen
-of them, and two of the thirteen declare a directory the emulator does not write to. `libretro`
+title and needs Game-ID attribution. State directories and filenames are per emulator, sixteen
+of them, and two of the thirteen measured so far declare a directory the emulator does not write to. `libretro`
 and `bizhawk` are core-scoped on top of that, so one game under two cores has independent state
 sets. So "snes is certified" is not a claim; "`snes` under `libretro`/`snes9x` is certified"
 is, and it says nothing about `snes` under `bizhawk`.
@@ -203,8 +203,8 @@ work. All three counts are against the 51 systems above.
   was sized from the ROMs fills with ROMs, every game lands with no cover, and no later run
   repairs it. Step 7 checks for art, so a wave's sets need headroom or the step fails for a
   reason that is nothing to do with the platform.
-- **Only 13 emulators declare a save-state directory**, so step 5 is bounded by
-  `es_savestates.cfg` rather than by what RetroBat can launch. An alternate outside those 13
+- **Only 16 emulators declare a save-state directory**, so step 5 is bounded by
+  `es_savestates.cfg` rather than by what RetroBat can launch. An alternate outside those 16
   (`mednafen`, `ares`, `mesen`, standalone `snes9x`, `kega-fusion`, `xemu`, `raine` and the rest)
   needs a supplement entry of RomMBat's own before step 5 can pass, which is how `mednafen`, `mesen`
   and `ares` were certified on `nes`, and `mednafen` and `ares` on `megadrive`. **Outside what RetroBat declares, not outside what the

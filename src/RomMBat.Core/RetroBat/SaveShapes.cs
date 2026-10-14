@@ -175,10 +175,11 @@ public sealed partial record BatteryRule(
     /// <c>saves/&lt;system&gt;/</c>.
     /// </summary>
     /// <remarks>
-    /// gopher64 is the measured case: it keeps its battery saves only in
-    /// <c>emulators/gopher64/portable_data/data/saves/</c>, and RetroBat 8.2.1 neither points them
-    /// into <c>saves/n64/</c> nor mirrors them there (#239). Loading refuses such a rule unless it
-    /// names exactly one system, so a path under it has one system to belong to.
+    /// gopher64 is the measured case: it writes its battery saves in
+    /// <c>emulators/gopher64/portable_data/data/saves/</c>, which RetroBat does not point into
+    /// <c>saves/n64/</c> (#239). The copy RetroBat 8.3.0 keeps in <c>saves/n64/gopher64/</c> is
+    /// not read (RB-341). Loading refuses such a rule unless it names exactly one system, so a
+    /// path under it has one system to belong to.
     /// </remarks>
     public bool FromRoot { get; init; }
 

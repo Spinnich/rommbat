@@ -107,9 +107,9 @@ Platform resolution runs in layers, and the bundled table is only the third of f
 ## Why the table is not just the upstream alias table inverted
 
 RomM's resolver tries identity, when the folder name is itself a slug, then the
-`PLATFORM_FS_ALIASES` table. Against RetroBat's 240 systems and RomM's 459 slugs, that
-leaves 74 RetroBat systems (31%) unmapped, and normalization rescues only one of them,
-`actionmax` against `action-max`. 44 of the alias table's 138 keys name folders RetroBat
+`PLATFORM_FS_ALIASES` table. Against RetroBat's 241 systems and RomM's 459 slugs, that
+leaves 75 RetroBat systems (31%) unmapped, and normalization rescues only one of them,
+`actionmax` against `action-max`. 45 of the alias table's 138 keys name folders RetroBat
 does not have (`atarijaguar`, `gc`, `megadrivejp` against `jaguar`, `gamecube`,
 `megadrive`), and 10 RomM slugs fan out to several folders, `arcade` to seven.
 

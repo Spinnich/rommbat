@@ -15,11 +15,12 @@ steps, each row's Controller Pak option driven at step 6. Eight on 2026-09-27:
 - `mupen64` (Rosalie's Mupen GUI), `simple64`, `project64`, `ares`/`Nintendo64`, and `bizhawk`
   under `Ares64` and `Mupen64Plus`
 
-and **`gopher64` on 2026-09-29**, in [its own file](gopher64.md). It keeps its battery saves only in its
-own `emulators/gopher64/portable_data/data/saves/`, which RetroBat neither points into `saves/n64/`
-nor mirrors (RB-341), so RomMBat reads that folder where it is, through a battery rule anchored at
-the RetroBat root (#239). The folder is reported upstream as
-[emulatorlauncher#1389](https://github.com/RetroBat-Official/emulatorlauncher/issues/1389).
+and **`gopher64` on 2026-09-29**, in [its own file](gopher64.md). It writes its battery saves in its
+own `emulators/gopher64/portable_data/data/saves/`, and RomMBat reads that folder where it is,
+through a battery rule anchored at the RetroBat root (#239). Since 8.3.0 RetroBat also copies them
+to `saves/n64/gopher64/` at exit and back at launch (RB-341,
+[emulatorlauncher#1389](https://github.com/RetroBat-Official/emulatorlauncher/issues/1389)), a copy
+RomMBat does not read (#524).
 
 **Every row needed something except the two `libretro` cores.** A battery rule for ares, RMG and
 simple64 together, and Project64; `n64` added to BizHawk's rule; a state declaration for ares,
@@ -29,7 +30,17 @@ an md5 of the ROM, and a directory per game (RB-336 to RB-341). RetroBat lists n
 
 ## Where each row stands
 
-**Every certified row was driven at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Nothing is owed.
+**Every certified row but `gopher64` holds at the floor, RomM `5.3.1` and RetroBat 8.3.0.** Step 9
+was re-driven at 8.3.0 on 2026-10-14 in #478, on a tree built from a pristine 8.3.0 install: a
+second sync of the record's games downloaded nothing, wrote nothing under `roms/`, and left every
+gamelist byte-identical. Step 8 was re-driven the same day on two ES launches. Steps 1 to 7 carry:
+no folder name, no BIOS entry and no `es_savestates.cfg` entry for an existing row changed, and no
+generator change between 8.2.1 and 8.3.0 touches where an existing row saves. **`gopher64` holds at
+8.2.1, with part of step 4 owed at 8.3.0** (#524): 8.3.0 copies its saves to `saves/n64/gopher64/`
+at exit and back at launch (RB-341). Re-driven on 2026-10-14, the `.sra` was attributed through the
+launch, synced from the portable folder, and restored byte for byte newer than the copy, so the next
+launch keeps it. The `.eep` and `.mpk`, and the game reading a restore, are owed. Steps 8 and 9
+passed at 8.3.0.
 
 | File                       | What it holds                                                                |
 | -------------------------- | ---------------------------------------------------------------------------- |
@@ -42,7 +53,7 @@ an md5 of the ROM, and a directory per game (RB-336 to RB-341). RetroBat lists n
 
 |            |                                                                                           |
 | ---------- | ----------------------------------------------------------------------------------------- |
-| RetroBat   | `8.2.1-stable-win64`, the supported floor                                                 |
+| RetroBat   | `8.2.1-stable-win64`, the floor then                                                      |
 | RomM       | `5.3.1`, the floor, read back by `status` as Supported                                    |
 | Root       | `R:\RetroBat`                                                                             |
 | Client     | the `n64-certification` branch, deployed as each rule landed                              |

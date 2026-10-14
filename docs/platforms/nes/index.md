@@ -31,10 +31,12 @@ Step 2 asks that nothing be excluded for its extension ([step 2](#2-extensions))
 
 ## Where each row stands
 
-**Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Steps 1 and 9 were
-re-driven at `5.3.1` on 2026-09-24, in #236, which maps the nine steps. The other steps carry from
-the drive at `5.3.0-beta.1`, step 3 from 5.2.0, since nothing they exercise changed since. Nothing
-is owed.
+**Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.3.0.** Step 9 was re-driven at
+8.3.0 on 2026-10-14 in #478, on a tree built from a pristine 8.3.0 install: a second sync of the
+record's games downloaded nothing, wrote nothing under `roms/`, and left every gamelist
+byte-identical. Step 8 was re-driven the same day on two ES launches. Steps 1 to 7 carry: no folder
+name, no BIOS entry and no `es_savestates.cfg` entry for an existing row changed, and no generator
+change between 8.2.1 and 8.3.0 touches where an existing row saves. Nothing is owed.
 
 | File                                         | What it holds                                                                                                                   |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -50,7 +52,7 @@ is owed.
 
 |             |                                                                                                                            |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------- |
-| RetroBat    | `8.2.1-stable-win64`, the supported floor                                                                                  |
+| RetroBat    | `8.2.1-stable-win64`, the floor then                                                                                       |
 | RomM        | `5.3.0-beta.1` for the steps, with step 3 at 5.2.0 and steps 1 and 9 again at `5.3.1`; 5.2.0 for "What the pass turned up" |
 | Client      | For `nestopia`, a deploy of `main` at 9ed1fd1 by `tools/publish.ps1 -Deploy`; each row file names its own                  |
 | Root        | `R:\RetroBat`, found by walking up from the executable                                                                     |

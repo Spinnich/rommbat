@@ -17,20 +17,20 @@ been tested yet.
 | System                                          | Certified rows | Default row                            |
 | ----------------------------------------------- | -------------- | -------------------------------------- |
 | [Nintendo Entertainment System - Famicom](#nes) | 9 of 9         | libretro / fceumm, certified           |
-| [Megadrive - Genesis](#megadrive)               | 7 of 11        | libretro / genesis_plus_gx, certified  |
+| [Megadrive - Genesis](#megadrive)               | 7 of 12        | libretro / genesis_plus_gx, certified  |
 | [Game Boy Advance](#gba)                        | 9 of 10        | libretro / mgba, certified             |
 | [Game Boy](#gb)                                 | 14 of 14       | libretro / gambatte, certified         |
 | [Game Boy Color](#gbc)                          | 12 of 12       | libretro / gambatte, certified         |
 | [Super Nintendo Entertainment System](#snes)    | 15 of 15       | libretro / snes9x, certified           |
-| [Master System - Mark III](#mastersystem)       | 9 of 10        | libretro / genesis_plus_gx, certified  |
+| [Master System - Mark III](#mastersystem)       | 9 of 12        | libretro / genesis_plus_gx, certified  |
 | [PlayStation](#psx)                             | 7 of 7         | libretro / mednafen_psx_hw, certified  |
 | [Nintendo 64](#n64)                             | 9 of 9         | libretro / mupen64plus_next, certified |
-| [Game Gear](#gamegear)                          | 5 of 7         | libretro / genesis_plus_gx, certified  |
-| [32X](#sega32x)                                 | 4 of 5         | libretro / picodrive, certified        |
+| [Game Gear](#gamegear)                          | 5 of 9         | libretro / genesis_plus_gx, certified  |
+| [32X](#sega32x)                                 | 4 of 6         | libretro / picodrive, certified        |
 
 ## Nintendo Entertainment System - Famicom {#nes}
 
-RetroBat's `nes` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/nes/) has the detail. [Its page](nes.md) says which emulator to pick, what BIOS to supply and what will not work.
+RetroBat's `nes` system. Tested on RomM 5.3.1 and RetroBat 8.3.0. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/nes/) has the detail. [Its page](nes.md) says which emulator to pick, what BIOS to supply and what will not work.
 
 | Emulator | Core       | Status              |
 | -------- | ---------- | ------------------- |
@@ -46,42 +46,43 @@ RetroBat's `nes` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certifica
 
 ## Megadrive - Genesis {#megadrive}
 
-RetroBat's `megadrive` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/megadrive/) has the detail. [Its page](megadrive.md) says which emulator to pick, what BIOS to supply and what will not work.
+RetroBat's `megadrive` system. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/megadrive/) has the detail. [Its page](megadrive.md) says which emulator to pick, what BIOS to supply and what will not work.
 
-| Emulator    | Core                 | Status              | Note                                                                                    |
-| ----------- | -------------------- | ------------------- | --------------------------------------------------------------------------------------- |
-| libretro    | genesis_plus_gx      | Certified (default) |                                                                                         |
-| libretro    | genesis_plus_gx_wide | Certified           |                                                                                         |
-| libretro    | picodrive            | Certified           |                                                                                         |
-| libretro    | fbneo                | Not certified       | Boots no game named the No-Intro way, because FBNeo picks its driver from the file name |
-| mednafen    | megadrive            | Certified           |                                                                                         |
-| ares        | MegaDrive            | Certified           |                                                                                         |
-| kega-fusion | auto                 | Not certified       | Writes its battery saves outside saves/, where RomMBat does not look                    |
-| kega-fusion | megadrive            | Not certified       | Writes its battery saves outside saves/, where RomMBat does not look                    |
-| kega-fusion | genesis              | Not certified       | Writes its battery saves outside saves/, where RomMBat does not look                    |
-| bizhawk     | Genplus-gx           | Certified           |                                                                                         |
-| jgenesis    |                      | Certified           |                                                                                         |
+| Emulator    | Core                 | Status              | Tested on                  | Note                                                                                                           |
+| ----------- | -------------------- | ------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| libretro    | genesis_plus_gx      | Certified (default) | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                |
+| libretro    | genesis_plus_gx_wide | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                |
+| libretro    | picodrive            | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                |
+| libretro    | fbneo                | Not certified       | RomM 5.3.1, RetroBat 8.3.0 | Boots no game named the No-Intro way, because FBNeo picks its driver from the file name                        |
+| mednafen    | megadrive            | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                |
+| ares        | MegaDrive            | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                |
+| kega-fusion | auto                 | Not certified       | RomM 5.3.1, RetroBat 8.2.1 | Wrote its battery saves outside saves/ on RetroBat 8.2.1; 8.3.0 moves them under saves/, not yet checked there |
+| kega-fusion | megadrive            | Not certified       | RomM 5.3.1, RetroBat 8.2.1 | Wrote its battery saves outside saves/ on RetroBat 8.2.1; 8.3.0 moves them under saves/, not yet checked there |
+| kega-fusion | genesis              | Not certified       | RomM 5.3.1, RetroBat 8.2.1 | Wrote its battery saves outside saves/ on RetroBat 8.2.1; 8.3.0 moves them under saves/, not yet checked there |
+| bizhawk     | Genplus-gx           | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                |
+| jgenesis    |                      | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                |
+| blastem     |                      | Not tested yet      |                            |                                                                                                                |
 
 ## Game Boy Advance {#gba}
 
-RetroBat's `gba` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/gba/) has the detail. [Its page](gba.md) says which emulator to pick, what BIOS to supply and what will not work.
+RetroBat's `gba` system. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/gba/) has the detail. [Its page](gba.md) says which emulator to pick, what BIOS to supply and what will not work.
 
-| Emulator | Core           | Status              | Note                                                                                                |
-| -------- | -------------- | ------------------- | --------------------------------------------------------------------------------------------------- |
-| libretro | mgba           | Certified (default) |                                                                                                     |
-| libretro | mednafen_gba   | Certified           |                                                                                                     |
-| libretro | gpsp           | Certified           |                                                                                                     |
-| mgba     | mgba           | Certified           |                                                                                                     |
-| nosgba   |                | Not certified       | Loads a zipped game only through a loose copy it deletes itself, and keeps its saves outside saves/ |
-| mednafen | gba            | Certified           |                                                                                                     |
-| ares     | GameBoyAdvance | Certified           |                                                                                                     |
-| bizhawk  | mGBA           | Certified           |                                                                                                     |
-| jgenesis |                | Certified           |                                                                                                     |
-| mesen    |                | Certified           |                                                                                                     |
+| Emulator | Core           | Status              | Tested on                  | Note                                                                                                                        |
+| -------- | -------------- | ------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| libretro | mgba           | Certified (default) | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                             |
+| libretro | mednafen_gba   | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                             |
+| libretro | gpsp           | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                             |
+| mgba     | mgba           | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                             |
+| nosgba   |                | Not certified       | RomM 5.3.1, RetroBat 8.2.1 | Could not load a zipped game, and kept its saves outside saves/, on RetroBat 8.2.1; 8.3.0 fixes both, not yet checked there |
+| mednafen | gba            | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                             |
+| ares     | GameBoyAdvance | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                             |
+| bizhawk  | mGBA           | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                             |
+| jgenesis |                | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                             |
+| mesen    |                | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                             |
 
 ## Game Boy {#gb}
 
-RetroBat's `gb` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/gb/) has the detail. [Its page](gb.md) says which emulator to pick, what BIOS to supply and what will not work.
+RetroBat's `gb` system. Tested on RomM 5.3.1 and RetroBat 8.3.0. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/gb/) has the detail. [Its page](gb.md) says which emulator to pick, what BIOS to supply and what will not work.
 
 | Emulator | Core           | Status              |
 | -------- | -------------- | ------------------- |
@@ -102,7 +103,7 @@ RetroBat's `gb` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certificat
 
 ## Game Boy Color {#gbc}
 
-RetroBat's `gbc` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/gbc/) has the detail. [Its page](gbc.md) says which emulator to pick, what BIOS to supply and what will not work.
+RetroBat's `gbc` system. Tested on RomM 5.3.1 and RetroBat 8.3.0. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/gbc/) has the detail. [Its page](gbc.md) says which emulator to pick, what BIOS to supply and what will not work.
 
 | Emulator | Core           | Status              |
 | -------- | -------------- | ------------------- |
@@ -121,7 +122,7 @@ RetroBat's `gbc` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certifica
 
 ## Super Nintendo Entertainment System {#snes}
 
-RetroBat's `snes` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/snes/) has the detail. [Its page](snes.md) says which emulator to pick, what BIOS to supply and what will not work.
+RetroBat's `snes` system. Tested on RomM 5.3.1 and RetroBat 8.3.0. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/snes/) has the detail. [Its page](snes.md) says which emulator to pick, what BIOS to supply and what will not work.
 
 | Emulator | Core          | Status              |
 | -------- | ------------- | ------------------- |
@@ -143,12 +144,13 @@ RetroBat's `snes` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certific
 
 ## Master System - Mark III {#mastersystem}
 
-RetroBat's `mastersystem` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/mastersystem/) has the detail. [Its page](mastersystem.md) says which emulator to pick, what BIOS to supply and what will not work.
+RetroBat's `mastersystem` system. Tested on RomM 5.3.1 and RetroBat 8.3.0. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/mastersystem/) has the detail. [Its page](mastersystem.md) says which emulator to pick, what BIOS to supply and what will not work.
 
 | Emulator    | Core            | Status              | Note                                                                                    |
 | ----------- | --------------- | ------------------- | --------------------------------------------------------------------------------------- |
 | libretro    | genesis_plus_gx | Certified (default) |                                                                                         |
 | libretro    | picodrive       | Certified           |                                                                                         |
+| libretro    | gearsystem      | Not tested yet      |                                                                                         |
 | libretro    | fbneo           | Not certified       | Boots no game named the No-Intro way, because FBNeo picks its driver from the file name |
 | mednafen    | mastersystem    | Certified           |                                                                                         |
 | mesen       |                 | Certified           |                                                                                         |
@@ -157,59 +159,63 @@ RetroBat's `mastersystem` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [
 | kega-fusion | mastersystem    | Certified           |                                                                                         |
 | bizhawk     | SMSHawk         | Certified           |                                                                                         |
 | jgenesis    |                 | Certified           |                                                                                         |
+| blastem     |                 | Not tested yet      |                                                                                         |
 
 ## PlayStation {#psx}
 
-RetroBat's `psx` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/psx/) has the detail. [Its page](psx.md) says which emulator to pick, what BIOS to supply and what will not work.
+RetroBat's `psx` system. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/psx/) has the detail. [Its page](psx.md) says which emulator to pick, what BIOS to supply and what will not work.
 
-| Emulator    | Core            | Status              |
-| ----------- | --------------- | ------------------- |
-| libretro    | mednafen_psx_hw | Certified (default) |
-| libretro    | swanstation     | Certified           |
-| libretro    | pcsx_rearmed    | Certified           |
-| duckstation |                 | Certified           |
-| mednafen    | psx             | Certified           |
-| bizhawk     | Nymashock       | Certified           |
-| bizhawk     | Octoshock       | Certified           |
+| Emulator    | Core            | Status              | Tested on                  |
+| ----------- | --------------- | ------------------- | -------------------------- |
+| libretro    | mednafen_psx_hw | Certified (default) | RomM 5.3.1, RetroBat 8.3.0 |
+| libretro    | swanstation     | Certified           | RomM 5.3.1, RetroBat 8.3.0 |
+| libretro    | pcsx_rearmed    | Certified           | RomM 5.3.1, RetroBat 8.3.0 |
+| duckstation |                 | Certified           | RomM 5.3.1, RetroBat 8.3.0 |
+| mednafen    | psx             | Certified           | RomM 5.3.1, RetroBat 8.3.0 |
+| bizhawk     | Nymashock       | Certified           | RomM 5.3.1, RetroBat 8.2.1 |
+| bizhawk     | Octoshock       | Certified           | RomM 5.3.1, RetroBat 8.2.1 |
 
 ## Nintendo 64 {#n64}
 
-RetroBat's `n64` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/n64/) has the detail. [Its page](n64.md) says which emulator to pick, what BIOS to supply and what will not work.
+RetroBat's `n64` system. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/n64/) has the detail. [Its page](n64.md) says which emulator to pick, what BIOS to supply and what will not work.
 
-| Emulator  | Core             | Status              |
-| --------- | ---------------- | ------------------- |
-| libretro  | mupen64plus_next | Certified (default) |
-| libretro  | parallel_n64     | Certified           |
-| mupen64   |                  | Certified           |
-| simple64  |                  | Certified           |
-| ares      | Nintendo64       | Certified           |
-| bizhawk   | Ares64           | Certified           |
-| bizhawk   | Mupen64Plus      | Certified           |
-| project64 |                  | Certified           |
-| gopher64  |                  | Certified           |
+| Emulator  | Core             | Status              | Tested on                  |
+| --------- | ---------------- | ------------------- | -------------------------- |
+| libretro  | mupen64plus_next | Certified (default) | RomM 5.3.1, RetroBat 8.3.0 |
+| libretro  | parallel_n64     | Certified           | RomM 5.3.1, RetroBat 8.3.0 |
+| mupen64   |                  | Certified           | RomM 5.3.1, RetroBat 8.3.0 |
+| simple64  |                  | Certified           | RomM 5.3.1, RetroBat 8.3.0 |
+| ares      | Nintendo64       | Certified           | RomM 5.3.1, RetroBat 8.3.0 |
+| bizhawk   | Ares64           | Certified           | RomM 5.3.1, RetroBat 8.3.0 |
+| bizhawk   | Mupen64Plus      | Certified           | RomM 5.3.1, RetroBat 8.3.0 |
+| project64 |                  | Certified           | RomM 5.3.1, RetroBat 8.3.0 |
+| gopher64  |                  | Certified           | RomM 5.3.1, RetroBat 8.2.1 |
 
 ## Game Gear {#gamegear}
 
-RetroBat's `gamegear` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/gamegear/) has the detail. [Its page](gamegear.md) says which emulator to pick, what BIOS to supply and what will not work.
+RetroBat's `gamegear` system. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/gamegear/) has the detail. [Its page](gamegear.md) says which emulator to pick, what BIOS to supply and what will not work.
 
-| Emulator | Core            | Status              | Note                                                                                    |
-| -------- | --------------- | ------------------- | --------------------------------------------------------------------------------------- |
-| libretro | genesis_plus_gx | Certified (default) |                                                                                         |
-| libretro | picodrive       | Certified           |                                                                                         |
-| libretro | fbneo           | Not certified       | Boots no game named the No-Intro way, because FBNeo picks its driver from the file name |
-| mednafen | gg              | Certified           |                                                                                         |
-| ares     | GameGear        | Certified           |                                                                                         |
-| bizhawk  | SMSHawk         | Certified           |                                                                                         |
-| jgenesis |                 | Not certified       | RetroBat launches it as a Master System, so a Game Gear game plays to a black screen    |
+| Emulator | Core            | Status              | Tested on                  | Note                                                                                                                                                 |
+| -------- | --------------- | ------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| libretro | genesis_plus_gx | Certified (default) | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                                                      |
+| libretro | picodrive       | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                                                      |
+| libretro | gearsystem      | Not tested yet      |                            |                                                                                                                                                      |
+| libretro | fbneo           | Not certified       | RomM 5.3.1, RetroBat 8.3.0 | Boots no game named the No-Intro way, because FBNeo picks its driver from the file name                                                              |
+| mednafen | gg              | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                                                      |
+| ares     | GameGear        | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                                                      |
+| bizhawk  | SMSHawk         | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                                                      |
+| jgenesis |                 | Not certified       | RomM 5.3.1, RetroBat 8.2.1 | RetroBat 8.2.1 launched it as a Master System, so a Game Gear game played to a black screen; 8.3.0 launches it as a Game Gear, not yet checked there |
+| blastem  |                 | Not tested yet      |                            |                                                                                                                                                      |
 
 ## 32X {#sega32x}
 
-RetroBat's `sega32x` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/sega32x/) has the detail. [Its page](sega32x.md) says which emulator to pick, what BIOS to supply and what will not work.
+RetroBat's `sega32x` system. The [certification record](https://github.com/Spinnich/rommbat/tree/main/docs/platforms/sega32x/) has the detail. [Its page](sega32x.md) says which emulator to pick, what BIOS to supply and what will not work.
 
-| Emulator    | Core      | Status              | Note                                                                                 |
-| ----------- | --------- | ------------------- | ------------------------------------------------------------------------------------ |
-| libretro    | picodrive | Certified (default) |                                                                                      |
-| ares        | Mega32X   | Certified           |                                                                                      |
-| kega-fusion | sega32x   | Not certified       | Writes its battery saves outside saves/, and its states into the Mega Drive's folder |
-| bizhawk     | PicoDrive | Certified           |                                                                                      |
-| jgenesis    |           | Certified           |                                                                                      |
+| Emulator    | Core      | Status              | Tested on                  | Note                                                                                                                                            |
+| ----------- | --------- | ------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| libretro    | picodrive | Certified (default) | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                                                 |
+| ares        | Mega32X   | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                                                 |
+| kega-fusion | sega32x   | Not certified       | RomM 5.3.1, RetroBat 8.2.1 | Wrote its battery saves outside saves/, and its states into the Mega Drive's folder, on RetroBat 8.2.1; 8.3.0 moves both, not yet checked there |
+| bizhawk     | PicoDrive | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                                                 |
+| jgenesis    |           | Certified           | RomM 5.3.1, RetroBat 8.3.0 |                                                                                                                                                 |
+| blastem     |           | Not tested yet      |                            |                                                                                                                                                 |

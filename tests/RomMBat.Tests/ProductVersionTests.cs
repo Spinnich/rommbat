@@ -160,7 +160,7 @@ public class ProductVersionTests
     [Fact]
     public void The_stock_RetroBat_version_string_is_supported()
     {
-        var check = RetroBatVersion.Check("8.2.1-stable-win64");
+        var check = RetroBatVersion.Check("8.3.0-stable-win64");
 
         Assert.Equal(CompatibilityVerdict.Supported, check.Verdict);
     }
@@ -171,15 +171,15 @@ public class ProductVersionTests
         var check = RetroBatVersion.Check("8.1.0-stable-win64");
 
         Assert.Equal(CompatibilityVerdict.TooOld, check.Verdict);
-        Assert.Contains("8.2.1", check.Message, StringComparison.Ordinal);
+        Assert.Contains("8.3.0", check.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void The_previous_stable_is_refused_rather_than_warned_about()
     {
-        // The floor tracks the newest stable, so a patch release below it is out of support
-        // and not merely untested. 8.2.0's Flycast state watcher read the wrong directory.
-        var check = RetroBatVersion.Check("8.2.0-stable-win64");
+        // The floor tracks the newest stable, so the stable before it is out of support and not
+        // merely untested.
+        var check = RetroBatVersion.Check("8.2.1-stable-win64");
 
         Assert.Equal(CompatibilityVerdict.TooOld, check.Verdict);
         Assert.True(check.MustRefuse);
@@ -189,8 +189,8 @@ public class ProductVersionTests
     public void The_declared_minimums_match_the_compatibility_table()
     {
         Assert.Equal(ProductVersion.Parse("5.3.1"), RomMServerVersion.Minimum);
-        Assert.Equal(ProductVersion.Parse("8.2.1"), RetroBatVersion.Minimum);
-        Assert.Equal(new Version(8, 2, 1), RetroBatRoot.MinimumVersion);
+        Assert.Equal(ProductVersion.Parse("8.3.0"), RetroBatVersion.Minimum);
+        Assert.Equal(new Version(8, 3, 0), RetroBatRoot.MinimumVersion);
     }
 
     /// <summary>

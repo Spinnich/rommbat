@@ -25,7 +25,7 @@ public sealed record BiosRequirement(string System, string Folder, string? Md5, 
     /// True when nothing can be said about this file in either direction.
     /// </summary>
     /// <remarks>
-    /// 181 of the 355 entries, across 50 systems, and 29 systems have nothing else. Such a
+    /// 186 of the 360 entries, across 51 systems, and 30 systems have nothing else. Such a
     /// file can be neither found in RomM nor recognized on disk, so it is reported as
     /// unverifiable and never as missing from the user's library.
     /// </remarks>
