@@ -61,7 +61,9 @@ Verified: RetroBat 8.2.1, 2026-10-04. Carried: RetroBat 8.3.0, 2026-10-14, no la
 ```
 
 The stamp is one line, since the checker reads only the `Verified:` line. The carry goes last, before `How:`, and its
-reason runs to `How:` and is not read for builds. A later carry replaces an earlier one.
+reason runs to `How:` and is not read for builds. A later carry replaces an earlier one for the
+same project. A fact stamped for both projects carries each in a clause of its own, and a clause
+with no reason carries neither.
 
 The reason says what was read and why it does not reach the fact; "unchanged" is not one, and a
 clause without a reason carries nothing and stays on the stale list. `--stale` lists the carried
