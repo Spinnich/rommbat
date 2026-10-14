@@ -39,8 +39,14 @@ the owner's account, so they look empty under the approver's.
 | `dotnet test`                | Export the variables first. Nothing in .NET loads `.env`                                                                                            |
 | Bash                         | **Do not `. ./.env`.** A value such as `D:\retrobat-agent` loses its backslashes and the rest of the line runs as a command. Read it through Python |
 
-`.claude/settings.local.json` may carry `ROMMBAT_TEST_SERVER` and the approver token in the
-session's environment already. The owner token and the roots are only in `.env`.
+**`.env` is the only copy.** `.claude/settings.local.json` carries none of these keys, and a
+worktree needs no copy of its own, so rotating a token is one edit. A session's environment
+therefore starts without them: export them from `.env` before a live `dotnet test`, which is the
+one reader that cannot find the file itself.
+
+```powershell
+python3 tools/localenv.py --powershell | Invoke-Expression
+```
 
 ## Rules
 

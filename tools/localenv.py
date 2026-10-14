@@ -8,6 +8,7 @@ trailing ` # note` and strip one pair of double quotes.
 
     import localenv; localenv.apply()      # fill os.environ, never overriding a variable already set
     python tools/localenv.py               # which keys are set, which file, never a value
+    python tools/localenv.py --powershell | Invoke-Expression   # export the ROMMBAT_TEST_ keys, for dotnet test
 
 `docs/contributing/local-secrets.md` says what each key is.
 """
@@ -64,7 +65,17 @@ def apply() -> None:
         os.environ.setdefault(key, value)
 
 
+def powershell() -> int:
+    """`$env:KEY='value'` lines for the keys `dotnet test` reads. Prints values, so pipe it, never display it."""
+    for key, value in load().items():
+        if key.startswith("ROMMBAT_TEST_"):
+            print(f"$env:{key}='{value.replace(chr(39), chr(39) * 2)}'")
+    return 0
+
+
 def main() -> int:
+    if "--powershell" in sys.argv[1:]:
+        return powershell()
     path = find()
     print(f".env: {path or 'not found'}")
     values = load()
