@@ -9,7 +9,7 @@ Sega 32X. RetroBat calls the folder `sega32x`, which is what this folder is name
 `hardware=extension` with `<group>megadrive</group>`, but keeps its own `roms\sega32x` and
 `saves\sega32x`.
 
-**Four of the five rows `sega32x` declares are certified**, at RomM `5.3.1` and RetroBat 8.2.1 on
+**Four of the six rows `sega32x` declares are certified**, at RomM `5.3.1` and RetroBat 8.2.1 on
 2026-10-05, all nine steps, with step 6 N/A because `sega32x` has no class D:
 
 - `libretro`/`picodrive`, **the row a stock install gives a user**, selected with no override

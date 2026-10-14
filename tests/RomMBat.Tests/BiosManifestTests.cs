@@ -62,14 +62,13 @@ public sealed class BiosManifestTests
         Assert.Equal(6, manifest.RejectedPaths.Count);
 
         // 156, not 157. The set is built without the blank md5, which 186 of the 360 entries
-        // carry; counting it inflated every number derived from this set by one. Every entry
-        // RetroBat has added since, namco2x6's two in 8.2.1 and chihiro's five in 8.3.0, is
-        // hashless, so the distinct-md5 count held.
+        // carry; counting it inflated every number derived from this set by one. namco2x6's two
+        // entries and chihiro's five are hashless, so they add nothing here.
         Assert.Equal(156, manifest.Requirements.Where(r => r.Md5 is not null).Select(r => r.Md5).Distinct().Count());
         Assert.Equal(180, manifest.Requirements.Count(requirement => requirement.IsUnverifiable));
 
-        // 30, as the 360 entries give. triforce's one entry moved from emulators/ to bios/ in
-        // 8.3.0, so it is no longer refused and counts.
+        // 30, as the 360 entries give: every refused entry belongs to camplynx, whose entries
+        // under bios/ are hashless too, so refusing them removes no system from this count.
         Assert.Equal(30, manifest.Requirements
             .GroupBy(requirement => requirement.System)
             .Count(system => system.All(requirement => requirement.IsUnverifiable)));

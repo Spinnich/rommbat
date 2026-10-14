@@ -91,8 +91,10 @@ and must move, and some are the version a measurement was taken on and must not.
    cite it. Run the generator it names and review that diff.
 2. Move together, or the startup check disagrees with the README: `RetroBatVersion.Minimum`,
    `RetroBatVersion.LastTested`, `RetroBatRoot.MinimumVersion`, the `README.md` requirements
-   table, and the guide's `wiki/getting-started/requirements.md` and the compatibility row in
-   `wiki/reference/compatibility.md`. A test asserts the first three agree.
+   table, and the guide's `wiki/getting-started/requirements.md`. A test asserts the first three
+   agree. The guide's compatibility table, `wiki/reference/compatibility.md`, is left alone: each
+   row records what a release was tested against, and the next release's row is added when it is
+   cut (`DEVELOPER_SETUP.md`, "Cutting a release").
 3. `python3 tools/docs/check.py --stale` then lists the re-check work: every fact whose
    `Verified:` stamp names a build below the new floor, and every fact with no stamp. It reads
    the floor from `RetroBatVersion.Minimum` and `RomMServerVersion.Minimum`, so run it once the

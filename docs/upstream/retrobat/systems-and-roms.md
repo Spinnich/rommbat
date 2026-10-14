@@ -14,7 +14,8 @@ Both files hold 245 `<system>` elements, and both own the same 241 folders under
 `systems_names.lst` names. Every system has a non-empty `<extension>`, 340 distinct across the
 file. RomMBat still reads the live file and never the copy in `reference/`, because a user's
 emulator choices can change it (rule 3). `reference/verify.py` asserts that `systems_names.lst`
-holds 241 names, and `EsSystemsFileTests` that the shipped file's folders are exactly those.
+holds 241 names, and `EsSystemsFileTests` that the shipped file owns 241 folders and differs
+from a live capture only where a release renamed or added one.
 
 ## RB-68. `<name>` is not the folder
 

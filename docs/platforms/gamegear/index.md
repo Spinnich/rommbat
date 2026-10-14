@@ -7,7 +7,7 @@ read-when: Before certifying a `gamegear` row, or when asked whether a `gamegear
 
 Sega Game Gear. RetroBat calls the folder `gamegear`, which is what this folder is named after.
 
-**Five of the seven rows `gamegear` declares are certified**, at RomM `5.3.1` and RetroBat 8.2.1 on
+**Five of the nine rows `gamegear` declares are certified**, at RomM `5.3.1` and RetroBat 8.2.1 on
 2026-10-05, all nine steps, with step 6 N/A because `gamegear` has no class D:
 
 - `libretro`/`genesis_plus_gx`, **the row a stock install gives a user**, selected with no override

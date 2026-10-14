@@ -7,7 +7,7 @@ read-when: Before certifying a `megadrive` row, or when asked whether a `megadri
 
 Sega Mega Drive / Genesis. RetroBat calls the folder `megadrive`, which is what this folder is named after.
 
-**Seven of the eleven rows `megadrive` declares are certified**, at RomM `5.3.0` and RetroBat
+**Seven of the twelve rows `megadrive` declares are certified**, at RomM `5.3.0` and RetroBat
 8.2.1, on 2026-09-21, all nine steps with step 6 N/A because `megadrive` has no class D:
 
 - `libretro`/`genesis_plus_gx`, **the row a stock install gives a user**, selected with no override
@@ -86,8 +86,8 @@ codes. Those launches skip ES, so they run no hooks and record no session.
 
 ## Steps 1, 2 and 3, for every row
 
-Staged at `5.3.0` before the sessions and re-confirmed on the day. None needs an emulator, so all
-eleven rows carry them.
+Staged at `5.3.0` before the sessions and re-confirmed on the day. None needs an emulator, so every
+row carries them.
 
 ### 1. Mapping
 

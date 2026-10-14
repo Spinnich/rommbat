@@ -13,8 +13,8 @@ Leave RetroBat on its default, RetroArch with the Genesis Plus GX core.
 
 Avoid two emulators:
 
-- **jgenesis** has not been checked since RetroBat 8.3.0 began starting Game Gear games on it as
-  Game Gear games. Before 8.3.0 it ran them as Master System games, to a black screen.
+- **jgenesis** has not been checked on RetroBat 8.3.0, which changes how it starts Game Gear
+  games.
 - **RetroArch's FBNeo core** does not start games named the way RomM libraries usually name them,
   because FBNeo expects its own file names.
 

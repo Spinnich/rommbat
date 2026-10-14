@@ -15,9 +15,8 @@ moves the minimum with it. Two reasons, both specific to this project. Every fac
 means owning that measurement on every version in the range, on a `(system, emulator, core)`
 matrix that is already two to four passes per row. And RetroBat's own updater moves users
 forward, so a wide floor buys compatibility with installs that mostly do not exist while
-doubling what has to be certified. 8.2.1 showed the cost of a range: 8.2.0's Flycast
-save-state watcher read the wrong directory, and a release that supported both would have had to
-carry the workaround and the fix at once.
+doubling what has to be certified. And a release that supported two builds on either side of an
+upstream fix would carry the workaround and the fix at once.
 
 What adoption costs, each time: re-run `reference/refresh.sh` and resolve the drift, move the
 floor and the tested row together, re-read the upstream changelog for anything that touches a

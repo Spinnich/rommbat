@@ -20,14 +20,13 @@ public static class RetroBatVersion
     /// Tracks the newest RetroBat stable rather than the oldest one that happens to work:
     /// RomMBat adopts a new stable within one release and moves the floor with it, so the
     /// behavior the measurements describe is the behavior of the install in front of the
-    /// user. A range would carry both sides of every upstream fix: 8.2.0's Flycast save-state
-    /// watcher pointed at the wrong directory (emulatorlauncher#1336), and 8.2.1 fixed it.
+    /// user. A range would carry both sides of every upstream fix, the workaround and the fix.
     /// </remarks>
     public static ProductVersion Minimum { get; } = ProductVersion.Parse("8.3.0");
 
     /// <summary>
-    /// Newest RetroBat this release has been exercised against. Keep in step with the guide's
-    /// compatibility table, wiki/reference/compatibility.md.
+    /// Newest RetroBat this release has been exercised against. The release's row in the guide's
+    /// compatibility table, wiki/reference/compatibility.md, names it when the release is cut.
     /// </summary>
     public static ProductVersion LastTested { get; } = ProductVersion.Parse("8.3.0");
 

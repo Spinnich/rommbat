@@ -66,8 +66,8 @@ public sealed record StateScanOutcome
 /// </para>
 /// <para>
 /// <b><c>flycast</c> writes its declared directory.</b> It writes
-/// <c>saves/dreamcast/reicast/states/</c> natively, and on the 8.2.1 floor
-/// (<c>emulatorlauncher#1336</c>) a hands-on pass confirmed the state is mirrored into the
+/// <c>saves/dreamcast/reicast/states/</c> natively, and since 8.2.1
+/// (<c>emulatorlauncher#1336</c>) RetroBat mirrors it: a hands-on pass on 8.2.1 confirmed the state is mirrored into the
 /// declared <c>flycast/sstates</c> in the same millisecond, so the declaration is the one to
 /// read.
 /// </para>
@@ -106,7 +106,7 @@ public sealed class StateScanner
     /// trap: a client that trusts the declaration concludes the game has no states rather than
     /// concluding it is looking in the wrong place.
     /// <para>
-    /// <b><c>flycast</c> is not here.</b> On the 8.2.1 floor RetroBat's save-state watcher
+    /// <b><c>flycast</c> is not here.</b> Since 8.2.1 RetroBat's save-state watcher
     /// points at the directory Flycast really writes (RetroBat-Official/emulatorlauncher#1336).
     /// Confirmed by hand on 8.2.1 rather than taken from the changelog, three runs of
     /// `Sega Tetris (Japan) (Rev A)` under

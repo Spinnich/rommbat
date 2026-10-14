@@ -49,7 +49,7 @@ public sealed record BiosRequirement(string System, string Folder, string? Md5, 
 /// takes two md5s.
 /// </para>
 /// <para>
-/// <b>Everything lands under <c>bios/</c>, and that is enforced here.</b> The seven manifest
+/// <b>Everything lands under <c>bios/</c>, and that is enforced here.</b> The six manifest
 /// entries that name <c>emulators/</c> paths are all hashless and therefore unreachable
 /// through an md5 join, so refusing them costs nothing today and stops a future manifest
 /// entry writing into an emulator's install directory.

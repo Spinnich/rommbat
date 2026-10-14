@@ -7,7 +7,7 @@ read-when: Before certifying a `mastersystem` row, or when asked whether a `mast
 
 Sega Master System / Mark III. RetroBat calls the folder `mastersystem`, which is what this folder is named after.
 
-**Nine of the ten rows `mastersystem` declares are certified**, at RetroBat 8.2.1, all nine steps
+**Nine of the twelve rows `mastersystem` declares are certified**, at RetroBat 8.2.1, all nine steps
 with step 6 N/A because `mastersystem` has no class D. Seven were driven at RomM `5.3.0` on
 2026-09-24:
 
