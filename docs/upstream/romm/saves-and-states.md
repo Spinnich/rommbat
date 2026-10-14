@@ -158,7 +158,7 @@ sent, unless the server's hash already equals the local one, and records a `down
 
 ## RB-276. RomM keeps a save whose bytes are the JSON literal `null`
 
-Verified: RomM 5.4.0, 2026-10-14, live, and 5.3.1 in source. How: uploaded the four bytes to `autosave`, a `libretro:` slot and no slot, read each back and deleted it; read `add_save` at the `5.3.1` tag, and the player's Save & Quit at `5.2.0` and `5.3.1`.
+Verified: RomM 5.4.0, 2026-10-14, live, and 5.3.1 in source. How: uploaded the four bytes to `autosave`, a `libretro:` slot and no slot, read each back and deleted it; read `add_save` at the `5.3.1` tag, and the player's Save & Quit at `5.2.0`, `5.3.0` and `5.3.1`.
 The server stores whatever bytes it is sent. The four bytes `null`, md5
 `37a6259cc0c1dae299a7866489dff0bd`, land in all three places and come back unchanged. RomM
 5.2.0's browser player sent them: its Save & Quit uploaded `getSaveFile()` unchecked, which is

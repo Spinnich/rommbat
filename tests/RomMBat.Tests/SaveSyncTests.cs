@@ -351,7 +351,7 @@ public class SaveSyncTests
     [InlineData(true)]
     public async Task Another_clients_null_autosave_is_refused_rather_than_written_as_a_battery_save(bool omitHash)
     {
-        // RomM's browser player uploads the four bytes "null" to slot autosave. Measured landing
+        // RomM 5.2.0's browser player uploaded the four bytes "null" to slot autosave. Measured landing
         // as saves/megadrive/<rom>.srm, and twice on nes. With the hash named it is refused before
         // the transfer, and without one on the bytes that arrived.
         using var fixture = SyncFixture.Create();

@@ -1708,7 +1708,7 @@ public sealed class SaveSync
         }
     }
 
-    /// <summary>The four bytes RomM's browser player uploads when it has no save to send.</summary>
+    /// <summary>The four bytes RomM 5.2.0's browser player uploaded when it had no save to send.</summary>
     internal static ReadOnlySpan<byte> NullPayload => "null"u8;
 
     /// <summary>The md5 of <see cref="NullPayload"/>.</summary>
