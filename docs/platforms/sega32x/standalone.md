@@ -92,10 +92,10 @@ where the `libretro` rule reads it, and NBA Jam's boot format is `<rom>.srm`, 25
 jgenesis writes. Kega booted all three games with no BIOS, and was not played: its pad needs a remap in its own menu
 first (RB-284), and the row cannot certify whatever a session showed.
 
-| #   | Result                                                                |
-| --- | --------------------------------------------------------------------- |
-| 1-3 | **Pass**, the system's                                                |
+| #   | Result                                                                    |
+| --- | ------------------------------------------------------------------------- |
+| 1-3 | **Pass**, the system's                                                    |
 | 4   | **Not re-driven**: the loose `.srm` is read as `libretro:battery`, RB-416 |
-| 5   | **Fail at 8.3.0**: the states' folder is not declared, RB-416         |
-| 6   | **N/A**                                                               |
-| 7-9 | **Not driven**: no ES session, for the reasons above                  |
+| 5   | **Fail at 8.3.0**: the states' folder is not declared, RB-416             |
+| 6   | **N/A**                                                                   |
+| 7-9 | **Not driven**: no ES session, for the reasons above                      |
