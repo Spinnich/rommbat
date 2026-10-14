@@ -85,19 +85,17 @@ Every one is on the server against its rom. The agent's own launches run no hook
 
 ## `kega-fusion`/`sega32x`: driven, and not certified at this floor
 
-**Step 4 cannot pass on 8.2.1**, for `megadrive`'s reason (RB-283): RetroBat's `Fusion.ini` sends the
-battery save to `emulators/kega-fusion/`, and RomMBat reads only `mastersystem`'s `.ssm` there.
-NBA Jam's boot format landed as `emulators/kega-fusion/<rom>.srm`, 256 B, the same bytes jgenesis
-writes. **Its states land in the parent's tree**, `saves/megadrive/kega-fusion/<rom>.gs0` and `.gs9`,
-676,671 B each, from `F5`, `F7`, `F5`, where `saves` reports them as `megadrive` states with `no rom`
-(RB-416). By the maintainer's ruling they are recorded, not attributed. Kega booted all three games
-with no BIOS, and was not played: its pad needs a remap in its own menu first (RB-284), and the row
-cannot certify whatever a session showed.
+**Steps 4 and 5 cannot pass at 8.3.0**: no rule reads Kega's battery save, which lands loose in
+`saves/sega32x/`, and the supplement names the parent's folder, not the one its states land in,
+`saves/sega32x/kega-fusion/sstates/<rom>.gs0` and `.gs9`, 676,671 B each, from `F5`, `F7`, `F5`
+(RB-416, #519). NBA Jam's boot format landed as `<rom>.srm`, 256 B, the same bytes jgenesis writes.
+Kega booted all three games with no BIOS, and was not played: its pad needs a remap in its own menu
+first (RB-284), and the row cannot certify whatever a session showed.
 
 | #   | Result                                                                |
 | --- | --------------------------------------------------------------------- |
 | 1-3 | **Pass**, the system's                                                |
-| 4   | **Fail on 8.2.1**: the save lands in `emulators/kega-fusion/`, RB-283 |
-| 5   | **Fail on 8.2.1**: the states land under `saves/megadrive/`, RB-416   |
+| 4   | **Fail at 8.3.0**: no rule reads the save in `saves/sega32x/`, RB-416 |
+| 5   | **Fail at 8.3.0**: the states' folder is not declared, RB-416         |
 | 6   | **N/A**                                                               |
 | 7-9 | **Not driven**: no ES session, for the reasons above                  |
