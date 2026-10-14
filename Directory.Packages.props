@@ -43,11 +43,11 @@
     generated output is committed, so nothing generates at build time.
   -->
   <ItemGroup Label="UI">
-    <PackageVersion Include="Avalonia" Version="12.1.3" />
-    <PackageVersion Include="Avalonia.Win32" Version="12.1.3" />
-    <PackageVersion Include="Avalonia.Skia" Version="12.1.3" />
-    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.3" />
-    <PackageVersion Include="Avalonia.HarfBuzz" Version="12.1.3" />
+    <PackageVersion Include="Avalonia" Version="12.1.4" />
+    <PackageVersion Include="Avalonia.Win32" Version="12.1.4" />
+    <PackageVersion Include="Avalonia.Skia" Version="12.1.4" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+    <PackageVersion Include="Avalonia.HarfBuzz" Version="12.1.4" />
   </ItemGroup>
 
   <!--
@@ -63,7 +63,7 @@
     dotnet.config at the root opts `dotnet test` into the same platform.
   -->
   <ItemGroup Label="Testing">
-    <PackageVersion Include="xunit.v3" Version="4.0.1" />
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
 
 </Project>
