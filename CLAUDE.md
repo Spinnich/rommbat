@@ -49,6 +49,7 @@ shape, slot, set and floor are defined in [docs/design/glossary.md](docs/design/
 | Writing or editing any doc                                                             | [docs/contributing/writing.md](docs/contributing/writing.md)                                                 |
 | A scripted edit or a `gh` body edit from Windows                                       | [docs/contributing/windows-agent-hazards.md](docs/contributing/windows-agent-hazards.md)                     |
 | Driving a change on a real install: deploy, ES, the UI, keys, screenshots              | [tools/handson/README.md](tools/handson/README.md), then `pre-pr-verification`: "Hands-on by change type"    |
+| A token, the test server or an install path: where it is, why it answers 403           | [docs/contributing/local-secrets.md](docs/contributing/local-secrets.md), and `python3 tools/localenv.py`    |
 | Wrapping up: commit, PR, "done"                                                        | `pre-pr-verification`, all of it, then `tools/pre-pr.ps1`                                                    |
 | Picking up an issue, driving or reviewing a PR, certifying a system                    | [docs/contributing/workflow.md](docs/contributing/workflow.md), then `/start-issue`, `/drive-pr`, `/certify` |
 

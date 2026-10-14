@@ -150,12 +150,9 @@ plays the approving user with a pre-made token. They skip unless both variables 
    For hands-on passes, add `ROMMBAT_TEST_OWNER_TOKEN`, a token on the account an install is
    paired as ([the owner token](docs/contributing/testing.md#the-owner-token)).
 
-3. Source it for the run. Nothing loads `.env` on its own:
-
-   ```bash
-   set -a; . ./.env; set +a; dotnet test
-   set -a; . ./.env; set +a; dotnet test --project tests/RomMBat.Tests --filter "FullyQualifiedName~LivePairingTests"
-   ```
+3. Nothing in .NET loads `.env`, so export the variables for the run. Do not `. ./.env` in bash:
+   a Windows path in it loses its backslashes. [Local secrets](docs/contributing/local-secrets.md)
+   says how each tool reads the file, and `python3 tools/localenv.py` reports what is set.
 
    ```powershell
    $env:ROMMBAT_TEST_SERVER = "https://your-romm-instance"
