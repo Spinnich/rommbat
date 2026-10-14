@@ -108,8 +108,8 @@ writes `<developer>` as `companies` deduplicated and comma-joined, which claims 
 Verified: RomM 5.3.1, 2026-09-29, for the RomM half; RetroBat 8.2.0, 2026-08-11, for the gamelist counts, and 8.3.0, 2026-10-14, for the scraper that writes them. How: counted repeated franchises in the library; read `<genre>` in 32 gamelists of a real scraped install; read `ScreenScraper.cpp` at ES `45f37fd7`.
 In the scraped install, 2,079 of 4,440 `<genre>` values contain a comma or a slash (`Racing,
 Driving`, `Action / Adventure`), across 111 distinct values: ES's scraper joins ScreenScraper's
-genre and subgenre with ` / `. So joining with a comma and a space follows the existing
-convention. `franchises` repeats a name on 147 rows, so
+genre and subgenre as `<genre> / <subgenre>`. So joining with a comma and a space follows the
+existing convention. `franchises` repeats a name on 147 rows, so
 `GameMetadata` deduplicates before joining or picking the first.
 
 ## RB-100. `regions` and `languages` use different vocabularies from a gamelist
