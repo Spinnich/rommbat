@@ -36,7 +36,7 @@ public enum BiosAction
     /// RetroBat names no md5 for this file, so nothing can be said about it in either direction.
     /// </summary>
     /// <remarks>
-    /// 174 of the 348 requirements, and 28 systems have nothing else. This is a fact about
+    /// 180 of the 354 requirements, and 30 systems have nothing else. This is a fact about
     /// RetroBat's manifest and not a gap in the user's library, which is why it is its own
     /// state rather than a kind of missing.
     /// </remarks>
@@ -233,7 +233,7 @@ public sealed class BiosPlanner
     /// </summary>
     /// <remarks>
     /// Separate from <see cref="FoldersNeedingBios"/> so a caller can tell an install that has
-    /// synced nothing from one whose systems simply need no firmware. Only 99 of RetroBat's 240
+    /// synced nothing from one whose systems simply need no firmware. Only 101 of RetroBat's 241
     /// systems appear in the manifest, so the second is the ordinary case for a snes, n64 or
     /// atari2600 library and reads as the first if the two are collapsed.
     /// </remarks>

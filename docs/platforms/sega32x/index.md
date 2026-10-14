@@ -9,7 +9,7 @@ Sega 32X. RetroBat calls the folder `sega32x`, which is what this folder is name
 `hardware=extension` with `<group>megadrive</group>`, but keeps its own `roms\sega32x` and
 `saves\sega32x`.
 
-**Four of the five rows `sega32x` declares are certified**, at RomM `5.3.1` and RetroBat 8.2.1 on
+**Four of the six rows `sega32x` declares are certified**, at RomM `5.3.1` and RetroBat 8.2.1 on
 2026-10-05, all nine steps, with step 6 N/A because `sega32x` has no class D:
 
 - `libretro`/`picodrive`, **the row a stock install gives a user**, selected with no override
@@ -29,8 +29,14 @@ boot launches below (#464).
 
 ## Where each row stands
 
-**Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1**, measured there on
-2026-10-05. Nothing is owed.
+**Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.3.0.** Step 9 was re-driven at
+8.3.0 on 2026-10-14 in #478, on a tree built from a pristine 8.3.0 install: a second sync of the
+record's games downloaded nothing, wrote nothing under `roms/`, and left every gamelist
+byte-identical. Step 8 was re-driven the same day on two ES launches. Steps 1 to 7 carry: no folder
+name, no BIOS entry and no `es_savestates.cfg` entry for an existing row changed, and no generator
+change between 8.2.1 and 8.3.0 touches where an existing row saves. `kega-fusion` stays not
+certified at 8.2.1, since 8.3.0 probably moves its saves and states as on `megadrive` (#519).
+`blastem` is new in 8.3.0 and untested (#521).
 
 | File                           | What it holds                                                                                 |
 | ------------------------------ | --------------------------------------------------------------------------------------------- |
@@ -43,7 +49,7 @@ boot launches below (#464).
 
 |            |                                                                                     |
 | ---------- | ----------------------------------------------------------------------------------- |
-| RetroBat   | `8.2.1-stable-win64`, the supported floor                                           |
+| RetroBat   | `8.2.1-stable-win64`, the floor then                                                |
 | RomM       | `5.3.1`, read back by `status` as Supported                                         |
 | Root       | `D:\retrobat-agent`, the agent tree, given by `--root`                              |
 | Store      | schema 21 of 21, WAL                                                                |

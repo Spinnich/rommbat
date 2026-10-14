@@ -214,7 +214,7 @@ RetroBat is portable, so a copy is disposable.
 
    ```powershell
    Get-Content D:\retrobat-test\system\version.info
-   # 8.2.1-stable-win64
+   # 8.3.0-stable-win64
    ```
 
 5. Put ROMs on it for the systems you are working on, and for later certification waves their

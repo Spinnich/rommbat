@@ -9,11 +9,11 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 
 ## RB-379. The firmware manifest is a string resource inside `batocera-systems.exe`, not a file
 
-Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. How: searched the install for the file name, then compared the executable's embedded resource with `reference/batocera-systems.json`.
+Verified: RetroBat 8.3.0, 2026-10-14. How: searched the install for the file name, then compared the executable's embedded resource with `reference/batocera-systems.json`.
 No file named `batocera-systems.json` exists anywhere in an install. The data is a .NET string
 resource named `batocera_systems` inside `emulationstation/batocera-systems.exe`, at offset 7,250
-of the 50,688-byte executable, and matches the vendored copy byte for byte apart from its
-trailing newline: 100 systems and 355 entries, 181 of them with an empty md5. With no live copy
+of the 51,200-byte executable, and matches the vendored copy byte for byte apart from its
+trailing newline: 101 systems and 360 entries, 186 of them with an empty md5. With no live copy
 to read, RomMBat bundles the manifest at `data/retrobat/bios.json` rather than reading a
 build-specific resource layout out of the executable at runtime.
 

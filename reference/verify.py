@@ -70,20 +70,20 @@ def main():
             mapping[folder] = aliases[folder]
 
     print("\nPlatform mapping")
-    check("RetroBat systems", len(systems), 240)
+    check("RetroBat systems", len(systems), 241)
     check("RomM known platform slugs", len(slugs), 459)
     check("  ...and the enum members carrying them", len(members), 459)
     check("Folder aliases upstream publishes", len(aliases), 138)
-    check("  ...of those, RetroBat system folders", len(set(aliases) & systems), 94)
-    check("  ...naming folders RetroBat lacks", len(set(aliases) - systems), 44)
+    check("  ...of those, RetroBat system folders", len(set(aliases) & systems), 93)
+    check("  ...naming folders RetroBat lacks", len(set(aliases) - systems), 45)
 
     check("RetroBat folders resolving to a RomM slug", len(mapping), 166)
-    check("  ...by identity, the folder being a slug", sum(1 for f, s in mapping.items() if f == s), 72)
-    check("  ...via the alias table", sum(1 for f, s in mapping.items() if f != s), 94)
+    check("  ...by identity, the folder being a slug", sum(1 for f, s in mapping.items() if f == s), 73)
+    check("  ...via the alias table", sum(1 for f, s in mapping.items() if f != s), 93)
     check("Mapped slugs RomM does not know", len(set(mapping.values()) - slugs), 0)
 
     unmapped = sorted(systems - set(mapping))
-    check("RetroBat systems with no mapping", len(unmapped), 74)
+    check("RetroBat systems with no mapping", len(unmapped), 75)
 
     by_norm = {norm(s) for s in slugs}
     check(
@@ -109,13 +109,13 @@ def main():
     # recognize it on disk. Counting it as a requirement inflated every number below by one
     # and made "unknown to RomM" claim a hash that does not exist.
     rb_md5 = {md5 for _system, md5, _file in entries if md5}
-    check("RetroBat systems in the BIOS manifest", len(bios), 100)
-    check("BIOS entries total", len(entries), 355)
-    check("  ...of those carrying no md5 at all", sum(1 for _s, md5, _f in entries if not md5), 181)
+    check("RetroBat systems in the BIOS manifest", len(bios), 101)
+    check("BIOS entries total", len(entries), 360)
+    check("  ...of those carrying no md5 at all", sum(1 for _s, md5, _f in entries if not md5), 186)
     check(
         "  ...systems with no joinable entry at all",
         sum(1 for v in bios.values() if v.get("biosFiles") and not any(b["md5"].strip() for b in v["biosFiles"])),
-        29,
+        30,
     )
     check("Distinct md5s RetroBat requires", len(rb_md5), 156)
 
@@ -150,7 +150,7 @@ def main():
         5,
     )
     check("  ...widest, in systems", max(len(systems_by_path[f]) for f in shared), 4)
-    check("Entries landing outside bios/", sum(1 for _s, _m, f in entries if not f.startswith("bios/")), 7)
+    check("Entries landing outside bios/", sum(1 for _s, _m, f in entries if not f.startswith("bios/")), 6)
     check(
         "  ...of those, joinable",
         sum(1 for _s, md5, f in entries if md5 and not f.startswith("bios/")),

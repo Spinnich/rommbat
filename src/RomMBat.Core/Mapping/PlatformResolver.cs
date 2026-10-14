@@ -79,7 +79,7 @@ public sealed record PlatformResolution(
 /// </summary>
 /// <remarks>
 /// The two vocabularies genuinely diverge, so this is a feature with a visible, editable
-/// surface rather than a lookup. 74 of RetroBat's 240 systems have no seed mapping at all,
+/// surface rather than a lookup. 75 of RetroBat's 241 systems have no seed mapping at all,
 /// and about 50 of the hard cases are ports and storefronts (<c>cavestory</c>,
 /// <c>devilutionx</c>, <c>epic</c>, <c>gog</c>) which have no RomM platform by design.
 /// <para>

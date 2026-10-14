@@ -45,7 +45,7 @@ public class EsSystemsFileTests
 
         Assert.True(systems.TryGetFolder("mastersystem", out var mastersystem));
         Assert.Equal(
-            ["libretro", "mednafen", "mesen", "ares", "kega-fusion", "bizhawk", "jgenesis"],
+            ["libretro", "mednafen", "mesen", "ares", "kega-fusion", "bizhawk", "jgenesis", "blastem"],
             mastersystem.Emulators);
     }
 
@@ -134,11 +134,14 @@ public class EsSystemsFileTests
             .Select(path => path.Replace('\\', '/').Split('/')[^1])
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // They agree exactly, all 240. Both files have 244 active systems, four of which own no
+        // The capture is 8.2.0's and is not re-captured when the floor moves (fixtures/README.md),
+        // so they agree on every folder but the ones a release since then renamed or added:
+        // 8.3.0 renamed gzdoom to doom and added zeldaclassic. Named rather than tolerated, so a
+        // third difference fails. The template has 245 active systems, four of which own no
         // folder under roms/, so a count of <system> elements against folder names is off by four.
-        Assert.DoesNotContain(template.Folders, folder => !live.Contains(folder));
-        Assert.DoesNotContain(live, folder => !template.HasFolder(folder));
-        Assert.Equal(240, template.Folders.Count);
+        Assert.Equal(["doom", "zeldaclassic"], template.Folders.Where(folder => !live.Contains(folder)).Order(StringComparer.Ordinal));
+        Assert.Equal(["gzdoom"], live.Where(folder => !template.HasFolder(folder)).Order(StringComparer.Ordinal));
+        Assert.Equal(241, template.Folders.Count);
     }
 
     [Fact]

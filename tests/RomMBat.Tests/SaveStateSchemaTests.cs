@@ -16,12 +16,12 @@ namespace RomMBat.Tests;
 public class SaveStateSchemaTests
 {
     [Fact]
-    public void The_shipped_file_declares_thirteen_emulators()
+    public void The_shipped_file_declares_sixteen_emulators()
     {
         var schema = Fixtures.LoadSaveStates();
 
-        // The bound on state sync: 13 emulators, not the 243 systems es_systems.cfg declares.
-        Assert.Equal(13, schema.Emulators.Count);
+        // The bound on state sync: 16 emulators, not the 245 systems es_systems.cfg declares.
+        Assert.Equal(16, schema.Emulators.Count);
     }
 
     [Fact]

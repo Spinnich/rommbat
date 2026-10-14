@@ -93,7 +93,7 @@ supported RetroBat version because it is linked from `reference/` rather than co
 enough because it carries every parser trap a live file does: five systems whose `<name>`
 differs from their folder, one `<name>` used twice, four entries pointing outside `roms/`,
 one with no path, and two systems inside XML comments. `es_systems.live.json` agrees with it
-on all 240 folders. Shipped code still reads the live file; this is a fixture, not a substitute.
+on 239 of its 241 folders: 8.3.0 renamed `gzdoom` to `doom` and added `zeldaclassic`. Shipped code still reads the live file; this is a fixture, not a substitute.
 
 `gamegear-gamelist.xml` is four entries lifted verbatim from a real scraped install, two of
 them carrying `playcount` and `lastplayed`, so a test can assert user fields survive a sync.

@@ -7,7 +7,7 @@ read-when: Before certifying a `gamegear` row, or when asked whether a `gamegear
 
 Sega Game Gear. RetroBat calls the folder `gamegear`, which is what this folder is named after.
 
-**Five of the seven rows `gamegear` declares are certified**, at RomM `5.3.1` and RetroBat 8.2.1 on
+**Five of the nine rows `gamegear` declares are certified**, at RomM `5.3.1` and RetroBat 8.2.1 on
 2026-10-05, all nine steps, with step 6 N/A because `gamegear` has no class D:
 
 - `libretro`/`genesis_plus_gx`, **the row a stock install gives a user**, selected with no override
@@ -30,8 +30,14 @@ a battery file of nothing but `0xFF`, because ares writes one for every cartridg
 
 ## Where each row stands
 
-**Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1**, measured there on
-2026-10-05. Nothing is owed.
+**Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.3.0.** Step 9 was re-driven at
+8.3.0 on 2026-10-14 in #478, on a tree built from a pristine 8.3.0 install: a second sync of the
+record's games downloaded nothing, wrote nothing under `roms/`, and left every gamelist
+byte-identical. Step 8 was re-driven the same day on two ES launches. Steps 1 to 7 carry: no folder
+name, no BIOS entry and no `es_savestates.cfg` entry for an existing row changed, and no generator
+change between 8.2.1 and 8.3.0 touches where an existing row saves. `jgenesis` stays not certified
+at 8.2.1: 8.3.0 starts it as a Game Gear, and #522 certifies it. `libretro`/`gearsystem` and
+`blastem` are new in 8.3.0 and untested (#521).
 
 | File                           | What it holds                                                                                                          |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
@@ -44,7 +50,7 @@ a battery file of nothing but `0xFF`, because ares writes one for every cartridg
 
 |           |                                                                                  |
 | --------- | -------------------------------------------------------------------------------- |
-| RetroBat  | `8.2.1-stable-win64`, the supported floor                                        |
+| RetroBat  | `8.2.1-stable-win64`, the floor then                                             |
 | RomM      | `5.3.1`, read back by `status` as Supported                                      |
 | Root      | `R:\RetroBat`, found by walking up from the executable                           |
 | Store     | schema 21 of 21, WAL                                                             |

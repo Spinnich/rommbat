@@ -12,8 +12,8 @@
 Leave RetroBat on its default, RetroArch with the PicoDrive core. It keeps saves for every 32X game
 that has one.
 
-Avoid Kega Fusion: it keeps its saves outside RetroBat's `saves` folder and its save states in the
-Mega Drive's folder, so neither reaches RomM.
+Avoid Kega Fusion: it has not been checked since RetroBat 8.3.0 moved its saves and save states, so
+RomMBat may not sync either yet.
 
 ## BIOS
 

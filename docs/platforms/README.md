@@ -12,8 +12,8 @@ a file per emulator or group of rows holds the rest, and `facts.md` holds the me
 **The unit is `(system, emulator, core)`, never the system alone.** Two emulators for one
 console differ exactly where it costs a save: `psx` under libretro writes a plain `.srm` and is
 class A, while `psx` under DuckStation writes a memory card named from an internal database
-title and needs Game-ID attribution. State directories and filenames are per emulator, thirteen
-of them, and two of the thirteen declare a directory the emulator does not write to. `libretro`
+title and needs Game-ID attribution. State directories and filenames are per emulator, sixteen
+of them, and two of the thirteen measured so far declare a directory the emulator does not write to. `libretro`
 and `bizhawk` are core-scoped on top of that, so one game under two cores has independent state
 sets. So "snes is certified" is not a claim; "`snes` under `libretro`/`snes9x` is certified"
 is, and it says nothing about `snes` under `bizhawk`.
@@ -203,8 +203,8 @@ work. All three counts are against the 51 systems above.
   was sized from the ROMs fills with ROMs, every game lands with no cover, and no later run
   repairs it. Step 7 checks for art, so a wave's sets need headroom or the step fails for a
   reason that is nothing to do with the platform.
-- **Only 13 emulators declare a save-state directory**, so step 5 is bounded by
-  `es_savestates.cfg` rather than by what RetroBat can launch. An alternate outside those 13
+- **Only 16 emulators declare a save-state directory**, so step 5 is bounded by
+  `es_savestates.cfg` rather than by what RetroBat can launch. An alternate outside those 16
   (`mednafen`, `ares`, `mesen`, standalone `snes9x`, `kega-fusion`, `xemu`, `raine` and the rest)
   needs a supplement entry of RomMBat's own before step 5 can pass, which is how `mednafen`, `mesen`
   and `ares` were certified on `nes`, and `mednafen` and `ares` on `megadrive`. **Outside what RetroBat declares, not outside what the
@@ -231,7 +231,7 @@ saves, and `jgenesis`, `mesen`, `mednafen` and `ares` last, once each had a batt
 last three a state declaration in the bundled supplement. Steps 1, 2, 3, 4, 5, 7, 8 and 9 pass on
 all nine; step 6 is N/A because `nes` has no class D.
 
-**Seven of `megadrive`'s eleven rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
+**Seven of `megadrive`'s twelve rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
 2026-09-21: the three `libretro` cores that boot the library, `genesis_plus_gx` being the stock
 row, then `bizhawk`/`Genplus-gx`, `jgenesis`, `mednafen` and `ares`, once each had a megadrive
 battery rule and the last two a state declaration. **Four were driven and are not certified**:
@@ -274,7 +274,7 @@ loose `.srm`; the other standalone rows needed a snes battery rule, and four row
 RetroBat lists no `snes` firmware, and three rows refuse a DSP-1 cartridge without the chip's, which
 nothing RomMBat fetches (RB-317).
 
-**Nine of `mastersystem`'s ten rows are certified**, at RetroBat 8.2.1: at RomM `5.3.0` on
+**Nine of `mastersystem`'s twelve rows are certified**, at RetroBat 8.2.1: at RomM `5.3.0` on
 2026-09-24, `libretro` under `genesis_plus_gx`, the stock row, and `picodrive`, then `mesen`,
 `mednafen`, `ares`, `bizhawk`/`SMSHawk` and `jgenesis`, each standalone row with a `mastersystem`
 battery rule and three with a state declaration; and at RomM `5.3.1` on 2026-10-01 both
@@ -292,9 +292,9 @@ steps, and each record's "Where each row stands" states the result.
 
 **`n64` follows: all nine of its rows certified at RomM `5.3.1`**, on 2026-09-27 both `libretro` cores, RMG, simple64, Project64, ares and both BizHawk cores, and on 2026-09-29 `gopher64`, with each row's Controller Pak option driven at step 6. Every row but the `libretro` two needed code: a battery rule for ares, one for RMG and simple64 together, which name their shared file with mupen64plus's title, and one for Project64's directory per game; `n64` added to BizHawk's rule; and state declarations for ares, simple64 and Project64, the last two joined to their ROM through the battery binding. `gopher64`'s battery saves are outside `saves/`, where a rule anchored at the RetroBat root reads them (#239). RB-336 to RB-341; [n64/](n64/index.md) is the record.
 
-**Wave 4 has begun with `gamegear`: five of its seven rows certified at RomM `5.3.1`** on 2026-10-05, both `libretro` cores that boot the library, mednafen, ares and BizHawk's SMSHawk, with no firmware needed by any row. The three standalone rows needed a battery rule each and `mednafen` and `ares` a state declaration, and because ares writes 32 KB of `0xFF` for every cartridge, the scanner now passes over a battery file that is entirely `0xFF` (#453, RB-408, RB-409). `libretro`/`fbneo` refuses the No-Intro names, and `jgenesis` plays a Game Gear game to a black screen because RetroBat launches it as a Master System (RB-410, RB-412). [gamegear/](gamegear/index.md) is the record.
+**Wave 4 has begun with `gamegear`: five of its nine rows certified at RomM `5.3.1`** on 2026-10-05, both `libretro` cores that boot the library, mednafen, ares and BizHawk's SMSHawk, with no firmware needed by any row. The three standalone rows needed a battery rule each and `mednafen` and `ares` a state declaration, and because ares writes 32 KB of `0xFF` for every cartridge, the scanner now passes over a battery file that is entirely `0xFF` (#453, RB-408, RB-409). `libretro`/`fbneo` refuses the No-Intro names, and `jgenesis` is not certified until #522 checks how 8.3.0 launches it (RB-410, RB-412). `blastem` and `libretro`/`gearsystem` are untested (#521). [gamegear/](gamegear/index.md) is the record.
 
-**Wave 6 has begun with `sega32x`: four of its five rows certified at RomM `5.3.1`** on 2026-10-05, `libretro`/`picodrive`, ares, BizHawk's PicoDrive and jgenesis, with no firmware needed by any row. The extension keeps its own `roms\sega32x` and `saves\sega32x`, but two emulators reach into the parent's names: ares writes its 32X states to `ares/Mega Drive/`, which the supplement's `megadrive` entry declares for `sega32x` too, and Kega Fusion writes them to `saves/megadrive/kega-fusion/`, where they read as megadrive states with no rom (RB-413, RB-416). The three standalone rows needed a battery rule each (#464). Kega Fusion is driven and not certified, for `megadrive`'s reason (RB-283), and ares and BizHawk keep no serial EEPROM, so NBA Jam TE and NFL Quarterback Club keep no save under either (RB-415). [sega32x/](sega32x/index.md) is the record.
+**Wave 6 has begun with `sega32x`: four of its six rows certified at RomM `5.3.1`** on 2026-10-05, `libretro`/`picodrive`, ares, BizHawk's PicoDrive and jgenesis, with no firmware needed by any row. The extension keeps its own `roms\sega32x` and `saves\sega32x`, but two emulators reach into the parent's names: ares writes its 32X states to `ares/Mega Drive/`, which the supplement's `megadrive` entry declares for `sega32x` too, and Kega Fusion writes them to `saves/megadrive/kega-fusion/`, where they read as megadrive states with no rom (RB-413, RB-416). The three standalone rows needed a battery rule each (#464). Kega Fusion is driven and not certified, for `megadrive`'s reason (RB-283), and ares and BizHawk keep no serial EEPROM, so NBA Jam TE and NFL Quarterback Club keep no save under either (RB-415). [sega32x/](sega32x/index.md) is the record.
 
 **Read all eleven as narrowly as they are written.** They certify one hundred
 `(system, emulator, core)` rows on one install, wave 1's seventy-five, `psx`'s seven, `n64`'s nine, `gamegear`'s five and `sega32x`'s four, each at the

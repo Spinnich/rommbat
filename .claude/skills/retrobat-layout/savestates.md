@@ -151,8 +151,8 @@ serial (`SLUS-00594`), which is the join key a database-named memory card otherw
 reverse engineered from. Read it rather than assuming. See `save-sync` for the unreliable
 `<image>`.
 
-**A declaration is not an installation.** Six of the thirteen emulators in `es_savestates.cfg`
-had no executable on a real, well-used install: RetroBat downloads emulators on demand. Check
+**A declaration is not an installation.** Six of the thirteen emulators `es_savestates.cfg`
+declared on 8.2.0 had no executable on a real, well-used install: RetroBat downloads emulators on demand. Check
 for the binary before promising state sync for a system.
 
 **And installation is not launchability.** Launching an uninstalled emulator raises a modal

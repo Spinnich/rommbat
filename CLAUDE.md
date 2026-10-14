@@ -106,7 +106,7 @@ was used and to what extent.
 **Assume this lands under `rommapp`.** GPL-3.0, Trunk, `rommapp/template-repo`'s `.github`
 layout, and the Playnite plugin as the structural analog for a C# repo in the org.
 
-**Version floor.** Every release names its minimum RomM and RetroBat. Currently RetroBat 8.2.1
+**Version floor.** Every release names its minimum RomM and RetroBat. Currently RetroBat 8.3.0
 and RomM 5.3.1, both the newest stable; anything older is refused at startup, and anything newer
 warns. The floor moves forward: adopt a new stable within one release, and never move the floor,
 the tested row or the pin to a prerelease. A prerelease gets a scout pass instead, which reports

@@ -64,7 +64,7 @@ internal static class BiosCommand
             // here, though, and one sentence cannot serve both: FoldersNeedingBios() filters by
             // the manifest, so it is empty both for an install that has synced nothing and for
             // one whose systems need no firmware. The second is the ordinary case, since only
-            // 99 of RetroBat's 240 systems appear in the manifest at all, so a snes, n64 and
+            // 101 of RetroBat's 241 systems appear in the manifest at all, so a snes, n64 and
             // atari2600 library reaches it fully populated.
             if (folders.Count == 0)
             {
@@ -167,7 +167,7 @@ internal static class BiosCommand
     /// <c>--all</c> passes null and <c>FoldersNeedingBios()</c> returns names that came off
     /// this install in the first place, so neither wants validating.
     /// <para>
-    /// <b>The manifest cannot answer this on its own.</b> Only 99 of RetroBat's 240 systems
+    /// <b>The manifest cannot answer this on its own.</b> Only 101 of RetroBat's 241 systems
     /// appear in <c>batocera-systems.json</c>, so absent from it is the ordinary case rather
     /// than the error, and refusing every unknown key would refuse <c>snes</c>, <c>n64</c> and
     /// <c>atari2600</c>. <see cref="EsSystemsFile"/> is the authority on what an install has,

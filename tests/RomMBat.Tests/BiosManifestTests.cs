@@ -35,12 +35,12 @@ public sealed class BiosManifestTests
                     Path: file.GetProperty("file").GetString()!)))
             .ToList();
 
-        Assert.Equal(355, upstream.Count);
+        Assert.Equal(360, upstream.Count);
 
-        // The seven entries under emulators/ are refused by the reader, so the bundled set is
-        // the rest. All seven are hashless, which is why refusing them costs nothing.
+        // The six entries under emulators/ are refused by the reader, so the bundled set is
+        // the rest. All six are hashless, which is why refusing them costs nothing.
         var expected = upstream.Where(entry => BiosManifest.IsInsideBios(entry.Path)).ToList();
-        Assert.Equal(348, expected.Count);
+        Assert.Equal(354, expected.Count);
         Assert.All(upstream.Except(expected), entry => Assert.Empty(entry.Md5));
 
         Assert.Equal(
@@ -57,19 +57,19 @@ public sealed class BiosManifestTests
     {
         var manifest = Fixtures.LoadBiosManifest();
 
-        Assert.Equal(100, manifest.Folders.Count);
-        Assert.Equal(348, manifest.Requirements.Count(requirement => requirement.Supplement is null));
-        Assert.Equal(7, manifest.RejectedPaths.Count);
+        Assert.Equal(101, manifest.Folders.Count);
+        Assert.Equal(354, manifest.Requirements.Count(requirement => requirement.Supplement is null));
+        Assert.Equal(6, manifest.RejectedPaths.Count);
 
-        // 156, not 157. The set is built without the blank md5, which 181 of the 355 entries
-        // carry; counting it inflated every number derived from this set by one. RetroBat 8.2.1
-        // added namco2x6's two entries and both are hashless, so the distinct-md5 count held.
+        // 156, not 157. The set is built without the blank md5, which 186 of the 360 entries
+        // carry; counting it inflated every number derived from this set by one. namco2x6's two
+        // entries and chihiro's five are hashless, so they add nothing here.
         Assert.Equal(156, manifest.Requirements.Where(r => r.Md5 is not null).Select(r => r.Md5).Distinct().Count());
-        Assert.Equal(174, manifest.Requirements.Count(requirement => requirement.IsUnverifiable));
+        Assert.Equal(180, manifest.Requirements.Count(requirement => requirement.IsUnverifiable));
 
-        // 28, where the 355 entries give 29: triforce's one entry is under emulators/ and is
-        // refused, so it has no requirement left to be unverifiable.
-        Assert.Equal(28, manifest.Requirements
+        // 30, as the 360 entries give: every refused entry belongs to camplynx, whose entries
+        // under bios/ are hashless too, so refusing them removes no system from this count.
+        Assert.Equal(30, manifest.Requirements
             .GroupBy(requirement => requirement.System)
             .Count(system => system.All(requirement => requirement.IsUnverifiable)));
     }

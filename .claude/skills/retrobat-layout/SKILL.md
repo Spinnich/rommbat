@@ -62,12 +62,12 @@ So the rules here are stricter than under `roms/`:
 - **Never delete.** A file with the right md5 that RomMBat did not download is adopted as a
   fact, not as something it may later remove. Firmware rows carry no `rom_id`, which is what
   keeps eviction away from them at the schema level.
-- **Everything lands under `bios/`.** Seven manifest entries name `emulators/` paths; all seven
+- **Everything lands under `bios/`.** Six manifest entries name `emulators/` paths; all six
   are hashless and therefore unreachable through an md5 join, and the prefix is enforced anyway.
 - **Destination paths go six segments deep** and one md5 can owe three of them
   (`coleco.rom`, `colecovision.rom`, `openMSX/share/systemroms/coleco.rom`). The path is the
   key; the md5 is not.
-- **174 of the 348 requirements carry no md5 at all**, and 28 systems have nothing else. Those
+- **180 of the 354 requirements carry no md5 at all**, and 30 systems have nothing else. Those
   are unverifiable, which is a third state beside matched and missing, and reporting them as
   missing tells a user to hunt for a file RomMBat could not recognize if they already had it.
   One absent from disk, where the library holds a file under its exact name, stays
@@ -80,7 +80,7 @@ configuration. Each `<system>` carries `<name>`, `<fullname>`, `<manufacturer>`,
 `<hardware>`, `<release>`, `<path>`, `<extension>` and `<command>`.
 
 **The folder is `<path>`, not `<name>`.** They are different vocabularies and five systems
-in the shipped 8.2.1 file disagree: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`,
+in the shipped 8.3.0 file disagree: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`,
 `casloopy` to `loopy`, `Windows` to `windows`, and `starship` is used **twice**, for
 `ghostship` and `starship`, so `<name>` is not even unique. Three entries own no folder under
 `roms/` (`library`, `screenshots`, and `retrobat` at `system/es_menu`) and `mess` declares no
