@@ -292,6 +292,14 @@ class StaleTest(unittest.TestCase):
         floor = check.floors(check.floor_overrides(["--stale", "--floor", "retrobat=8.4.0"]))
         self.assertEqual(check.stamps_below(stamp, floor), ["RetroBat 8.3.0"])
 
+    def test_a_later_sentence_in_a_reason_is_not_read_for_builds(self) -> None:
+        stamp = (
+            "Verified: RetroBat 8.2.1, 2026-10-04. Carried: RetroBat 8.3.0, 2026-10-14, nothing in the reference "
+            "diff names ares. The fix is slated for 8.4.0. How: ran it."
+        )
+        floor = check.floors(check.floor_overrides(["--stale", "--floor", "retrobat=8.4.0"]))
+        self.assertEqual(check.stamps_below(stamp, floor), ["RetroBat 8.3.0"])
+
     def test_a_plain_stamp_is_not_carried(self) -> None:
         self.assertEqual(check.carried_reason("Verified: RetroBat 8.3.0, 2026-10-14. How: ran it."), (False, None))
 

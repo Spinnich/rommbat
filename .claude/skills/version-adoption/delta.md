@@ -26,12 +26,15 @@ the release actually installs. Where the two disagree, the tree wins.
 differ by project.
 
 **RetroBat**: a system, an emulator or core, an `es_features.cfg` option, a file or a path under
-`saves/`, `bios/` or `emulators/`. Read, in order, and search each for the fact's subject:
+`saves/`, `bios/` or `emulators/`, and EmulationStation's own surface: an event hook, an
+`es_settings.cfg` key, an HTTP API endpoint, a menu or a launch argument. Read, in order, and search
+each for the fact's subject:
 
 1. `git diff` of the vendored `reference/` files after `refresh.sh`. They are the files the design
    depends on, so a changed line there names what moved.
 2. The emulatorlauncher commits between the previous and the new pinned ref, by generator name
-   (`<Emulator>Generator.cs`) and by system.
+   (`<Emulator>Generator.cs`) and by system, and the EmulationStation commits between its two
+   refs, by event, setting, endpoint and menu.
 3. The upstream changelog and the release's `upgrade.xml`, which names folders it moves.
 4. **The emulator builds the release downloads.** RetroBat installs an emulator on its first
    launch at whatever build its updater names, so a fact about an emulator's own behavior can be

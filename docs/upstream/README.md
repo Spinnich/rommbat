@@ -60,8 +60,8 @@ fact with no stamp. A stamp naming several builds of one project counts its newe
 Verified: RetroBat 8.2.1, 2026-10-04. Carried: RetroBat 8.3.0, 2026-10-14, no launcher commit or reference diff names `ares` or `GameGear`. How: ...
 ```
 
-The stamp is one line, since the checker reads only the `Verified:` line. The reason is not read for
-builds, and a later carry replaces an earlier one.
+The stamp is one line, since the checker reads only the `Verified:` line. The carry goes last, before `How:`, and its
+reason runs to `How:` and is not read for builds. A later carry replaces an earlier one.
 
 The reason says what was read and why it does not reach the fact; "unchanged" is not one, and a
 clause without a reason carries nothing and stays on the stale list. `--stale` lists the carried
