@@ -53,6 +53,21 @@ lists every fact whose stamp names a RetroBat or RomM build below the floor in c
 fact with no stamp. A stamp naming several builds of one project counts its newest, and text after
 `How:` is not read, so name the build a fact was re-measured on before it.
 
+**A fact the delta does not touch is carried, not re-measured**
+([decision](../design/decisions/delta-directed-recheck.md)). Add a clause before `How:`:
+
+```markdown
+Verified: RetroBat 8.2.1, 2026-10-04. Carried: RetroBat 8.3.0, 2026-10-14, no launcher commit or reference diff names `ares` or `GameGear`. How: ...
+```
+
+The stamp is one line, since the checker reads only the `Verified:` line. The carry goes last, before `How:`, and its
+reason runs to `How:` and is not read for builds. A later carry replaces an earlier one.
+
+The reason says what was read and why it does not reach the fact; "unchanged" is not one, and a
+clause without a reason carries nothing and stays on the stale list. `--stale` lists the carried
+facts apart so the reasons can be read. A fact is touched, and re-measured, when the delta names what its heading or body
+names ([delta.md](../../.claude/skills/version-adoption/delta.md), "Which facts a delta touches").
+
 ## IDs
 
 - `RB-` IDs came from the RetroBat ledger and `RM-` IDs from the RomM one. A fact lives with its

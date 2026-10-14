@@ -157,7 +157,7 @@ and describe how the code behaves now. The rest of the house style, and the mech
 dotnet build
 dotnet test
 python3 tools/docs/check.py     # docs: links, anchors, fact citations, budgets
-python3 tools/docs/check.py --stale   # facts stamped below the version floor, or unstamped
+python3 tools/docs/check.py --stale   # facts not yet re-measured or carried to the version floor
 trunk fmt && trunk check        # lint
 cd reference && ./refresh.sh    # re-pull upstream, re-derive the numbers, check generated data
 

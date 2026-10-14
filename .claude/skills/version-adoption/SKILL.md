@@ -54,7 +54,8 @@ prerelease is not one. A test asserts the floor and the tested row carry no prer
    behavior are unproven, and the findings say so; the maintainer owns that instance, so never
    upgrade it yourself.
 5. **Preview the re-check list**: `python3 tools/docs/check.py --stale --floor <project>=<core>`,
-   with the version less its suffix (`5.4.0`), lists the facts adoption will owe. Read every entry
+   with the version less its suffix (`5.4.0`), lists the facts adoption will classify, and the
+   delta you have just read says which of them it will owe a measurement. Read every entry
    in `docs/upstream/issues.md` against the delta: an upstream fix is noted, never acted on.
 6. **RetroBat: smoke the scout tree.** Rebuild `ROMMBAT_SCOUT_ROOT` from
    `./tools/retrobat-install.ps1 -Version <tag>` as `tools/handson/README.md`, "The scout tree",
@@ -95,12 +96,16 @@ and must move, and some are the version a measurement was taken on and must not.
    agree. The guide's compatibility table, `wiki/reference/compatibility.md`, is left alone: each
    row records what a release was tested against, and the next release's row is added when it is
    cut (`DEVELOPER_SETUP.md`, "Cutting a release").
-3. `python3 tools/docs/check.py --stale` then lists the re-check work: every fact whose
+3. `python3 tools/docs/check.py --stale` then lists the facts to classify: every fact whose
    `Verified:` stamp names a build below the new floor, and every fact with no stamp. It reads
    the floor from `RetroBatVersion.Minimum` and `RomMServerVersion.Minimum`, so run it once the
-   floor being moved is in code: step 2 for RetroBat, step 6 for RomM. Re-measure each fact
-   and restamp it, or delete it with its citations when it stopped being true. Read the upstream
-   changelog end to end as well, for behavior no fact records yet.
+   floor being moved is in code: step 2 for RetroBat, step 6 for RomM. **Classify each against the
+   delta** (delta.md, "Which facts a delta touches"). A touched fact is re-measured and
+   restamped, or deleted with its citations when it stopped being true. An untouched one is
+   carried, with a `Carried:` clause giving the reason
+   ([decision](../../../docs/design/decisions/delta-directed-recheck.md)). A fact with no stamp
+   has no build to carry from and is measured. Read the upstream changelog end to end as well,
+   for behavior no fact records yet.
 4. Re-check every entry in `docs/upstream/issues.md`. A fix upstream changes what
    RomMBat should do; **no workaround comes out until a hands-on pass has seen the fixed
    behavior.** A changelog line is upstream's belief, not a measurement.
