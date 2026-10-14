@@ -142,15 +142,15 @@ the game's own menu is the fastest write there is**, seconds per row, and a row 
 byte-identical after a delete is not writing. **An extension's emulators can use the parent's
 names**: ares writes 32X states to `ares/Mega Drive/` and Kega Fusion to `saves/megadrive/`, so look
 in the parent's folders too (RB-413, RB-416). **Test every save medium the library holds**: ares
-and BizHawk keep 32X SRAM and lose its EEPROM (RB-415). **Change a pin in `gamelist.xml` only with ES
+and BizHawk keep 32X SRAM and lose its EEPROM (RB-415, RB-432). **Change a pin in `gamelist.xml` only with ES
 closed**, since ES writes its own copy on exit, and the line numbers move each time it does.
 
 **Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next
-system's path. An emulator can write outside `saves/`: Kega Fusion's battery saves go where
-RetroBat's `Fusion.ini` sends them, `emulators/kega-fusion/`, and that is a RetroBat defect to
-report (RB-283, emulatorlauncher#1390). Whether RomMBat reads such a folder meanwhile is the
+system's path. An emulator can write outside `saves/`: Kega Fusion's battery saves went where
+RetroBat 8.2.1's `Fusion.ini` sent them, `emulators/kega-fusion/`, a RetroBat defect reported as
+emulatorlauncher#1390 and fixed in 8.3.0, which writes them under `saves/` (RB-283). Whether RomMBat reads such a folder meanwhile is the
 maintainer's call per emulator, because each one costs a migration: gopher64's is read (#239), and
 Kega Fusion's only for `mastersystem`'s `.ssm`, which upstream's fix leaves there, as it does
 `megacd`'s `.brm` (#381).

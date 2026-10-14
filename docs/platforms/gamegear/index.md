@@ -177,4 +177,4 @@ passes over as erased (RB-408). **mednafen's md5 is of the whole `.gg` inside th
   sizes in the row files are each emulator's SRAM window, and another game's may differ.
 - **Nothing about a `.sms` cartridge's save.** None of the nineteen has a battery, and
   `MednafenRomHash` answers only for a `.gg` on `gamegear`.
-- **Nothing about jgenesis as RetroBat launches it**, beyond that it runs the game to a black screen.
+- **Nothing about jgenesis's saves as RetroBat 8.3.0 launches it**, beyond that the intro plays in color (RB-410).

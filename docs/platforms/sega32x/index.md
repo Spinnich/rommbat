@@ -16,11 +16,11 @@ Sega 32X. RetroBat calls the folder `sega32x`, which is what this folder is name
 - `ares`/`Mega32X`, `bizhawk`/`PicoDrive` and `jgenesis`
 
 **`kega-fusion`/`sega32x` is driven and not certified**: at 8.3.0 its battery saves land loose in
-`saves/sega32x/` and its states in `saves/sega32x/kega-fusion/sstates/` (RB-416), which no rule
-and no supplement entry reads (#519).
+`saves/sega32x/`, where the loose `libretro` rule reads them as the file PicoDrive shares, and its
+states in `saves/sega32x/kega-fusion/sstates/`, which no supplement entry names (RB-416, #519).
 
 **ares and BizHawk keep no serial EEPROM**, so the two Acclaim cartridges in the library, NBA Jam TE
-and NFL Quarterback Club, keep no save under either (RB-415). An SRAM cartridge round-trips on both.
+and NFL Quarterback Club, keep no save under either (RB-415). An SRAM cartridge round-trips on both (RB-432).
 That is the emulators, and the rows are certified on the SRAM they do keep.
 
 **It certifies those four rows and nothing wider.** `libretro`/`picodrive` needed nothing. The three
@@ -35,7 +35,7 @@ record's games downloaded nothing, wrote nothing under `roms/`, and left every g
 byte-identical. Step 8 was re-driven the same day on two ES launches. Steps 1 to 7 carry: no folder
 name, no BIOS entry and no `es_savestates.cfg` entry for an existing row changed, and no generator
 change between 8.2.1 and 8.3.0 touches where an existing row saves. `kega-fusion` stays not
-certified at 8.2.1, since 8.3.0 probably moves its saves and states as on `megadrive` (#519).
+certified at 8.2.1: 8.3.0 moves its saves and states under `saves/sega32x/`, as on `megadrive` (RB-416, #519).
 `blastem` is new in 8.3.0 and untested (#521).
 
 | File                           | What it holds                                                                                 |
