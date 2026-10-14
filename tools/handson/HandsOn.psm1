@@ -42,7 +42,7 @@ function Get-HandsOnEnv {
     $values = @{}
     foreach ($line in Get-Content $file) {
         if ($line -match '^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$') {
-            # A trailing ' # note' is a comment, as it is when bash sources the same file.
+            # A trailing ' # note' is a comment, as in tools/localenv.py, which parses the same file.
             $values[$Matches[1]] = ($Matches[2] -replace '\s+#.*$', '').Trim('"')
         }
     }

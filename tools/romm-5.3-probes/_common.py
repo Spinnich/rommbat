@@ -1,7 +1,8 @@
 """Shared plumbing for the RomM 5.3.0 re-measurement probes.
 
-Every probe reads its server and token from the environment, never from a file the
-repository tracks, and never prints the host. Set both before running:
+Every probe reads its server and token from the environment or from the local `.env` that git
+ignores (`tools/localenv.py` finds it from any worktree), never from a file the repository
+tracks, and never prints the host. It wants both of these:
 
     ROMMBAT_TEST_SERVER=https://your-romm-instance
     ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
@@ -19,6 +20,12 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+import localenv  # noqa: E402
+
+localenv.apply()
 
 OUTPUT_DIR = pathlib.Path(__file__).resolve().parents[2] / "probe-output" / "romm-5.3"
 

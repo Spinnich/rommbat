@@ -494,6 +494,8 @@ artifacts/
 # server and a real path, so they never belong in the repo.
 .env
 *.local.json
+# Scratch API dumps and captures that land at the repo root.
+*.tmp.json
 appsettings.Development.json
 DEVELOPER_SETUP.local.md
 

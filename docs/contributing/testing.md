@@ -111,6 +111,8 @@ revoke tokens. So token ids are captured first, devices deleted second, revocati
 
 ### The owner token
 
+Where it lives and how to read it: [local secrets](local-secrets.md).
+
 `ROMMBAT_TEST_OWNER_TOKEN` is a token on the account a real install is paired as, for
 hands-on passes. No test reads it. Reach for `rommbat-agent status` first, which reads
 `GET /api/play-sessions` back for this device and prints the newest ten (`--all-sessions` for
