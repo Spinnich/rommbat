@@ -16,7 +16,7 @@ which would rank a stock install below its own release.
 
 ## RB-378. `retrobat.ini`, `emulationstation/` and `roms/` mark the root
 
-Verified: RetroBat 8.2.0, 2026-08-09, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's retrobat_tree.lst adds folders under bios/, emulators/, screenshots/ and user/ only, and the three markers are unchanged. How: listed the root of a stock install.
+Verified: RetroBat 8.2.0, 2026-08-09, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's `retrobat_tree.lst` adds folders under bios/, emulators/, screenshots/ and user/ only, and the three markers are unchanged. How: listed the root of a stock install.
 The root also holds `saves/`, `bios/`, `system/`, `emulators/` and `user/`. `RootMarkers` takes
 `retrobat.ini` alone as decisive, or both folders together, since either folder alone is a common
 enough name to match partway up an unrelated tree.
@@ -66,7 +66,7 @@ DST boundary on FAT, so no hour shift is corrected for; this was measured in one
 
 ## RB-86. About 3% of a real library is over FAT32's ceiling
 
-Verified: RomM 5.1.1-beta.1, 2026-08-10. Carried: RomM 5.3.1, 2026-10-14, it counts the user's ROM sizes and fs_name lengths, which a RomM release does not change, and fs_size_bytes and fs_name are both in the pinned 5.3.1 schema. How: read 2,000 ROMs as twenty 100-row pages spread across an 83,131-ROM library.
+Verified: RomM 5.1.1-beta.1, 2026-08-10. Carried: RomM 5.3.1, 2026-10-14, it counts the user's ROM sizes and `fs_name` lengths, which a RomM release does not change, and `fs_size_bytes` and `fs_name` are both in the pinned 5.3.1 schema. How: read 2,000 ROMs as twenty 100-row pages spread across an 83,131-ROM library.
 61 of the 2,000 (3.05%) exceed 4 GB, so the pre-flight of RB-48 fires on a real library. The
 longest `fs_name` is 174 characters, inside RB-109's limit, and none carries a character Windows
 refuses (RB-110).

@@ -9,7 +9,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 
 ## RB-218. `es_input.cfg` is enough to drive a UI, and a vendor-id table could not be
 
-Verified: RetroBat 8.2.1, 2026-08-25, and 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, es_input.cfg's format is unchanged; 8.3.0's template adds one N64 pad and re-indents a line. How: resolved the 8BitDo's names from live hardware through the shipped parser, and re-read the file.
+Verified: RetroBat 8.2.1, 2026-08-25, and 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, `es_input.cfg`'s format is unchanged; 8.3.0's template adds one N64 pad and re-indents a line. How: resolved the 8BitDo's names from live hardware through the shipped parser, and re-read the file.
 The file is semantic: it records which physical input is `a` on each pad, not what kind of pad it
 is. All 21 names in the 8BitDo's config resolved. Two cannot be expressed by pad type: the
 8BitDo's `select` and `hotkey` are the same `button6`, and the Switch Pro reports its d-pad as
@@ -25,7 +25,7 @@ A `.menu` app is suspended exactly as a game is, so RomMBat needs no input worka
 
 ## RB-220. An ES-menu launch passes no controller arguments, and PadToKey attaches to nothing
 
-Verified: RetroBat 8.2.1, 2026-08-25. Carried: RetroBat 8.3.0, 2026-10-14, the es_menu command still passes no %CONTROLLERSCONFIG%, and 8.3.0's PadToKey change adds a user/padtokey lookup, not a joystick to attach to. How: compared `emulatorLauncher.log` for a menu launch and a game launch.
+Verified: RetroBat 8.2.1, 2026-08-25. Carried: RetroBat 8.3.0, 2026-10-14, the `es_menu` command still passes no %CONTROLLERSCONFIG%, and 8.3.0's PadToKey change adds a user/padtokey lookup, not a joystick to attach to. How: compared `emulatorLauncher.log` for a menu launch and a game launch.
 A game launch carries `-p1index`, `-p1guid`, `-p1path`, `-p1name` and the button, axis and hat
 counts. A menu launch runs `RomMBat.exe` with no arguments, so `[SdlGameController] connected` and
 `[PadToKey] Add joystick` never appear: PadToKey loads `es_padtokey.cfg` and attaches to nothing.
@@ -72,7 +72,7 @@ from inside ES is expected to notice a pad arriving, so `GamepadReader` re-enume
 
 ## RB-230. ES's footer draws a button's position, because a letter is wrong on two layouts of three
 
-Verified: RetroBat 8.2.1, 2026-08-30, and 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, es_input.cfg still encodes position, and 9c48a461's rewrite of the help SVGs, RB-426's to re-read, keeps the four-dot diamond. How: read ES's footer on screen and the pads configured in `es_input.cfg`.
+Verified: RetroBat 8.2.1, 2026-08-30, and 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, `es_input.cfg` still encodes position, and 9c48a461's rewrite of the help SVGs, RB-426's to re-read, keeps the four-dot diamond. How: read ES's footer on screen and the pads configured in `es_input.cfg`.
 The bottom face button is A on an Xbox pad, Cross on a DualSense and B on a Switch Pro, and the
 live file configures a Switch Pro, a DualSense, a PS4 pad, the 8BitDo and an Xbox 360 pad. ES
 draws a four-dot diamond with one dot filled, which names a position, and `es_input.cfg` encodes

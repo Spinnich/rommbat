@@ -26,7 +26,7 @@ file after a rotation.
 
 ## RB-113. A rom path in the log carries the drive letter the install had at the time
 
-Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, -rom is ES's %ROM%, and neither reference diff changes a <command> line; 8.2.1's FileData.cpp change only pauses watchers around a launch. How: counted the roots of every `-rom` in one install's log.
+Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, -rom is ES's %ROM%, and neither reference diff changes a `<command>` line; 8.2.1's FileData.cpp change only pauses watchers around a launch. How: counted the roots of every `-rom` in one install's log.
 Of 424 launches, 295 read `D:\RetroBat` and 129 read `E:\RetroBat`: one install that moved, in one
 continuous log. Stripping the current root would drop 70% of the history, so `LaunchLog` cuts the
 path at its `roms\` or `system\` segment instead.
@@ -40,7 +40,7 @@ keying on `[Startup]` over-counts by 72%. `LaunchLog` takes a line as a launch o
 
 ## RB-115. `-rom` is sometimes unquoted and often not the last flag
 
-Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's reference diff changes no <command> line, so ES orders -rom and -core as before. How: matched every launch line against a quoted and a positional read.
+Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's reference diff changes no `<command>` line, so ES orders -rom and -core as before. How: matched every launch line against a quoted and a positional read.
 In 424 launches, `-rom` was unquoted once, with spaces and parentheses in the path, and not the
 final flag 19 times, 5 of them with `-core` after it. On 8.2.1, 111 of 383 launches in `.log.old`
 wrote `-core` after `-rom`. `-rom "([^"]+)"` misses the first shape and a positional read the
@@ -63,14 +63,14 @@ tolerates both.
 
 ## RB-118. An ES-menu launch is identifiable in the log
 
-Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, the es_menu command, -system retrobat, is unchanged in 8.3.0's reference diff. How: counted launches with `-system retrobat` and a rom under `system\es_menu\`.
+Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, the `es_menu` command, -system retrobat, is unchanged in 8.3.0's reference diff. How: counted launches with `-system retrobat` and a rom under `system\es_menu\`.
 There were 27 on 8.2.0 and 9 in the 8.2.1 `.log.old`. So RomMBat's own exit, which fires a
 `game-end` with no game behind it, is recognized from the log rather than inferred.
 `LaunchRecord.IsMenuLaunch` carries it, and `PlaytimeCorrelator` discards that `game-end`.
 
 ## RB-252. `-core` means nothing for an emulator that declares no core
 
-Verified: RetroBat 8.2.1, 2026-09-13. Carried: RetroBat 8.3.0, 2026-10-14, nes's <core> and command are unchanged in 8.3.0's reference diff, and neither Mesen's nor jgenesis's generator gains -core handling (Sinden cleanup; portable.txt and other systems' hardware names). How: launched every `nes` row from ES and read the launch lines.
+Verified: RetroBat 8.2.1, 2026-09-13. Carried: RetroBat 8.3.0, 2026-10-14, nes's `<core>` and command are unchanged in 8.3.0's reference diff, and neither Mesen's nor jgenesis's generator gains -core handling (Sinden cleanup; portable.txt and other systems' hardware names). How: launched every `nes` row from ES and read the launch lines.
 A row whose emulator declares no core inherits the system's `<core>` and passes it down anyway.
 `mesen` standalone and `jgenesis` were both launched with `-core nestopia` from `nes.core`, ignored
 it, and ran correctly. Read the emulator from `-emulator`, and take `-core` as identifying nothing
@@ -141,7 +141,7 @@ rather than globbing `<rom>.ds*`, which would take the battery save as slot `v`.
 
 ## RB-372. BigPEmu's save state cannot be reached from a keyboard
 
-Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, BigPEmu's generator changes only its Display key (8.3.0), its es_padtokey.cfg entry is unchanged in both RetroBat diffs, and neither changelog bumps it. How: launched Rayman under `bigpemu`, swept F1 to F8 into its window, and read `BigPEmuConfig.bigpcfg`.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, BigPEmu's generator changes only its Display key (8.3.0), its `es_padtokey.cfg` entry is unchanged in both RetroBat diffs, and neither changelog bumps it. How: launched Rayman under `bigpemu`, swept F1 to F8 into its window, and read `BigPEmuConfig.bigpcfg`.
 It saves states from its own overlay menu. RetroBat's `es_padtokey.cfg` binds only a close hotkey
 for it, the sweep wrote no file of any kind, and the config binds no save-state key (only
 `System/StateSlot = -1`). A state is made through the overlay with a gamepad, which is how RB-166

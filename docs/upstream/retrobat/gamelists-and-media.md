@@ -87,7 +87,7 @@ records the BOM and line endings of the file it loaded and reproduces them.
 
 ## RB-205. ES does not rewrite `system/es_menu/gamelist.xml`, even with a change in its model
 
-Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, ES's handling of the es_menu gamelist is unchanged in both ES diffs: Gamelist.cpp's only change in either ES diff trusts gamelist.xml past a non-zero IndexDirectoryDepth (b69fb143), which is 0, unlimited, by default; the stock file's new content is RB-207's. How: three sessions, the last writing an entry, calling `/reloadgames`, confirming ES listed it, quitting, and comparing md5 and mtime.
+Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, ES's handling of the `es_menu` gamelist is unchanged in both ES diffs: Gamelist.cpp's only change in either ES diff trusts gamelist.xml past a non-zero IndexDirectoryDepth (b69fb143), which is 0, unlimited, by default; the stock file's new content is RB-207's. How: three sessions, the last writing an entry, calling `/reloadgames`, confirming ES listed it, quitting, and comparing md5 and mtime.
 The file's md5 and mtime were unchanged after all three, although the third had a change of its
 own in ES's model. What RomMBat writes into this file is therefore what the user keeps, and `EsMenuEntry`
 merges its one element into it.
@@ -103,7 +103,7 @@ keeps them.
 
 ## RB-238. `ScrapeVideos` and `ScrapeManual` ship on, and an absent key means off
 
-Verified: RetroBat 8.2.1, 2026-09-01, with the template re-read 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, the es_settings.cfg template is unchanged in RetroBat's 8.3.0 tree, and 8.3.0's Settings.cpp registers neither key. How: read `system/templates/emulationstation/es_settings.cfg` and the scraper menu on a fresh install, a used install's live file, and `Settings.cpp` at `c686ca8b`.
+Verified: RetroBat 8.2.1, 2026-09-01, with the template re-read 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, the `es_settings.cfg` template is unchanged in RetroBat's 8.3.0 tree, and 8.3.0's Settings.cpp registers neither key. How: read `system/templates/emulationstation/es_settings.cfg` and the scraper menu on a fresh install, a used install's live file, and `Settings.cpp` at `c686ca8b`.
 RetroBat's template seeds both as `true`, once at install. ES's compiled default is `false` for
 `ScrapeVideos` and unregistered for `ScrapeManual`, and `saveMap` drops a key equal to its
 default or, unregistered, equal to `false`. So turning a switch off deletes the key: the file says

@@ -36,7 +36,7 @@ containers) and the class C unit paths in `save_shapes.json`, never by position 
 
 ## RB-119. Nine top-level folders under `saves/` are emulators, not systems
 
-Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, it lists one install's saves/ against its own es_systems.cfg, and the only folder the delta renames, gzdoom to doom, is a system. How: listed `saves/` on a real install and diffed it against the 243 systems its live `es_systems.cfg` declares.
+Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, it lists one install's saves/ against its own `es_systems.cfg`, and the only folder the delta renames, gzdoom to doom, is a system. How: listed `saves/` on a real install and diffed it against the 243 systems its live `es_systems.cfg` declares.
 The nine are `amiga`, `dolphin`, `gameandwatch`, `ghostship`, `loopy`, `mesen`, `pb`, `psxmame`
 and `windows`. A first path segment is a system only when `es_systems.cfg` declares it.
 
@@ -50,7 +50,7 @@ beside `saves/gbc/*.srm`. Discovery cannot be positional at either level.
 
 ## RB-121. A loose file under `saves/<system>/` can be a shared container
 
-Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, xemu's xbox eeprom.bin and xbox_hdd.qcow2 handling is unchanged (8.3.0 gives chihiro its own saves/chihiro), and megacd's existing rows write as before. How: classified every loose file under a system folder on a real install.
+Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, xemu's xbox eeprom.bin and `xbox_hdd.qcow2` handling is unchanged (8.3.0 gives chihiro its own saves/chihiro), and megacd's existing rows write as before. How: classified every loose file under a system folder on a real install.
 `xbox` keeps `eeprom.bin` and a 39,714,816 B `xbox_hdd.qcow2` loose at the system root, and both
 are class D. `megacd` mixes classes at one level: per-game `.brm` and `.srm` beside the shared
 `4Mbit_cart.brm`. So `save_rules.json`'s `shared_containers` names each one, and the scanner
@@ -58,14 +58,14 @@ excludes by that list rather than by position.
 
 ## RB-122. Every system `save_shapes.json` leaves unclassified holds saves
 
-Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, it compares RomMBat's bundled save_shapes.json with one install, which no RetroBat change reaches. How: compared the file's `_unclassified` list and `shapes` against the systems holding content on a real install.
+Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, it compares RomMBat's bundled `save_shapes.json` with one install, which no RetroBat change reaches. How: compared the file's `_unclassified` list and `shapes` against the systems holding content on a real install.
 All 21 unclassified systems hold content. `ports` holds content too and appears in neither list.
 So the bundled data falls short of a used tree in two ways, and a scan reports what no shape
 covers rather than guessing a class for it.
 
 ## RB-123. The four class D options and `dolphin_sync_saves` are unset by default
 
-Verified: RetroBat 8.2.0, 2026-08-16 and 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, the es_settings.cfg template is unchanged in both RetroBat diffs, and all five options are still in 8.3.0's es_features.cfg. How: read `es_settings.cfg` on a real, heavily used install, 261 settings on the second reading.
+Verified: RetroBat 8.2.0, 2026-08-16 and 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, the `es_settings.cfg` template is unchanged in both RetroBat diffs, and all five options are still in 8.3.0's `es_features.cfg`. How: read `es_settings.cfg` on a real, heavily used install, 261 settings on the second reading.
 None of `pcsx2_slot1_memory`, `duckstation_memcardtype`, `dolphin_slotA`, `flycast_vmupergame`
 or `dolphin_sync_saves` appears, and no per-game `[&quot;` key of any kind does. `ps2.emulator`
 is `pcsx2`. So the stock shape of each system is the one to build for, and a conversion is
@@ -176,7 +176,7 @@ the filename.
 
 ## RB-404. A launch alone writes a battery save, and its content can pass for a real one
 
-Verified: RetroBat 8.2.0, 2026-08-11. Carried: RetroBat 8.3.0, 2026-10-14, retroarch.cfg's template keeps autosave_interval at 10 in both releases, genesis_plus_gx is in neither changelog's core bumps, and PR #532 found it writing mastersystem saves as recorded at 8.3.0. How: booted Phantasy Star (Brazil) under `libretro` `genesis_plus_gx` to its title screen, pressed nothing, and read `saves/mastersystem/` during the run and after exit.
+Verified: RetroBat 8.2.0, 2026-08-11. Carried: RetroBat 8.3.0, 2026-10-14, retroarch.cfg's template keeps `autosave_interval` at 10 in both releases, `genesis_plus_gx` is in neither changelog's core bumps, and PR #532 found it writing mastersystem saves as recorded at 8.3.0. How: booted Phantasy Star (Brazil) under `libretro` `genesis_plus_gx` to its title screen, pressed nothing, and read `saves/mastersystem/` during the run and after exit.
 A 65,536 B `<rom>.srm` appeared while the game ran and an 8,188 B one after a clean exit.
 RetroBat's `retroarch.cfg` sets `autosave_interval = "10"`, so the file lands within seconds of
 boot and survives a crash. It held the cartridge formatting its own backup RAM, legible ASCII

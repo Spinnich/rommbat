@@ -65,7 +65,7 @@ launch that fails (`path is null`, exit 204) with no `game-start` before it. Rom
 
 ## RB-221. An ES-menu launch fires both events
 
-Verified: RetroBat 8.2.1, 2026-08-26. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches, and the es_menu command is unchanged in 8.3.0's reference diff. How: two RomMBat sessions opened from the ES menu, journal read after.
+Verified: RetroBat 8.2.1, 2026-08-26. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches, and the `es_menu` command is unchanged in 8.3.0's reference diff. How: two RomMBat sessions opened from the ES menu, journal read after.
 A successful launch of an `es_menu` entry fires `game-start` carrying
 `system/es_menu/rommbat.menu`, then `game-end` carrying nothing. So a missing `game-start` does
 not identify a menu launch; RomMBat keys its discard on the launcher log's `es_menu` rom and
@@ -165,7 +165,7 @@ user, whether `RetroBat.exe` has run there.
 
 ## RB-394. The ES logs last one start; `emulatorLauncher.log` lasts weeks
 
-Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.0, 2026-10-14, es_log rotation and SimpleLogger are unchanged; 8.3.0's Log.cpp change moves SIGTERM handling on Linux only. How: read the stick's logs a day after a session on another host.
+Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.0, 2026-10-14, `es_log` rotation and SimpleLogger are unchanged; 8.3.0's Log.cpp change moves SIGTERM handling on Linux only. How: read the stick's logs a day after a session on another host.
 `es_log.txt` rotates through `es_log.0.txt` to `es_log.3.txt` on every ES start, and the root's
 `RetroBat.log` is overwritten. `emulatorLauncher.log` rotates by size into
 `emulatorLauncher.log.old`, and 268 KB covered five weeks and 70 launches, both hosts included.
@@ -187,7 +187,7 @@ carried both a `play_session` and a battery save, and the server's hash matched 
 
 ## RB-213. The emulator's save is on disk before the `quit` pass reads
 
-Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, RetroArch's save timing is unchanged: 8.3.0's retroarch.cfg template changes video_driver and the overlay only, and neither changelog bumps RetroArch. How: timestamps from RetroArch's `.srm`, the journal and the upload.
+Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, RetroArch's save timing is unchanged: 8.3.0's retroarch.cfg template changes `video_driver` and the overlay only, and neither changelog bumps RetroArch. How: timestamps from RetroArch's `.srm`, the journal and the upload.
 RetroArch wrote the `.srm` 0.7 s before `game-end`, the `quit` hook fired 3.2 s after
 `game-end`, and the scan saw the new bytes 0.5 s later. The uploaded hash differed from both the
 file before play and the server's copy, so the pass sent what the player saved.

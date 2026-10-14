@@ -33,7 +33,7 @@ RomMBat installs at `emulators/rommbat/` and its line is `\rommbat\RomMBat.exe`.
 
 ## RB-385. `es_menu` is an ordinary ES system, so registration takes two files
 
-Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, the retrobat system's es_systems.cfg entry is unchanged in both reference diffs, and the two files still register an entry; the stock gamelist's content is RB-207's. How: read `es_systems.cfg` and the stock `system/es_menu/gamelist.xml`.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, the retrobat system's `es_systems.cfg` entry is unchanged in both reference diffs, and the two files still register an entry; the stock gamelist's content is RB-207's. How: read `es_systems.cfg` and the stock `system/es_menu/gamelist.xml`.
 `es_systems.cfg` declares `es_menu` as the `retrobat` system with `<extension>.menu</extension>`
 and a command of `emulatorLauncher.exe -system retrobat -rom %ROM%`. A `.menu` is a ROM of that
 system, and `emulatorLauncher` parses it, not ES. The `.menu` supplies the command. The name,
