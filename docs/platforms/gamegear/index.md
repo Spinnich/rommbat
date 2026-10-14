@@ -18,10 +18,10 @@ Sega Game Gear. RetroBat calls the folder `gamegear`, which is what this folder 
 
 - `libretro`/`fbneo` **never boots this library**: FBNeo takes a console game's set from the file
   name, and every ROM here carries its No-Intro name (RB-412), as on `mastersystem`.
-- `jgenesis` **plays a Game Gear cartridge to a black screen**: `emulatorLauncher` starts it with
-  `--hardware MasterSystem` for every `gamegear` game, and no ES option changes that (RB-410). Its
-  saves were measured from a run by hand in Game Gear mode, which is evidence, not certification
-  ([standalone.md](standalone.md#jgenesis-driven-and-not-certifiable-at-this-floor)).
+- `jgenesis` **is not certified at 8.3.0**: `emulatorLauncher` now starts it with
+  `--hardware GameGear` and the intro plays in color (RB-410), but the certification run is owed
+  (#522). Its 8.2.1 evidence is in
+  [standalone.md](standalone.md#jgenesis-driven-at-821-not-yet-certified).
 
 **It certifies those five rows and nothing wider.** The two `libretro` rows needed nothing. The three
 standalone rows each needed a battery rule for `gamegear`, and `mednafen` and `ares` a state
@@ -131,7 +131,7 @@ two Master System files this install keeps for `mastersystem`'s SMSHawk moved ou
 | `libretro`/`genesis_plus_gx` and `picodrive` | Reaches the intro                          |
 | `libretro`/`fbneo`                           | "Romset is unknown", for the name (RB-412) |
 | `mednafen`, `ares`, `bizhawk`/`SMSHawk`      | Reach the intro                            |
-| `jgenesis`                                   | Runs, to a black screen (RB-410)           |
+| `jgenesis`                                   | Reaches the intro in color (RB-410)        |
 
 **SMSHawk starts a Game Gear game with no firmware**, where on `mastersystem` it refuses (RB-322).
 

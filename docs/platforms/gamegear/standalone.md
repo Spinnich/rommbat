@@ -71,15 +71,12 @@ having ended before one was saved; their frames, `Framebuffer.bmp` inside each s
 
 Every one is on the server, rom 272855, jgenesis's being the black-screen session.
 
-## `jgenesis`: driven, and not certifiable at this floor
+## `jgenesis`: driven at 8.2.1, not yet certified
 
-**From ES the game runs to a black screen.** `emulatorLauncher` starts
-`jgenesis-cli.exe -f <rom> --hardware MasterSystem` for every `gamegear` game; the window title reads
-`sms - Defenders of Oasis (USA, Europe)`, and the game runs unseen, writing its header to the save.
-The agent's own launches through `emulatorLauncher` showed the same, with and without a seed in place,
-and so did its boot launch the night before, whose screenshot was black although its write looked
-normal. **Run by hand with `--hardware GameGear`**, the title reads `gg - ...` and the game plays in
-color. No ES option sets the flag (RB-410), so the row as a user gets it cannot be played.
+**At 8.3.0 the game starts as a Game Gear and plays in color.** `emulatorLauncher` starts
+`jgenesis-cli.exe -f <rom> --hardware GameGear` (RB-410); 8.2.1 passed `MasterSystem` and the screen
+stayed black. The measurements below were taken on 8.2.1, from a run by hand with `--hardware
+GameGear`, and the certification run at 8.3.0 is owed (#522).
 
 **Its saves were measured anyway, from that run by hand, as evidence for when RetroBat launches it
 right.** The maintainer played on the keyboard, since a run outside `emulatorLauncher` gets none of
