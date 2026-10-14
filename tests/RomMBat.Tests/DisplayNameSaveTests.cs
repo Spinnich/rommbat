@@ -457,8 +457,8 @@ public class DisplayNameSaveTests
     public void The_bundled_kega_fusion_rule_reads_only_the_ssm_in_its_own_folder()
     {
         // RetroBat 8.2.1's Fusion.ini sends SxMFiles to emulators/kega-fusion/, and nothing
-        // rewrites it per launch (#381). The folder also holds the emulator and every system's
-        // .srm, which this rule must never place.
+        // rewrites it per launch (#381). The folder also holds the emulator and its other
+        // files, which this rule must never place.
         const string Folder = "emulators/kega-fusion";
         const string Game = "Golden Axe Warrior (USA, Europe, Brazil) (En)";
         var shapes = SaveShapes.Bundled;

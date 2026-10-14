@@ -24,8 +24,8 @@ cannot make this row work, since RomMBat places the ROM RomM serves and never th
 Reported upstream as
 [emulatorlauncher#1377](https://github.com/RetroBat-Official/emulatorlauncher/issues/1377).
 
-**Its saves live outside `saves/`**, in `emulators/nosgba/BATTERY/<rom>.SAV`, as Kega Fusion's do
-on `megadrive` (RB-283). NO\$GBA read the raw 131,072 B seed and wrote it back in its own
+**Its saves live outside `saves/`**, in `emulators/nosgba/BATTERY/<rom>.SAV`, as Kega Fusion's
+`mastersystem` `.ssm` does (RB-283). NO\$GBA read the raw 131,072 B seed and wrote it back in its own
 compressed format, 3,583 B headed `NocashGbaBackup`, and rewrote it on a later launch with no save
 made. **No state can be synced**: `F8` is NO\$GBA's Write Snapshot, and it opens a Save As dialog
 in the user's `Documents` folder rather than writing anywhere fixed, so where a state lands is the

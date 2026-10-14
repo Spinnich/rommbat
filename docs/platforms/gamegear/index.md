@@ -171,10 +171,10 @@ passes over as erased (RB-408). **mednafen's md5 is of the whole `.gg` inside th
 
 ## What this file will not claim
 
-- **Nothing about `gamegear` under any build but these.** Every row was measured on RetroBat 8.2.1
-  and RomM `5.3.1`.
+- **Nothing about `gamegear` under any build but these.** Every certified row was measured on RetroBat
+  8.2.1 and RomM `5.3.1`; the facts in `facts.md` were re-measured on 8.3.0.
 - **Nothing about another game.** Defenders of Oasis is one cartridge whose save fits in 3,840 B; the
   sizes in the row files are each emulator's SRAM window, and another game's may differ.
 - **Nothing about a `.sms` cartridge's save.** None of the nineteen has a battery, and
   `MednafenRomHash` answers only for a `.gg` on `gamegear`.
-- **Nothing about jgenesis's saves as RetroBat 8.3.0 launches it**, beyond that the intro plays in color (RB-410).
+- **Nothing about a played jgenesis save at 8.3.0**: its boot write and state mirror are recorded (RB-410), the round trip is #522.

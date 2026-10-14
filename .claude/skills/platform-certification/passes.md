@@ -126,7 +126,7 @@ game**: Defenders of Oasis writes its SRAM as it is played, so each row's save l
 and its Continue showed every row reading the last one's progress, which a game like Golden Axe
 Warrior cannot (RB-326). **Look at the boot screenshot, not only the boot write**: jgenesis wrote a
 normal save at boot while the screen stayed black, because RetroBat 8.2.1 launched it as a Master System
-(RB-410, fixed in 8.3.0), and the pass learned it only when the maintainer sat down. **An emulator that writes a
+(RB-410), and the pass learned it only when the maintainer sat down. **An emulator that writes a
 save for every cartridge needs the erased-file rule**: ares writes 32 KB of `0xFF` for a game with no
 battery (RB-408), so boot a battery-less game under each row too. **The server can already hold a
 sibling dump's boot write**: another client's 285 B save for the Virtual Console Defenders of Oasis
@@ -148,11 +148,10 @@ closed**, since ES writes its own copy on exit, and the line numbers move each t
 **Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next
-system's path. An emulator can write outside `saves/`: Kega Fusion's battery saves went to
-`emulators/kega-fusion/` on RetroBat 8.2.1 (RB-283). Whether RomMBat reads such a folder is the
+system's path. An emulator can write outside `saves/`: Kega Fusion's `.ssm` and `.brm`, which `SxMFiles` and
+`BRMFiles` send to `emulators/kega-fusion/` (RB-283). Whether RomMBat reads such a folder is the
 maintainer's call per emulator, because each one costs a migration: gopher64's is read (#239), and
-Kega Fusion's only for `mastersystem`'s `.ssm`, which `SxMFiles` still sends there, as it does
-`megacd`'s `.brm` (#381).
+Kega Fusion's only for `mastersystem`'s `.ssm` (#381).
 Every issue raised
 upstream is tracked in `docs/upstream/issues.md` until RomMBat adopts the release that fixes it.
 And a core can refuse the library for its names: FBNeo takes a console game's driver from the file
