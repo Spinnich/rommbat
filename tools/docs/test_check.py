@@ -280,6 +280,18 @@ class StaleTest(unittest.TestCase):
         ):
             self.assertEqual(check.carried_reason(stamp), (True, None), stamp)
 
+    def test_only_the_latest_carry_counts(self) -> None:
+        stamp = (
+            "Verified: RetroBat 8.2.1, 2026-10-04. Carried: RetroBat 8.3.0, 2026-10-14, not in the launcher delta."
+            " Carried: RetroBat 8.4.0."
+        )
+        self.assertEqual(check.carried_reason(stamp), (True, None))
+
+    def test_a_build_named_in_a_reason_is_not_the_build_carried_to(self) -> None:
+        stamp = "Verified: RetroBat 8.2.1, 2026-10-04. Carried: RetroBat 8.3.0, 2026-10-14, checked against 8.4.0 notes."
+        floor = check.floors(check.floor_overrides(["--stale", "--floor", "retrobat=8.4.0"]))
+        self.assertEqual(check.stamps_below(stamp, floor), ["RetroBat 8.3.0"])
+
     def test_a_plain_stamp_is_not_carried(self) -> None:
         self.assertEqual(check.carried_reason("Verified: RetroBat 8.3.0, 2026-10-14. How: ran it."), (False, None))
 

@@ -22,9 +22,11 @@ the release actually installs. Where the two disagree, the tree wins.
 
 ## Which facts a delta touches
 
-**A fact is touched when the delta names something its heading or body names**: a system, an
-emulator or core, an `es_features.cfg` option, a file or a path under `saves/`, `bios/` or
-`emulators/`. Read these, in order, and search each for the fact's subject:
+**A fact is touched when the delta names something its heading or body names.** The subjects
+differ by project.
+
+**RetroBat**: a system, an emulator or core, an `es_features.cfg` option, a file or a path under
+`saves/`, `bios/` or `emulators/`. Read, in order, and search each for the fact's subject:
 
 1. `git diff` of the vendored `reference/` files after `refresh.sh`. They are the files the design
    depends on, so a changed line there names what moved.
@@ -36,8 +38,15 @@ emulator or core, an `es_features.cfg` option, a file or a path under `saves/`, 
    touched by a build that no repo commit shows. Name the build in a fact's `How:` when it is
    known, and treat a moved build as touching.
 
+**RomM**: an endpoint, a request or response field, a scope, a config key, a status code or a
+behavior of the server. Read the source diff between the two tags, from the trees (see above), and
+the diff of the pinned OpenAPI schema after the capture below, and search each for the fact's
+subject. The release notes are cumulative and can say the opposite of the code, so they only point
+at where to look. A fact stamped against RomM source is carried only when the files it cites are
+unchanged.
+
 A changelog line nobody measured touches. A fact about RomMBat's own behavior that merely cites
-RetroBat's is touched only when the cited behavior is. Write the reason a fact is carried as what
+upstream's is touched only when the cited behavior is. Write the reason a fact is carried as what
 you searched and found nothing in, not as "unchanged": it is read by whoever reviews the move.
 
 ## Which prerelease
