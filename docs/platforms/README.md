@@ -237,7 +237,7 @@ row, then `bizhawk`/`Genplus-gx`, `jgenesis`, `mednafen` and `ares`, once each h
 battery rule and the last two a state declaration. **Four were driven and are not certified**:
 `libretro`/`fbneo` boots no game named by No-Intro, since FBNeo takes its driver from the file
 name (RB-278), and the three `kega-fusion` rows fail step 4, because Kega Fusion writes its
-battery saves outside `saves/` where RetroBat's `Fusion.ini` sends them (RB-283).
+battery saves outside `saves/` where RetroBat 8.2.1's `Fusion.ini` sent them (RB-283), which 8.3.0 moves into `saves/` (#519).
 
 **Nine of `gba`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22:
 `libretro` under `mgba`, the stock row, `gpsp` and `mednafen_gba`, then `mgba` standalone,

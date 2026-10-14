@@ -79,14 +79,13 @@ ares writes `sega32x` states under `ares/Mega Drive/`, so that one entry names b
 emulator, `SaveStateSchema.For(emulator, system)` picks between them, and an install that declares
 the emulator itself drops every supplement entry for it (RB-281).
 
-**Kega Fusion writes its battery saves outside `saves/`.** RetroBat's template `Fusion.ini` sets
-`SRMFiles`, `SxMFiles` and `BRMFiles` to `emulators\kega-fusion` and `StateFiles` to
-`saves\megadrive\kega-fusion`, and `emulatorLauncher` rewrites none of them per launch. Treat it as
-RetroBat's to fix and never write the key (rule 2). RB-283. RomMBat reads one file type there:
-`mastersystem`'s `.ssm`, through a `from_root` rule that claims that extension only, because the
-same folder holds `Fusion.exe`, `Fusion.ini` and every system's `.srm` (#381). The `.srm` is not
-read: `emulatorLauncher` `8172cda4`, in `beta_8.3.0`, points `SRMFiles` into `saves/<system>/`, and
-until the floor reaches it a `megadrive` and a `sega32x` `.srm` of one stem would be one file.
+**Kega Fusion's paths moved under `saves/` at 8.3.0.** Each launch rewrites `Fusion.ini` with
+`SRMFiles=<root>\saves\<system>` and `StateFiles=<root>\saves\<system>\kega-fusion\sstates`
+(emulatorlauncher#1390), so its `.srm` is the loose file the `libretro` cores share and its states
+need a supplement entry for that folder (#519). `SxMFiles` and `BRMFiles` still name
+`emulators\kega-fusion`, and RomMBat reads one file type there: `mastersystem`'s `.ssm`, through a
+`from_root` rule that claims that extension only, because the same folder holds `Fusion.exe`,
+`Fusion.ini` and the emulator's other files (#381). Never write the keys (rule 2). RB-283.
 RetroBat ships no Kega Fusion either: the folder holds only that template until ES downloads the
 emulator on a first launch.
 

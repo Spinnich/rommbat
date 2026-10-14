@@ -7,79 +7,29 @@ read-when: Before certifying a `dreamcast` row or changing how RomMBat handles a
 
 Facts RomMBat relies on, one per heading. [The upstream reference](../../upstream/README.md) says what an entry holds and how IDs are kept.
 
-## RB-9. Characterized: four port-keyed files shared by all games, but `flycast_vmupergame` converts them, for port 1
+## RB-9. Flycast keeps four port-keyed VMU files shared by every game, and `flycast_vmupergame` converts port 1 to one per game
 
-Plan says: Dreamcast VMU handling is unverified (L870)
+Verified: RetroBat 8.3.0, 2026-10-14. How: launched Bangai-O (USA) under `flycast`/`dreamcast` through `emulatorLauncher` for 45 s, with and without `dreamcast["Bangai-O (USA).chd"].flycast_vmupergame` set to `1` in `es_settings.cfg`, read `emu.cfg` and `saves/dreamcast/flycast/vmu/`; `es_settings.cfg` was restored afterwards.
+`saves/dreamcast/flycast/vmu/` holds `vmu_save_A1.bin` to `vmu_save_D1.bin`, 131,072 B each, one per controller port, slot 1, with nothing in a path to say which game wrote it. `es_features.cfg` declares the option as `PER GAME VMU`, `flycast_vmupergame`, "each game will have its own VMU in port 1". So Dreamcast joins the convertible set, and a game that writes to a second VMU still produces a file RomMBat cannot attribute
 
-Measurement says: Characterized: four port-keyed files shared by all games, **but `flycast_vmupergame` converts them**, for port 1 only
+## RB-49. The per-game VMU is named for the disc serial, not the ROM file
 
-## RB-49. Confirmed live, but the per-game VMU is named for the disc serial (`T40217N_vmu_save_A1.bin`), not the rom
+Verified: RetroBat 8.3.0, 2026-10-14. How: launched Bangai-O (USA) under `flycast`/`dreamcast` through `emulatorLauncher` for 45 s, with and without `dreamcast["Bangai-O (USA).chd"].flycast_vmupergame` set to `1` in `es_settings.cfg`, read `emu.cfg` and `saves/dreamcast/flycast/vmu/`; `es_settings.cfg` was restored afterwards.
+`T40217N_vmu_save_A1.bin` is Bangai-O's serial `T-40217N` with the hyphen dropped, and `Bangai-O (USA).chd` appears nowhere in the path, so it does not collapse into class A the way DuckStation's `PerGameFileTitle` card does. Attributing it means reading the serial out of the disc image or attributing by the launch window from `emulatorLauncher.log`. PS1 stays on its stock database-keyed mode, so serial attribution is the common case for disc systems
 
-Plan says: Dreamcast converts to per-game via `flycast_vmupergame` (RB-9 above)
+## RB-362. Flycast creates all four shared VMU files at its first launch, and a launch rewrites port 1's with no save made
 
-Measurement says: Confirmed live, but the per-game VMU is named for the **disc serial** (`T40217N_vmu_save_A1.bin`), not the rom file, so it does not collapse into class A the way DuckStation's `PerGameFileTitle` does. The comparison is now moot: PS1 stays on its stock database-keyed mode
+Verified: RetroBat 8.3.0, 2026-10-14. How: launched Bangai-O (USA) under `flycast`/`dreamcast` through `emulatorLauncher` for 45 s, with and without `dreamcast["Bangai-O (USA).chd"].flycast_vmupergame` set to `1` in `es_settings.cfg`, read `emu.cfg` and `saves/dreamcast/flycast/vmu/`; `es_settings.cfg` was restored afterwards. A second launch with no override followed.
+The first launch wrote `vmu_save_A1.bin`, `71255c8c...`, and `B1`, `C1` and `D1`, `e72afc56...` each, the same blank image three times. The second changed `vmu_save_A1.bin` to `1bb9a55d...` with nothing saved in the game and left the other three alone. So mtime and size cannot say whether a shared card needs uploading: only the contents separate a formatted empty card from one holding a save
 
-## RB-362. Flycast VMU: the plan's one unverified class-D case, answered
+## RB-363. The per-game option works, reaches Flycast's own `emu.cfg`, and leaves the shared files untouched when they exist
 
-[`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/4fa916583/docs/PLAN.md) line 870 records Dreamcast VMU handling as unverified. The
-tree answers it:
+Verified: RetroBat 8.3.0, 2026-10-14. How: launched Bangai-O (USA) under `flycast`/`dreamcast` through `emulatorLauncher` for 45 s, with and without `dreamcast["Bangai-O (USA).chd"].flycast_vmupergame` set to `1` in `es_settings.cfg`, read `emu.cfg` and `saves/dreamcast/flycast/vmu/`; `es_settings.cfg` was restored afterwards.
 
-```text
-saves/dreamcast/flycast/vmu/vmu_save_A1.bin
-saves/dreamcast/flycast/vmu/vmu_save_B1.bin
-saves/dreamcast/flycast/vmu/vmu_save_C1.bin
-saves/dreamcast/flycast/vmu/vmu_save_D1.bin
-```
+| Run                                    | `emu.cfg`              | What `saves/dreamcast/flycast/vmu/` did                                             |
+| -------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------- |
+| control, no override                   | `PerGameVmu = no`      | `vmu_save_A1.bin` created, then changed at the next launch                          |
+| `flycast_vmupergame=1`, shared present | **`PerGameVmu = yes`** | **`T40217N_vmu_save_A1.bin` created, 131,072 B**; the four shared files not touched |
+| `flycast_vmupergame=1`, folder empty   | **`PerGameVmu = yes`** | the per-game file **and** all four shared files created, `B1` to `D1` blank         |
 
-Four files, one per **controller port** (A through D), slot 1 on each. They are keyed by
-port, shared by every Dreamcast game, and nothing in the path identifies a game. That is
-class D in its purest form.
-
-**But it converts.** `es_features.cfg` declares the option:
-
-```xml
-<feature submenu="EMULATION" name="PER GAME VMU" group="ADVANCED SETTINGS"
-         value="flycast_vmupergame" preset="switchauto" order="104"
-         description="When enabled, each game will have its own VMU in port 1."/>
-```
-
-So Dreamcast joins the convertible set rather than the unsyncable one. One caveat is
-written into the description itself: **only port 1 becomes per-game.** Ports B, C and D
-remain shared and unattributable, so a game that writes to a second VMU still produces
-something RomMBat cannot map to a `rom_id`.
-
-## RB-363. And driven: the conversion works, but the per-game VMU is keyed by disc serial
-
-Two launches of Bangai-O (USA), differing only in the override
-(`tools/m0-probes/probe2-vmu-pergame.ps1`). The shared VMU files were copied aside first and
-restored afterwards, so the install's real Dreamcast saves were not at risk.
-
-| Run                    | `emu.cfg`              | What appeared in `saves/dreamcast/flycast/vmu/`            |
-| ---------------------- | ---------------------- | ---------------------------------------------------------- |
-| control, no override   | `PerGameVmu = no`      | nothing new; **shared `vmu_save_A1.bin` changed at exit**  |
-| `flycast_vmupergame=1` | **`PerGameVmu = yes`** | **new `T40217N_vmu_save_A1.bin`, 131,072 B, written live** |
-
-Four results, and the second one is the awkward one:
-
-1. **The per-game `es_settings.cfg` key reaches a standalone emulator's generated config.**
-   The override was proven on a libretro key; this shows the same mechanism driving
-   `PerGameVmu` in Flycast's own `emu.cfg`, so it generalizes past RetroArch.
-2. **The per-game VMU is named after the disc's product number, not the rom file.**
-   `T40217N` is Bangai-O's Dreamcast serial (`T-40217N` with the hyphen dropped); the rom is
-   `Bangai-O (USA).chd`, and its name appears nowhere in the path. **So this is not the clean
-   collapse into class A that DuckStation's `PerGameFileTitle` gives**, where the card is
-   named after the rom file. RomMBat cannot build this path from `fs_name`; attributing a
-   Dreamcast VMU means either reading the serial out of the disc image or attributing by
-   launch window from `emulatorLauncher.log`. PS1 stays on its stock database-keyed
-   mode, so serial attribution is the common case for disc systems, not Dreamcast's alone.
-3. **With the option on, the shared file is left alone entirely.** `vmu_save_A1.bin` was not
-   touched during the per-game run, so the two shapes do not both receive writes. They do
-   share a directory, though: `Dreamcast.VMUPath` is unchanged, so per-game and shared files
-   sit side by side and a client listing that directory sees both.
-4. **Launching writes the shared VMU with no in-game save**, exactly as PCSX2 does to its
-   memory cards. That is the second independent confirmation that **mtime cannot decide
-   whether a class-D container needs uploading**.
-
-Ports B, C and D produced no files in either run, so the port-1-only caveat is untested in
-the direction that matters: it is not that they stayed shared under the override, it is that
-nothing wrote to them at all.
+`Dreamcast.VMUPath` is `saves/dreamcast/flycast/vmu` in every run, so per-game and shared files sit side by side. The per-game `es_settings.cfg` key reaches a standalone emulator's generated config, as it does a `libretro` one. Ports B to D never held a game's data in these runs, but Flycast creates them blank whenever they are absent, whether or not the option is set

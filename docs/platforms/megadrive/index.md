@@ -21,8 +21,9 @@ Sega Mega Drive / Genesis. RetroBat calls the folder `megadrive`, which is what 
 - `kega-fusion`/`auto`, `kega-fusion`/`genesis` and `kega-fusion`/`megadrive` **fail step 4**:
   Kega Fusion writes its battery saves into `emulators/kega-fusion/`, outside `saves/`, because
   RetroBat's template `Fusion.ini` sends them there and `emulatorLauncher` never redirects them
-  (RB-283). Their states sync, and the pad works only once remapped in Kega's own menu
-  (RB-284).
+  (RB-283). At 8.3.0 it writes the loose `.srm` the `libretro` cores share and the states into a
+  folder the supplement does not name (#519). Their states sync on 8.2.1, and the pad works only once
+  remapped in Kega's own menu (RB-284).
 
 **It certifies those seven rows and nothing wider.** The last four needed code first, as on
 `nes`: a battery rule each and, for `mednafen` and `ares`, a state declaration in RomMBat's
