@@ -104,7 +104,8 @@ and must move, and some are the version a measurement was taken on and must not.
    restamped, or deleted with its citations when it stopped being true. An untouched one is
    carried, with a `Carried:` clause giving the reason
    ([decision](../../../docs/design/decisions/delta-directed-recheck.md)). A fact with no stamp
-   has no build to carry from and is measured. Read the upstream changelog end to end as well,
+   has no build to carry from: one the findings ledger dated takes that build first (the
+   [upstream reference](../../../docs/upstream/README.md#a-fact)), and one it did not is measured. Read the upstream changelog end to end as well,
    for behavior no fact records yet.
 4. Re-check every entry in `docs/upstream/issues.md`. A fix upstream changes what
    RomMBat should do; **no workaround comes out until a hands-on pass has seen the fixed

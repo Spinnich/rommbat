@@ -9,4 +9,5 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../../upstrea
 
 ## RB-146. A Wii disc game's save unit is its `title/00010000/<hex>/` tree, and the rest of the NAND is system state
 
+Verified: RetroBat 8.2.0, 2026-08-17. Carried: RetroBat 8.3.0, 2026-10-14, the title tree is the Wii's own NAND layout, which a Dolphin build reproduces rather than chooses. How: recovered from the findings ledger, which recorded it during M6 stage 2b (1a5503b) on the 8.2.0 install its header names; the method is the text below.
 `title/00010000/<hex>/` is the disc-game tree and the hex is the ASCII game code (`52534245` = `RSBE`), which joins exactly to what route 2 reads at `0x58`. `title/00000001/*` is system titles, and `shared2/`, `sys/` and `fst.bin` are system state. A title with `content/title.tmd` and no `data/` is an installed stub, not a save

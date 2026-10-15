@@ -41,8 +41,10 @@ Verified: RetroBat 8.2.1, 2026-09-26. How: synced MGS (2 discs), read ES's list.
 <two to six lines of the behavior, and what RomMBat does because of it>
 ```
 
-Facts moved from the findings ledgers keep their full text and carry no `Verified:` line yet. A
-row from a ledger table keeps both of its columns, each under the table's own label, unless the
+Facts moved from the findings ledgers keep their full text. One the repo can date takes the build
+and date of the ledger section that recorded it, with `How:` naming that section's commit, and is
+classified like any other at a floor move; one it cannot date has no `Verified:` line and is owed
+a measurement. A row from a ledger table keeps both of its columns, each under the table's own label, unless the
 first holds only a question since settled or a measurement since replaced: that line is dropped
 and the heading states what is true now. Condensing a
 topic file gives each of its facts the stamp and a one-line `How:`, and deletes the evidence
@@ -69,7 +71,7 @@ with no reason carries neither.
 The reason says what was read and why it does not reach the fact; "unchanged" is not one, and a
 clause without a reason carries nothing and stays on the stale list. `--stale` lists the carried
 facts apart so the reasons can be read. A fact is touched, and re-measured, when the delta names what its heading or body
-names ([delta.md](../../.claude/skills/version-adoption/delta.md), "Which facts a delta touches").
+names and the change could alter what the fact says ([delta.md](../../.claude/skills/version-adoption/delta.md), "Which facts a delta touches").
 
 ## IDs
 
