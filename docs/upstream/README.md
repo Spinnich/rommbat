@@ -60,10 +60,13 @@ fact with no stamp. A stamp naming several builds of one project counts its newe
 
 ```markdown
 Verified: RetroBat 8.2.1, 2026-10-04. Carried: RetroBat 8.3.0, 2026-10-14, no launcher commit or reference diff names `ares` or `GameGear`. How: ...
+Verified: RetroBat 8.2.1 and RomM 5.3.0, 2026-09-23. Carried: RetroBat 8.3.0, 2026-10-14, <reason>. Carried: RomM 5.3.1, 2026-10-14, <reason>. How: ...
 ```
 
-The stamp is one line, since the checker reads only the `Verified:` line. The carry goes last, before `How:`, and its
-reason runs to `How:` and is not read for builds. A later carry replaces an earlier one.
+The stamp is one line, since the checker reads only the `Verified:` line. Carry clauses go last, before `How:`, and
+each one's reason runs to the next clause or `How:` and is not read for builds. A later carry replaces an earlier one for the
+same project. A fact stamped for both projects carries each in a clause of its own, and a clause
+with no reason carries neither.
 
 The reason says what was read and why it does not reach the fact; "unchanged" is not one, and a
 clause without a reason carries nothing and stays on the stale list. `--stale` lists the carried

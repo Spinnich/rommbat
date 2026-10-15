@@ -9,7 +9,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 
 ## RB-383. A `.menu` is plain text: the executable, then its arguments
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: read the shipped `system/es_menu/*.menu` files.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, a .menu is parsed by RetrobatLauncher.Generator.cs, unchanged in 8.2.1's and 8.3.0's launcher diffs, and 8.3.0's five new .menu files are one line each in the same form. How: read the shipped `system/es_menu/*.menu` files.
 Line 1 is the executable and each later line is arguments, not XML:
 
 ```text
@@ -19,7 +19,7 @@ Line 1 is the executable and each later line is arguments, not XML:
 
 ## RB-384. A `.menu` executable path resolves under `emulators\` and cannot escape it
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: three `.menu` variants differing only in the executable line, each launched from the ES menu.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, RetrobatLauncher.Generator.cs, which resolves the executable line, is unchanged in 8.2.1's and 8.3.0's launcher diffs. How: three `.menu` variants differing only in the executable line, each launched from the ES menu.
 
 | Executable line                             | Result                                           |
 | ------------------------------------------- | ------------------------------------------------ |
@@ -33,7 +33,7 @@ RomMBat installs at `emulators/rommbat/` and its line is `\rommbat\RomMBat.exe`.
 
 ## RB-385. `es_menu` is an ordinary ES system, so registration takes two files
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: read `es_systems.cfg` and the stock `system/es_menu/gamelist.xml`.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, the retrobat system's `es_systems.cfg` entry is unchanged in both reference diffs, and the two files still register an entry; the stock gamelist's content is RB-207's. How: read `es_systems.cfg` and the stock `system/es_menu/gamelist.xml`.
 `es_systems.cfg` declares `es_menu` as the `retrobat` system with `<extension>.menu</extension>`
 and a command of `emulatorLauncher.exe -system retrobat -rom %ROM%`. A `.menu` is a ROM of that
 system, and `emulatorLauncher` parses it, not ES. The `.menu` supplies the command. The name,
@@ -43,7 +43,7 @@ merging its one element into a file other entries share (RB-205).
 
 ## RB-203. A reload picks up a new `.menu` and its gamelist element, with no restart
 
-Verified: RetroBat 8.2.0, 2026-08-24. How: wrote a `.menu`, then its `<game>` element, under a running ES, polling `/systems`.
+Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, neither ES diff changes what a reload reads: Gamelist.cpp's only change in either ES diff trusts gamelist.xml past a non-zero IndexDirectoryDepth (b69fb143), which is 0, unlimited, by default, and the HTTP API changes are a request thread pool (7cc47355, 8.2.1), POST /input (e52f86ac) and /launch skipping grouped systems (f600b969), none in the reload or this route. How: wrote a `.menu`, then its `<game>` element, under a running ES, polling `/systems`.
 The `.menu` alone took `retrobat` from 92 games to 93 in 209 ms after `GET /reloadgames`,
 listed under its bare filename with no image. Adding the `<game>` element and reloading again
 gave it its name and artwork in 262 ms. So `sync` reports the entry ready rather than asking for
@@ -70,14 +70,14 @@ else.
 
 ## RB-387. ES serves its in-memory model, and `/reloadgames` re-reads the disk
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: renamed a game in `gamelist.xml` on disk, read `/systems/ports/games` before and after a reload.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, neither ES diff changes the model a reload rebuilds: Gamelist.cpp's only change in either ES diff trusts gamelist.xml past a non-zero IndexDirectoryDepth (b69fb143), which is 0, unlimited, by default, and the HTTP API changes are a request thread pool (7cc47355, 8.2.1), POST /input (e52f86ac) and /launch skipping grouped systems (f600b969), none in the reload or this route. How: renamed a game in `gamelist.xml` on disk, read `/systems/ports/games` before and after a reload.
 After the disk edit ES still reported the old name. After `GET /reloadgames` it reported the
 new one, and a rom added to the folder appeared, with no restart. So `/systems/<system>/games`
 is ES's model, not the filesystem, and a reload re-reads both the rom folder and the gamelist.
 
 ## RB-390. A reload answers at once and takes effect later
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: changed a library on disk, then polled `/systems` until ES reported it.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, the reload is still answered on the HTTP thread and done afterwards: the HTTP API changes are a request thread pool (7cc47355, 8.2.1), POST /input (e52f86ac) and /launch skipping grouped systems (f600b969), none in the reload or this route, and Gamelist.cpp's only change in either ES diff trusts gamelist.xml past a non-zero IndexDirectoryDepth (b69fb143), which is 0, unlimited, by default. How: changed a library on disk, then polled `/systems` until ES reported it.
 `GET /reloadgames` answers in 1 to 2 ms and does the work afterwards, so its response time
 signals nothing. The change is visible in 269 ms at 200 entries and 1,084 ms at 100,000. Poll
 `/systems`, a few KB carrying `totalGames`, not `/systems/<system>/games`, which reached 99 MB
@@ -85,21 +85,21 @@ at 100,000 entries and loads ES enough to distort the measurement.
 
 ## RB-35. `/quit` and `/emukill` answer 200 and do nothing while a game runs
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: called both with RetroArch up, then again after closing it.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, the /quit and /emukill handlers are unchanged in both ES diffs, where the HTTP API changes are a request thread pool (7cc47355, 8.2.1), POST /input (e52f86ac) and /launch skipping grouped systems (f600b969), none in the reload or this route. How: called both with RetroArch up, then again after closing it.
 Both returned cleanly and left ES and RetroArch running, while `/caps` kept answering. After
 RetroArch was closed by other means, a re-issued `/quit` worked at once. A 200 from this API is not evidence the action happened, so anything that needs ES gone polls
 for the process rather than trusting the response.
 
 ## RB-107. `/reloadgames` has no effect while a game runs
 
-Verified: RetroBat 8.2.0, 2026-08-11. How: added a rom with RetroArch up, reloaded, polled `/systems` for 5 s, twice.
+Verified: RetroBat 8.2.0, 2026-08-11. Carried: RetroBat 8.3.0, 2026-10-14, a reload while a game runs is unchanged in both ES diffs, where the HTTP API changes are a request thread pool (7cc47355, 8.2.1), POST /input (e52f86ac) and /launch skipping grouped systems (f600b969), none in the reload or this route. How: added a rom with RetroArch up, reloaded, polled `/systems` for 5 s, twice.
 It answered 200 in 1 ms and the new rom was still unreported five seconds later, the same trap
 as RB-35. What happens once the emulator exits was measured with RomMBat in front instead
 (RB-233).
 
 ## RB-233. A reload issued behind an app is deferred, not discarded
 
-Verified: RetroBat 8.2.1, 2026-08-26. How: five phases writing a `.menu` marker, with and without RomMBat in front and with and without a reload, polling `totalGames`.
+Verified: RetroBat 8.2.1, 2026-08-26. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's ES diff leaves the queued reload alone, where the HTTP API changes are a request thread pool (7cc47355, 8.2.1), POST /input (e52f86ac) and /launch skipping grouped systems (f600b969), none in the reload or this route. How: five phases writing a `.menu` marker, with and without RomMBat in front and with and without a reload, polling `totalGames`.
 With RomMBat in front, a reload answered 200 in 6 ms and the count held for 10 s, then rose as
 RomMBat exited with no further call. A marker written with no reload issued stayed uncounted
 after RomMBat exited, until a later reload. So ES applies a queued reload on resume and never
@@ -125,14 +125,14 @@ one the agent drives with keys.
 
 ## RB-108. With ES absent, a loopback connect is refused after 2.04 s
 
-Verified: RetroBat 8.2.0, 2026-08-11. How: five raw TCP connects and three `HttpClient` requests to `127.0.0.1:1234` with ES closed.
+Verified: RetroBat 8.2.0, 2026-08-11. Carried: RetroBat 8.3.0, 2026-10-14, it measures Windows refusing a closed loopback port with ES absent, which no ES or launcher change reaches. How: five raw TCP connects and three `HttpClient` requests to `127.0.0.1:1234` with ES closed.
 Every one took 2.04 s, the closed-port figure RB-353 recorded on the LAN. ES being absent is the
 ordinary case for a background sync, and the project's 2 s interactive timeout would buy
 nothing, so `EmulationStationClient` sets a 400 ms `ConnectTimeout`.
 
 ## RB-201. ES is gone within 70 ms of the `quit` hook firing
 
-Verified: RetroBat 8.2.0, 2026-08-24. How: timed three sessions from the `quit` hook's stamp to the ES process exiting, then read the first real `background quit` pass.
+Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, neither ES diff touches the quit event or ES's exit; 8.3.0's Log.cpp change moves SIGTERM handling on Linux only. How: timed three sessions from the `quit` hook's stamp to the ES process exiting, then read the first real `background quit` pass.
 The process was gone 48.3, 52.4 and 68.2 ms after the hook stamped itself. The first real pass
 saw it gone at its first poll, 10 ms in. The hook fires while ES is still alive, and a key
 written while ES runs is discarded (RB-178), so `background quit` with queued config polls for

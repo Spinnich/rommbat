@@ -29,7 +29,7 @@ commented-out `<core>` override and `<defaultCoreDirectory>`, which a user can e
 
 ## RB-216. The `libretro` state folder is `libretro.<core>`, set by the launcher
 
-Verified: RetroBat 8.2.1, 2026-08-25. How: read the generated `retroarch.cfg` and the state folders already on disk, read-only.
+Verified: RetroBat 8.2.1, 2026-08-25. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's LibRetro.Generator diff leaves the four sort keys and `savestate_directory` alone; its one save-path change is amiberry's LR-amiberry. How: read the generated `retroarch.cfg` and the state folders already on disk, read-only.
 `emulatorlauncher` writes all four RetroArch sort keys (`sort_savefiles_enable`,
 `sort_savefiles_by_content_enable`, `sort_savestates_enable`,
 `sort_savestates_by_content_enable`) as `"false"` on every launch and puts the core in
@@ -40,7 +40,7 @@ manifest and never the sort keys, whose absent default misplaces states on other
 
 ## RB-217. `retroarch.cfg` describes only the last game launched
 
-Verified: RetroBat 8.2.1, 2026-08-25. How: read the generated `retroarch.cfg` after a `mastersystem` session.
+Verified: RetroBat 8.2.1, 2026-08-25. Carried: RetroBat 8.3.0, 2026-10-14, LibRetro.Generator still regenerates retroarch.cfg per launch in 8.3.0. How: read the generated `retroarch.cfg` after a `mastersystem` session.
 It named `mastersystem` throughout, `savefile_directory` included, because the launcher
 regenerates it per launch. So it is no description of the install, and RomMBat never reads it
 for one. This is rule 2 seen from the reading side.
@@ -69,7 +69,7 @@ not, so RomMBat treats it as best-effort everywhere (RB-367).
 
 ## RB-371. openMSX writes its states under `bios/`, not the declared directory
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: installed openMSX on demand and made two real saves from its console.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, openMSX's generator is unchanged in 8.2.1's and 8.3.0's launcher diffs, and neither changelog bumps it. How: installed openMSX on demand and made two real saves from its console.
 The declaration is `saves/msx1/openmsx/<rom filename>_<slot>.oms`. openMSX wrote
 `bios/openmsx/savestates/quicksave.oms` and a real 7,531 B `quicksave.png`, because RetroBat
 puts its whole user-data directory under `bios/openmsx/`, and the declared directory stayed
@@ -81,14 +81,14 @@ the trap for tests and gates nothing.
 
 ## RB-135. The slot a save-state key writes is neither 0 nor fixed
 
-Verified: RetroBat 8.2.0, 2026-08-17. How: made a state on `mastersystem`/Phantasy Star (Brazil) under four emulators and read the names written.
+Verified: RetroBat 8.2.0, 2026-08-17. Carried: RetroBat 8.3.0, 2026-10-14, libretro's `savestate_auto_index` and BizHawk's slot handling are unchanged in both launcher diffs; 8.2.1 turns the auto-save keys off only for cores with no state support. How: made a state on `mastersystem`/Phantasy Star (Brazil) under four emulators and read the names written.
 `libretro` wrote `.state1` and BizHawk wrote `.QuickSave2.State`. Expanding
 `firstslot..lastslot` would have found neither. RomMBat reads the slot off the filename, and
 RB-261 and RB-269 say where each emulator takes it from.
 
 ## RB-261. RetroArch picks a `libretro` state's slot, not ES's `-state_slot`
 
-Verified: RetroBat 8.2.1, 2026-09-21. How: launched `nes` under `libretro`/`mesen` with `-state_slot 5` and read `es_launch_stdout.log`.
+Verified: RetroBat 8.2.1, 2026-09-21. Carried: RetroBat 8.3.0, 2026-10-14, `savestate_auto_index` is still true in 8.3.0's retroarch.cfg template and untouched in its LibRetro.Generator diff, and libretro mesen is not among 8.3.0's core bumps. How: launched `nes` under `libretro`/`mesen` with `-state_slot 5` and read `es_launch_stdout.log`.
 Two states made in the session landed as `.state1` and `.state2`. RetroArch's log says why:
 `found_last_state_slot: #0` against an empty `saves/nes/libretro.mesen/`, then `Saving state`
 for each. The generated `retroarch.cfg` sets `savestate_auto_index = "true"`, which continues
@@ -99,7 +99,7 @@ the `Saving state` lines or the file on disk.
 
 ## RB-269. ES's `-state_slot` does pick a `bizhawk` state's slot
 
-Verified: RetroBat 8.2.1, 2026-09-21. How: launched `nes` under `bizhawk` with and without `-state_slot`, and read `config.ini` and the states written.
+Verified: RetroBat 8.2.1, 2026-09-21. Carried: RetroBat 8.3.0, 2026-10-14, BizHawk's 8.3.0 launcher change is the .m3u hand-off and Sinden cleanup, which leaves SaveSlot alone. How: launched `nes` under `bizhawk` with and without `-state_slot`, and read `config.ini` and the states written.
 `emulatorLauncher` writes it into EmuHawk's `config.ini` as `SaveSlot`. `-state_slot 5` left
 `SaveSlot: 5` and the pad's save key wrote `QuickSave5`; no `-state_slot` left `SaveSlot: 10`
 and the same key wrote `QuickSave0`. The pad key is `F2` sent by pad-to-key, so it saves to the
@@ -125,7 +125,7 @@ native `PPSSPP_STATE/` copy was right all three times, but finding it needs the 
 
 ## RB-268. BizHawk writes no `<image>`, and keeps the screenshot inside the state
 
-Verified: RetroBat 8.2.1, 2026-09-21. How: made five states across `NesHawk` and `quickerNES` and unzipped them.
+Verified: RetroBat 8.2.1, 2026-09-21. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0 bumps no BizHawk build, its launcher change is the .m3u hand-off, and its `es_savestates.cfg` entry is unchanged. How: made five states across `NesHawk` and `quickerNES` and unzipped them.
 The declared `{{romfilename}}.QuickSave{{slot0}}.png` never appears, in the declared directory
 or in `emulators/bizhawk/sstates/nes/`. A `.State` is a zip of `BizState 1.0`, `BizVersion.txt`,
 `Core.bin.zst`, `SyncSettings.json` and `Framebuffer.bmp`, the 256x224 frame at the moment of
@@ -143,7 +143,7 @@ a serial is the Game ID a directory save otherwise reads from a ROM header.
 
 ## RB-270. A BizHawk state saved outside `emulatorLauncher` is lost at the next ES launch
 
-Verified: RetroBat 8.2.1, 2026-09-21. How: saved a state in EmuHawk started directly with `--lua`, then launched the same game through ES.
+Verified: RetroBat 8.2.1, 2026-09-21. Carried: RetroBat 8.3.0, 2026-10-14, BizHawk's state mirror is unchanged in 8.3.0's launcher diff apart from the .m3u hand-off. How: saved a state in EmuHawk started directly with `--lua`, then launched the same game through ES.
 BizHawk writes natively to `emulators/bizhawk/sstates/<system>/`, outside `saves/` and not
 core-scoped, and the launcher mirrors that to the declared core-scoped directory. EmuHawk started
 directly wrote `Destiny of an Emperor.NesHawk.QuickSave2.State` natively and nothing reached
@@ -155,14 +155,14 @@ only it.
 
 ## RB-134. Two `libretro` cores write the same state name for one ROM
 
-Verified: RetroBat 8.2.0, 2026-08-17. How: made a state under `genesis_plus_gx` and `picodrive` on one `mastersystem` ROM and flushed both.
+Verified: RetroBat 8.2.0, 2026-08-17. Carried: RetroBat 8.3.0, 2026-10-14, `genesis_plus_gx` and picodrive are in neither changelog's core bumps, and libretro's state naming is unchanged (8.2.1 gates auto-save keys for cores with no state support). How: made a state under `genesis_plus_gx` and `picodrive` on one `mastersystem` ROM and flushed both.
 Both wrote `Phantasy Star (Brazil).state1`, 9,202 B and 6,282 B, in their own `libretro.<core>`
 folders. They landed as two RomM rows because RomMBat puts the core in the uploaded name.
 Without it one would replace the other.
 
 ## RB-251. An emulator with no `es_savestates.cfg` entry still writes save states
 
-Verified: RetroBat 8.2.1, 2026-09-13. How: drove every emulator `nes` declares from ES and diffed `saves/nes/` around each state.
+Verified: RetroBat 8.2.1, 2026-09-13. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's `es_savestates.cfg` adds amiberry, arcadeduck and blastem, no nes emulator, and mednafen's, Mesen's and ares's state paths do not move. How: drove every emulator `nes` declares from ES and diffed `saves/nes/` around each state.
 `mednafen` wrote `saves/nes/mednafen/sstates/<rom>.<md5>.mc0`, `mesen` wrote
 `saves/nes/mesen/SaveStates/<rom>_1.mss` and `ares` wrote `saves/nes/ares/Famicom/<rom>.bs1`,
 and nothing in the file hints at any of them. `StateScanner` finds states only through a
