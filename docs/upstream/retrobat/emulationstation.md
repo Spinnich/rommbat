@@ -112,21 +112,23 @@ Verified: RetroBat 8.3.0, 2026-10-15. How: on the agent tree, with RetroBat's sh
 Each response was 200 with an empty body, `emulatorLauncher.log` grew by about 2 KB, and
 `emulatorLauncher` and `retroarch` were running within 2.5 s. ES runs the `game-start` and
 `game-end` hooks around it as for a player, so a hands-on pass over them can be scripted. Ending
-the game still takes the emulator's own exit (RB-35). This holds for every system RetroBat ships
-ungrouped, which is each group's parent and members by default. A parent the user groups is the
-exception (RB-433).
+the game still takes the emulator's own exit (RB-35). A group's parent is the exception once ES
+groups it, which RetroBat's shipped settings do for some groups (RB-433).
 
 ## RB-433. `POST /launch` starts nothing for a grouped parent's own games
 
-Verified: RetroBat 8.3.0, 2026-10-15. How: on the agent tree, with `nes.ungroup` and `fds.ungroup` set to false in `es_settings.cfg` and an `fds` rom present, read `/systems`, then posted an `nes` game's path and the `fds` game's path to `/launch` in turn.
-`/systems` reported `nes` with `groupsystem` true, listing all nine games including the `fds` one, and
-`fds` with group `nes`. The `nes` game's `/launch` answered 200 with an empty body and started
-nothing: no `emulatorLauncher` in 20 s and `emulatorLauncher.log` unchanged. The `fds` game
-launched in 2.5 s. ES's `/launch` skips a game whose system is a group system (f600b969), and
-grouping makes the parent one, so the parent's own games are skipped. RetroBat's shipped
-`system/templates/emulationstation/es_settings.cfg` sets every group's `.ungroup` to true, so this
-reaches only a user who turns grouping on. `Start-Game` refuses such a game, naming the setting,
-rather than waiting out a launch that never comes ([issues](../issues.md#not-yet-reported)).
+Verified: RetroBat 8.3.0, 2026-10-15. How: on the agent tree, read `/systems` and posted games to `/launch` in three states: `nes.ungroup` and `fds.ungroup` set to false with an `fds` rom present; the shipped `es_settings.cfg` with a generated stand-in file in `roms/devilutionx`; and that again with `ports.ungroup` added as true.
+ES groups a system that has a group in `es_systems.cfg` unless `<system>.ungroup` is true, and
+grouping turns the parent into a group system: `/systems` reported `nes` with `groupsystem` true
+and nine games, the `fds` one included. Its `/launch` then answered 200 with an empty body and
+started nothing, with no `emulatorLauncher` in 20 s and `emulatorLauncher.log` unchanged, because
+`/launch` skips a game whose system is a group system (f600b969). The member's game, the `fds`
+one, launched in 2.5 s. RetroBat's shipped `system/templates/emulationstation/es_settings.cfg` sets
+`.ungroup` true for some groups, `nes` and `snes` among them, and not for others: with nothing
+changed, one file in `roms/devilutionx` made `ports` a group system, and `/launch` for
+`ports/2048.libretro` started nothing. Setting `ports.ungroup` true alone ungrouped both and
+the game launched. `Start-Game` refuses a grouped parent's own game, naming that setting, rather
+than waiting out a launch that never comes ([issues](../issues.md#not-yet-reported)).
 
 ## RB-419. `POST /launch` passes no pad the player has not touched in ES
 
