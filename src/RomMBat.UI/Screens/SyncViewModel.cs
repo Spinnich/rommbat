@@ -761,7 +761,24 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
                 Publish(state => state with { Pass = $"Asking RomM what '{resolve.SetName}' contains...", Game = null });
                 break;
 
-            case BiosPlanned or BiosApplied:
+            case BiosPlanned(var bios):
+                // The two states only a person can settle: a slot RomM holds several equally
+                // ranked files for, and a zip on disk that no reader accepts.
+                foreach (var step in bios.Steps.Where(step => step.Action is BiosAction.Ambiguous or BiosAction.ContentsMismatch))
+                {
+                    Note($"{step.Path}: {step.Reason}");
+                }
+
+                Publish(state => state with { Pass = "Fetching firmware...", Game = null });
+                break;
+
+            case BiosApplied(var applied):
+                if (applied.Upgraded > 0)
+                {
+                    Note($"{applied.Upgraded} firmware {(applied.Upgraded == 1 ? "file was" : "files were")} "
+                        + "replaced by a better-ranked one RomM now has.");
+                }
+
                 Publish(state => state with { Pass = "Fetching firmware...", Game = null });
                 break;
 

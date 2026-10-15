@@ -99,6 +99,51 @@ def firmware_evidence(bios):
     check("  ...RomM's known_bios_files names one hash for", shapes.get("romm", 0), 12)
     check("  ...with no identity anywhere", shapes.get("none", 0), 31)
 
+    # Not statistics: each is a hand-maintained map in firmware-rows.json that must stay whole.
+    check("Folders whose multi-system profiles have no system map", evidence.unmapped_systems, [])
+    check("Folders with a BizHawk row and no BizHawk system map", evidence.unmapped_bizhawk, [])
+    check("System map ids no source of the folder uses", evidence.stale_systems, [])
+    check("System map entries for folders that need none", evidence.unused_systems, [])
+
+    manifest_slots()
+
+
+def manifest_slots():
+    """The slots tools/build-bios-manifest.py derives, which BiosManifestTests holds the bundled copy to."""
+    import importlib.util
+
+    builder_path = pathlib.Path(__file__).resolve().parent.parent / "tools" / "build-bios-manifest.py"
+    spec = importlib.util.spec_from_file_location("build_bios_manifest", builder_path)
+    builder = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(builder)
+    builder.REFERENCE = HERE
+    document = builder.build()
+    systems = document["systems"]
+    slots = [slot for body in systems.values() for slot in body["slots"]]
+    retrobat = [slot for slot in slots if "retrobat" in slot["readers"]]
+
+    print("\nFirmware manifest (data/retrobat/bios.json)")
+    check("Folders with a slot", sum(1 for body in systems.values() if body["slots"]), 127)
+    check("Slots", len(slots), 943)
+    check("  ...RetroBat's list names", len(retrobat), 296)
+    check("  ...of those, with RetroBat's md5", sum(1 for s in retrobat if any("retrobat" in a["from"] for a in s["accepted"])), 179)
+    check(
+        "  ...of those, hashless and identified by another source",
+        sum(1 for s in retrobat if not any("retrobat" in a["from"] for a in s["accepted"]) and (s["accepted"] or s.get("contents"))),
+        46,
+    )
+    check("  ...with no identity anywhere", sum(1 for s in slots if not s["accepted"] and not s.get("contents")), 71)
+    check("  ...zips identified by their members", sum(1 for s in slots if s.get("contents")), 327)
+    check("  ...where several accepted files compete", sum(1 for s in slots if len(s["accepted"]) > 1), 4)
+    check("Distinct accepted md5s", len({a["md5"] for s in slots for a in s["accepted"]}), 352)
+    check("Distinct destination paths", len({s["path"] for s in slots}), 615)
+    check("Reported, never fetched", sum(len(body["reported"]) for body in systems.values()), 2287)
+    check(
+        "  ...MAME software lists",
+        sum(1 for body in systems.values() for r in body["reported"] if "software list" in r["why"]),
+        63,
+    )
+
 
 def main():
     systems = {l.strip() for l in (HERE / "systems_names.lst").read_text().splitlines() if l.strip()}

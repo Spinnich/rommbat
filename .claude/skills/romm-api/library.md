@@ -258,14 +258,13 @@ columns for that reason.
   **That rule is about a single-entry ROM archive. A multi-member firmware archive is
   hashed as a container** (RM-28): the library's 34-member `neogeo.zip` carries an
   `md5_hash` equal to the md5 of the downloaded bytes exactly. So **a firmware `.zip` joins on
-  md5 only when both sides hold a byte-identical build.** 84 of RetroBat's 360 BIOS
-  requirements are zips, and 20 of those carry an md5; the other 64 name no hash and answer
-  `Unverifiable` before the join. **Members cannot be compared instead**: the manifest names
-  only the container md5 and RomM serves no member hashes, so there is no reference side. A
-  zip the md5 misses, where the library holds one under the exact name, stays
-  `MissingFromLibrary` with `BiosStep.SameName` set and a reason saying so, and is never
-  fetched. A hashless requirement absent from disk gets the same pointer to an exact-name record,
-  zip or not, and stays `Unverifiable`.
+  md5 only when both sides hold a byte-identical build**, and otherwise on its members. RomM
+  serves no member hashes, so the reference side is the manifest: where a reader's retrobios
+  profile lists the members' crc32 and size, a same-named zip is downloaded aside and lands only
+  if every member one reader lists matches (`BiosZip`). 327 firmware slots are zips identified
+  that way. A zip no reader lists members for, where the library holds one under the exact name,
+  stays `MissingFromLibrary` with `BiosStep.SameName` set and is never fetched. A slot with no
+  identity at all, absent from disk, gets the same pointer and stays `Unverifiable`.
 
 - **Do not reconcile deletions with `GET /api/roms/identifiers`.** It answers 95,989 ids in
   under a second on 5.3.1, but it takes no parameters, so it cannot be scoped to a set, and a
@@ -283,8 +282,8 @@ columns for that reason.
 - **`is_verified` on firmware is unreliable here.** See `docs/architecture/authorities.md`, "Two
   authorities that are easy to get backwards": it is false on files RetroBat requires,
   `psxonpsp660.bin` among them. Filtering on it discards 6 of the 49 required files one
-  library holds, and joining on `file_name` instead of `md5_hash` discards 2 (RM-26). Join on
-  md5 and nothing else. (The separate figure of 93 of the 156 required md5s is what RomM has no record
+  library holds, and joining on `file_name` instead of `md5_hash` discards 2 (RM-26). Join a
+  single file on md5 and nothing else. (The separate figure of 93 of the 156 required md5s is what RomM has no record
   of at all, which no join can rescue.)
 - **`missing_from_fs` means the row outlived the file, and its content route answers 404.**
   142 of 656 firmware records carried it on the library measured. Skip such a record before

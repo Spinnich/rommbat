@@ -33,7 +33,7 @@ internal static class Program
         "game",       // one game by id: show, install, remove
         "budget",     // how much of this drive RomMBat may use
         "evict",      // free space, dry run unless --apply
-        "bios",       // what RetroBat requires under bios/, and what is missing
+        "bios",       // the firmware each system's emulators read, and what is missing
         "gamelist",   // rewrite gamelist.xml from local state, no server needed
         "hooks",      // install or remove the ES event hooks
         "menu",       // install or remove the ES menu entry
@@ -159,7 +159,7 @@ internal static class Program
         Console.Error.WriteLine("  sync        Resolve a set and pull its ROMs into the tree");
         Console.Error.WriteLine("  budget      Show or set how much of this drive RomMBat may use");
         Console.Error.WriteLine("  evict       Show what would be removed to get back inside the budget");
-        Console.Error.WriteLine("  bios        Report the BIOS RetroBat needs, and fetch it with --apply");
+        Console.Error.WriteLine("  bios        Report the firmware each system's emulators read, and fetch it with --apply");
         Console.Error.WriteLine("  gamelist    Rewrite gamelist.xml from local state, and tell EmulationStation");
         Console.Error.WriteLine("  hooks       status | install | uninstall the EmulationStation event hooks");
         Console.Error.WriteLine("  menu        status | install | uninstall RomMBat's EmulationStation menu entry");
@@ -191,6 +191,7 @@ internal static class Program
         Console.Error.WriteLine("  --at-quit         saves convert: make the change when EmulationStation next closes");
         Console.Error.WriteLine("  --revert          saves convert: take a game's own memory card back to the shared one");
         Console.Error.WriteLine("  --all             bios: every system RetroBat knows, not just the ones with games");
+        Console.Error.WriteLine("  --region-order <r> bios: the regions to prefer where files compete, e.g. usa,europe,japan,world, or default");
         Console.Error.WriteLine("  --max <size>      budget: the cap, as 64GB, 500MB or none");
         Console.Error.WriteLine("  --media <kinds>   gamelist: which artwork to fetch, e.g. image,thumbnail,video");
         Console.Error.WriteLine("  --no-reload       gamelist: write the files without telling EmulationStation");

@@ -119,6 +119,25 @@ def _basename(name) -> str:
     return str(name).replace("\\", "/").rsplit("/", 1)[-1].lower()
 
 
+def is_firmware(entry: dict) -> bool:
+    """False for what a profile lists that is not firmware a library would hold: data the
+    emulator ships or compiles in, a game's own data files, and files nobody can source."""
+    return not (
+        entry.get("bundled")
+        or entry.get("embedded")
+        or entry.get("category") == "game_data"
+        or entry.get("unsourceable")
+        or entry.get("storage") in ("user_provided", "release")
+    )
+
+
+def applies_to(entry: dict, profile: dict, libretro: bool) -> bool:
+    """Whether a profile entry is read by a libretro row or a standalone one. An entry's own
+    mode wins; a profile marked standalone as a whole defaults its entries to that."""
+    mode = entry.get("mode") or profile.get("mode") or "both"
+    return mode == "both" or (mode == "libretro") == libretro
+
+
 class Evidence:
     """What the vendored sources say identifies a file a RetroBat folder's rows read.
 
@@ -151,6 +170,7 @@ class Evidence:
 
         rows = read_rows(reference / "es_systems.cfg")
         row_map = read_row_map()
+        self.row_map = row_map
         resolved, self.unresolved = resolve_all(rows, self.profiles, row_map)
         keys = {row.key for row in rows}
         emulators = {row.emulator for row in rows}
@@ -160,26 +180,95 @@ class Evidence:
             if (key[:-2] not in emulators if key.endswith("/*") else key not in keys)
         )
         self.rows = resolved
+        self.folder_rows: dict[str, list[tuple[Row, dict]]] = {}
         self.folder_profiles: dict[str, set[str]] = {}
         self.folder_bizhawk: set[str] = set()
         for row, sources in resolved.items():
+            self.folder_rows.setdefault(row.folder, []).append((row, sources))
             self.folder_profiles.setdefault(row.folder, set()).update(sources.get("profiles", []))
             if sources.get("bizhawk"):
                 self.folder_bizhawk.add(row.folder)
 
-    def entries(self, folder: str) -> list[dict]:
-        """Every file entry a source for one of this folder's rows lists. Not yet narrowed by
-        system: a multi-system profile contributes its other systems' files too, which can only
-        widen a name match, never invent a hash."""
-        found = [
+        # A multi-system profile lists files for every system it emulates, and retrobios spells
+        # one system several ways across profiles, so each folder names the ids that are its own.
+        self.systems: dict[str, list[str]] = row_map.get("systems", {})
+        self.bizhawk_systems: dict[str, list[str]] = row_map.get("bizhawk_systems", {})
+        self.unmapped_systems = sorted(
+            folder for folder, names in self.folder_profiles.items()
+            if folder not in self.systems and any(self._needs_narrowing(name) for name in names)
+        )
+        self.unmapped_bizhawk = sorted(folder for folder in self.folder_bizhawk if folder not in self.bizhawk_systems)
+        self.stale_systems = sorted(
+            f"{folder}: {system}"
+            for folder, ids in self.systems.items()
+            for system in ids
+            if system not in self._tags(folder)
+        ) + sorted(
+            f"{folder}: {system} (bizhawk)"
+            for folder, ids in self.bizhawk_systems.items()
+            for system in ids
+            if system not in self.bizhawk["systems"]
+        )
+        self.unused_systems = sorted(
+            [folder for folder in self.systems if not any(self._needs_narrowing(n) for n in self.folder_profiles.get(folder, ()))]
+            + [f"{folder} (bizhawk)" for folder in self.bizhawk_systems if folder not in self.folder_bizhawk]
+        )
+
+    def _needs_narrowing(self, name: str) -> bool:
+        profile = self.profiles[name]
+        return len(profile.get("systems") or []) > 1 and any(
+            isinstance(entry, dict) and entry.get("system") for entry in profile.get("files") or []
+        )
+
+    def _tags(self, folder: str) -> set[str]:
+        """Every id a folder's map may name: the system tags its sources use, and
+        untagged:<profile> for each narrowed profile that also lists files with no tag."""
+        tags: set[str] = set()
+        for name in self.folder_profiles.get(folder, ()):
+            for entry in self.profiles[name].get("files") or []:
+                if not isinstance(entry, dict):
+                    continue
+                if entry.get("system"):
+                    tags.add(entry["system"])
+                elif self._needs_narrowing(name):
+                    tags.add(f"untagged:{name}")
+        return tags
+
+    def profile_files(self, name: str, folder: str) -> list[dict]:
+        """A profile's entries for one folder. A profile that covers several systems and tags its
+        files keeps a tagged entry only where the tag is one of this folder's, and an untagged
+        one only where the folder's map names untagged:<profile>: MAME's untagged entries are
+        arcade boards, which no computer or console folder that also offers MAME reads."""
+        files = [entry for entry in self.profiles[name].get("files") or [] if isinstance(entry, dict)]
+        if not self._needs_narrowing(name):
+            return files
+        wanted = set(self.systems.get(folder, []))
+        untagged = f"untagged:{name}" in wanted
+        return [entry for entry in files if (entry["system"] in wanted if entry.get("system") else untagged)]
+
+    def bizhawk_files(self, folder: str) -> list[dict]:
+        return [
             entry
-            for name in sorted(self.folder_profiles.get(folder, ()))
-            for entry in self.profiles[name].get("files") or []
-            if isinstance(entry, dict)
+            for system in self.bizhawk_systems.get(folder, [])
+            for entry in self.bizhawk["systems"][system].get("files") or []
         ]
+
+    def entries(self, folder: str) -> list[dict]:
+        """Every file entry a source for one of this folder's rows lists, narrowed to the
+        folder's systems."""
+        found = [entry for name in sorted(self.folder_profiles.get(folder, ())) for entry in self.profile_files(name, folder)]
         if folder in self.folder_bizhawk:
-            found += [entry for system in self.bizhawk["systems"].values() for entry in system.get("files") or []]
+            found += self.bizhawk_files(folder)
         return found
+
+    def md5_of_sha1(self, sha1: str) -> str | None:
+        row = self.by_sha1.get(sha1.lower())
+        return row["md5"].lower() if row else None
+
+    def row_by_md5(self, md5: str) -> dict | None:
+        if not hasattr(self, "_by_md5"):
+            self._by_md5 = {row["md5"].lower(): row for row in self.database.values()}
+        return self._by_md5.get(md5.lower())
 
     def named(self, folder: str, name: str) -> list[dict]:
         wanted = _basename(name)

@@ -58,10 +58,9 @@ public sealed class BiosCommandTests
     public async Task A_library_of_systems_that_need_no_firmware_is_not_reported_as_unsynced()
     {
         // FoldersNeedingBios() filters by the manifest, so it is empty for a populated library
-        // whose systems have no firmware entry, and that is the ordinary case: only 101 of
-        // RetroBat's 241 systems appear in batocera-systems.json, and snes, n64 and atari2600
-        // are not among them. One sentence for both states told this install to run 'sync'
-        // over 3 systems it had already synced.
+        // whose systems' emulators read no firmware, as atari2600, tic80 and pico8's do. One
+        // sentence for both states told this install to run 'sync' over 3 systems it had
+        // already synced.
         using var tree = TempRetroBatTree.Create();
         AgentRunner.WriteEsSystems(tree);
 
@@ -69,8 +68,8 @@ public sealed class BiosCommandTests
         {
             foreach (var (folder, name) in new[]
                      {
-                         ("snes", "Contra III (USA).sfc"),
-                         ("n64", "Mario Kart 64 (USA).z64"),
+                         ("tic80", "Some Cart.tic"),
+                         ("pico8", "Celeste.p8.png"),
                          ("atari2600", "Pitfall! (USA).a26"),
                      })
             {
@@ -89,24 +88,24 @@ public sealed class BiosCommandTests
 
         Assert.Equal(0, run.ExitCode);
         Assert.False(run.Wrote("Nothing has been synced yet"), run.Out);
-        Assert.True(run.Wrote("None of the 3 systems synced here"), run.Out);
+        Assert.True(run.Wrote("No emulator offered for the 3 systems synced here"), run.Out);
         Assert.True(run.Wrote("--all"), run.Out);
     }
 
     [Fact]
     public async Task A_real_system_that_needs_no_firmware_says_so_by_name()
     {
-        // The other half, and the reason the manifest cannot answer this alone: only 101 of
-        // RetroBat's 241 systems appear in batocera-systems.json, so absent from it is the
-        // ordinary case rather than the error. snes is a real system RetroBat requires no BIOS
-        // for, and that answer has to be distinguishable from the typo above.
+        // The other half, and the reason the manifest cannot answer this alone: a system none
+        // of whose emulators reads firmware has no slots, so absent from it is an ordinary case
+        // rather than the error. atari2600 is one, and that answer has to be distinguishable
+        // from the typo above.
         using var tree = TempRetroBatTree.Create();
         AgentRunner.WriteEsSystems(tree);
 
-        var run = await AgentRunner.RunAsync(tree, "bios", "snes", "--offline");
+        var run = await AgentRunner.RunAsync(tree, "bios", "atari2600", "--offline");
 
         Assert.Equal(0, run.ExitCode);
-        Assert.True(run.Wrote("RetroBat requires no BIOS for snes"), run.Out);
+        Assert.True(run.Wrote("No firmware is listed for atari2600"), run.Out);
         Assert.Equal(string.Empty, run.Error);
     }
 
@@ -136,8 +135,37 @@ public sealed class BiosCommandTests
         var run = await AgentRunner.RunAsync(tree, "bios", "psx", "--offline");
 
         Assert.Equal(0, run.ExitCode);
-        Assert.False(run.Wrote("RetroBat requires no BIOS for psx"), run.Out);
+        Assert.False(run.Wrote("No firmware is listed for psx"), run.Out);
         Assert.True(run.Wrote("psx"), run.Out);
+    }
+
+    [Fact]
+    public async Task The_report_names_who_reads_each_file_and_the_region_order()
+    {
+        // A slot is the union of every emulator a system offers, so a file a user does not
+        // recognize has to say which emulator wants it, or the report reads as noise.
+        using var tree = TempRetroBatTree.Create();
+        AgentRunner.WriteEsSystems(tree);
+
+        var run = await AgentRunner.RunAsync(tree, "bios", "psx", "--region-order", "japan,usa", "--offline");
+
+        Assert.Equal(0, run.ExitCode);
+        Assert.True(run.Wrote("bios/scph5501.bin"), run.Out);
+        Assert.True(run.Wrote("read by libretro/mednafen_psx_hw"), run.Out);
+        Assert.True(run.Wrote("RetroBat's own list"), run.Out);
+        Assert.True(run.Wrote("regions are preferred Japan > USA"), run.Out);
+    }
+
+    [Fact]
+    public async Task A_region_order_it_cannot_read_is_refused()
+    {
+        using var tree = TempRetroBatTree.Create();
+        AgentRunner.WriteEsSystems(tree);
+
+        var run = await AgentRunner.RunAsync(tree, "bios", "psx", "--region-order", "usa,usa", "--offline");
+
+        Assert.NotEqual(0, run.ExitCode);
+        Assert.True(run.Complained("--region-order"), run.Error);
     }
 
     [Fact]
@@ -178,7 +206,7 @@ public sealed class BiosCommandTests
         using var stub = new StubRomMServer();
         AgentRunner.WriteEsSystems(tree);
 
-        var firmware = new StubFirmware(751, "firmware.bin", [0x4e, 0x44, 0x53]);
+        var firmware = new StubFirmware(751, "dsi_firmware.bin", [0x4e, 0x44, 0x53]);
         stub.Platforms.Add(new StubPlatform(1, "nds", "nds", "Nintendo DS") { Firmware = [firmware] });
 
         using (var session = InstallSession.Open(tree.Root).Session!)
@@ -198,7 +226,7 @@ public sealed class BiosCommandTests
         var run = await AgentRunner.RunAgainstAsync(tree, stub, "bios", "nds");
 
         Assert.Equal(0, run.ExitCode);
-        Assert.True(run.Wrote($"RomM has a firmware.bin ({firmware.Md5Hash})"), run.Out);
+        Assert.True(run.Wrote($"RomM has a dsi_firmware.bin ({firmware.Md5Hash})"), run.Out);
         Assert.True(run.Wrote("For 1 of them RomM holds a file under the same name"), run.Out);
         Assert.Empty(stub.FirmwareRequests);
     }

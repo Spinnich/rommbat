@@ -63,17 +63,18 @@ unwind later. Code cites them by number, so the numbers do not change.
 2. **Never edit an emulator INI.** `emulatorlauncher` regenerates emulator configs from ES
    options on every launch. Write `es_settings.cfg` instead, which supports a per-game
    form: `<system>["<rom filename>"].<key>`.
-3. **RetroBat is the authority on file extensions and on which BIOS to fetch**, not RomM, and
+3. **RetroBat is the authority on file extensions and on where firmware goes**, not RomM, and
    **neither gates a sync.** Read `<extension>` from the live `es_systems.cfg` and report the
    members it omits as unlisted in EmulationStation; never exclude on it, because it is a union
    across every emulator a system offers and cannot say what the running one opens. The work
-   that matters is landing multi-disc and multi-file games correctly, per platform. Join
-   firmware against `batocera-systems.json` on **md5 only**. That list is what to fetch, not
-   what a platform needs: it has no optional flag, and the emulator decides which files it
-   reads. So a file RomM lacks is reported and **never blocks a platform**, its sync or its
-   certification. Where a row reads a file the list files under another system, the bundled
-   manifest copies that entry across with its evidence (`gb` takes `sgb`'s four and `gbc`'s
-   boot ROM); it never names a hash of its own.
+   that matters is landing multi-disc and multi-file games correctly, per platform. Firmware is
+   the union of what every emulator a system offers reads: RetroBat's `batocera-systems.json`
+   decides the path and ranks first, retrobios's cited emulator profiles decide which hashes
+   each emulator accepts, and a boot measured on our tree overrides both. Join a single file on
+   **md5 only**, from a hash a source states, never from a name alone; a zip on its members'
+   crc32 and size. A file with no identity is reported, never fetched, and a file RomM lacks
+   **never blocks a platform**, its sync or its certification. The record is
+   `docs/design/decisions/firmware-from-emulator-evidence.md`.
 4. **The `game-start` and `game-end` hooks never touch the network.** Those two run inside
    the game-launch path: they write one spool file, exit, and start nothing. **`start`
    and `quit` are outside that path** and each spawns a detached `background <event>` pass,

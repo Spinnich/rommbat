@@ -28,8 +28,8 @@ game. Three of the nine can be staged ahead of time, which is a different claim 
 1. Folder mapping resolves, and the record names **which layer** resolved it.
 2. Multi-disc and multi-file games land correctly: the shapes this library holds for the
    system are recorded, and each lands where the emulator reads it and launches from ES.
-3. BIOS listed in `batocera-systems.json` resolved against RomM by md5; what RomM lacks is
-   listed, and never fails the pass.
+3. The firmware slots the system's emulators read, in the bundled manifest, resolved against
+   RomM by md5; what RomM lacks is listed, and never fails the pass.
 4. Save shape classified (A/B/C/D) **for this emulator**, and the battery save round-trips.
 5. Save state round-trips including its screenshot, per this emulator's `es_savestates.cfg`
    entry, with the declared directory confirmed against where it really writes.
@@ -195,8 +195,10 @@ work. All three counts are against the 51 systems above.
   install that has the system populated, not from hand-editing.
 - **BIOS is smaller than the system count suggests.** Sixteen of the 51 require nothing at all.
   Five (`mastersystem`, `vectrex`, `sega32x`, `ngp`, `ngpc`) have a requirement RetroBat names no
-  hash for, in whole, so step 3 records that in those words and the pass certifies on the other
-  eight. `neogeocd` is the outlier at 12 files, 10 of them hashless.
+  hash for, in whole. retrobios's evidence identifies every slot of `mastersystem` and `sega32x`
+  and two of `vectrex`'s three, and none of `ngp`'s or `ngpc`'s, which step 3 records in those
+  words while the pass certifies on the other eight. `neogeocd` is the outlier at 12 slots, all
+  identified.
 - **Artwork outweighs the ROMs on a retro platform, by a lot.** Measured across two whole
   platforms with three kinds each and no video: `atari2600` is 296.6 KB of ROM against 28 MB of
   artwork over 53 games, and `atari5200` is 757.5 KB against 46.8 MB over 76. A set whose budget
@@ -271,8 +273,10 @@ the seven `libretro` cores, `snes9x` being the stock row, with `bsnes-jg`, `bsne
 `mednafen_snes`, `mesen-s` and `snes9x2005`, then `mesen`, `mednafen`, `snes9x` standalone, `ares`,
 `bizhawk` under `BSNES`, `Faust` and `Snes9x`, and `jgenesis`. Mesen and Snes9x share `libretro`'s
 loose `.srm`; the other standalone rows needed a snes battery rule, and four rows a state declaration.
-RetroBat lists no `snes` firmware, and three rows refuse a DSP-1 cartridge without the chip's, which
-nothing RomMBat fetches (RB-317).
+RetroBat lists no `snes` firmware, and three rows refuse a DSP-1 cartridge without the chip's
+(RB-317). RomMBat fetches the split pair the `bsnes` cores and `mesen-s` read, and BizHawk's image,
+where RomM holds them; the joined `dsp1b.rom` that `mesen-s` and Mesen also take has a hash in no
+source, and jgenesis reads a key RetroBat never sets.
 
 **Nine of `mastersystem`'s twelve rows are certified**, at RetroBat 8.2.1: at RomM `5.3.0` on
 2026-09-24, `libretro` under `genesis_plus_gx`, the stock row, and `picodrive`, then `mesen`,
@@ -281,7 +285,8 @@ battery rule and three with a state declaration; and at RomM `5.3.1` on 2026-10-
 `kega-fusion` rows, once a rule anchored at the RetroBat root read Kega's `.ssm` from its own
 folder (RB-283, #381). `libretro`/`fbneo` is driven and not certified, for `megadrive`'s reason
 (RB-325). `SMSHawk` refuses to
-start without the US/EU BIOS, which RetroBat lists without a hash, so RomMBat cannot fetch it
+start without the US/EU BIOS, which RetroBat lists without a hash and RomMBat fetches by the hash
+retrobios's evidence gives it
 (RB-322).
 
 **All seventy-five are at the RomM `5.3.1` floor.** Steps 1 and 9 were re-run there on

@@ -5,20 +5,30 @@ using RomMBat.Core.Store;
 
 namespace RomMBat.Core.Content;
 
-/// <summary>What a BIOS pass would do about one required file.</summary>
+/// <summary>What a BIOS pass would do about one slot.</summary>
 public enum BiosAction
 {
-    /// <summary>The right file is already there and RomMBat knows it.</summary>
+    /// <summary>An accepted file is already there and RomMBat knows it.</summary>
     AlreadyPresent,
 
-    /// <summary>The right file is there and nothing recorded it, so it is recorded rather than fetched.</summary>
+    /// <summary>An accepted file is there and nothing recorded it, so it is recorded rather than fetched.</summary>
     Adopt,
 
-    /// <summary>RomM has these bytes and this install does not.</summary>
+    /// <summary>RomM has an accepted file and this install does not.</summary>
     Download,
 
     /// <summary>
-    /// A different file is at the destination.
+    /// RomMBat's own file is there, unchanged, and RomM now has a better-ranked accepted one.
+    /// </summary>
+    /// <remarks>
+    /// The one deliberate exception to never overwriting under <c>bios/</c>, and only for a file
+    /// RomMBat downloaded itself. A file the user placed or RomMBat adopted keeps its place and
+    /// carries <see cref="BiosStep.Better"/> instead.
+    /// </remarks>
+    Upgrade,
+
+    /// <summary>
+    /// A file is at the destination that the slot does not accept.
     /// </summary>
     /// <remarks>
     /// Never overwritten. A user's working BIOS beats RomMBat's idea of the correct one, and
@@ -26,18 +36,26 @@ public enum BiosAction
     /// </remarks>
     Mismatch,
 
-    /// <summary>Nothing in the RomM library hashes to this, so the user has to find it elsewhere.</summary>
+    /// <summary>A zip is at the destination whose members satisfy no reader. Left exactly as it is.</summary>
+    ContentsMismatch,
+
+    /// <summary>
+    /// RomM has several accepted files the ranking cannot separate, so none is fetched.
+    /// </summary>
+    /// <remarks>Reported rather than guessed: <see cref="BiosStep.Rivals"/> names them.</remarks>
+    Ambiguous,
+
+    /// <summary>Nothing in the RomM library is accepted here, so the user has to find it elsewhere.</summary>
     MissingFromLibrary,
 
     /// <summary>Not on disk, and the server was not asked. What an offline pass says instead of guessing.</summary>
     NotChecked,
 
     /// <summary>
-    /// RetroBat names no md5 for this file, so nothing can be said about it in either direction.
+    /// No source identifies this file, so nothing can be said about it in either direction.
     /// </summary>
     /// <remarks>
-    /// 180 of the 354 requirements, and 30 systems have nothing else. This is a fact about
-    /// RetroBat's manifest and not a gap in the user's library, which is why it is its own
+    /// A fact about the sources and not a gap in the user's library, which is why it is its own
     /// state rather than a kind of missing.
     /// </remarks>
     Unverifiable,
@@ -46,26 +64,37 @@ public enum BiosAction
     Blocked,
 }
 
-/// <summary>One BIOS file RetroBat lists, and what the pass would do about it.</summary>
+/// <summary>One firmware slot, and what the pass would do about it.</summary>
 public sealed record BiosStep
 {
     public required BiosRequirement Requirement { get; init; }
 
     public required BiosAction Action { get; init; }
 
-    /// <summary>The RomM record the md5 matched, when one did.</summary>
+    /// <summary>The RomM record to fetch, or the one a gap is about.</summary>
     public FirmwareRow? Match { get; init; }
 
     /// <summary>
-    /// A library record under the requirement's exact name, when no md5 can decide: a zip the
-    /// md5 found nothing for, or a hashless file not on disk.
+    /// The accepted file the pick chose, whose md5 the download is checked against. Null for a
+    /// zip fetched by name, which is checked by its members instead.
     /// </summary>
-    /// <remarks>
-    /// Pointed at, never fetched. RomM and RetroBat both hash a firmware zip as its container
-    /// (RM-28), so two builds of the same members disagree, and neither side says what the
-    /// members are; a hashless requirement has nothing to compare at all. It may well be what
-    /// the emulator wants; RomMBat cannot tell.
-    /// </remarks>
+    public BiosAccepted? Chosen { get; init; }
+
+    /// <summary>The md5 of what is on disk, where the step read it.</summary>
+    public string? Found { get; init; }
+
+    /// <summary>
+    /// A better-ranked file RomM holds, for a slot whose file RomMBat will not replace.
+    /// </summary>
+    public FirmwareRow? Better { get; init; }
+
+    /// <summary>For <see cref="BiosAction.Ambiguous"/>: the records the ranking could not separate.</summary>
+    public IReadOnlyList<FirmwareRow> Rivals { get; init; } = [];
+
+    /// <summary>
+    /// A library record under the slot's exact name, when nothing identifies the slot.
+    /// </summary>
+    /// <remarks>Pointed at, never fetched: with no identity there is nothing to compare.</remarks>
     public FirmwareRow? SameName { get; init; }
 
     public long BytesToTransfer { get; init; }
@@ -74,6 +103,12 @@ public sealed record BiosStep
 
     /// <summary>Where this file belongs, relative to the RetroBat root.</summary>
     public RelativePath Path => Requirement.Path;
+
+    /// <summary>Which bytes cross the network, so a transfer several slots owe is made once.</summary>
+    public string? TransferKey => Match?.NormalizedMd5 ?? Chosen?.Md5;
+
+    /// <summary>True for a step that fetches something.</summary>
+    public bool Transfers => Action is BiosAction.Download or BiosAction.Upgrade;
 }
 
 /// <summary>What a BIOS pass would do, before anything is done.</summary>
@@ -84,22 +119,25 @@ public sealed record BiosPlan
     /// <summary>False when the server was never asked, which changes what a gap means.</summary>
     public bool CheckedAgainstServer { get; init; }
 
-    public IEnumerable<BiosStep> Downloads => Steps.Where(step => step.Action == BiosAction.Download);
+    /// <summary>The order a tie between regions was broken in.</summary>
+    public FirmwareRegionOrder RegionOrder { get; init; } = FirmwareRegionOrder.Default;
 
-    /// <summary>How many distinct files would cross the network. One md5 can owe several writes.</summary>
+    public IEnumerable<BiosStep> Downloads => Steps.Where(step => step.Transfers);
+
+    /// <summary>How many distinct files would cross the network. One file can owe several writes.</summary>
     public int DownloadCount =>
-        Downloads.Select(step => step.Requirement.Md5).Distinct(StringComparer.Ordinal).Count();
+        Downloads.Select(step => step.TransferKey).Distinct(StringComparer.Ordinal).Count();
 
-    /// <summary>What those downloads cost, counting each md5 once.</summary>
+    /// <summary>What those downloads cost, counting each file once.</summary>
     public long BytesToTransfer =>
         Downloads
-            .GroupBy(step => step.Requirement.Md5, StringComparer.Ordinal)
+            .GroupBy(step => step.TransferKey, StringComparer.Ordinal)
             .Sum(group => group.First().BytesToTransfer);
 
     public int Count(BiosAction action) => Steps.Count(step => step.Action == action);
 
     /// <summary>True when the pass would write nothing at all.</summary>
-    public bool IsNoOp => Steps.All(step => step.Action is not (BiosAction.Download or BiosAction.Adopt));
+    public bool IsNoOp => Steps.All(step => step.Action is not (BiosAction.Download or BiosAction.Adopt or BiosAction.Upgrade));
 
     public string Summary
     {
@@ -107,23 +145,33 @@ public sealed record BiosPlan
         {
             if (Steps.Count == 0)
             {
-                return "no BIOS is required for these systems";
+                return "no firmware is listed for these systems";
             }
 
             var parts = new List<string>();
+            var fetches = Downloads.Where(step => step.Action == BiosAction.Download).Select(step => step.TransferKey).Distinct(StringComparer.Ordinal).Count();
 
-            if (DownloadCount > 0)
+            if (fetches > 0)
             {
-                parts.Add($"{DownloadCount} to fetch ({ByteSize.Format(BytesToTransfer)})");
+                parts.Add($"{fetches} to fetch ({ByteSize.Format(BytesToTransfer)})");
             }
 
+            Add(BiosAction.Upgrade, "to upgrade");
             Add(BiosAction.Adopt, "already on disk to adopt");
             Add(BiosAction.AlreadyPresent, "present");
-            Add(BiosAction.Mismatch, "on disk but not what RetroBat expects");
+            Add(BiosAction.Mismatch, "on disk but not a file any reader accepts");
+            Add(BiosAction.ContentsMismatch, "zips on disk whose contents no reader accepts");
+            Add(BiosAction.Ambiguous, "with several equally ranked files in RomM");
             Add(BiosAction.MissingFromLibrary, "not in your RomM library");
             Add(BiosAction.NotChecked, "not on disk, and RomM was not asked");
-            Add(BiosAction.Unverifiable, "RetroBat names no hash for");
+            Add(BiosAction.Unverifiable, "no source identifies");
             Add(BiosAction.Blocked, "blocked by the budget");
+
+            var better = Steps.Count(step => step.Better is not null);
+            if (better > 0)
+            {
+                parts.Add($"{better} where RomM has a better-ranked file");
+            }
 
             return parts.Count == 0 ? "nothing to do" : string.Join(", ", parts);
 
@@ -140,26 +188,30 @@ public sealed record BiosPlan
 }
 
 /// <summary>
-/// Works out which BIOS files a set of RetroBat systems needs, and where each one stands.
+/// Works out which firmware a set of RetroBat systems' emulators read, and where each slot stands.
 /// </summary>
 /// <remarks>
-/// <b>The join is md5 and nothing else.</b> Not the file name, because RomM serves files
-/// under names RetroBat does not use, and not <c>is_verified</c>, because it is false on
-/// files RetroBat requires: <c>psxonpsp660.bin</c>, without which no PS1 game runs at all,
-/// is false on every copy of it. Both are one-line changes a later contributor will make in
-/// good faith, so both are covered by tests carrying the real filenames.
+/// <b>A single file is joined on md5 and nothing else.</b> Not the file name, because RomM serves
+/// files under names RetroBat does not use, and not <c>is_verified</c>, because it is false on
+/// files RetroBat requires: <c>psxonpsp660.bin</c>, without which no PS1 game runs at all, is
+/// false on every copy of it. The manifest already holds every hash a source accepts.
 /// <para>
-/// <b>A requirement with no md5 is a third state.</b> It can be neither found in RomM nor
-/// recognized on disk, so it is reported as unverifiable and never as missing: telling a user
-/// to go and find a file RomMBat could not recognize if they already had it is worse than
-/// saying nothing. When nothing is at the path and RomM holds a file under the same name, the
-/// step names it as <see cref="BiosStep.SameName"/> for the user to judge.
+/// <b>Several accepted files can compete for one slot, and the pick is ranked</b>: RetroBat's own
+/// md5 first, since its ES BIOS check reports the file missing otherwise, then the emulator's
+/// priority, then <see cref="FirmwareRegionOrder"/>. A tie left after all three is
+/// <see cref="BiosAction.Ambiguous"/>: reported, never guessed.
 /// </para>
 /// <para>
-/// <b>Nothing here overwrites.</b> A file at a destination whose md5 disagrees is left exactly
-/// where it is, because a working BIOS the user installed beats this table's idea of the right
-/// one, and one whose md5 agrees is adopted rather than re-fetched. <c>bios/</c> holds
-/// thousands of files that are not RomMBat's, emulator user data and save states among them.
+/// <b>A zip is fetched by name and verified by its members.</b> Its container md5 depends on how
+/// it was packed (RM-28), so where no accepted md5 is in RomM, a same-named zip is fetched and
+/// lands only if <see cref="BiosZip"/> finds a reader it satisfies.
+/// </para>
+/// <para>
+/// <b>Nothing here overwrites a file RomMBat did not write.</b> A file at a destination that the
+/// slot does not accept is left exactly where it is, and an accepted one is adopted rather than
+/// re-fetched. The only replacement is <see cref="BiosAction.Upgrade"/>, of RomMBat's own file,
+/// unchanged since it landed, by a better-ranked one. <c>bios/</c> holds thousands of files that
+/// are not RomMBat's, emulator user data and save states among them.
 /// </para>
 /// </remarks>
 public sealed class BiosPlanner
@@ -187,8 +239,8 @@ public sealed class BiosPlanner
     /// <summary>Where an in-flight firmware transfer is kept.</summary>
     /// <remarks>
     /// Under the app's own directory, never beside the target, so an interrupted write cannot
-    /// leave a half-file in <c>bios/</c> for an emulator to load. Named from the md5, which is
-    /// what the file is, and which several destinations share.
+    /// leave a half-file in <c>bios/</c> for an emulator to load. Named from the md5 RomM gives
+    /// the file, which several destinations share.
     /// </remarks>
     public static RelativePath PartFor(string md5)
     {
@@ -233,9 +285,8 @@ public sealed class BiosPlanner
     /// </summary>
     /// <remarks>
     /// Separate from <see cref="FoldersNeedingBios"/> so a caller can tell an install that has
-    /// synced nothing from one whose systems simply need no firmware. Only 101 of RetroBat's 241
-    /// systems appear in the manifest, so the second is the ordinary case for a snes, n64 or
-    /// atari2600 library and reads as the first if the two are collapsed.
+    /// synced nothing from one whose systems simply need no firmware, which is the ordinary case
+    /// for many libraries and reads as the first if the two are collapsed.
     /// </remarks>
     public IReadOnlyList<string> SyncedFolders() =>
         [.. _store.Files.List(kind: LocalFileKind.Rom)
@@ -243,7 +294,7 @@ public sealed class BiosPlanner
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Order(StringComparer.OrdinalIgnoreCase)];
 
-    /// <summary>Every RetroBat folder that has a BIOS requirement and holds ROMs RomMBat synced.</summary>
+    /// <summary>Every RetroBat folder that has a firmware slot and holds ROMs RomMBat synced.</summary>
     public IReadOnlyList<string> FoldersNeedingBios() =>
         [.. SyncedFolders().Where(folder => _manifest.For(folder).Count > 0)];
 
@@ -267,6 +318,7 @@ public sealed class BiosPlanner
             ? [.. _manifest.Folders.Order(StringComparer.OrdinalIgnoreCase)]
             : folders.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
+        var order = FirmwareRegionOrder.From(_store.Settings);
         var budget = _store.Settings.GetInt64(SettingStore.ContentMaxBytes);
         var floor = _store.Settings.GetInt64(SettingStore.FreeSpaceFloorBytes)
             ?? SettingStore.DefaultFreeSpaceFloorBytes;
@@ -276,40 +328,43 @@ public sealed class BiosPlanner
         var steps = new List<BiosStep>();
 
         // Two counters, because the two costs are not the same. The bytes cross the network
-        // once per md5 however many systems want them, but they land once per destination and
+        // once per file however many systems want them, but they land once per destination and
         // the budget is a disk budget: a hash owing three paths puts three files on the disk.
         var charged = new HashSet<string>(StringComparer.Ordinal);
         var placed = new HashSet<RelativePath>();
 
-        // A hash whose transfer will not happen cannot be copied to its other destinations
-        // either, so the first refusal decides them all rather than each one deciding alone.
+        // A transfer that will not happen cannot be copied to its other destinations either, so
+        // the first refusal decides them all rather than each one deciding alone.
         var refused = new Dictionary<string, string>(StringComparer.Ordinal);
 
         foreach (var folder in wanted)
         {
             foreach (var requirement in _manifest.For(folder))
             {
-                var step = Inspect(requirement, candidates);
+                var step = Inspect(requirement, candidates, order);
 
-                if (step.Action == BiosAction.Download)
+                if (step.Transfers)
                 {
-                    var md5 = requirement.Md5!;
+                    var key = step.TransferKey!;
 
-                    if (refused.TryGetValue(md5, out var earlier))
+                    if (refused.TryGetValue(key, out var earlier))
                     {
                         steps.Add(Block(step, earlier));
                         continue;
                     }
 
-                    var transfers = !charged.Contains(md5);
-                    var disk = placed.Contains(requirement.Path) ? 0 : step.BytesToTransfer;
+                    var transfers = !charged.Contains(key);
+
+                    // An upgrade replaces a file the budget already counts, so only the growth is new.
+                    var replaced = step.Action == BiosAction.Upgrade ? new FileInfo(_install.Resolve(step.Path)).Length : 0;
+                    var disk = placed.Contains(requirement.Path) ? 0 : Math.Max(0, step.BytesToTransfer - replaced);
 
                     if (budget is { } cap && managed + disk > cap)
                     {
                         var reason = $"the {ByteSize.Format(cap)} budget is full. Raise it, or evict a game "
                             + "to make room. A system without its BIOS will not launch.";
 
-                        Refuse(md5, reason, transfers);
+                        Refuse(key, reason, transfers);
                         steps.Add(Block(step, reason));
                         continue;
                     }
@@ -319,14 +374,14 @@ public sealed class BiosPlanner
                         var reason = $"this drive would drop below the {ByteSize.Format(floor)} of free space "
                             + "RomMBat is told to leave.";
 
-                        Refuse(md5, reason, transfers);
+                        Refuse(key, reason, transfers);
                         steps.Add(Block(step, reason));
                         continue;
                     }
 
                     managed += disk;
                     free -= disk;
-                    charged.Add(md5);
+                    charged.Add(key);
                     placed.Add(requirement.Path);
                 }
 
@@ -334,13 +389,13 @@ public sealed class BiosPlanner
             }
         }
 
-        // Only a refusal of the transfer itself carries to the hash's other destinations. One
+        // Only a refusal of the transfer itself carries to its other destinations. One
         // destination blocked after the bytes were already paid for blocks nothing else.
-        void Refuse(string md5, string reason, bool transfers)
+        void Refuse(string key, string reason, bool transfers)
         {
             if (transfers)
             {
-                refused[md5] = reason;
+                refused[key] = reason;
             }
         }
 
@@ -348,8 +403,35 @@ public sealed class BiosPlanner
         {
             Steps = steps,
             CheckedAgainstServer = candidates is not null,
+            RegionOrder = order,
         };
     }
+
+    /// <summary>
+    /// Ranks the accepted files RomM can serve, best first, and says whether the best is a tie.
+    /// </summary>
+    public static (IReadOnlyList<(BiosAccepted Accepted, FirmwareRow Row)> Ranked, bool Tied) Rank(
+        BiosRequirement requirement,
+        IReadOnlyDictionary<string, FirmwareRow> candidates,
+        FirmwareRegionOrder order)
+    {
+        ArgumentNullException.ThrowIfNull(requirement);
+        ArgumentNullException.ThrowIfNull(candidates);
+        ArgumentNullException.ThrowIfNull(order);
+
+        var ranked = requirement.Accepted
+            .Select(accepted => (Accepted: accepted, Row: candidates.TryGetValue(accepted.Md5, out var row) ? row : null))
+            .Where(pair => pair.Row is { IsFetchable: true })
+            .Select(pair => (pair.Accepted, Row: pair.Row!))
+            .OrderBy(pair => Key(pair.Accepted, order))
+            .ToList();
+
+        var tied = ranked.Count > 1 && Key(ranked[0].Accepted, order) == Key(ranked[1].Accepted, order);
+        return (ranked, tied);
+    }
+
+    private static (int RetroBat, int Priority, int Region) Key(BiosAccepted accepted, FirmwareRegionOrder order) =>
+        (accepted.IsRetroBats ? 0 : 1, accepted.Priority ?? int.MaxValue, order.Rank(accepted.Regions));
 
     private static BiosStep Block(BiosStep step, string reason) => step with
     {
@@ -358,24 +440,37 @@ public sealed class BiosPlanner
         Reason = reason,
     };
 
-    /// <summary>Decides where one required file stands.</summary>
-    private BiosStep Inspect(BiosRequirement requirement, IReadOnlyDictionary<string, FirmwareRow>? candidates)
+    /// <summary>Decides where one slot stands.</summary>
+    private BiosStep Inspect(
+        BiosRequirement requirement,
+        IReadOnlyDictionary<string, FirmwareRow>? candidates,
+        FirmwareRegionOrder order)
     {
         var step = new BiosStep { Requirement = requirement, Action = BiosAction.NotChecked };
         var absolute = _install.Resolve(requirement.Path);
         var info = new FileInfo(absolute);
 
-        if (requirement.Md5 is not { } wanted)
+        if (info.Exists)
         {
-            if (info.Exists)
+            return OnDisk(step, absolute, info, candidates, order);
+        }
+
+        // A reader that takes the file under another name has it already.
+        foreach (var alias in requirement.Aliases)
+        {
+            var other = _install.Resolve(alias);
+            if (File.Exists(other) && requirement.Accepts(ContentHasher.ComputeFileMd5(other)) is not null)
             {
                 return step with
                 {
-                    Action = BiosAction.Unverifiable,
-                    Reason = "a file is there, and RetroBat names no hash to check it against.",
+                    Action = BiosAction.AlreadyPresent,
+                    Reason = $"present as {alias.Name}, a name its reader accepts",
                 };
             }
+        }
 
+        if (requirement.IsUnverifiable)
+        {
             // A lead, never a join: the state stays Unverifiable and nothing is fetched.
             if (candidates is not null && SameNamed(requirement, candidates) is { } named)
             {
@@ -383,7 +478,7 @@ public sealed class BiosPlanner
                 {
                     Action = BiosAction.Unverifiable,
                     SameName = named,
-                    Reason = $"RomM has a {named.FileName} ({named.NormalizedMd5}). RetroBat names no hash "
+                    Reason = $"RomM has a {named.FileName} ({named.NormalizedMd5}). No source names a hash "
                         + "to say whether it is this file, so it is not fetched.",
                 };
             }
@@ -391,39 +486,7 @@ public sealed class BiosPlanner
             return step with
             {
                 Action = BiosAction.Unverifiable,
-                Reason = "RetroBat names no hash for this file, so RomMBat cannot find it or recognize it.",
-            };
-        }
-
-        if (info.Exists)
-        {
-            var known = _store.Files.Find(requirement.Path);
-
-            // The cheap path, and the one a second pass takes: the inventory says this is the
-            // file and the disk still agrees about its size.
-            if (known is { Kind: LocalFileKind.Firmware } recorded
-                && ContentHasher.Matches(recorded.Md5Hash, wanted)
-                && recorded.SizeBytes == info.Length)
-            {
-                return step with { Action = BiosAction.AlreadyPresent };
-            }
-
-            var found = ContentHasher.ComputeFileMd5(absolute);
-
-            if (ContentHasher.Matches(found, wanted))
-            {
-                return step with
-                {
-                    Action = BiosAction.Adopt,
-                    Reason = "already on disk and its content matches",
-                };
-            }
-
-            return step with
-            {
-                Action = BiosAction.Mismatch,
-                Reason = $"a different file is there ({found}). It is left exactly as it is: "
-                    + "a BIOS that works for you beats the one RetroBat lists.",
+                Reason = "no source names a hash for this file, so RomMBat cannot find it or recognize it.",
             };
         }
 
@@ -436,53 +499,195 @@ public sealed class BiosPlanner
             };
         }
 
-        if (candidates.TryGetValue(wanted, out var match) && match.IsFetchable)
+        var (ranked, tied) = Rank(requirement, candidates, order);
+
+        if (tied)
         {
+            var best = ranked.TakeWhile(pair => Key(pair.Accepted, order) == Key(ranked[0].Accepted, order)).ToList();
+
             return step with
             {
-                Action = BiosAction.Download,
-                Match = match,
-                BytesToTransfer = match.SizeBytes,
+                Action = BiosAction.Ambiguous,
+                Rivals = [.. best.Select(pair => pair.Row)],
+                Reason = $"RomM has {best.Count} files this slot accepts that nothing ranks apart "
+                    + $"({string.Join(", ", best.Select(pair => pair.Row.FileName))}), so none is fetched.",
             };
         }
 
-        if (match is null && SameNamedZip(requirement, candidates) is { } alike)
+        if (ranked.Count > 0)
         {
+            var (chosen, row) = ranked[0];
+
+            return step with
+            {
+                Action = BiosAction.Download,
+                Match = row,
+                Chosen = chosen,
+                BytesToTransfer = row.SizeBytes,
+            };
+        }
+
+        if (requirement.IsZip && SameNamed(requirement, candidates) is { } zip)
+        {
+            if (requirement.Contents.Count > 0)
+            {
+                return step with
+                {
+                    Action = BiosAction.Download,
+                    Match = zip,
+                    BytesToTransfer = zip.SizeBytes,
+                    Reason = $"fetched by name, and landed only if its members satisfy a reader",
+                };
+            }
+
             return step with
             {
                 Action = BiosAction.MissingFromLibrary,
-                SameName = alike,
-                Reason = $"RomM has a {alike.FileName} built differently ({alike.NormalizedMd5}). RomMBat "
-                    + "cannot see inside either archive to tell whether it is the same set, so it is not fetched.",
+                SameName = zip,
+                Reason = $"RomM has a {zip.FileName} built differently ({zip.NormalizedMd5}). No reader lists "
+                    + "what is inside it, so it is not fetched.",
             };
         }
+
+        var lost = requirement.Accepted
+            .Select(accepted => candidates.TryGetValue(accepted.Md5, out var row) ? row : null)
+            .FirstOrDefault(row => row is not null);
 
         return step with
         {
             Action = BiosAction.MissingFromLibrary,
-            Match = match,
+            Match = lost,
 
             // A row whose file the server lost reads as "your library has it" everywhere else
             // in RomM, so it is worth saying which of the two this is.
-            Reason = match is null
+            Reason = lost is null
                 ? null
                 : "RomM has a record for it but no longer has the file itself.",
         };
     }
 
-    /// <summary>A fetchable library zip under the requirement's exact name, if it is a zip.</summary>
-    /// <remarks>
-    /// Only a zip, because only a zip's md5 is over a container (RM-28). A plain file under the
-    /// same name with another md5 is other bytes, and the name says nothing about it.
-    /// </remarks>
-    private static FirmwareRow? SameNamedZip(
-        BiosRequirement requirement,
-        IReadOnlyDictionary<string, FirmwareRow> candidates) =>
-        requirement.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
-            ? SameNamed(requirement, candidates)
-            : null;
+    /// <summary>Decides where a slot stands when something is already at its path.</summary>
+    private BiosStep OnDisk(
+        BiosStep step,
+        string absolute,
+        FileInfo info,
+        IReadOnlyDictionary<string, FirmwareRow>? candidates,
+        FirmwareRegionOrder order)
+    {
+        var requirement = step.Requirement;
 
-    /// <summary>A fetchable library record under the requirement's exact name, the lowest id first.</summary>
+        if (requirement.IsUnverifiable)
+        {
+            return step with
+            {
+                Action = BiosAction.Unverifiable,
+                Reason = "a file is there, and no source names a hash to check it against.",
+            };
+        }
+
+        var known = _store.Files.Find(requirement.Path);
+
+        // The cheap path, and the one a second pass takes: the inventory says this is the file
+        // and the disk still agrees about its size. A zip was checked by its members when it was
+        // recorded, so its recorded md5 stands for that check.
+        if (known is { Kind: LocalFileKind.Firmware } recorded
+            && recorded.SizeBytes == info.Length
+            && (requirement.Accepts(recorded.Md5Hash) is not null || (requirement.Contents.Count > 0 && recorded.Md5Hash is not null)))
+        {
+            return Better(step with { Action = BiosAction.AlreadyPresent, Found = recorded.Md5Hash }, recorded, candidates, order);
+        }
+
+        var found = ContentHasher.ComputeFileMd5(absolute);
+
+        if (requirement.Accepts(found) is not null)
+        {
+            return Better(
+                step with { Action = BiosAction.Adopt, Found = found, Reason = "already on disk and its content matches" },
+                recorded: null,
+                candidates,
+                order);
+        }
+
+        if (requirement.Contents.Count > 0)
+        {
+            var satisfied = BiosZip.Satisfied(absolute, requirement.Contents);
+
+            if (satisfied is { Count: > 0 })
+            {
+                return step with
+                {
+                    Action = BiosAction.Adopt,
+                    Found = found,
+                    Reason = $"already on disk, and its members satisfy {string.Join(", ", satisfied)}",
+                };
+            }
+
+            return step with
+            {
+                Action = BiosAction.ContentsMismatch,
+                Found = found,
+                Reason = "a zip is there whose members satisfy none of its readers. It is left exactly as it is.",
+            };
+        }
+
+        return step with
+        {
+            Action = BiosAction.Mismatch,
+            Found = found,
+            Reason = $"a different file is there ({found}). It is left exactly as it is: "
+                + "a BIOS that works for you beats the one the sources list.",
+        };
+    }
+
+    /// <summary>
+    /// Turns a present file into an upgrade or a note when RomM now has a better-ranked one.
+    /// </summary>
+    /// <remarks>
+    /// Only RomMBat's own download, still the bytes it landed, is replaced. Anything the user put
+    /// there, or RomMBat adopted, keeps its place and the report names what RomM has instead.
+    /// </remarks>
+    private BiosStep Better(
+        BiosStep step,
+        LocalFile? recorded,
+        IReadOnlyDictionary<string, FirmwareRow>? candidates,
+        FirmwareRegionOrder order)
+    {
+        if (candidates is null || step.Requirement.Accepts(step.Found) is not { } current)
+        {
+            return step;
+        }
+
+        var (ranked, tied) = Rank(step.Requirement, candidates, order);
+
+        if (ranked.Count == 0 || tied || ranked[0].Accepted.Md5 == current.Md5 || Key(ranked[0].Accepted, order).CompareTo(Key(current, order)) >= 0)
+        {
+            return step;
+        }
+
+        var (chosen, row) = ranked[0];
+
+        if (recorded is { Origin: FileOrigin.Synced }
+            && ContentHasher.Matches(ContentHasher.ComputeFileMd5(_install.Resolve(step.Path)), recorded.Md5Hash))
+        {
+            return step with
+            {
+                Action = BiosAction.Upgrade,
+                Match = row,
+                Chosen = chosen,
+                BytesToTransfer = row.SizeBytes,
+                Reason = $"RomMBat's own {step.Requirement.FileName} is replaced by a better-ranked file RomM now has ({row.FileName})",
+            };
+        }
+
+        return step with
+        {
+            Better = row,
+            Reason = $"RomM has a better-ranked file for this slot ({row.FileName}, {row.NormalizedMd5}). "
+                + "The one here was not downloaded by RomMBat, so it stays.",
+        };
+    }
+
+    /// <summary>A fetchable library record under the slot's exact name, the lowest id first.</summary>
     private static FirmwareRow? SameNamed(
         BiosRequirement requirement,
         IReadOnlyDictionary<string, FirmwareRow> candidates)

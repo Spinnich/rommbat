@@ -3,18 +3,19 @@ using RomM.Client.Catalog;
 using RomMBat.Core;
 using RomMBat.Core.Content;
 using RomMBat.Core.RetroBat;
+using RomMBat.Core.Store;
 
 namespace RomMBat.Agent.Commands;
 
 /// <summary>
-/// <c>bios</c>: fetch what RetroBat lists under <c>bios/</c>, and report what is missing.
+/// <c>bios</c>: fetch the firmware every emulator a system offers reads, and report what is missing.
 /// </summary>
 /// <remarks>
 /// <b>The report is the point, and it works offline.</b> Listed firmware RomM does not have is
 /// the most useful thing this feature can tell a user, because on an emulator that needs it
 /// the game appears in EmulationStation and dies on launch. It is information, never a gate:
-/// RetroBat's list has no optional flag, and whether a missing file matters is the emulator's
-/// call, so a gap exits zero and blocks nothing. Without the server it still
+/// the sources say which emulator reads a file and not which one the user runs, so a gap exits
+/// zero and blocks nothing. Without the server it still
 /// answers from the bundled manifest and what is on disk; with it, the absent half splits into
 /// "RomM has it" and "not in your library" for the price of one request.
 /// <para>
@@ -34,6 +35,11 @@ internal static class BiosCommand
 
         var offline = command.Has("offline");
         var apply = command.Has("apply");
+
+        if (command.Has("region-order") && SetRegionOrder(context, command.Value("region-order")) is { } refused)
+        {
+            return refused;
+        }
 
         // Which systems to cover. --all is every system the manifest names, which is the
         // whole-library report; the default is the folders this install actually holds ROMs
@@ -63,9 +69,8 @@ internal static class BiosCommand
             // positional for, in the path Validate cannot cover. Two different installs land
             // here, though, and one sentence cannot serve both: FoldersNeedingBios() filters by
             // the manifest, so it is empty both for an install that has synced nothing and for
-            // one whose systems need no firmware. The second is the ordinary case, since only
-            // 101 of RetroBat's 241 systems appear in the manifest at all, so a snes, n64 and
-            // atari2600 library reaches it fully populated.
+            // one whose systems' emulators read no firmware, which an atari2600 or a ports
+            // library reaches fully populated.
             if (folders.Count == 0)
             {
                 var synced = planner.SyncedFolders();
@@ -75,17 +80,17 @@ internal static class BiosCommand
                     Console.WriteLine(
                         "Nothing has been synced yet, so there is no library to report BIOS for.");
                     Console.WriteLine(
-                        "Run 'sync' first, or 'bios --all' for what RetroBat requires across "
-                            + "every system.");
+                        "Run 'sync' first, or 'bios --all' for the firmware every system's "
+                            + "emulators read.");
                 }
                 else
                 {
                     var systems = synced.Count == 1 ? "system" : "systems";
                     Console.WriteLine(
-                        $"None of the {synced.Count} {systems} synced here has a BIOS requirement "
-                            + "RetroBat records, so there is nothing to fetch.");
+                        $"No emulator offered for the {synced.Count} {systems} synced here reads "
+                            + "firmware RomMBat can fetch, so there is nothing to do.");
                     Console.WriteLine(
-                        "Run 'bios --all' for what RetroBat requires across every system, or name "
+                        "Run 'bios --all' for the firmware every system's emulators read, or name "
                             + "a system to check it on its own.");
                 }
 
@@ -167,12 +172,11 @@ internal static class BiosCommand
     /// <c>--all</c> passes null and <c>FoldersNeedingBios()</c> returns names that came off
     /// this install in the first place, so neither wants validating.
     /// <para>
-    /// <b>The manifest cannot answer this on its own.</b> Only 101 of RetroBat's 241 systems
-    /// appear in <c>batocera-systems.json</c>, so absent from it is the ordinary case rather
-    /// than the error, and refusing every unknown key would refuse <c>snes</c>, <c>n64</c> and
-    /// <c>atari2600</c>. <see cref="EsSystemsFile"/> is the authority on what an install has,
-    /// which splits one outcome into three: named and required is the report, named and not in
-    /// the manifest says RetroBat needs no BIOS for it, and not named at all is a typo.
+    /// <b>The manifest cannot answer this on its own.</b> A system none of whose emulators reads
+    /// firmware has no slots, so absent from the manifest is an ordinary case rather than the
+    /// error. <see cref="EsSystemsFile"/> is the authority on what an install has, which splits
+    /// one outcome into three: named with slots is the report, named without any says nothing is
+    /// listed for it, and not named at all is a typo.
     /// </para>
     /// </remarks>
     /// <returns>An exit code when the run should stop, or null to carry on.</returns>
@@ -194,9 +198,9 @@ internal static class BiosCommand
             return ExitCode.Usage;
         }
 
-        // A real system RetroBat asks no firmware for. Said explicitly, because the alternative
-        // is the same "no BIOS is required" line a mistyped name would get if the check above
-        // let it through, and a user who cannot tell those apart cannot trust either.
+        // A real system nothing reads firmware for. Said explicitly, because the alternative is
+        // the same "nothing listed" line a mistyped name would get if the check above let it
+        // through, and a user who cannot tell those apart cannot trust either.
         var needNothing = folders
             .Where(folder => BiosManifest.Bundled.For(folder).Count == 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -205,7 +209,7 @@ internal static class BiosCommand
 
         foreach (var folder in needNothing)
         {
-            Console.WriteLine($"RetroBat requires no BIOS for {folder}.");
+            Console.WriteLine($"No firmware is listed for {folder}.");
         }
 
         // Only the named systems, and none of them needs anything, so there is no report to
@@ -214,6 +218,29 @@ internal static class BiosCommand
         return needNothing.Count == folders.Distinct(StringComparer.OrdinalIgnoreCase).Count()
             ? ExitCode.Ok
             : null;
+    }
+
+    /// <summary>Records a region order, or refuses one it cannot read.</summary>
+    /// <returns>An exit code when the run should stop, or null to carry on.</returns>
+    private static int? SetRegionOrder(AgentContext context, string? value)
+    {
+        if (string.Equals(value, "default", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Store.Settings.Set(SettingStore.FirmwareRegionOrder, (string?)null, DateTimeOffset.UtcNow);
+            return null;
+        }
+
+        if (!FirmwareRegionOrder.TryParse(value, out var order))
+        {
+            Console.Error.WriteLine(
+                "--region-order takes a comma-separated list of regions, each once, from: "
+                    + $"{string.Join(", ", FirmwareRegionOrder.Known.Order(StringComparer.Ordinal))}. "
+                    + "'default' restores usa,europe,japan,world.");
+            return ExitCode.Usage;
+        }
+
+        context.Store.Settings.Set(SettingStore.FirmwareRegionOrder, order.ToString(), DateTimeOffset.UtcNow);
+        return null;
     }
 
     /// <summary>Prints the plan, grouped so the states a user has to act on come last.</summary>
@@ -226,6 +253,8 @@ internal static class BiosCommand
             return;
         }
 
+        Console.WriteLine($"Where files compete for one slot, regions are preferred {plan.RegionOrder.Describe()}.");
+
         if (!plan.CheckedAgainstServer)
         {
             Console.WriteLine("(the server was not asked, so nothing here says whether RomM has a file)");
@@ -235,11 +264,18 @@ internal static class BiosCommand
 
         foreach (var group in plan.Steps.GroupBy(step => step.Requirement.Folder).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
         {
-            var interesting = group.Where(step => step.Action != BiosAction.AlreadyPresent).ToList();
+            // A slot no source identifies goes in the footer rather than the list, where it would
+            // read as a gap the user could close.
+            var interesting = group
+                .Where(step => step.Action is not (BiosAction.AlreadyPresent or BiosAction.Unverifiable) || step.Better is not null)
+                .ToList();
 
             if (interesting.Count == 0)
             {
-                Console.WriteLine($"  {group.Key}: all {group.Count()} present");
+                var present = group.Count(step => step.Action == BiosAction.AlreadyPresent);
+                Console.WriteLine(present > 0
+                    ? $"  {group.Key}: all {present} present"
+                    : $"  {group.Key}: nothing any source identifies");
                 continue;
             }
 
@@ -248,56 +284,97 @@ internal static class BiosCommand
             foreach (var step in interesting.OrderBy(step => Order(step.Action)).ThenBy(step => step.Path.Value, StringComparer.Ordinal))
             {
                 Console.WriteLine($"    {Describe(step),-24} {step.Path}");
+                Console.WriteLine($"      read by {Readers(step.Requirement)}");
 
                 // The hash is what a user needs to go looking with, so it is printed for the
                 // states where looking is the next step and withheld where it is noise.
-                if (step.Action is BiosAction.MissingFromLibrary && step.Requirement.Md5 is { } md5)
+                if (step.Action is BiosAction.MissingFromLibrary && step.Requirement.Accepted.Count > 0)
                 {
-                    Console.WriteLine($"      {md5}");
+                    Console.WriteLine($"      {string.Join(" or ", step.Requirement.Accepted.Take(3).Select(accepted => accepted.Md5))}");
                 }
 
                 if (step.Reason is { } reason
-                    && (step.Action is BiosAction.Mismatch or BiosAction.Blocked or BiosAction.MissingFromLibrary
-                        || step.SameName is not null))
+                    && (step.Action is BiosAction.Mismatch or BiosAction.ContentsMismatch or BiosAction.Blocked
+                        or BiosAction.MissingFromLibrary or BiosAction.Ambiguous or BiosAction.Upgrade
+                        || step.SameName is not null || step.Better is not null))
                 {
                     Console.WriteLine($"      {reason}");
                 }
             }
         }
 
-        var unverifiable = plan.Count(BiosAction.Unverifiable);
-        if (unverifiable > 0)
-        {
-            var named = plan.Steps.Count(step => step.Action == BiosAction.Unverifiable && step.SameName is not null);
+        // The footer lists what nothing identifies and what nothing ranks apart: the two states
+        // where RomMBat could not decide, as against the ones where the library lacks a file.
+        var unidentified = plan.Steps.Where(step => step.Action == BiosAction.Unverifiable).ToList();
+        var ambiguous = plan.Count(BiosAction.Ambiguous);
 
-            Console.WriteLine();
+        if (unidentified.Count == 0 && ambiguous == 0)
+        {
+            return;
+        }
+
+        Console.WriteLine();
+
+        if (unidentified.Count > 0)
+        {
             Console.WriteLine(
-                $"{unverifiable} of these are files RetroBat lists without a hash. RomMBat can neither find "
-                    + "them in RomM nor recognize them on disk, so it says nothing about whether you have them."
-                    + (named > 0
-                        ? $" For {named} of them RomM holds a file under the same name, named above, which is "
-                            + "never fetched: whether it is the right one is yours to judge."
-                        : string.Empty));
+                $"{unidentified.Count} {(unidentified.Count == 1 ? "file is" : "files are")} listed with no source "
+                    + "naming a hash. RomMBat can neither find them in RomM nor recognize them on disk, so it "
+                    + "says nothing about whether you have them:");
+
+            foreach (var step in unidentified
+                .OrderBy(step => step.Requirement.Folder, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(step => step.Path.Value, StringComparer.Ordinal))
+            {
+                var lead = step.SameName is { } same ? $"  (RomM has a {same.FileName} ({same.NormalizedMd5}))" : string.Empty;
+                Console.WriteLine($"  {step.Requirement.Folder}: {step.Path}{lead}");
+            }
+
+            var named = unidentified.Count(step => step.SameName is not null);
+            if (named > 0)
+            {
+                Console.WriteLine(
+                    $"For {named} of them RomM holds a file under the same name, which is never fetched: "
+                        + "whether it is the right one is yours to judge.");
+            }
+        }
+
+        if (ambiguous > 0)
+        {
+            Console.WriteLine(
+                $"{ambiguous} {(ambiguous == 1 ? "slot has" : "slots have")} several files in RomM that nothing "
+                    + "ranks apart, named above. None is fetched while RomM holds more than one of them.");
         }
     }
+
+    /// <summary>Who reads a slot, in the words of es_systems.cfg's rows.</summary>
+    private static string Readers(BiosRequirement requirement) =>
+        string.Join(", ", requirement.Readers.Select(reader =>
+            reader == BiosAccepted.RetroBat ? "RetroBat's own list" : reader));
 
     private static int Order(BiosAction action) => action switch
     {
         BiosAction.Download => 0,
-        BiosAction.Adopt => 1,
-        BiosAction.Blocked => 2,
-        BiosAction.Mismatch => 3,
-        BiosAction.MissingFromLibrary => 4,
-        BiosAction.NotChecked => 5,
-        _ => 6,
+        BiosAction.Upgrade => 1,
+        BiosAction.Adopt => 2,
+        BiosAction.Blocked => 3,
+        BiosAction.Ambiguous => 4,
+        BiosAction.Mismatch => 5,
+        BiosAction.ContentsMismatch => 6,
+        BiosAction.MissingFromLibrary => 7,
+        BiosAction.NotChecked => 8,
+        _ => 9,
     };
 
     private static string Describe(BiosStep step) => step.Action switch
     {
         BiosAction.Download => $"fetch {ByteSize.Format(step.BytesToTransfer)}",
-        BiosAction.Adopt => "already on disk",
-        BiosAction.AlreadyPresent => "present",
+        BiosAction.Upgrade => $"upgrade {ByteSize.Format(step.BytesToTransfer)}",
+        BiosAction.Adopt => step.Better is null ? "already on disk" : "on disk, RomM has better",
+        BiosAction.AlreadyPresent => step.Better is null ? "present" : "present, RomM has better",
         BiosAction.Mismatch => "a different file",
+        BiosAction.ContentsMismatch => "a zip that does not fit",
+        BiosAction.Ambiguous => "several to choose from",
         BiosAction.MissingFromLibrary => "not in your library",
         BiosAction.NotChecked => "not on disk",
         BiosAction.Blocked => "blocked",

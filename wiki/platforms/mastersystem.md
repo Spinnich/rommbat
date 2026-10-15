@@ -4,7 +4,7 @@
 | --------------- | ---------------------------------------------------------------------------- |
 | RetroBat system | `mastersystem`                                                               |
 | Games go in     | `roms\mastersystem`                                                          |
-| BIOS            | Only for BizHawk's SMSHawk, and you supply it yourself                       |
+| BIOS            | Only for BizHawk's SMSHawk, fetched when your library has it                 |
 | Tested rows     | [Platforms](index.md#mastersystem) lists each emulator and whether it passed |
 
 ## Which emulator to use
@@ -22,12 +22,14 @@ own menu before your pad works.
 Only BizHawk's SMSHawk needs a BIOS, and it refuses to start any game without one. Every other
 emulator starts without.
 
-RomMBat cannot fetch the Master System BIOS, because RetroBat lists it without the checksum
-RomMBat finds files by ([Files RomMBat cannot fetch](../using/bios.md#files-rommbat-cannot-fetch)).
-If you use SMSHawk, copy these into RetroBat's `bios` folder yourself:
+A sync fetches both Master System BIOS files from your RomM library, under the names SMSHawk looks
+for, whatever they are called in RomM:
 
 - `[BIOS] Sega Master System (USA, Europe) (v1.3).sms`, for a USA or European game
 - `[BIOS] Sega Master System (Japan) (v2.1).sms`, for a Japanese one
+
+It also fetches the copies some RetroArch cores read under their own names, such as `bios_U.sms`.
+If your library lacks them, see [BIOS and firmware](../using/bios.md).
 
 ## Saves
 

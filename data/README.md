@@ -8,7 +8,7 @@ Tables RomMBat ships and reads at runtime, and three that nothing reads at runti
 | --------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `retrobat/platforms.json`               | RomM slug to an **ordered list** of RetroBat folders                  | `systems_names.lst`, resolved by RomM's `backend/utils/platform_aliases.py` |
 | `retrobat/save_shapes.json`             | RetroBat system to save class A/B/C/D                                 | `tools/m0-probes/probe2-emit-data.py`, run against a real install           |
-| `retrobat/bios.json`                    | RetroBat system to the firmware it requires                           | `reference/batocera-systems.json`, thinned by a generator                   |
+| `retrobat/bios.json`                    | RetroBat system to the firmware slots its emulators read              | `batocera-systems.json` and `reference/retrobios/`, joined by a generator   |
 | `retrobat/save_rules.json`              | Which files under `saves/` and two emulators' folders are whose saves | `tools/m6-probes/m6-emit-save-rules.py`, plus hand-measured rules           |
 | `retrobat/multi_file.json`              | Systems whose multi-file ROMs sync, and how each lands                | One certification pass per system                                           |
 | `retrobat/es_savestates.supplement.xml` | State entries for emulators `es_savestates.cfg` leaves out            | Driven on a real install, one row at a time                                 |
@@ -18,8 +18,10 @@ to its save subdirectories, in Grout's shape, as `tools/m0-probes/probe2-emit-da
 from a real install; it is not embedded. `certification.json` holds each certified or driven
 `(system, emulator, core)` row, and the guide's platform table is generated from it.
 `retrobat/firmware-rows.json` joins each `(emulator, core)` row in `es_systems.cfg` to the
-retrobios source describing its firmware, where a profile's declared core name does not; it
-chooses the slice of `reference/retrobios/` that `tools/vendor-retrobios.py` vendors. See
+retrobios source describing its firmware, where a profile's declared core name does not, and
+names each emulator's firmware directory and each folder's retrobios system ids; it chooses the
+slice of `reference/retrobios/` that `tools/vendor-retrobios.py` vendors, and the generator of
+`bios.json` reads it. See
 [reference-data.md](../docs/architecture/reference-data.md).
 
 ## `platforms.json` is generated, and is only layer 3 of five
@@ -45,7 +47,7 @@ shortest name, then alphabetical.
 twin sharing one. The local platform map is keyed by `fs_slug`, which RomM does constrain
 unique.
 
-## `bios.json` is generated too, and settles what RetroBat requires
+## `bios.json` is generated too, and is the union of every emulator's firmware
 
 Regenerate with `python tools/build-bios-manifest.py`, or check it is current with
 `--check`. Embedded into `RomMBat.Core` the same way `platforms.json` is, and **edited
@@ -53,16 +55,19 @@ through the generator, not by hand**. `reference/refresh.sh` and the `reference-
 job both run the `--check`, so a hand edit fails there rather than shipping.
 
 It is bundled rather than read from the install because there is nothing to read: a real
-8.2.1 install carries the manifest only as a .NET string resource inside
-`emulationstation/batocera-systems.exe`, byte-identical to the vendored
-`reference/batocera-systems.json`. That is the one place `es_systems.cfg`'s "the live
-install always wins" rule cannot apply.
+install carries RetroBat's list only as a .NET string resource inside
+`emulationstation/batocera-systems.exe` (RB-379). That is the one place `es_systems.cfg`'s
+"the live install always wins" rule cannot apply.
 
-The transform is deliberately thin, since the vendored file is the authority: an empty md5
-becomes null, which reads as "RetroBat names no hash for this" rather than as a missing
-file; the destination path is kept exactly as RetroBat writes it; and two system keys are
-aliased to the RetroBat folder of the same system. The join against RomM's firmware is on
-**md5 only**, per rule 3.
+Schema 2 keys each RetroBat folder to its firmware slots and a `reported` list. A slot has a
+`path` relative to the RetroBat root; `accepted`, every file accepted there as
+`{md5, sha1, size, priority, region, from}`, ranked with RetroBat's own md5 first; `readers`, the
+`emulator/core` rows that read it and `retrobat` where RetroBat's list names it; `required`; an
+optional `supplement`; and for a zip, `contents`, the members each reader lists by crc32 and size.
+`reported` holds what is read but never fetched, with why: no identity, a path outside `bios/`,
+an emulator with no cited directory, a MAME software list, firmware an emulator installs itself.
+Who decides what is in
+[firmware-from-emulator-evidence](../docs/design/decisions/firmware-from-emulator-evidence.md).
 
 ## The two save tables depart from Grout in two ways, deliberately
 

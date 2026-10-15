@@ -15,6 +15,7 @@ record exists where no skill or [architecture](../../architecture/README.md) fil
 | [set-resolution-caps-and-walks](set-resolution-caps-and-walks.md)         | How caps choose members, and when a walk may retire one              |
 | [eviction-order-and-policies](eviction-order-and-policies.md)             | Eviction's preview, its honored policies and its order               |
 | [firmware-budget-and-triggers](firmware-budget-and-triggers.md)           | Firmware is budgeted, never evicted, and fetched before ROMs         |
+| [firmware-from-emulator-evidence](firmware-from-emulator-evidence.md)     | Which firmware a sync fetches, where it lands, and how it is picked  |
 | [hooks-install-on-first-sync](hooks-install-on-first-sync.md)             | Hooks install on the first sync, announced, with no opt-in           |
 | [clock-file-keeps-its-own-slot](clock-file-keeps-its-own-slot.md)         | A `.rtc` stays one slot until RomM bundles saves                     |
 | [class-b-batch-report](class-b-batch-report.md)                           | Class B siblings report as one batch; `batch_key` stays unwritten    |

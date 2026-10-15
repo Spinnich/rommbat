@@ -28,7 +28,7 @@ ROM here carries its No-Intro name (RB-325).
 **It certifies those nine rows and nothing wider.** The two `libretro` rows needed nothing. The six
 standalone rows each needed a battery rule for `mastersystem`, `kega-fusion`'s read from the
 RetroBat root, and `mesen`, `mednafen`, `ares` and `kega-fusion` a state declaration as well. **`bizhawk`/`SMSHawk` is certified with the US/EU BIOS in `bios\`**, which it refuses to
-start without and which RomMBat cannot fetch (below).
+start without and which `bios mastersystem` fetches when RomM holds it (below).
 
 ## Where each row stands
 

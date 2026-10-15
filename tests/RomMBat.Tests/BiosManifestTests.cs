@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
-using RomMBat.Core.Content;
 using RomMBat.Core.Paths;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
@@ -10,18 +9,19 @@ using Xunit;
 namespace RomMBat.Tests;
 
 /// <summary>
-/// The bundled BIOS manifest, and the rules its shape forces on everything that reads it.
+/// The bundled firmware manifest, and the rules its shape forces on everything that reads it.
 /// </summary>
 /// <remarks>
-/// The manifest is bundled rather than read from the install because a real RetroBat 8.2.1 has
-/// no <c>batocera-systems.json</c> anywhere: it is a string resource inside
-/// <c>emulationstation/batocera-systems.exe</c>. These tests hold the generated copy to the
-/// vendored original, so a regeneration that quietly dropped a system fails here.
+/// The manifest joins RetroBat's <c>batocera-systems.json</c> to retrobios's emulator profiles,
+/// and is bundled rather than read from the install because a real RetroBat has no
+/// <c>batocera-systems.json</c> anywhere. These tests hold the generated copy to the vendored
+/// original, so a regeneration that quietly dropped a system fails here. The counts are the
+/// ones <c>reference/verify.py</c> derives.
 /// </remarks>
 public sealed class BiosManifestTests
 {
     [Fact]
-    public void The_bundled_manifest_carries_every_entry_the_vendored_one_does()
+    public void Every_entry_RetroBat_lists_is_a_slot_or_reported_with_its_path_and_md5_unchanged()
     {
         var manifest = Fixtures.LoadBiosManifest();
         using var document = JsonDocument.Parse(File.ReadAllText(Fixtures.BatoceraSystemsJson));
@@ -30,48 +30,106 @@ public sealed class BiosManifestTests
             .EnumerateObject()
             .SelectMany(system => system.Value.GetProperty("biosFiles").EnumerateArray()
                 .Select(file => (
-                    System: system.Name,
+                    Folder: Alias(system.Name),
                     Md5: file.GetProperty("md5").GetString()!.Trim().ToLowerInvariant(),
                     Path: file.GetProperty("file").GetString()!)))
             .ToList();
 
         Assert.Equal(360, upstream.Count);
 
-        // The six entries under emulators/ are refused by the reader, so the bundled set is
-        // the rest. All six are hashless, which is why refusing them costs nothing.
-        var expected = upstream.Where(entry => BiosManifest.IsInsideBios(entry.Path)).ToList();
-        Assert.Equal(354, expected.Count);
-        Assert.All(upstream.Except(expected), entry => Assert.Empty(entry.Md5));
+        // Six land outside bios/ and sixty-three are MAME's software lists, which are hash
+        // metadata RetroBat ships and not firmware. Both are reported, never slotted.
+        var reported = upstream
+            .Where(entry => !BiosManifest.IsInsideBios(entry.Path) || entry.Path.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
-        Assert.Equal(
-            expected.Select(entry => (entry.System, entry.Md5, entry.Path)).Order().ToList(),
-            manifest.Requirements
-                .Where(requirement => requirement.Supplement is null)
-                .Select(requirement => (requirement.System, Md5: requirement.Md5 ?? string.Empty, Path: requirement.Path.Value))
-                .Order()
-                .ToList());
+        Assert.Equal(69, reported.Count);
+        Assert.All(reported, entry => Assert.Empty(entry.Md5));
+        Assert.All(reported, entry => Assert.Contains(
+            manifest.ReportedFor(entry.Folder),
+            item => item.Path == entry.Path && item.Readers.Contains(BiosAccepted.RetroBat)));
+
+        var slotted = upstream.Except(reported).ToList();
+        Assert.Equal(291, slotted.Count);
+
+        Assert.All(slotted, entry =>
+        {
+            var slot = Assert.Single(manifest.For(entry.Folder), slot => slot.Path.Value == entry.Path);
+            Assert.Contains(BiosAccepted.RetroBat, slot.Readers);
+            Assert.Equal(entry.Md5.Length == 0 ? null : entry.Md5, slot.RetroBatMd5);
+        });
     }
 
     [Fact]
-    public void The_counts_the_plan_quotes_come_out_of_the_bundled_copy()
+    public void The_counts_verify_py_derives_come_out_of_the_bundled_copy()
+    {
+        var manifest = Fixtures.LoadBiosManifest();
+        var slots = manifest.Requirements;
+
+        Assert.Equal(127, manifest.Folders.Count);
+        Assert.Equal(943, slots.Count);
+        Assert.Empty(manifest.RejectedPaths);
+
+        var retrobat = slots.Where(slot => slot.Readers.Contains(BiosAccepted.RetroBat)).ToList();
+        Assert.Equal(296, retrobat.Count);
+        Assert.Equal(179, retrobat.Count(slot => slot.RetroBatMd5 is not null));
+
+        // RetroBat's hashless entries a second source identifies: 24 zips by their members and
+        // 22 single files by a stated hash, a catalog name or RomM's list.
+        Assert.Equal(46, retrobat.Count(slot => slot.RetroBatMd5 is null && !slot.IsUnverifiable));
+
+        Assert.Equal(71, slots.Count(slot => slot.IsUnverifiable));
+        Assert.Equal(327, slots.Count(slot => slot.Contents.Count > 0));
+        Assert.Equal(4, slots.Count(slot => slot.Accepted.Count > 1));
+        Assert.Equal(352, slots.SelectMany(slot => slot.Accepted).Select(accepted => accepted.Md5).Distinct().Count());
+        Assert.Equal(615, slots.Select(slot => slot.Path).Distinct().Count());
+    }
+
+    [Fact]
+    public void Master_System_carries_the_hash_RetroBat_lists_without()
     {
         var manifest = Fixtures.LoadBiosManifest();
 
-        Assert.Equal(101, manifest.Folders.Count);
-        Assert.Equal(354, manifest.Requirements.Count(requirement => requirement.Supplement is null));
-        Assert.Equal(6, manifest.RejectedPaths.Count);
+        // RetroBat names both [BIOS] files without a hash (#533). The US/EU one is No-Intro's own
+        // name for 840481177270d5642a14ca71ee72844c, which BizHawk's database states by sha1, and
+        // emulatorlauncher points SMSHawk at RetroBat's name (RB-322).
+        var usa = Assert.Single(
+            manifest.For("mastersystem"),
+            slot => slot.Path.Value == "bios/[BIOS] Sega Master System (USA, Europe) (v1.3).sms");
 
-        // 156, not 157. The set is built without the blank md5, which 186 of the 360 entries
-        // carry; counting it inflated every number derived from this set by one. namco2x6's two
-        // entries and chihiro's five are hashless, so they add nothing here.
-        Assert.Equal(156, manifest.Requirements.Where(r => r.Md5 is not null).Select(r => r.Md5).Distinct().Count());
-        Assert.Equal(180, manifest.Requirements.Count(requirement => requirement.IsUnverifiable));
+        var accepted = Assert.Single(usa.Accepted);
+        Assert.Equal("840481177270d5642a14ca71ee72844c", accepted.Md5);
+        Assert.Equal(["bizhawk", "catalog"], accepted.From);
+        Assert.Null(usa.RetroBatMd5);
+        Assert.Contains("bizhawk/SMSHawk", usa.Readers);
+        Assert.Contains(BiosAccepted.RetroBat, usa.Readers);
 
-        // 30, as the 360 entries give: every refused entry belongs to camplynx, whose entries
-        // under bios/ are hashless too, so refusing them removes no system from this count.
-        Assert.Equal(30, manifest.Requirements
-            .GroupBy(requirement => requirement.System)
-            .Count(system => system.All(requirement => requirement.IsUnverifiable)));
+        // Genesis Plus GX reads its own names, which RomM's list identifies.
+        var gpgx = Assert.Single(manifest.For("mastersystem"), slot => slot.Path.Value == "bios/bios_U.sms");
+        Assert.Equal("840481177270d5642a14ca71ee72844c", Assert.Single(gpgx.Accepted).Md5);
+        Assert.Equal(["libretro/genesis_plus_gx"], gpgx.Readers);
+        Assert.False(gpgx.Required);
+    }
+
+    [Fact]
+    public void A_ps1_library_gets_every_bios_its_libretro_cores_read_beside_RetroBat_s_one()
+    {
+        var manifest = Fixtures.LoadBiosManifest();
+        var psx = manifest.For("psx");
+
+        var retrobat = Assert.Single(psx, slot => slot.Path.Value == "bios/psxonpsp660.bin");
+        Assert.Equal("c53ca5908936d412331790f4426c6c33", retrobat.RetroBatMd5);
+
+        foreach (var scph in new[] { "scph5500.bin", "scph5501.bin", "scph5502.bin" })
+        {
+            var slot = Assert.Single(psx, slot => slot.Path.Value == $"bios/{scph}");
+            Assert.Single(slot.Accepted);
+            Assert.Contains("libretro/swanstation", slot.Readers);
+        }
+
+        // DuckStation reads the same names, but no fact cites where RetroBat points it, so its
+        // files are reported rather than given slots of their own.
+        Assert.Contains(manifest.ReportedFor("psx"), item => item.Why.Contains("duckstation has no cited firmware directory", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -80,86 +138,93 @@ public sealed class BiosManifestTests
         var manifest = Fixtures.LoadBiosManifest();
 
         var gb = manifest.For("gb");
-        var sgb = manifest.For("sgb");
-        var gbc = manifest.For("gbc");
+        var supplemented = gb.Where(slot => slot.Supplement is not null).ToList();
 
         // RetroBat's list names only the boot ROM for gb. libretro/bsnes runs a .gb as a Super
         // Game Boy cartridge and fails to load one without SGB1.sfc, and bizhawk/GBHawk runs a
         // Color-flagged cartridge in Color mode and refuses it without the Color boot ROM. Each
         // is copied onto gb with the md5 RetroBat gives it on its own system.
         Assert.Equal(
-            ["bios/gb_bios.bin", "bios/sgb_boot.bin", "bios/sgb2_boot.bin", "bios/SGB1.sfc", "bios/SGB2.sfc", "bios/gbc_bios.bin"],
-            gb.Select(requirement => requirement.Path.Value));
-        Assert.Null(gb[0].Supplement);
-        Assert.All(gb.Skip(1).Take(4), requirement => Assert.Contains("bsnes", requirement.Supplement, StringComparison.Ordinal));
-        Assert.Contains("GBHawk", gb[5].Supplement, StringComparison.Ordinal);
-        Assert.Equal(
-            sgb.Concat(gbc).Select(requirement => (requirement.Md5, requirement.Path.Value)).Order(),
-            gb.Skip(1).Select(requirement => (requirement.Md5, requirement.Path.Value)).Order());
+            ["bios/gbc_bios.bin", "bios/SGB1.sfc", "bios/SGB2.sfc", "bios/sgb2_boot.bin", "bios/sgb_boot.bin"],
+            supplemented.Select(slot => slot.Path.Value).Order(StringComparer.OrdinalIgnoreCase));
+        Assert.All(supplemented.Where(slot => slot.FileName.StartsWith("sgb", StringComparison.OrdinalIgnoreCase)), slot =>
+            Assert.Contains("bsnes", slot.Supplement, StringComparison.Ordinal));
+        Assert.Contains("GBHawk", Assert.Single(supplemented, slot => slot.FileName == "gbc_bios.bin").Supplement, StringComparison.Ordinal);
+
+        var siblings = manifest.For("sgb").Concat(manifest.For("gbc"))
+            .Where(slot => slot.Readers.Contains(BiosAccepted.RetroBat))
+            .ToDictionary(slot => slot.Path);
+        Assert.All(supplemented, slot => Assert.Equal(siblings[slot.Path].RetroBatMd5, slot.RetroBatMd5));
 
         // Supplemented only where measured: no other system takes another's entries.
-        Assert.Equal(5, manifest.Requirements.Count(requirement => requirement.Supplement is not null));
+        Assert.Equal(5, manifest.Requirements.Count(slot => slot.Supplement is not null));
     }
 
     [Fact]
-    public void A_hashless_entry_is_unverifiable_rather_than_missing()
+    public void A_slot_no_source_identifies_is_unverifiable_rather_than_missing()
     {
         var manifest = Fixtures.LoadBiosManifest();
 
-        // mastersystem is one of the 30 systems with no joinable entry at all. Reporting these
-        // as "not in your library" would send a user looking for a file RomMBat could not
-        // recognize if they already had it.
-        var mastersystem = manifest.For("mastersystem");
+        // Reporting these as "not in your library" would send a user looking for a file RomMBat
+        // could not recognize if they already had it.
+        var none = manifest.Requirements.Where(slot => slot.IsUnverifiable).ToList();
 
-        Assert.NotEmpty(mastersystem);
-        Assert.All(mastersystem, requirement => Assert.True(requirement.IsUnverifiable));
-        Assert.All(mastersystem, requirement => Assert.Null(requirement.Md5));
+        Assert.Equal(71, none.Count);
+        Assert.All(none, slot => Assert.Empty(slot.Accepted));
+        Assert.All(none, slot => Assert.Empty(slot.Contents));
+
+        // Every one is RetroBat's: a profile's file with no identity is reported, never slotted.
+        Assert.All(none, slot => Assert.Contains(BiosAccepted.RetroBat, slot.Readers));
     }
 
     [Fact]
-    public void MAME_software_lists_need_no_special_case_because_none_of_them_carries_a_hash()
+    public void A_zip_is_identified_by_its_members_and_never_by_a_container_md5_a_profile_states()
     {
         var manifest = Fixtures.LoadBiosManifest();
 
-        var mame = manifest.Requirements
-            .Where(requirement => requirement.Path.Value.StartsWith("bios/mame/", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        // RetroBat lists adam.zip with no hash. MAME's profile lists the seven members it checks.
+        var adam = Assert.Single(manifest.For("adam"), slot => slot.Path.Value == "bios/adam.zip");
 
-        Assert.Equal(64, mame.Count);
-        Assert.All(mame, requirement => Assert.True(requirement.IsUnverifiable));
+        Assert.Empty(adam.Accepted);
+        var contents = Assert.Single(adam.Contents);
+        Assert.Contains("libretro/mame", contents.Readers);
+        Assert.Equal(7, contents.Files.Count);
+        Assert.All(contents.Files, member => Assert.NotEqual(0u, member.Crc32));
     }
 
     [Fact]
-    public void Nothing_the_manifest_asks_for_lands_outside_bios()
+    public void Nothing_the_manifest_slots_lands_outside_bios()
     {
         var manifest = Fixtures.LoadBiosManifest();
 
         Assert.All(
             manifest.Requirements,
-            requirement => Assert.StartsWith("bios/", requirement.Path.Value, StringComparison.Ordinal));
-
-        // The seven that would have are named, so a future upstream entry growing an md5
-        // outside bios/ shows up here rather than writing into an emulator's install.
+            slot => Assert.StartsWith("bios/", slot.Path.Value, StringComparison.Ordinal));
         Assert.All(
-            manifest.RejectedPaths,
-            path => Assert.StartsWith("emulators/", path, StringComparison.Ordinal));
+            manifest.Requirements.SelectMany(slot => slot.Aliases),
+            alias => Assert.StartsWith("bios/", alias.Value, StringComparison.Ordinal));
+
+        // Mesen's own directory is outside bios/ (RB-317), so what it reads is reported.
+        Assert.Contains(
+            manifest.ReportedFor("snes"),
+            item => item.Path.StartsWith("emulators/mesen/Firmware/", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void A_hashed_entry_outside_bios_is_refused_rather_than_written()
+    public void A_hashed_slot_outside_bios_is_refused_rather_than_written()
     {
-        // Synthesized rather than waiting for upstream to do it: the rule only earns its
+        // Synthesized rather than waiting for the generator to do it: the rule only earns its
         // keep on the day the manifest changes.
         var manifest = BiosManifest.Parse(Json("""
             {
+              "_schema": 2,
               "systems": {
                 "camplynx": {
-                  "name": "Camputers Lynx",
-                  "folder": "camplynx",
-                  "files": [
-                    { "md5": "0123456789abcdef0123456789abcdef", "path": "emulators/jynx/lynx48-1.rom" },
-                    { "md5": "fedcba9876543210fedcba9876543210", "path": "bios/lynx48-1.rom" }
-                  ]
+                  "slots": [
+                    { "path": "emulators/jynx/lynx48-1.rom", "accepted": [{ "md5": "0123456789abcdef0123456789abcdef", "from": ["retrobat"] }], "readers": ["retrobat"], "required": true },
+                    { "path": "bios/lynx48-1.rom", "accepted": [{ "md5": "fedcba9876543210fedcba9876543210", "from": ["retrobat"] }], "readers": ["retrobat"], "required": true }
+                  ],
+                  "reported": []
                 }
               }
             }
@@ -171,122 +236,103 @@ public sealed class BiosManifestTests
     }
 
     [Fact]
+    public void A_manifest_of_another_schema_is_refused_rather_than_misread()
+    {
+        var exception = Record.Exception(() => BiosManifest.Parse(Json("""{ "_schema": 1, "systems": {} }""")));
+
+        Assert.IsType<InvalidOperationException>(exception);
+        Assert.Contains("schema 1", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Every_destination_the_manifest_names_is_a_storable_relative_path()
     {
         // Paths built from a ROM name are covered by the content and media tests. These are built
         // from the manifest instead, and they go six segments deep, so they get the same check.
         var manifest = Fixtures.LoadBiosManifest();
-        var limits = FilesystemLimits.For("NTFS", availableFreeBytes: long.MaxValue);
 
-        Assert.All(manifest.Requirements, requirement =>
+        Assert.All(manifest.Requirements, slot =>
         {
-            Assert.True(RelativePath.TryCreate(requirement.Path.Value, out var round));
-            Assert.Equal(requirement.Path, round);
+            Assert.True(RelativePath.TryCreate(slot.Path.Value, out var round));
+            Assert.Equal(slot.Path, round);
 
             // The ceiling that actually binds is the 255-character file name, not MAX_PATH.
-            Assert.InRange(requirement.FileName.Length, 1, 255);
-            Assert.DoesNotContain(requirement.FileName, character => character is '<' or '>' or ':' or '"' or '|' or '?' or '*');
-            Assert.True(limits.CanHold(0));
+            Assert.InRange(slot.FileName.Length, 1, 255);
+            Assert.DoesNotContain(slot.FileName, character => character is '<' or '>' or ':' or '"' or '|' or '?' or '*');
         });
 
-        Assert.Equal(6, manifest.Requirements.Max(requirement => requirement.Path.Value.Count(c => c == '/') + 1));
+        Assert.Equal(6, manifest.Requirements.Max(slot => slot.Path.Value.Count(c => c == '/') + 1));
     }
 
     [Fact]
     public void Every_destination_survives_a_round_trip_through_the_database()
     {
         // The paths are stored, so RelativePath agreeing is not enough on its own: the CHECK
-        // on relative_path has to agree too, for all 336 distinct paths.
+        // on relative_path has to agree too, for all 615 distinct paths.
         using var tree = TempRetroBatTree.Create();
         using var store = LocalStore.Open(tree.Install());
         var manifest = Fixtures.LoadBiosManifest();
 
-        foreach (var requirement in manifest.Requirements.DistinctBy(requirement => requirement.Path))
+        foreach (var slot in manifest.Requirements.DistinctBy(slot => slot.Path))
         {
             store.Files.Record(new LocalFile
             {
-                Path = requirement.Path,
+                Path = slot.Path,
                 Kind = LocalFileKind.Firmware,
-                FileName = requirement.FileName,
-                Md5Hash = requirement.Md5,
+                FileName = slot.FileName,
+                Md5Hash = slot.Accepted.Count > 0 ? slot.Accepted[0].Md5 : null,
             });
         }
 
         Assert.Equal(
-            manifest.Requirements.Select(requirement => requirement.Path).Distinct().Count(),
+            manifest.Requirements.Select(slot => slot.Path).Distinct().Count(),
             store.Files.List(kind: LocalFileKind.Firmware).Count);
     }
 
     [Fact]
-    public void One_md5_can_owe_several_destinations_and_no_destination_takes_two()
+    public void One_md5_can_owe_several_destinations_and_one_destination_can_accept_several()
     {
         var manifest = Fixtures.LoadBiosManifest();
 
-        // The same ColecoVision bios, wanted at three paths, one of them inside openMSX's
-        // user-data tree. This is what makes the destination the key and the md5 not.
+        // The same ColecoVision bios, wanted at four paths: RetroBat's three, one inside
+        // openMSX's user-data tree, and blueMSX's. This is what makes the destination the key.
         var coleco = manifest.Requirements
-            .Where(requirement => requirement.Md5 == "2c66f5911e5b42b8ebe113403548eee7")
-            .ToList();
+            .Where(slot => slot.Accepts("2c66f5911e5b42b8ebe113403548eee7") is not null)
+            .Select(slot => slot.Path.Value)
+            .Order(StringComparer.Ordinal);
 
         Assert.Equal(
-            ["bios/coleco.rom", "bios/colecovision.rom", "bios/openMSX/share/systemroms/coleco.rom"],
-            coleco.Select(requirement => requirement.Path.Value).Order(StringComparer.Ordinal));
+            ["bios/Machines/COL - ColecoVision/coleco.rom", "bios/coleco.rom", "bios/colecovision.rom", "bios/openMSX/share/systemroms/coleco.rom"],
+            coleco);
 
-        var byMd5 = manifest.Requirements
-            .Where(requirement => requirement.Md5 is not null)
-            .GroupBy(requirement => requirement.Md5!)
-            .Count(group => group.Select(requirement => requirement.Path).Distinct().Count() > 1);
-
-        Assert.Equal(6, byMd5);
-
-        var byPath = manifest.Requirements
-            .Where(requirement => requirement.Md5 is not null)
-            .GroupBy(requirement => requirement.Path)
-            .Count(group => group.Select(requirement => requirement.Md5).Distinct().Count() > 1);
-
-        Assert.Equal(0, byPath);
+        // The other direction: atari800's OS-B, where RetroBat's md5 ranks over the one the
+        // atari800 core's profile states.
+        var osb = Assert.Single(manifest.For("atari800"), slot => slot.Path.Value == "bios/ATARIOSB.ROM");
+        Assert.Equal(2, osb.Accepted.Count);
+        Assert.True(osb.Accepted[0].IsRetroBats);
     }
 
     [Fact]
-    public void One_destination_can_be_required_by_several_systems()
+    public void One_destination_can_be_read_by_several_systems()
     {
-        // The other direction, and the one a writer keyed on md5 walks straight into: the plan
-        // carries a step per system, so a destination has to be acted on once rather than once
-        // per step, or the second write copies the file onto itself.
+        // The plan carries a step per folder, so a destination has to be acted on once rather
+        // than once per step, or the second write copies the file onto itself. openMSX's copy
+        // of fmpac.rom is the widest: four MSX systems name the same file.
         var manifest = Fixtures.LoadBiosManifest();
 
-        var shared = manifest.Requirements
-            .GroupBy(requirement => requirement.Path)
-            .Where(group => group.Select(requirement => requirement.System).Distinct(StringComparer.Ordinal).Count() > 1)
-            .ToList();
+        var fmpac = manifest.Requirements
+            .Where(slot => slot.Path == RelativePath.Create("bios/openMSX/share/systemroms/fmpac.rom"))
+            .Select(slot => slot.Folder)
+            .Order(StringComparer.Ordinal);
 
-        // Six of RetroBat's own, the four Super Game Boy files gb takes from sgb, and the Color
-        // boot ROM it takes from gbc.
-        Assert.Equal(11, shared.Count);
-        Assert.Equal(10, shared.Count(group => group.Any(requirement => requirement.Md5 is not null)));
-        Assert.Equal(
-            4,
-            shared.Count(group => group.Select(requirement => requirement.System).Order(StringComparer.Ordinal).SequenceEqual(["gb", "sgb"])));
-
-        // openMSX's copy of fmpac.rom is the widest: four MSX systems name the same file.
-        var fmpac = Assert.Single(
-            shared,
-            group => group.Key == RelativePath.Create("bios/openMSX/share/systemroms/fmpac.rom"));
-
-        Assert.Equal(
-            ["msx", "msx2", "msx2+", "msxturbor"],
-            fmpac.Select(requirement => requirement.System).Order(StringComparer.Ordinal));
-
-        // And they are four different RetroBat folders, so every one of them is planned.
-        Assert.Equal(4, fmpac.Select(requirement => requirement.Folder).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(["msx1", "msx2", "msx2+", "msxturbor"], fmpac);
     }
 
     [Fact]
     public void Every_system_the_manifest_names_resolves_to_a_folder_RetroBat_has()
     {
-        // The manifest is keyed by batocera system names, a third vocabulary beside
-        // es_systems.cfg's <name> and its <path> basename. 99 of 101 keys are already a folder;
-        // the generator aliases the two that are not, and this is what catches a new one.
+        // The manifest is keyed by RetroBat folder. The generator aliases the two batocera keys
+        // that are not one, and this is what catches a new one.
         var manifest = Fixtures.LoadBiosManifest();
         var systems = Fixtures.LoadEsSystems();
 
@@ -357,6 +403,14 @@ public sealed class BiosManifestTests
 
         Assert.IsType<SqliteException>(exception);
     }
+
+    /// <summary>The two batocera keys that are not a RetroBat folder, as the generator aliases them.</summary>
+    private static string Alias(string key) => key switch
+    {
+        "astrocde" => "astrocade",
+        "msx" => "msx1",
+        _ => key,
+    };
 
     private static MemoryStream Json(string text) => new(System.Text.Encoding.UTF8.GetBytes(text));
 }
