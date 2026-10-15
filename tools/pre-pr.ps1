@@ -8,8 +8,9 @@
     The gates, in CI's order: a Release build with -warnaserror and --no-incremental, the
     hook and agent publish the process-level tests need, the test suite, the install package
     tools/publish.ps1 builds, trunk check through WSL, the docs checker's own tests and the
-    docs check, the guide's mkdocs build --strict, reference/verify.py and the two generator --check runs, and the LF check on
-    *.sh. Every gate runs even after one fails, apart from the tests, which need the build.
+    docs check, the guide's mkdocs build --strict, reference/verify.py and the three generator
+    --check runs, the firmware guard, and the LF check on *.sh. Every gate runs even after one
+    fails, apart from the tests, which need the build.
 
     In a linked git worktree the trunk gate is reported as skipped: trunk in WSL cannot read
     one, and CI's trunk check covers it.
@@ -20,7 +21,7 @@
 
 .PARAMETER Skip
     Gates to leave out, by name: build, publish, test, package, trunk, docs, guide,
-    reference, line-endings. A skipped gate is reported as skipped, never as passed. Skipping build
+    reference, firmware, line-endings. A skipped gate is reported as skipped, never as passed. Skipping build
     runs the tests against whatever binaries are already there, and skipping publish runs
     the process-level tests against whatever hook and agent an earlier publish left.
 
@@ -53,7 +54,7 @@ $ErrorActionPreference = 'Stop'
 
 # Under pwsh -File, -Skip a,b arrives as the one string 'a,b', so split it here rather than
 # relying on ValidateSet.
-$gates = 'build', 'publish', 'test', 'package', 'trunk', 'docs', 'guide', 'reference', 'line-endings'
+$gates = 'build', 'publish', 'test', 'package', 'trunk', 'docs', 'guide', 'reference', 'firmware', 'line-endings'
 $Skip = @($Skip -split ',' | ForEach-Object Trim | Where-Object { $_ })
 $unknown = $Skip | Where-Object { $_ -notin $gates }
 if ($unknown) { throw "Unknown gate in -Skip: $($unknown -join ', '). The gates: $($gates -join ', ')." }
@@ -160,6 +161,13 @@ Invoke-Gate reference {
     try { & $python verify.py } finally { Pop-Location }
     if ($LASTEXITCODE -eq 0) { & $python tools/build-platform-map.py --check }
     if ($LASTEXITCODE -eq 0) { & $python tools/build-bios-manifest.py --check }
+    if ($LASTEXITCODE -eq 0) { & $python tools/build-firmware-docs.py --check }
+}
+
+Invoke-Gate firmware {
+    # Every tracked or unignored file, hashed against the known firmware md5s.
+    & $needPython
+    & $python tools/firmware_guard.py
 }
 
 Invoke-Gate line-endings {

@@ -44,7 +44,7 @@ prerelease is not one. A test asserts the floor and the tested row carry no prer
    endpoint (delta.md, "Reading a delta"). Keep the paths RomMBat depends on. Drop the features
    `version-compatibility.md` lists as never reaching a local install.
 3. **Refresh into scratch**: `reference/refresh.sh --ref <project>=<tag> --out <scratchpad>/scout`.
-   It runs `verify.py` and both generators' `--check` against the scratch copy and leaves
+   It runs `verify.py` and the three generators' `--check` against the scratch copy and leaves
    `reference/` and `data/` alone. Each drift is a finding: name the docs that cite the number,
    and the generator adoption will run.
 4. **RomM: diff the schema.** Read `SYSTEM.VERSION` from the disposable instance's

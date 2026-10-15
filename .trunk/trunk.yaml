@@ -48,6 +48,11 @@ lint:
       paths:
         - src/RomM.Client/openapi/romm-*.json
         - src/RomM.Client/Generated/**
+    # The firmware matrix is generated, and tools/build-firmware-docs.py --check compares it
+    # byte for byte, so a formatter's change would read as drift.
+    - linters: [ALL]
+      paths:
+        - docs/platforms/firmware.md
 actions:
   disabled:
     - trunk-announce

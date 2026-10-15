@@ -44,6 +44,12 @@ slice of `reference/retrobios/` by it, `tools/build-bios-manifest.py` builds `bi
 and `verify.py` fails on a row it neither resolves nor marks, or a map entry that is missing or
 stale.
 
+**`docs/platforms/firmware.md`** is `bios.json` made readable, a table per system, with the
+emulator source lines the retrobios profiles cite. `tools/build-firmware-docs.py` writes it, and
+its `--check` runs beside the manifest's in `tools/pre-pr.ps1`, CI and `refresh.sh`.
+`tools/firmware.py` answers the same questions per row, offline, and compares a system with the
+test server.
+
 **`data/certification.json`** ships nothing and nothing reads it at runtime. It holds one
 row per `(system, emulator, core)` that a record under `docs/platforms/` covers, with its
 status and the floor it holds at, and `PlatformSupportPageTests` builds the guide's

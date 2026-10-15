@@ -127,11 +127,17 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    cannot use a playlist although `ps2` lists `.m3u`. Where it does, record it per emulator.
 
 3. The firmware slots the system's emulators read, resolved against RomM **by md5**, or for a
-   zip by its members; what RomM lacks listed with expected filename and hash. Run
-   `rommbat-agent bios <system>` for the report and `bios <system> --apply` to fetch, and record
-   the states rather than a pass or fail: present, fetched, not in the library, ambiguous, and the
-   ones no source identifies. A system with no identified slot is certified on the other eight
-   steps, and step 3 says so in those words.
+   zip by its members. `python3 tools/firmware.py rows <system>` lists what each row reads, with
+   the emulator source line retrobios cites: **the firmware a row boots with is the slots it
+   reads**, and RetroBat's list stands for the default row. `firmware.py gaps <system>` compares
+   them with the test server and prints the md5s to ask the maintainer to upload, as one
+   `AskUserQuestion`. Firmware bytes come from the test server alone; the tool fetches none.
+   `firmware.py why <path>` says how a slot's pick ranks. Then run `rommbat-agent bios <system>`
+   on the agent tree for the report and `--apply` to fetch, and record the states rather than a
+   pass or fail: present, fetched, not in the library, ambiguous, and the ones no source
+   identifies. A system with no identified slot is certified on the other eight steps, and step
+   3 says so in those words. [docs/platforms/firmware.md](../../../docs/platforms/firmware.md)
+   is the same data as a table per system.
 
    **A missing file never fails this step or holds a platform back.** The manifest is what
    RomMBat fetches, not what a platform needs to run: it is the union of every row's files, and
@@ -147,6 +153,12 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    and `GBHawk` needs `gbc`'s boot ROM for a Color-flagged cartridge, and neither was on `gb`'s
    list (RB-293). Such a file goes into `tools/build-bios-manifest.py`'s supplement for the
    system, copied from the sibling's entry, so `bios <system>` fetches it.
+
+   **Booting a row with its slots removed is what tests `required`.** A refusal confirms it; a row
+   that boots without a slot marked required, or refuses without one marked optional, disagrees
+   with retrobios. A disagreement goes into the builder's `SUPPLEMENT` or a note in
+   `firmware-rows.json`, with its evidence, **never into an edit under `reference/`**, which is
+   vendored.
 
    **RetroBat's own list covers the default emulator only**, by design by the RetroBat team's
    account, so the manifest adds what retrobios's profiles say every other row reads. On `snes`

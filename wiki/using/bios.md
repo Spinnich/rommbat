@@ -3,6 +3,41 @@
 Some emulators need a BIOS or firmware file from the original console before a game will start.
 If your RomM library has those files, RomMBat puts them in RetroBat's `bios` folder for you.
 
+## What to upload to RomM
+
+Upload the BIOS files for your systems to RomM, under any platform and any name. RomMBat finds
+each file by its checksum (md5), so `bios.sms` in RomM still lands as the Master System BIOS
+under the name each emulator looks for, and one file can fill several of those names.
+
+To see which files a system's emulators read, open the
+[firmware matrix](https://github.com/Spinnich/rommbat/blob/main/docs/platforms/firmware.md) and
+find the system by its RetroBat folder name, such as `mastersystem` or `psx`. Each row is one
+file RomMBat places, with:
+
+- **Required**: RetroBat's own list names it, or an emulator refuses to start some games
+  without it. Upload these first.
+- **Readers**: which emulators and cores read it. RetroBat's list stands for the system's
+  default emulator, so a file it alone reads is one you can skip if you play on another.
+- **Accepted**: the checksums RomMBat accepts there. Upload a file with any one of them. Where
+  there are several, they are usually versions for different regions, and RomMBat picks by the
+  order below.
+
+A file listed under "Read, never fetched" is one RomMBat cannot place for you (below).
+
+`rommbat-agent bios <system>` answers the same question for your own library: what is present,
+what it would fetch, and the checksum of each file your library lacks (below).
+
+### Switch and PS3
+
+RomMBat fetches no firmware for either.
+
+- **PS3**: RPCS3 installs the system software itself, from Sony's `PS3UPDAT.PUP`, through its own
+  menu (File, then Install Firmware). Install it there once; nothing in RomM changes that.
+- **Switch**: each emulator installs the system firmware through its own menu, the same way. The
+  key files (`prod.keys`, `title.keys`) are read from a folder RetroBat sets per emulator, which
+  RomMBat has not yet measured, so it reports them rather than guess where they go. Place them
+  where RetroBat's own documentation for your emulator says.
+
 ## What a sync fetches
 
 Before downloading games, a sync fetches the BIOS files that any emulator RetroBat offers for
@@ -36,12 +71,13 @@ Some files have to come from you:
 - A zipped firmware set whose files inside are not the ones the emulator expects. RomMBat
   downloads a zip with the right name, checks every file inside it, and keeps it only if they
   match.
-- Firmware an emulator installs through its own menu, such as the Switch and PS3 system software,
-  and files an emulator reads from its own folder rather than `bios`.
+- Files an emulator reads from its own folder rather than `bios`.
 
-Copy these into RetroBat's `bios` folder yourself, where RetroBat's own documentation says they
-go. This is why a game on a [certified row](../platforms/index.md) can still refuse to start: the
-row was tested with its BIOS in place.
+Copy these where RetroBat's own documentation says they go, which for most is the `bios` folder.
+Firmware an emulator installs through its own menu, such as the Switch and PS3 system software,
+goes in through that menu instead ([Switch and PS3](#switch-and-ps3)). This is why a game on a
+[certified row](../platforms/index.md) can still refuse to start: the row was tested with its
+BIOS in place.
 
 ## Checking from a terminal
 
