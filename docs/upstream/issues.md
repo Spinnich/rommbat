@@ -48,8 +48,12 @@ States below were read from GitHub on **2026-10-14**, against RetroBat 8.3.0 and
 
 ## Not yet reported
 
-Nothing, as of 2026-10-14. A problem a finding judges upstream's to fix goes here until it is
-filed, which is the maintainer's call, and then moves to [Tracked](#tracked).
+A problem a finding judges upstream's to fix goes here until it is filed, which is the
+maintainer's call, and then moves to [Tracked](#tracked).
+
+| Problem                                                                                                                                                                                                                               | Project                     | RomMBat meanwhile                                                                                               | Recorded in |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------- |
+| `POST /launch` answers 200 and starts nothing for a grouped parent system's own games, since f600b969 skips any game whose system is a group system. RetroBat ships `nes` and `snes` ungrouped but not `ports`, `mess`, `dos` or `gw` | RetroBat's EmulationStation | `Start-Game` refuses such a game and names the `<system>.ungroup` setting. RomMBat itself never calls `/launch` | RB-433      |
 
 ## Retired
 
