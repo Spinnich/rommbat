@@ -24,7 +24,8 @@ emulators that start them play them correctly.
 
 ## BIOS
 
-No Game Gear emulator needs a BIOS, and RetroBat lists none.
+No Game Gear emulator needs a BIOS, and RetroBat lists none. Some cores can show the console's
+boot screen from `bios.gg`, which a sync fetches when your library has it.
 
 ## Saves
 

@@ -41,7 +41,7 @@ so and shows the games already on this device instead, so you can still find tho
 ## Put one game on this device
 
 On a game's screen, press Accept for Put this game on the device. RomMBat downloads it with its
-artwork and the BIOS files RetroBat lists for its system, and it appears in EmulationStation.
+artwork and the BIOS files its system's emulators read, and it appears in EmulationStation.
 
 The game joins a set of its own, named Picked on followed by this device's name. That set
 behaves like any other: it is in your list of sync sets, and deleting it offers to take its

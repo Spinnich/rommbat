@@ -215,7 +215,8 @@ RetroBat is portable, so a copy is disposable.
    ```
 
 5. Put ROMs on it for the systems you are working on, and for later certification waves their
-   BIOS too. `reference/batocera-systems.json` lists the files, with md5s and destination paths.
+   BIOS too. `data/retrobat/bios.json` lists every firmware slot, with the hashes accepted and the
+   destination paths, and `rommbat-agent bios <system> --apply` fetches what the test server holds.
    Where RomMBat's own files land in the tree is in
    [docs/architecture/writing-into-the-tree.md](docs/architecture/writing-into-the-tree.md#where-rommbats-files-live).
 

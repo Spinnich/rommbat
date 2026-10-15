@@ -23,20 +23,20 @@ metadata. The commit is `_ref` in `retrobios/database-subset.json`; a plain refr
 and `--ref retrobios=<sha>` moves it. Its metadata is MIT. Its firmware files are licensed to no
 one, and `tools/vendor-retrobios.py` never fetches one.
 
-| File                           | Source                                                                                  | What it settles                                                                                                                                                        |
-| ------------------------------ | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `systems_names.lst`            | `RetroBat-Official/retrobat` `system/configgen/systems_names.lst`                       | The authoritative list of RetroBat system folder names (241)                                                                                                           |
-| `es_systems.cfg`               | `RetroBat-Official/retrobat` `system/templates/emulationstation/es_systems.cfg`         | Per-system `<extension>`, plus `<manufacturer>`/`<hardware>`/`<release>` used to derive rollout order. **Read the live copy at runtime**; this is the shipped template |
-| `es_savestates.cfg`            | `RetroBat-Official/emulatorlauncher` `.emulationstation/es_savestates.cfg`              | Per-emulator save-state schema: directory, file, image, autosave templates, slot bounds                                                                                |
-| `batocera-systems.json`        | `RetroBat-Official/emulatorlauncher` `batocera-systems/Resources/batocera-systems.json` | Required BIOS manifest: 101 systems, 360 entries of `{md5, file}` with destination paths                                                                                |
-| `romm-platform_slugs.py`       | `rommapp/romm` `backend/utils/platform_slugs.py`                                        | `UniversalPlatformSlug`, RomM's whole platform vocabulary (459). `romm-slugs.txt` beside it is the values alone, derived by `refresh.sh`                                |
-| `romm-platform_aliases.py`     | `rommapp/romm` `backend/utils/platform_aliases.py`                                      | `PLATFORM_FS_ALIASES` and `resolve_platform_slug`: how RomM turns a folder name into a slug. Seed for the platform map. A seed, **not** an answer                       |
-| `romm-known_bios_files.json`   | `rommapp/romm` `backend/models/fixtures/known_bios_files.json`                          | What RomM's `is_verified` flag is computed from                                                                                                                        |
-| `romm-gamelist_exporter.py`    | `rommapp/romm` `backend/utils/gamelist_exporter.py`                                     | The gamelist field reference RomMBat's writer follows, and the source of two unit conversions RomMBat would otherwise have to guess at                                              |
-| `retrobios/emulators/*.yml`   | `Abdess/retrobios` `emulators/`, at the commit in `database-subset.json`'s `_ref`        | Which files each emulator's code reads, cited file:line, with any hash it checks. Only the 221 profiles a RetroBat row resolves to (`tools/firmware_sources.py`)    |
-| `retrobios/platforms/bizhawk.yml` | `Abdess/retrobios` `platforms/bizhawk.yml`, same commit                             | BizHawk's `FirmwareDatabase.cs` as retrobios scrapes it, by sha1. BizHawk has no emulator profile                                                                     |
-| `retrobios/LICENSE`            | `Abdess/retrobios` `LICENSE`, same commit                                               | The MIT notice the files above are copied under. It excludes retrobios's firmware files, which nothing here fetches |
-| `retrobios/database-subset.json` | `Abdess/retrobios` `database.json`, same commit, **filtered**                         | md5, sha1, size and dump-catalog provenance for the 688 of 19,005 rows a vendored source or RetroBat's list reaches. Rows are copied unchanged; only the selection is RomMBat's |
+| File                              | Source                                                                                  | What it settles                                                                                                                                                                 |
+| --------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `systems_names.lst`               | `RetroBat-Official/retrobat` `system/configgen/systems_names.lst`                       | The authoritative list of RetroBat system folder names (241)                                                                                                                    |
+| `es_systems.cfg`                  | `RetroBat-Official/retrobat` `system/templates/emulationstation/es_systems.cfg`         | Per-system `<extension>`, plus `<manufacturer>`/`<hardware>`/`<release>` used to derive rollout order. **Read the live copy at runtime**; this is the shipped template          |
+| `es_savestates.cfg`               | `RetroBat-Official/emulatorlauncher` `.emulationstation/es_savestates.cfg`              | Per-emulator save-state schema: directory, file, image, autosave templates, slot bounds                                                                                         |
+| `batocera-systems.json`           | `RetroBat-Official/emulatorlauncher` `batocera-systems/Resources/batocera-systems.json` | Required BIOS manifest: 101 systems, 360 entries of `{md5, file}` with destination paths                                                                                        |
+| `romm-platform_slugs.py`          | `rommapp/romm` `backend/utils/platform_slugs.py`                                        | `UniversalPlatformSlug`, RomM's whole platform vocabulary (459). `romm-slugs.txt` beside it is the values alone, derived by `refresh.sh`                                        |
+| `romm-platform_aliases.py`        | `rommapp/romm` `backend/utils/platform_aliases.py`                                      | `PLATFORM_FS_ALIASES` and `resolve_platform_slug`: how RomM turns a folder name into a slug. Seed for the platform map. A seed, **not** an answer                               |
+| `romm-known_bios_files.json`      | `rommapp/romm` `backend/models/fixtures/known_bios_files.json`                          | What RomM's `is_verified` flag is computed from                                                                                                                                 |
+| `romm-gamelist_exporter.py`       | `rommapp/romm` `backend/utils/gamelist_exporter.py`                                     | The gamelist field reference RomMBat's writer follows, and the source of two unit conversions RomMBat would otherwise have to guess at                                          |
+| `retrobios/emulators/*.yml`       | `Abdess/retrobios` `emulators/`, at the commit in `database-subset.json`'s `_ref`       | Which files each emulator's code reads, cited file:line, with any hash it checks. Only the 221 profiles a RetroBat row resolves to (`tools/firmware_sources.py`)                |
+| `retrobios/platforms/bizhawk.yml` | `Abdess/retrobios` `platforms/bizhawk.yml`, same commit                                 | BizHawk's `FirmwareDatabase.cs` as retrobios scrapes it, by sha1. BizHawk has no emulator profile                                                                               |
+| `retrobios/LICENSE`               | `Abdess/retrobios` `LICENSE`, same commit                                               | The MIT notice the files above are copied under. It excludes retrobios's firmware files, which nothing here fetches                                                             |
+| `retrobios/database-subset.json`  | `Abdess/retrobios` `database.json`, same commit, **filtered**                           | md5, sha1, size and dump-catalog provenance for the 688 of 19,005 rows a vendored source or RetroBat's list reaches. Rows are copied unchanged; only the selection is RomMBat's |
 
 ## Derived facts
 
@@ -45,20 +45,20 @@ that cites it needs revisiting.
 
 **Platform mapping is many-to-many and incomplete**
 
-|                                               |                   |
-| --------------------------------------------- | ----------------- |
-| RetroBat systems                              | 241               |
-| RomM known platform slugs                     | 459               |
-| Folder aliases upstream publishes             | 138               |
-| Of those, RetroBat system folders             | 93                |
-| Of those, naming folders RetroBat lacks       | 45                |
-| RetroBat folders resolving to a RomM slug     | 166               |
-| Of those, by identity (the folder is a slug)  | 73                |
-| Of those, via the alias table                 | 93                |
-| **RetroBat systems with no mapping**          | **75 (31%)**      |
-| Of those, resolved by normalization alone     | 1                 |
-| Distinct RomM slugs reached                   | 148               |
-| RomM slugs mapping to several folders         | 10 (`arcade` → 7) |
+|                                              |                   |
+| -------------------------------------------- | ----------------- |
+| RetroBat systems                             | 241               |
+| RomM known platform slugs                    | 459               |
+| Folder aliases upstream publishes            | 138               |
+| Of those, RetroBat system folders            | 93                |
+| Of those, naming folders RetroBat lacks      | 45                |
+| RetroBat folders resolving to a RomM slug    | 166               |
+| Of those, by identity (the folder is a slug) | 73                |
+| Of those, via the alias table                | 93                |
+| **RetroBat systems with no mapping**         | **75 (31%)**      |
+| Of those, resolved by normalization alone    | 1                 |
+| Distinct RomM slugs reached                  | 148               |
+| RomM slugs mapping to several folders        | 10 (`arcade` → 7) |
 
 **The seed is upstream's resolver, not a table of pairs.** `resolve_platform_slug` in
 `backend/utils/platform_aliases.py` tries a config binding, then identity when the folder name is
@@ -94,24 +94,52 @@ A name alone identifies nothing: retrobios's own by-name index files the Store D
 under `bios_U.sms`. So a single file counts only where a source states a hash for it, or where its
 name is exactly one dump-catalog entry's name, or where RomM's list names one hash for it.
 
-|                                                    |     |
-| -------------------------------------------------- | --- |
-| RetroBat rows (system, emulator, core)             | 709 |
-| ...described by a retrobios profile                | 562 |
-| ...described by BizHawk's firmware list            | 55  |
-| ...marked as having no retrobios source            | 92  |
-| Hashless entries that are MAME software lists      | 63  |
-| Hashless BIOS zips                                 | 64  |
-| ...whose contents a row's profile lists            | 24  |
-| Hashless single files under `bios/`                | 53  |
-| ...a profile or BizHawk states a hash for          | 7   |
-| ...named exactly as one dump-catalog entry         | 3   |
-| ...RomM's `known_bios_files` names one hash for    | 12  |
-| ...with no identity anywhere                       | 31  |
+|                                                 |     |
+| ----------------------------------------------- | --- |
+| RetroBat rows (system, emulator, core)          | 709 |
+| ...described by a retrobios profile             | 562 |
+| ...described by BizHawk's firmware list         | 55  |
+| ...marked as having no retrobios source         | 92  |
+| Hashless entries that are MAME software lists   | 63  |
+| Hashless BIOS zips                              | 64  |
+| ...whose contents a row's profile lists         | 24  |
+| Hashless single files under `bios/`             | 53  |
+| ...a profile or BizHawk states a hash for       | 7   |
+| ...named exactly as one dump-catalog entry      | 3   |
+| ...RomM's `known_bios_files` names one hash for | 12  |
+| ...with no identity anywhere                    | 31  |
 
 The software lists are MAME's own hash metadata, which RetroBat ships, not firmware. A zip's md5
 depends on how it was packed, so a zip is identified by the crc32 and size of the files inside
 it, which MAME's source states and retrobios records.
+
+A profile that covers several systems contributes to a folder only the files tagged with that
+folder's own retrobios system ids, and its untagged files only where the folder's map names
+`untagged:<profile>`, through `data/retrobat/firmware-rows.json`. BizHawk keeps its own ids.
+
+**The manifest RomMBat ships is the union, as firmware slots**
+
+`verify.py` runs `tools/build-bios-manifest.py` and counts what it emits.
+
+|                                                   |       |
+| ------------------------------------------------- | ----- |
+| Folders with a firmware slot                      | 127   |
+| Firmware slots                                    | 943   |
+| ...RetroBat's list names                          | 296   |
+| ...of those, with RetroBat's md5                  | 179   |
+| ...of those, hashless and identified by a source  | 46    |
+| ...with no identity anywhere                      | 71    |
+| ...zips identified by their members               | 331   |
+| ...where several accepted files compete           | 14    |
+| Distinct accepted md5s                            | 352   |
+| Distinct destination paths                        | 615   |
+| Read by some emulator, reported and never fetched | 2,287 |
+| ...of those, MAME software lists                  | 63    |
+
+296 is RetroBat's 360 entries less the 6 outside `bios/` and the 63 software lists, plus the 5
+`gb` takes from its siblings. The 46 are the 24 zips and 22 single files above. A path several
+folders name, such as `ATARIOSB.ROM` for `atari5200` and `atari800`, is one file on disk, so each
+folder's slot on it accepts what any of them accepts; that union is most of the 14.
 
 **The gamelist exporter settles two units and gets a third field wrong**
 

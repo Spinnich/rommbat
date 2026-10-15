@@ -20,7 +20,7 @@ Subcommands
   sync        Resolve a set and pull its ROMs into the tree
   budget      Show or set how much of this drive RomMBat may use
   evict       Show what would be removed to get back inside the budget
-  bios        Report the BIOS RetroBat needs, and fetch it with --apply
+  bios        Report the firmware each system's emulators read, and fetch it with --apply
   gamelist    Rewrite gamelist.xml from local state, and tell EmulationStation
   hooks       status | install | uninstall the EmulationStation event hooks
   menu        status | install | uninstall RomMBat's EmulationStation menu entry
@@ -52,6 +52,7 @@ Options
   --at-quit         saves convert: make the change when EmulationStation next closes
   --revert          saves convert: take a game's own memory card back to the shared one
   --all             bios: every system RetroBat knows, not just the ones with games
+  --region-order <r> bios: the regions to prefer where files compete, e.g. usa,europe,japan,world, or default
   --max <size>      budget: the cap, as 64GB, 500MB or none
   --media <kinds>   gamelist: which artwork to fetch, e.g. image,thumbnail,video
   --no-reload       gamelist: write the files without telling EmulationStation

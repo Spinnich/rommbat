@@ -70,7 +70,7 @@ task.
 | `sync`       | yes           | Flush first, then resolve sets, BIOS, then each game's ROMs and its artwork, gamelists, and scan saves |
 | `budget`     | **never**     | Show or set the disk cap and the free-space floor                                                      |
 | `evict`      | **never**     | What would go to get back inside the budget, and dead transfers; removes with `--apply`                |
-| `bios`       | only if asked | Report what RetroBat requires under `bios/`, and fetch it with `--apply`                               |
+| `bios`       | only if asked | Report the firmware each system's emulators read, and fetch it with `--apply`                          |
 | `gamelist`   | **never**     | Rewrite `gamelist.xml` from local state and reload ES; `--media` sets which artwork a sync fetches     |
 | `hooks`      | **never**     | `status`, `install`, `uninstall` the four EmulationStation event hooks                                 |
 | `menu`       | **never**     | `status`, `install`, `uninstall` RomMBat's entry in the EmulationStation menu                          |

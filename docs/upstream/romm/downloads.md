@@ -71,8 +71,8 @@ member, unlike a ROM zip (RB-80). Two zips of the same members hash differently 
 order or stored times differ, so an md5 join finds a zip only when both sides hold the same
 build. Of the 18 distinct zip md5s RetroBat's manifest names, the library held 4 by name:
 `awbios.zip` and `gamate.zip` matched, while `neogeo.zip` (wanted at `dffb72f1...`) and
-`neocdz.zip` did not. The manifest names no members and RomM serves no member hashes, so
-members cannot be compared instead.
+`neocdz.zip` did not. RomM serves no member hashes, so a zip's members are compared on the
+downloaded file, against the crc32 and size a reader's retrobios profile states for each.
 
 ## RB-180. RomM's hashes are its last scan's, and can describe some other file
 

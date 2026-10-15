@@ -105,9 +105,12 @@ def main() -> int:
     resolved, unresolved = firmware_sources.resolve_all(rows, profiles, firmware_sources.read_row_map())
     wanted = sorted(firmware_sources.profiles_named(resolved))
 
-    # Everything is fetched before anything is written, so a failed download leaves the
-    # previous slice whole rather than profiles from one pin beside a subset from another.
+    # Everything is fetched and parsed before anything is written, so a failed download or a
+    # file that does not parse leaves the previous slice whole rather than profiles from one
+    # pin beside a subset from another.
     bizhawk_text = raw(ref, "platforms/bizhawk.yml")
+    bizhawk = yaml.safe_load(bizhawk_text)
+    batocera = json.loads((reference / "batocera-systems.json").read_text(encoding="utf-8"))
     license_text = raw(ref, "LICENSE")
     database = json.loads(raw(ref, "database.json"))
 
@@ -126,11 +129,7 @@ def main() -> int:
     (out / "LICENSE").write_bytes(license_text)
     print("  LICENSE")
 
-    names, known = names_and_hashes(
-        {name: profiles[name] for name in wanted},
-        yaml.safe_load(bizhawk_text),
-        json.loads((reference / "batocera-systems.json").read_text(encoding="utf-8")),
-    )
+    names, known = names_and_hashes({name: profiles[name] for name in wanted}, bizhawk, batocera)
     kept = {}
     for sha1, row in database["files"].items():
         catalog = {

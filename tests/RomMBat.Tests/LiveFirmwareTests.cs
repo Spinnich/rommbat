@@ -75,8 +75,8 @@ public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveC
         // The smallest file this library holds that RetroBat actually requires, so a live run
         // against someone's real instance moves as few bytes as it can.
         var match = manifest.Requirements
-            .Where(requirement => requirement.Md5 is not null)
-            .Select(requirement => (requirement, row: candidates.GetValueOrDefault(requirement.Md5!)))
+            .Where(requirement => requirement.RetroBatMd5 is not null)
+            .Select(requirement => (requirement, row: candidates.GetValueOrDefault(requirement.RetroBatMd5!)))
             .Where(pair => pair.row is { } row && row.IsFetchable)
             .OrderBy(pair => pair.row!.SizeBytes)
             .FirstOrDefault();
@@ -98,7 +98,7 @@ public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveC
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         await File.WriteAllBytesAsync(path, buffer.ToArray(), TestContext.Current.CancellationToken);
 
-        Assert.Equal(match.requirement.Md5, ContentHasher.ComputeFileMd5(path));
+        Assert.Equal(match.requirement.RetroBatMd5, ContentHasher.ComputeFileMd5(path));
 
         // And the name it was served under is not the name it was stored under, more often than
         // not. This is the join the plan forbids, demonstrated rather than argued.

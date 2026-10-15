@@ -53,7 +53,7 @@ anything launched from the ES menu lives there (RB-384).
     logs/
     outbox/
   roms/<system>/          ROMs, gamelist.xml, images/, videos/, manuals/
-  bios/                   firmware, at the paths batocera-systems.json specifies
+  bios/                   firmware, at the paths data/retrobat/bios.json's slots name
   saves/<system>/<emulator>/   emulator save output, two levels deep
   emulationstation/
     emulatorLauncher.exe  what %~dp0..\..\..\ from a hook resolves to

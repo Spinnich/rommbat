@@ -1,7 +1,9 @@
 using System.Globalization;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using RomM.Client;
+using RomMBat.Core;
 using RomMBat.Core.Content;
 using RomMBat.Core.Paths;
 using RomMBat.Core.RetroBat;
@@ -256,9 +258,9 @@ public sealed class BiosSyncTests : IDisposable
     [Fact]
     public async Task A_requirement_RetroBat_names_no_hash_for_is_its_own_state_and_never_missing()
     {
-        // 180 of the 354 requirements, and 30 systems have nothing else. Reporting these as
-        // "not in your library" would send a user looking for a file RomMBat could not
-        // recognize if they already had it.
+        // 71 of the 943 firmware slots have no identity. Reporting these as "not in your
+        // library" would send a user looking for a file RomMBat could not recognize if they
+        // already had it.
         using var stub = new StubRomMServer();
         stub.Platforms.Add(new StubPlatform(1, "mastersystem", "mastersystem", "Master System"));
 
@@ -798,6 +800,521 @@ public sealed class BiosSyncTests : IDisposable
         Assert.False(File.Exists(_tree.Install().Resolve(BiosPlanner.PartFor(Md5(wanted)))));
     }
 
+    // ------------------------------------------------------------------ the ranked pick
+
+    [Fact]
+    public async Task RetroBat_s_md5_outranks_a_file_an_emulator_prefers()
+    {
+        // ES's BIOS check reports the file missing for any hash but RetroBat's, so RetroBat's
+        // ranks first even against a profile's priority 1.
+        var theirs = Content("bios_CD_U.bin, RetroBat's");
+        var preferred = Content("bios_CD_U.bin, the core's favourite");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "megacd", "segacd", "Mega CD")
+        {
+            Firmware = [new StubFirmware(1, "a.bin", preferred), new StubFirmware(2, "b.bin", theirs)],
+        });
+
+        var manifest = Slots(new Slot("megacd", "bios/bios_CD_U.bin",
+            [new Offer(Md5(preferred), Priority: 1), new Offer(Md5(theirs), From: "retrobat")]));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(theirs, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "bios_CD_U.bin")));
+
+        // The record carries the hash the pick chose, which is what a later pass compares.
+        Assert.Equal(Md5(theirs), Assert.Single(store.Files.List(kind: LocalFileKind.Firmware)).Md5Hash);
+    }
+
+    [Fact]
+    public async Task Without_RetroBat_s_md5_the_emulator_s_priority_decides()
+    {
+        var first = Content("iplrom.dat");
+        var fallback = Content("iplrom30.dat");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "x68000", "x68000", "X68000")
+        {
+            Firmware = [new StubFirmware(1, "fallback.dat", fallback), new StubFirmware(2, "first.dat", first)],
+        });
+
+        var manifest = Slots(new Slot("x68000", "bios/keropi/iplrom.dat",
+            [new Offer(Md5(fallback), Priority: 2), new Offer(Md5(first), Priority: 1)]));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        var step = Assert.Single(plan.Steps);
+        Assert.Equal(BiosAction.Download, step.Action);
+        Assert.Equal(Md5(first), step.Chosen!.Md5);
+    }
+
+    [Theory]
+    [InlineData(null, "north-america")]
+    [InlineData("japan,usa", "japan")]
+    public async Task A_region_order_breaks_a_tie_the_sources_leave(string? order, string expected)
+    {
+        var usa = Content("bios.sms (USA)");
+        var japan = Content("bios.sms (Japan)");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "mastersystem", "sms", "Master System")
+        {
+            Firmware = [new StubFirmware(1, "j.sms", japan), new StubFirmware(2, "u.sms", usa)],
+        });
+
+        var manifest = Slots(new Slot("mastersystem", "bios/bios.sms",
+            [new Offer(Md5(japan), Regions: ["japan"]), new Offer(Md5(usa), Regions: ["north-america"])]));
+
+        using var store = LocalStore.Open(_tree.Install());
+        store.Settings.Set(SettingStore.FirmwareRegionOrder, order, DateTimeOffset.UtcNow);
+
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        var step = Assert.Single(plan.Steps);
+        Assert.Equal(BiosAction.Download, step.Action);
+        Assert.Equal([expected], step.Chosen!.Regions);
+    }
+
+    [Fact]
+    public async Task A_tie_nothing_breaks_is_ambiguous_and_fetches_nothing()
+    {
+        var one = Content("MT32_CONTROL.ROM v1.04");
+        var other = Content("MT32_CONTROL.ROM v1.07");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "dos", "dos", "DOS")
+        {
+            Firmware = [new StubFirmware(1, "a.rom", one), new StubFirmware(2, "b.rom", other)],
+        });
+
+        var manifest = Slots(new Slot("dos", "bios/MT32_CONTROL.ROM", [new Offer(Md5(one)), new Offer(Md5(other))]));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        var step = Assert.Single(plan.Steps);
+        Assert.Equal(BiosAction.Ambiguous, step.Action);
+        Assert.Equal([1, 2], step.Rivals.Select(row => row.Id).Order());
+        Assert.Equal(0, plan.DownloadCount);
+
+        using var connection = Connect(stub);
+        var outcome = await new BiosSync(_tree.Install(), store, connection)
+            .ApplyAsync(plan, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Empty(stub.FirmwareRequests);
+        Assert.False(File.Exists(Path.Combine(_tree.Root, "bios", "MT32_CONTROL.ROM")));
+        Assert.Contains(outcome.Problems, problem => problem.Contains("nothing ranks apart", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Any_accepted_hash_on_disk_is_adopted_not_only_the_best_ranked()
+    {
+        var best = Content("scph5501.bin, the best");
+        var theirs = Content("scph5501.bin, another accepted dump");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "psx", "psx", "PlayStation")
+        {
+            Firmware = [new StubFirmware(1, "best.bin", best)],
+        });
+
+        var manifest = Slots(new Slot("psx", "bios/scph5501.bin",
+            [new Offer(Md5(best), Priority: 1), new Offer(Md5(theirs), Priority: 2)]));
+        Write("bios/scph5501.bin", theirs);
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        var step = Assert.Single(plan.Steps);
+        Assert.Equal(BiosAction.Adopt, step.Action);
+
+        // Not RomMBat's file, so a better one in RomM is a note and never a replacement.
+        Assert.Equal(1, step.Better!.Id);
+
+        using var connection = Connect(stub);
+        await new BiosSync(_tree.Install(), store, connection).ApplyAsync(plan, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Empty(stub.FirmwareRequests);
+        var recorded = Assert.Single(store.Files.List(kind: LocalFileKind.Firmware));
+        Assert.Equal(Md5(theirs), recorded.Md5Hash);
+        Assert.Equal(FileOrigin.Adopted, recorded.Origin);
+        Assert.Equal(theirs, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "scph5501.bin")));
+    }
+
+    [Fact]
+    public async Task A_file_under_a_name_its_reader_also_accepts_counts_as_present()
+    {
+        var bytes = Content("gb_bios.bin");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "gb", "gb", "Game Boy")
+        {
+            Firmware = [new StubFirmware(1, "dmg.bin", bytes)],
+        });
+
+        var manifest = Slots(new Slot("gb", "bios/gb_bios.bin", [new Offer(Md5(bytes))], Aliases: ["bios/dmg_boot.bin"]));
+        Write("bios/dmg_boot.bin", bytes);
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        var step = Assert.Single(plan.Steps);
+        Assert.Equal(BiosAction.AlreadyPresent, step.Action);
+        Assert.Contains("dmg_boot.bin", step.Reason, StringComparison.Ordinal);
+        Assert.Equal(0, plan.DownloadCount);
+    }
+
+    [Fact]
+    public async Task What_arrives_is_checked_against_the_chosen_hash_not_any_accepted_one()
+    {
+        // Both hashes are accepted, but the pick chose the first. A server that sends the second
+        // under the first's record has sent something other than what was asked for.
+        var chosen = Content("bios7.bin, chosen");
+        var other = Content("bios7.bin, also accepted");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "nds", "nds", "DS")
+        {
+            Firmware = [new StubFirmware(1, "bios7.bin", chosen)],
+        });
+        stub.FirmwareBodyOverrides[1] = other;
+
+        var manifest = Slots(new Slot("nds", "bios/bios7.bin",
+            [new Offer(Md5(chosen), Priority: 1), new Offer(Md5(other), Priority: 2)]));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Failed);
+        Assert.Contains(outcome.Problems, problem => problem.Contains(Md5(chosen), StringComparison.Ordinal));
+        Assert.False(File.Exists(Path.Combine(_tree.Root, "bios", "bios7.bin")));
+    }
+
+    // ------------------------------------------------------------------ zips
+
+    [Fact]
+    public async Task A_zip_built_differently_lands_when_its_members_satisfy_a_reader()
+    {
+        // RomM hashes the container (RM-28), so RomM's adam.zip and the one MAME's profile
+        // describes never share an md5. Their members do.
+        var members = new[] { ("os7.u2", Content("os7")), ("wp_r80.rom", Content("wp")) };
+        var theirs = Zip(members, comment: "packed by someone else");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "adam", "adam", "Adam")
+        {
+            Firmware = [new StubFirmware(1, "adam.zip", theirs)],
+        });
+
+        var manifest = Slots(new Slot("adam", "bios/adam.zip", [], Contents: ContentsOf(Zip(members))));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(theirs, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "adam.zip")));
+        Assert.Equal(Md5(theirs), Assert.Single(store.Files.List(kind: LocalFileKind.Firmware)).Md5Hash);
+
+        // And it is present on the next pass rather than fetched again.
+        var second = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(BiosAction.AlreadyPresent, Assert.Single(second.Steps).Action);
+    }
+
+    [Fact]
+    public async Task A_zip_whose_members_satisfy_no_reader_is_discarded_and_reported()
+    {
+        var wanted = new[] { ("os7.u2", Content("os7")), ("wp_r80.rom", Content("wp")) };
+        var short_ = Zip([("os7.u2", Content("os7"))]);
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "adam", "adam", "Adam")
+        {
+            Firmware = [new StubFirmware(1, "adam.zip", short_)],
+        });
+
+        var manifest = Slots(new Slot("adam", "bios/adam.zip", [], Contents: ContentsOf(Zip(wanted))));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Failed);
+        Assert.Contains(outcome.Problems, problem => problem.Contains("none of its readers accepts", StringComparison.Ordinal));
+        Assert.False(File.Exists(Path.Combine(_tree.Root, "bios", "adam.zip")));
+        Assert.Empty(store.Files.List(kind: LocalFileKind.Firmware));
+        Assert.False(File.Exists(_tree.Install().Resolve(BiosPlanner.PartFor(Md5(short_)))));
+    }
+
+    [Fact]
+    public async Task A_zip_on_disk_that_fits_no_reader_is_left_as_it_is()
+    {
+        var wanted = new[] { ("os7.u2", Content("os7")) };
+        var theirs = Zip([("os7.u2", Content("a different os7"))]);
+
+        using var stub = new StubRomMServer();
+        var manifest = Slots(new Slot("adam", "bios/adam.zip", [], Contents: ContentsOf(Zip(wanted))));
+        Write("bios/adam.zip", theirs);
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(BiosAction.ContentsMismatch, Assert.Single(plan.Steps).Action);
+        Assert.Equal(theirs, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "adam.zip")));
+    }
+
+    // ------------------------------------------------------------------ upgrades
+
+    [Fact]
+    public async Task An_upgrade_replaces_RomMBat_s_own_unchanged_file_with_a_better_ranked_one()
+    {
+        var older = Content("dc_boot.bin, the fallback");
+        var better = Content("dc_boot.bin, the preferred");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "dreamcast", "dc", "Dreamcast")
+        {
+            Firmware = [new StubFirmware(1, "old.bin", older)],
+        });
+
+        var manifest = Slots(new Slot("dreamcast", "bios/dc/dc_boot.bin",
+            [new Offer(Md5(better), Priority: 1), new Offer(Md5(older), Priority: 2)]));
+
+        using var store = LocalStore.Open(_tree.Install());
+        await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(older, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "dc", "dc_boot.bin")));
+
+        // RomM gains the better file. RomMBat downloaded the one there and it is unchanged.
+        stub.Platforms[0] = stub.Platforms[0] with
+        {
+            Firmware = [new StubFirmware(1, "old.bin", older), new StubFirmware(2, "new.bin", better)],
+        };
+
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(BiosAction.Upgrade, Assert.Single(plan.Steps).Action);
+
+        using var connection = Connect(stub);
+        var outcome = await new BiosSync(_tree.Install(), store, connection)
+            .ApplyAsync(plan, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Upgraded);
+        Assert.Equal(better, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "dc", "dc_boot.bin")));
+        Assert.Equal(Md5(better), Assert.Single(store.Files.List(kind: LocalFileKind.Firmware)).Md5Hash);
+    }
+
+    [Fact]
+    public async Task An_upgrade_that_does_not_fit_leaves_the_file_present_rather_than_blocked()
+    {
+        // The slot already holds an accepted file, so a full budget costs the upgrade, not the
+        // BIOS. "Blocked" would read as a system that will not launch.
+        var older = Content("dc_boot.bin, the fallback");
+        var better = Content("dc_boot.bin, the preferred.");
+        Assert.True(better.Length > older.Length);
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "dreamcast", "dc", "Dreamcast")
+        {
+            Firmware = [new StubFirmware(1, "old.bin", older)],
+        });
+
+        var manifest = Slots(new Slot("dreamcast", "bios/dc/dc_boot.bin",
+            [new Offer(Md5(better), Priority: 1), new Offer(Md5(older), Priority: 2)]));
+
+        using var store = LocalStore.Open(_tree.Install());
+        await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        store.Settings.Set(SettingStore.ContentMaxBytes, older.Length.ToString(CultureInfo.InvariantCulture), DateTimeOffset.UtcNow);
+        stub.Platforms[0] = stub.Platforms[0] with
+        {
+            Firmware = [new StubFirmware(1, "old.bin", older), new StubFirmware(2, "new.bin", better)],
+        };
+
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        var step = Assert.Single(plan.Steps);
+
+        Assert.Equal(BiosAction.AlreadyPresent, step.Action);
+        Assert.Equal(2, step.Better!.Id);
+        Assert.DoesNotContain("will not launch", step.Reason, StringComparison.Ordinal);
+        Assert.Equal(0, plan.Count(BiosAction.Blocked));
+        Assert.True(plan.IsNoOp);
+    }
+
+    [Fact]
+    public async Task An_upgrade_leaves_a_file_changed_since_RomMBat_wrote_it()
+    {
+        var older = Content("dc_boot.bin, the fallback");
+        var better = Content("dc_boot.bin, the preferred");
+        var edited = older.ToArray();
+        edited[0] ^= 1;
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "dreamcast", "dc", "Dreamcast")
+        {
+            Firmware = [new StubFirmware(1, "old.bin", older)],
+        });
+
+        var manifest = Slots(new Slot("dreamcast", "bios/dc/dc_boot.bin",
+            [new Offer(Md5(better), Priority: 1), new Offer(Md5(older), Priority: 2), new Offer(Md5(edited), Priority: 3)]));
+
+        using var store = LocalStore.Open(_tree.Install());
+        await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Same size, so the recorded fast path still says present, and only the md5 check before
+        // an upgrade can tell it is not RomMBat's file any more.
+        Assert.Equal(older.Length, edited.Length);
+        Write("bios/dc/dc_boot.bin", edited);
+
+        stub.Platforms[0] = stub.Platforms[0] with
+        {
+            Firmware = [new StubFirmware(1, "old.bin", older), new StubFirmware(2, "new.bin", better)],
+        };
+
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        var step = Assert.Single(plan.Steps);
+
+        Assert.NotEqual(BiosAction.Upgrade, step.Action);
+        Assert.Equal(2, step.Better!.Id);
+        Assert.Equal(edited, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "dc", "dc_boot.bin")));
+    }
+
+    [Fact]
+    public async Task One_better_file_upgrades_every_destination_that_holds_RomMBat_s_older_one()
+    {
+        // The second destination of an upgrade is a copy of the bytes the first one fetched, and
+        // the copy replaces RomMBat's own file there rather than refusing to overwrite it.
+        var older = Content("coleco.rom, the fallback");
+        var better = Content("coleco.rom, the preferred");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "colecovision", "coleco", "ColecoVision")
+        {
+            Firmware = [new StubFirmware(1, "old.rom", older)],
+        });
+
+        Offer[] accepted = [new Offer(Md5(better), Priority: 1), new Offer(Md5(older), Priority: 2)];
+        var manifest = Slots(
+            new Slot("colecovision", "bios/coleco.rom", accepted),
+            new Slot("colecovision", "bios/colecovision.rom", accepted));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var first = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(2, first.Written);
+
+        stub.Platforms[0] = stub.Platforms[0] with
+        {
+            Firmware = [new StubFirmware(1, "old.rom", older), new StubFirmware(2, "new.rom", better)],
+        };
+
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.All(plan.Steps, step => Assert.Equal(BiosAction.Upgrade, step.Action));
+        Assert.Equal(1, plan.DownloadCount);
+
+        // A plan of upgrades alone still says what it will transfer.
+        Assert.StartsWith($"1 to upgrade ({ByteSize.Format(better.Length)})", plan.Summary, StringComparison.Ordinal);
+
+        using var connection = Connect(stub);
+        var outcome = await new BiosSync(_tree.Install(), store, connection)
+            .ApplyAsync(plan, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(2, outcome.Upgraded);
+        Assert.Equal(better, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "coleco.rom")));
+        Assert.Equal(better, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "colecovision.rom")));
+        Assert.All(store.Files.List(kind: LocalFileKind.Firmware), row => Assert.Equal(Md5(better), row.Md5Hash));
+    }
+
+    [Fact]
+    public async Task An_upgrade_refused_for_a_changed_file_blocks_no_other_destination_of_the_same_file()
+    {
+        var older = Content("coleco.rom, the fallback");
+        var better = Content("coleco.rom, the preferred");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "colecovision", "coleco", "ColecoVision")
+        {
+            Firmware = [new StubFirmware(1, "old.rom", older)],
+        });
+
+        // The first slot takes the older file now and upgrades later; the second takes only the
+        // better one, so it is a plain download of the same bytes in the same pass.
+        var manifest = Slots(
+            new Slot("colecovision", "bios/coleco.rom", [new Offer(Md5(better), Priority: 1), new Offer(Md5(older), Priority: 2)]),
+            new Slot("colecovision", "bios/colecovision.rom", [new Offer(Md5(better))]));
+
+        using var store = LocalStore.Open(_tree.Install());
+        await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        stub.Platforms[0] = stub.Platforms[0] with
+        {
+            Firmware = [new StubFirmware(1, "old.rom", older), new StubFirmware(2, "new.rom", better)],
+        };
+
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal([BiosAction.Upgrade, BiosAction.Download], plan.Steps.Select(step => step.Action));
+
+        // The user swaps the first file between the plan and the pass.
+        var theirs = Content("a coleco.rom the user put there");
+        Write("bios/coleco.rom", theirs);
+
+        using var connection = Connect(stub);
+        var outcome = await new BiosSync(_tree.Install(), store, connection)
+            .ApplyAsync(plan, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Failed);
+        Assert.Equal(theirs, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "coleco.rom")));
+        Assert.Equal(better, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "colecovision.rom")));
+    }
+
+    [Fact]
+    public async Task A_destination_taken_since_the_plan_blocks_no_other_destination_of_the_same_file()
+    {
+        // The move is refused for its own destination, so the bytes are still wanted elsewhere.
+        var wanted = Content("coleco.rom");
+        var theirs = Content("a coleco.rom the user dropped in mid-pass");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "colecovision", "coleco", "ColecoVision")
+        {
+            Firmware = [new StubFirmware(1, "bios.col", wanted)],
+        });
+
+        var manifest = Manifest(
+            ("colecovision", Md5(wanted), "bios/coleco.rom"),
+            ("colecovision", Md5(wanted), "bios/colecovision.rom"));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        Write("bios/coleco.rom", theirs);
+
+        using var connection = Connect(stub);
+        var outcome = await new BiosSync(_tree.Install(), store, connection)
+            .ApplyAsync(plan, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Failed);
+        Assert.Equal(theirs, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "coleco.rom")));
+        Assert.Equal(wanted, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "colecovision.rom")));
+    }
+
+    [Theory]
+    [InlineData(1, 1, 1, "BIOS: 1 fetched (8 KB), 1 new and 1 upgraded")]
+    [InlineData(1, 0, 2, "BIOS: 1 fetched (8 KB), 2 upgraded")]
+    [InlineData(1, 3, 0, "BIOS: 1 fetched (8 KB), written to 3 paths")]
+    [InlineData(2, 2, 0, "BIOS: 2 fetched (8 KB)")]
+    public void A_pass_summary_counts_transfers_and_says_what_each_destination_got(int downloaded, int written, int upgraded, string expected)
+    {
+        var outcome = new BiosSyncOutcome
+        {
+            Downloaded = downloaded,
+            Written = written,
+            Upgraded = upgraded,
+            BytesTransferred = 8192,
+        };
+
+        Assert.Equal(expected, outcome.Summary);
+    }
+
     // ------------------------------------------------------------------ helpers
 
     /// <summary>A stub carrying all six measured pairs, and the manifest that wants them.</summary>
@@ -820,25 +1337,49 @@ public sealed class BiosSyncTests : IDisposable
         return Manifest([.. requirements]);
     }
 
-    /// <summary>A manifest holding exactly these requirements, in the shipped file's shape.</summary>
-    private static BiosManifest Manifest(params (string System, string? Md5, string Path)[] requirements)
+    /// <summary>
+    /// A manifest holding exactly these slots, each one RetroBat lists with the md5 given, in the
+    /// shipped file's shape.
+    /// </summary>
+    private static BiosManifest Manifest(params (string System, string? Md5, string Path)[] requirements) =>
+        Slots([.. requirements.Select(requirement => new Slot(
+            requirement.System,
+            requirement.Path,
+            requirement.Md5 is null ? [] : [new Offer(requirement.Md5, From: "retrobat")]))]);
+
+    /// <summary>One file a test slot accepts.</summary>
+    private sealed record Offer(string Md5, int? Priority = null, string[]? Regions = null, string From = "profile:test");
+
+    /// <summary>One slot of a test manifest.</summary>
+    private sealed record Slot(string Folder, string Path, Offer[] Accepted, string[]? Aliases = null, string? Contents = null);
+
+    /// <summary>A manifest holding exactly these slots, in the shipped file's shape.</summary>
+    private static BiosManifest Slots(params Slot[] slots)
     {
-        var systems = requirements
-            .GroupBy(requirement => requirement.System, StringComparer.Ordinal)
+        var systems = slots
+            .GroupBy(slot => slot.Folder, StringComparer.Ordinal)
             .Select(group => $$"""
                 "{{group.Key}}": {
-                  "name": "{{group.Key}}",
-                  "folder": "{{group.Key}}",
-                  "files": [
-                    {{string.Join(",\n    ", group.Select(file =>
-                        $$"""{ "md5": {{(file.Md5 is null ? "null" : $"\"{file.Md5}\"")}}, "path": "{{file.Path}}" }"""))}}
-                  ]
+                  "slots": [
+                    {{string.Join(",\n    ", group.Select(Render))}}
+                  ],
+                  "reported": []
                 }
                 """);
 
-        var json = $$"""{ "systems": { {{string.Join(",", systems)}} } }""";
+        var json = $$"""{ "_schema": 2, "systems": { {{string.Join(",", systems)}} } }""";
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
         return BiosManifest.Parse(stream);
+
+        static string Render(Slot slot)
+        {
+            var accepted = string.Join(", ", slot.Accepted.Select(offer =>
+                $$"""{ "md5": "{{offer.Md5}}", "priority": {{(offer.Priority is { } priority ? priority.ToString(CultureInfo.InvariantCulture) : "null")}}, "region": [{{string.Join(", ", (offer.Regions ?? []).Select(region => $"\"{region}\""))}}], "from": ["{{offer.From}}"] }"""));
+            var readers = slot.Accepted.Any(offer => offer.From == "retrobat") ? "\"retrobat\"" : "\"libretro/test\"";
+            var aliases = string.Join(", ", (slot.Aliases ?? []).Select(alias => $"\"{alias}\""));
+
+            return $$"""{ "path": "{{slot.Path}}", "accepted": [{{accepted}}], "readers": [{{readers}}], "required": true, "aliases": [{{aliases}}], "contents": [{{slot.Contents ?? string.Empty}}] }""";
+        }
     }
 
     private static IReadOnlyDictionary<string, RomM.Client.Catalog.FirmwareRow> Candidates(StubRomMServer stub) =>
@@ -893,6 +1434,36 @@ public sealed class BiosSyncTests : IDisposable
         return response.IsSuccess
             ? (BiosPlanner.IndexByMd5(response.Value!), null)
             : (null, response.Message);
+    }
+
+    /// <summary>A zip of these members, built in memory.</summary>
+    private static byte[] Zip((string Name, byte[] Bytes)[] members, string? comment = null)
+    {
+        using var buffer = new MemoryStream();
+        using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var (name, bytes) in members)
+            {
+                using var stream = archive.CreateEntry(name).Open();
+                stream.Write(bytes);
+            }
+
+            if (comment is not null)
+            {
+                archive.Comment = comment;
+            }
+        }
+
+        return buffer.ToArray();
+    }
+
+    /// <summary>The manifest's contents entry for a zip: its members' names, crc32s and sizes.</summary>
+    private static string ContentsOf(byte[] zip)
+    {
+        using var archive = new ZipArchive(new MemoryStream(zip), ZipArchiveMode.Read);
+        var files = string.Join(", ", archive.Entries.Select(entry =>
+            $$"""{ "name": "{{entry.FullName}}", "crc32": "{{entry.Crc32.ToString("x8", CultureInfo.InvariantCulture)}}", "size": {{entry.Length}} }"""));
+        return $$"""{ "readers": ["libretro/mame"], "files": [{{files}}] }""";
     }
 
     private string Write(string relativePath, byte[] content)

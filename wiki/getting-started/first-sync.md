@@ -44,7 +44,7 @@ any problems as they happen. In order, a sync:
 
 1. sends any saves and playtime waiting to go up;
 2. asks RomM which games are in the set now;
-3. fetches the BIOS files RetroBat lists for those systems, when your RomM library has them;
+3. fetches the BIOS files those systems' emulators read, when your RomM library has them;
 4. downloads the games;
 5. fetches their artwork and writes EmulationStation's game lists;
 6. tells EmulationStation to reload, so the games appear.

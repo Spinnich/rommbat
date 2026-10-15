@@ -133,14 +133,21 @@ where multi-disc and multi-file placement is settled, as [psx's step 2](../psx/i
 
 ```console
 $ rommbat-agent bios nes
-RetroBat requires no BIOS for nes.
+1 present, 1 not in your RomM library
+Where files compete for one slot, regions are preferred USA > Europe > Japan > world.
+
+  nes
+    not in your library      bios/NstDatabase.xml
+      read by libretro/nestopia
+      7bfe8c0540ed4bd6a0f1e2a0f0118ced
 $ echo $?
 0
 ```
 
-**A real system with nothing to fetch, which counts as step 3 passing.** `nes` is one of the
-sixteen systems whose requirement is empty, so none of the four fetch states arises: nothing is
-present, fetched, missing from the library, or hashless.
+Run on the agent tree at RetroBat 8.3.0, 2026-10-15. **No certified row needs either file to boot a
+cartridge, so step 3 passes.** RetroBat's own list names nothing for `nes`. The manifest gives it
+two firmware slots from other emulators: BizHawk's Famicom Disk System BIOS, present here, and
+Nestopia's `NstDatabase.xml`, which the test library lacks.
 
 The refusal path was checked at the same time, because "no BIOS needed" and "that system does
 not exist" must not look alike:

@@ -23,8 +23,8 @@ differ exactly where it costs a save:
 - **`libretro` and `bizhawk` are core-scoped** (`{{system}}/libretro.{{core}}`,
   `{{system}}/bizhawk/sstates/{{core}}`), so one game under two cores has independent state
   sets. That is the third element of the triple.
-- **BIOS follows the emulator too**: `batocera-systems.json` keys firmware on the system, and
-  the emulator decides which of it is consulted.
+- **BIOS follows the emulator too**: each firmware slot in `data/retrobat/bios.json` names the
+  rows that read it, and the emulator decides which of a system's files it consults.
 
 So a certified row names the emulator and the core. Expect two to four passes per system in
 the [wave table](waves.md#wave-order) rather than one.
@@ -126,17 +126,17 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    **`.m3u` support is per emulator**, so this step can differ between rows of one system: PCSX2
    cannot use a playlist although `ps2` lists `.m3u`. Where it does, record it per emulator.
 
-3. The BIOS RetroBat lists, resolved against RomM **by md5**; what RomM lacks listed with
-   expected filename and hash. Run `rommbat-agent bios <system>` for the report and
-   `bios <system> --apply` to fetch, and record all four states rather than a pass or fail:
-   present, fetched, not in the library, and the ones RetroBat names no hash for. A system whose
-   whole list is hashless (30 of the 101 are) is certified on the other eight steps, and step 3
-   says so in those words.
+3. The firmware slots the system's emulators read, resolved against RomM **by md5**, or for a
+   zip by its members; what RomM lacks listed with expected filename and hash. Run
+   `rommbat-agent bios <system>` for the report and `bios <system> --apply` to fetch, and record
+   the states rather than a pass or fail: present, fetched, not in the library, ambiguous, and the
+   ones no source identifies. A system with no identified slot is certified on the other eight
+   steps, and step 3 says so in those words.
 
-   **A missing file never fails this step or holds a platform back.** RetroBat's list is what
-   RomMBat fetches, not what a platform needs to run: `batocera-systems.json` has no optional
-   flag, it keys firmware on the system, and the emulator decides which files it reads. RomMBat
-   fetches every entry RomM holds, reports the rest, and leaves the verdict to the emulator. On
+   **A missing file never fails this step or holds a platform back.** The manifest is what
+   RomMBat fetches, not what a platform needs to run: it is the union of every row's files, and
+   the emulator decides which it reads. RomMBat fetches every slot RomM holds, reports the rest,
+   and leaves the verdict to the emulator. On
    `gba` three of ten rows refuse to boot without `gba_bios.bin` and seven HLE it (finding
    285). So boot each row once with the file moved out of the tree, record which refuse, then
    put it back with `bios <system> --apply`, which doubles as the fetch this step asks for. A
@@ -148,16 +148,16 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    list (RB-293). Such a file goes into `tools/build-bios-manifest.py`'s supplement for the
    system, copied from the sibling's entry, so `bios <system>` fetches it.
 
-   **Expect the list to cover the default emulator only.** By the RetroBat team's account, relayed
-   by the maintainer on 2026-09-24, that is by design. So a row RetroBat does not run by default
-   can need a file no list names, and the supplement has nothing to copy. On `snes` the default,
-   `libretro`/`snes9x`, runs a DSP-1 cartridge without firmware and the list is empty, while
-   `mesen-s`, Mesen and jgenesis refuse one without `dsp1b.rom` (RB-317). Record where each
-   such row reads the file, since it need not be `bios\`: Mesen reads its own `Firmware\` folder
-   and jgenesis a config key RetroBat never sets.
+   **RetroBat's own list covers the default emulator only**, by design by the RetroBat team's
+   account, so the manifest adds what retrobios's profiles say every other row reads. On `snes`
+   the default runs a DSP-1 cartridge without firmware, while `mesen-s`, Mesen and jgenesis refuse
+   one without `dsp1b.rom` (RB-317). Record where each row reads a file, since it need not be
+   `bios\`: Mesen reads its own `Firmware\` folder and jgenesis a config key RetroBat never sets.
+   A row that reads from a directory no fact cites gets no firmware slots, and its files are
+   reported; a measured directory belongs in `data/retrobat/firmware-rows.json` with its `RB-`.
 
    Three answers, not two, and the difference matters when a system name is mistyped.
-   `RetroBat requires no BIOS for <system>` is a real system with nothing to fetch and counts as
+   `No firmware is listed for <system>` is a real system with nothing to fetch and counts as
    step 3 passing. A name the install's `es_systems.cfg` does not declare is refused with a
    non-zero exit and is a typo, never a pass.
 

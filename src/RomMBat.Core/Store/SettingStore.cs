@@ -36,6 +36,12 @@ public sealed class SettingStore
     /// <summary>The floor when nothing is configured: enough for Windows to stay healthy.</summary>
     public const long DefaultFreeSpaceFloorBytes = 2L * 1024 * 1024 * 1024;
 
+    /// <summary>
+    /// The regions a firmware pick prefers, most first, comma-separated. Unset means
+    /// <c>usa,europe,japan,world</c>.
+    /// </summary>
+    public const string FirmwareRegionOrder = "firmware.region_order";
+
     private readonly SqliteConnection _connection;
 
     internal SettingStore(SqliteConnection connection) => _connection = connection;

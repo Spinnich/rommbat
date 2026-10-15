@@ -51,8 +51,20 @@ person makes.
 **Unlisted.** A file in a game whose extension the live `es_systems.cfg` does not list for its
 system. Reported, never excluded (`CLAUDE.md` rule 3).
 
-**Manifest.** The bundled BIOS manifest RomMBat builds from `batocera-systems.json`: what
-firmware each system may read, joined to RomM by md5.
+**Manifest.** The bundled BIOS manifest, `data/retrobat/bios.json`, built from RetroBat's
+`batocera-systems.json` and retrobios's emulator profiles: every firmware slot each system's
+emulators read.
+
+**Firmware slot.** One destination path under `bios/` in the manifest, with the files accepted
+there and the rows that read it. Always written in full, since a bare **slot** is a save's.
+
+**Reader.** A row that reads a firmware slot's file, or RetroBat's own list where it names the
+file. The report prints them so a user can tell which emulator wants a file.
+
+**Accepted file.** One file a firmware slot takes, by md5, or for a zip by its members' crc32 and
+size. Where several are in RomM the pick ranks them: RetroBat's md5, then the emulator's priority,
+then the region order. See
+[firmware-from-emulator-evidence](decisions/firmware-from-emulator-evidence.md).
 
 ## Saves
 

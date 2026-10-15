@@ -1,11 +1,11 @@
 # Game Boy
 
-|                 |                                                                     |
-| --------------- | ------------------------------------------------------------------- |
-| RetroBat system | `gb`                                                                |
-| Games go in     | `roms\gb`                                                           |
-| BIOS            | Six boot ROMs, which a sync fetches when your RomM library has them |
-| Tested rows     | [Platforms](index.md#gb) lists each emulator and whether it passed  |
+|                 |                                                                    |
+| --------------- | ------------------------------------------------------------------ |
+| RetroBat system | `gb`                                                               |
+| Games go in     | `roms\gb`                                                          |
+| BIOS            | Boot ROMs and Super Game Boy files, when your library has them     |
+| Tested rows     | [Platforms](index.md#gb) lists each emulator and whether it passed |
 
 ## Which emulator to use
 
@@ -14,9 +14,10 @@ for the Game Boy passed RomMBat's tests, so any of them is safe to pick, with th
 
 ## BIOS
 
-A sync fetches six files from your RomM library: the Game Boy boot ROM `gb_bios.bin`, the Game Boy
-Color boot ROM `gbc_bios.bin`, and four Super Game Boy files. RetroBat itself lists only the first
-for the Game Boy. Two emulators refuse to start without some of them:
+A sync fetches, from your RomM library, the Game Boy boot ROM `gb_bios.bin`, the Game Boy Color
+boot ROM `gbc_bios.bin`, four Super Game Boy files, and the other files some Game Boy emulators
+read. RetroBat itself lists only the first for the Game Boy. Two emulators refuse to start without
+some of them:
 
 - RetroArch's bsnes core plays a Game Boy game as a Super Game Boy, so it will not start one
   without `SGB1.sfc`.
