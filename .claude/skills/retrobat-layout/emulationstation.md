@@ -162,4 +162,6 @@ A reload works with **ES unfocused**, so ES's own reload does not depend on focu
 **`POST /launch` starts the game** whose `path` `/systems/<system>/games` reports, sent as the raw
 body: an empty 200, `emulatorLauncher.log` grows and an emulator appears (RB-208). The
 `game-start` and `game-end` hooks run as for a player, so a hands-on pass over them needs no one
-at the controller; `tools/handson`'s `Start-Game` is the call.
+at the controller; `tools/handson`'s `Start-Game` is the call. The exception is a group's parent
+the user has grouped (`<system>.ungroup` false): its own games answer 200 and start nothing
+(RB-433), and `Start-Game` refuses them.

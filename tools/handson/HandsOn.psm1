@@ -359,9 +359,29 @@ function Start-Game {
         player's launch does. -Path is the game's path as /systems/<system>/games lists it.
     #>
     param([Parameter(Mandatory)] [string] $Path, [switch] $NoWait)
+    Assert-NotGroupedParentGame $Path
     $null = Invoke-ES '/launch' -Body $Path
     Write-Host "Launched $Path"
     if (-not $NoWait) { $null = Wait-Emulator }
+}
+
+function Assert-NotGroupedParentGame {
+    # ES answers 200 to /launch for a group system's own game and starts nothing (RB-433), which
+    # would leave Wait-Emulator to time out. A member's game is listed under the group too, and
+    # launches, so only a path no member lists is refused.
+    param([Parameter(Mandatory)] [string] $Path)
+    $systems = @(Invoke-ES '/systems' | ConvertFrom-Json)
+    # A grouped parent's entry carries no group property at all, so it is read through
+    # PSObject rather than by name, which strict mode refuses.
+    foreach ($group in $systems | Where-Object { $_.PSObject.Properties['groupsystem']?.Value -eq 'true' }) {
+        if (-not (@(Get-ESGames $group.name) | Where-Object path -EQ $Path)) { continue }
+        $owned = $systems | Where-Object { $_.PSObject.Properties['group']?.Value -eq $group.name } | Where-Object {
+            @(Get-ESGames $_.name) | Where-Object path -EQ $Path
+        }
+        if (-not $owned) {
+            throw "ES groups $($group.name) with other systems, and /launch starts nothing for its own games (RB-433). Set $($group.name).ungroup to true in es_settings.cfg, or launch from the pad."
+        }
+    }
 }
 
 function Start-EmulatorLauncher {
