@@ -1,6 +1,6 @@
 # Bundled data
 
-Tables RomMBat ships and reads at runtime. Not to be confused with
+Tables RomMBat ships and reads at runtime, and two that only the build and the docs read. Not to be confused with
 [reference/](../reference/), which vendors upstream files purely so the numbers in
 [reference/README.md](../reference/README.md) can be re-derived offline.
 
@@ -11,9 +11,12 @@ Tables RomMBat ships and reads at runtime. Not to be confused with
 | `retrobat/save_shapes.json`      | RetroBat system to save class A/B/C/D                        | `tools/m0-probes/probe2-emit-data.py`, run against a real install           |
 | `retrobat/bios.json`             | RetroBat system to the firmware it requires                  | `reference/batocera-systems.json`, thinned by a generator                   |
 
-`certification.json` is the exception: nothing reads it at runtime. It holds each certified
-or driven `(system, emulator, core)` row, and the guide's platform table is generated from
-it. See [reference-data.md](../docs/architecture/reference-data.md).
+Nothing reads the other two at runtime. `certification.json` holds each certified or driven
+`(system, emulator, core)` row, and the guide's platform table is generated from it.
+`retrobat/firmware-rows.json` joins each `(emulator, core)` row in `es_systems.cfg` to the
+retrobios source describing its firmware, where a profile's declared core name does not; it
+chooses the slice of `reference/retrobios/` that `tools/vendor-retrobios.py` vendors. See
+[reference-data.md](../docs/architecture/reference-data.md).
 
 ## `platforms.json` is generated, and is only layer 3 of five
 
