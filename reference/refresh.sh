@@ -71,6 +71,8 @@ launcher_ref=$(gh api "repos/RetroBat-Official/emulatorlauncher/commits?until=$p
 echo "RetroBat $retrobat_ref (published $published, emulatorlauncher ${launcher_ref:0:12}):"
 fetch RetroBat-Official/retrobat "$retrobat_ref" system/configgen/systems_names.lst systems_names.lst
 fetch RetroBat-Official/retrobat "$retrobat_ref" system/templates/emulationstation/es_systems.cfg es_systems.cfg
+fetch RetroBat-Official/retrobat "$retrobat_ref" license.txt retrobat-license.txt
+# emulatorlauncher has no license file to fetch beside its two.
 fetch RetroBat-Official/emulatorlauncher "$launcher_ref" .emulationstation/es_savestates.cfg es_savestates.cfg
 fetch RetroBat-Official/emulatorlauncher "$launcher_ref" batocera-systems/Resources/batocera-systems.json batocera-systems.json
 
@@ -79,6 +81,7 @@ fetch rommapp/romm "$romm_ref" backend/models/fixtures/known_bios_files.json rom
 fetch rommapp/romm "$romm_ref" backend/utils/gamelist_exporter.py romm-gamelist_exporter.py
 fetch rommapp/romm "$romm_ref" backend/utils/platform_slugs.py romm-platform_slugs.py
 fetch rommapp/romm "$romm_ref" backend/utils/platform_aliases.py romm-platform_aliases.py
+fetch rommapp/romm "$romm_ref" LICENSE romm-LICENSE
 
 # The slug enum lives in the module just fetched, so derive the list here rather than
 # fetching twice. Keeping it as a plain list is what lets verify.py and the normalized-match
