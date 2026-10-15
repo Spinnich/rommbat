@@ -1420,7 +1420,7 @@ public sealed class SetsScreenTests : IDisposable
         }
     }
 
-    /// <summary>A new-set editor with the filter scope chosen, driven the way a person does it.</summary>
+    /// <summary>Pairs this install, so a screen given a stub connection gets past authenticating.</summary>
     private void Pair()
     {
         _session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(_session.Install));
@@ -1434,6 +1434,7 @@ public sealed class SetsScreenTests : IDisposable
             Now);
     }
 
+    /// <summary>A new-set editor with the filter scope chosen, driven the way a person does it.</summary>
     private SetEditorViewModel FilterEditor()
     {
         var editor = SetEditorViewModel.ForNew(_session);
