@@ -108,9 +108,11 @@ after writing gamelists, and the games appear when the user leaves it.
 
 ## RB-208. `POST /launch` starts the game whose path it is given
 
-Verified: RetroBat 8.2.1, 2026-10-04. How: posted the `path` that `/systems/nes/games` reports, as the raw body, to a running ES on an idle tree, then watched the processes and `emulatorLauncher.log`.
-The response was 200 with an empty body, `emulatorLauncher.log` grew by 1.9 KB, and
-`emulatorLauncher` and `retroarch` were running 12 s later. ES runs the `game-start` and
+Verified: RetroBat 8.3.0, 2026-10-15. How: on the agent tree with an `fds` rom present, posted the `path` that `/systems/<system>/games` reports, as the raw body, for two `nes` games, the `fds` game and a `snes` game in turn, then watched the processes and `emulatorLauncher.log`.
+Each response was 200 with an empty body, `emulatorLauncher.log` grew by about 2 KB, and
+`emulatorLauncher` and `retroarch` were running within 2.5 s. ES's `/launch` skips a group system
+(f600b969), but a group's parent is not one: `/systems` reports `nes` with group `nes` and
+`groupsystem` false while `fds` holds a rom, so `nes` games launch. ES runs the `game-start` and
 `game-end` hooks around it as for a player, so a hands-on pass over them can be scripted. Ending
 the game still takes the emulator's own exit (RB-35).
 
