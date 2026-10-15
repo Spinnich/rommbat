@@ -8,7 +8,7 @@ name each profile declares, then by data/retrobat/firmware-rows.json where that 
 silent. A row that resolves to nothing and is not explicitly marked as having no source fails
 the caller, so coverage never shrinks without a diff saying so.
 
-Imported, not run: tools/vendor-retrobios.py and tools/build-bios-manifest.py are the callers.
+Imported, not run: tools/vendor-retrobios.py and reference/verify.py are the callers.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parent.parent
 ROWS = ROOT / "data" / "retrobat" / "firmware-rows.json"
@@ -39,17 +40,20 @@ class Row:
 
 def read_rows(es_systems: Path) -> list[Row]:
     """Every (folder, emulator, core) es_systems.cfg offers. The folder is <path>'s basename,
-    which is the vocabulary bios.json and the platform map use; <name> differs for a few."""
-    text = es_systems.read_text(encoding="utf-8")
+    which is the vocabulary bios.json and the platform map use; <name> differs for a few. An
+    emulator with no <cores>, often written self-closing, is one row with an empty core. Parsed
+    as XML, as EsSystemsFile does: a pattern over the text lets a self-closing <emulator/> take
+    the next emulator's cores."""
+    root = ElementTree.parse(es_systems).getroot()
     rows: list[Row] = []
-    for system in re.findall(r"<system>.*?</system>", text, re.S):
-        path = re.search(r"<path>([^<]+)</path>", system)
+    for system in root.iter("system"):
+        path = (system.findtext("path") or "").strip()
         if not path:
             continue
-        folder = re.split(r"[\\/]", path.group(1).rstrip("\\/"))[-1]
-        for emulator, body in re.findall(r'<emulator name="([^"]+)"[^>]*>(.*?)</emulator>', system, re.S):
-            cores = re.findall(r"<core[^>]*>([^<]+)</core>", body) or [""]
-            rows.extend(Row(folder, emulator, core) for core in cores)
+        folder = re.split(r"[\\/]", path.rstrip("\\/"))[-1]
+        for emulator in system.iter("emulator"):
+            cores = [(core.text or "").strip() for core in emulator.iter("core")] or [""]
+            rows.extend(Row(folder, emulator.get("name", ""), core) for core in cores)
     return rows
 
 
@@ -146,7 +150,15 @@ class Evidence:
                 self.romm.setdefault(_basename(key.split(":", 1)[-1]), set()).add(entry["md5"].lower())
 
         rows = read_rows(reference / "es_systems.cfg")
-        resolved, self.unresolved = resolve_all(rows, self.profiles, read_row_map())
+        row_map = read_row_map()
+        resolved, self.unresolved = resolve_all(rows, self.profiles, row_map)
+        keys = {row.key for row in rows}
+        emulators = {row.emulator for row in rows}
+        self.unused = sorted(
+            key
+            for key in row_map.get("emulators", {})
+            if (key[:-2] not in emulators if key.endswith("/*") else key not in keys)
+        )
         self.rows = resolved
         self.folder_profiles: dict[str, set[str]] = {}
         self.folder_bizhawk: set[str] = set()

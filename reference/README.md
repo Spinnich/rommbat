@@ -33,9 +33,9 @@ one, and `tools/vendor-retrobios.py` never fetches one.
 | `romm-platform_aliases.py`     | `rommapp/romm` `backend/utils/platform_aliases.py`                                      | `PLATFORM_FS_ALIASES` and `resolve_platform_slug`: how RomM turns a folder name into a slug. Seed for the platform map. A seed, **not** an answer                       |
 | `romm-known_bios_files.json`   | `rommapp/romm` `backend/models/fixtures/known_bios_files.json`                          | What RomM's `is_verified` flag is computed from                                                                                                                        |
 | `romm-gamelist_exporter.py`    | `rommapp/romm` `backend/utils/gamelist_exporter.py`                                     | The gamelist field reference RomMBat's writer follows, and the source of two unit conversions RomMBat would otherwise have to guess at                                              |
-| `retrobios/emulators/*.yml`   | `Abdess/retrobios` `emulators/`, at the commit in `database-subset.json`'s `_ref`        | Which files each emulator's code reads, cited file:line, with any hash it checks. Only the 175 profiles a RetroBat row resolves to (`tools/firmware_sources.py`)    |
+| `retrobios/emulators/*.yml`   | `Abdess/retrobios` `emulators/`, at the commit in `database-subset.json`'s `_ref`        | Which files each emulator's code reads, cited file:line, with any hash it checks. Only the 221 profiles a RetroBat row resolves to (`tools/firmware_sources.py`)    |
 | `retrobios/platforms/bizhawk.yml` | `Abdess/retrobios` `platforms/bizhawk.yml`, same commit                             | BizHawk's `FirmwareDatabase.cs` as retrobios scrapes it, by sha1. BizHawk has no emulator profile                                                                     |
-| `retrobios/database-subset.json` | `Abdess/retrobios` `database.json`, same commit, **filtered**                         | md5, sha1, size and dump-catalog provenance for the 648 of 19,005 rows a vendored source or RetroBat's list reaches. Rows are copied unchanged; only the selection is RomMBat's |
+| `retrobios/database-subset.json` | `Abdess/retrobios` `database.json`, same commit, **filtered**                         | md5, sha1, size and dump-catalog provenance for the 688 of 19,005 rows a vendored source or RetroBat's list reaches. Rows are copied unchanged; only the selection is RomMBat's |
 
 ## Derived facts
 
@@ -95,10 +95,10 @@ name is exactly one dump-catalog entry's name, or where RomM's list names one ha
 
 |                                                    |     |
 | -------------------------------------------------- | --- |
-| RetroBat rows (system, emulator, core)             | 539 |
-| ...described by a retrobios profile                | 455 |
-| ...described by BizHawk's firmware list            | 49  |
-| ...marked as having no retrobios source            | 35  |
+| RetroBat rows (system, emulator, core)             | 709 |
+| ...described by a retrobios profile                | 562 |
+| ...described by BizHawk's firmware list            | 55  |
+| ...marked as having no retrobios source            | 92  |
 | Hashless entries that are MAME software lists      | 63  |
 | Hashless BIOS zips                                 | 64  |
 | ...whose contents a row's profile lists            | 24  |

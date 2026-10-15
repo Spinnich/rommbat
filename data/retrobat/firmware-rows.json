@@ -1,43 +1,223 @@
 {
   "_comment": "How each (emulator, core) row RetroBat's es_systems.cfg offers is joined to the retrobios source that describes the firmware its code reads. A row is first looked up by the core name each retrobios profile declares (by the core for libretro, by the emulator otherwise); an entry under 'emulators' replaces that lookup, keyed by 'emulator/core' or 'emulator/*'. Its value is {'profiles': [...]} naming retrobios emulator profiles, {'bizhawk': true} for BizHawk's FirmwareDatabase.cs, or {'none': '<why>'} for a row no retrobios source describes. A row that resolves to nothing and has no entry fails tools/vendor-retrobios.py and reference/verify.py, so coverage never shrinks silently. Hand-maintained; the vendored sources are described in reference/README.md.",
   "emulators": {
-    "bizhawk/*": { "bizhawk": true },
-    "daphne/daphne": { "none": "retrobios's daphne profile names no file" },
-    "gemrb/gemrb": { "none": "a game engine; reads game data, not firmware" },
-    "jynx/mame": { "none": "retrobios has no Jynx profile" },
-    "jzintv/IntelliHawk": { "none": "retrobios has no jzIntv profile" },
+    "2ship/*": {
+      "none": "a game engine or port; reads game data, not firmware"
+    },
+    "amigaforever/*": {
+      "none": "a launcher for Amiga Forever's own emulator; retrobios has no profile"
+    },
+    "arcadeduck/*": {
+      "none": "retrobios has no ArcadeDuck profile"
+    },
+    "bizhawk/*": {
+      "bizhawk": true
+    },
+    "bsyndrome/*": {
+      "none": "a game engine; reads game data, not firmware"
+    },
+    "capriceforever/*": {
+      "none": "retrobios has no Caprice Forever profile"
+    },
+    "chihiro-gun/*": {
+      "none": "retrobios's xemu profile covers the Xbox, not the Chihiro"
+    },
+    "chihiro/*": {
+      "none": "retrobios's xemu profile covers the Xbox, not the Chihiro"
+    },
+    "citra/*": {
+      "profiles": ["citra"]
+    },
+    "daphne/daphne": {
+      "none": "retrobios's daphne profile names no file"
+    },
+    "dhewm3/*": {
+      "profiles": ["dhewm3"]
+    },
+    "dosbox-pure/*": {
+      "profiles": ["dosbox_pure"]
+    },
+    "dusklight/*": {
+      "none": "a game engine or port; reads game data, not firmware"
+    },
+    "exodos/*": {
+      "none": "a launcher for eXoDOS's own DOSBox builds; reads no firmware"
+    },
+    "gemrb/gemrb": {
+      "none": "a game engine; reads game data, not firmware"
+    },
+    "ghostship/*": {
+      "none": "a game engine or port; reads game data, not firmware"
+    },
+    "gzdoom/*": {
+      "profiles": ["gzdoom"]
+    },
+    "jynx/*": {
+      "none": "retrobios has no Jynx profile"
+    },
+    "jzintv/*": {
+      "none": "retrobios has no jzIntv profile"
+    },
     "kega-fusion/*": {
       "none": "retrobios has no Kega Fusion profile; Fusion.ini names bios_U.sms, bios_E.sms and bios_J.sms (#533)"
     },
-    "libretro/genesis_plus_gx_expanded": { "profiles": ["genesis_plus_gx"] },
+    "libretro/": {
+      "none": "ports' libretro row names no core, so no emulator"
+    },
+    "libretro/genesis_plus_gx_expanded": {
+      "profiles": ["genesis_plus_gx"]
+    },
     "libretro/mame2014": {
       "none": "retrobios profiles mame2010 and mame2015 but not mame2014"
     },
-    "libretro/o2em": { "profiles": ["o2em"] },
-    "libretro/stella": { "profiles": ["stella2023"] },
-    "libretro/tgbdual": { "profiles": ["tgbdual"] },
-    "mame64/*": { "profiles": ["mame"] },
-    "mesen/*": { "profiles": ["mesence"] },
-    "mugen/mugen": { "none": "a game engine; reads game data, not firmware" },
-    "mupen64/*": { "profiles": ["rosalies-mupen-gui"] },
-    "nosgba/gba": { "none": "retrobios has no NO$GBA profile" },
-    "pcsx2/pcsx2": { "profiles": ["pcsx2"] },
-    "pcsx2-16/pcsx2": { "profiles": ["pcsx2"] },
-    "pinballfx/*": { "none": "a store-bought PC game; reads no firmware" },
-    "psxmame/mame": {
+    "libretro/o2em": {
+      "profiles": ["o2em"]
+    },
+    "libretro/stella": {
+      "profiles": ["stella2023"]
+    },
+    "libretro/tgbdual": {
+      "profiles": ["tgbdual"]
+    },
+    "libretro/zc255": {
+      "none": "retrobios profiles zc210, not zc255"
+    },
+    "linuxloader/*": {
+      "profiles": ["lindbergh-loader"]
+    },
+    "love/*": {
+      "none": "a game engine or port; reads game data, not firmware"
+    },
+    "magicengine/*": {
+      "none": "retrobios has no MagicEngine profile"
+    },
+    "mame64/*": {
+      "profiles": ["mame"]
+    },
+    "mandarine/*": {
+      "profiles": ["mandarine"]
+    },
+    "mesen/*": {
+      "profiles": ["mesence"]
+    },
+    "mugen/mugen": {
+      "none": "a game engine; reads game data, not firmware"
+    },
+    "mupen64/*": {
+      "profiles": ["rosalies-mupen-gui"]
+    },
+    "n64recomplauncher/*": {
+      "none": "a recompiled-game launcher; reads no firmware"
+    },
+    "nosgba/*": {
+      "none": "retrobios has no NO$GBA profile"
+    },
+    "opengoal/*": {
+      "none": "a game engine or port; reads game data, not firmware"
+    },
+    "openjazz/*": {
+      "profiles": ["openjazz"]
+    },
+    "pcsx2-16/*": {
+      "profiles": ["pcsx2"]
+    },
+    "pcsx2/pcsx2": {
+      "profiles": ["pcsx2"]
+    },
+    "pdark/*": {
+      "none": "a game engine or port; reads game data, not firmware"
+    },
+    "phoenix/*": {
+      "none": "retrobios has no Phoenix profile"
+    },
+    "pico8/*": {
+      "none": "a game engine or port; reads game data, not firmware"
+    },
+    "pinballfx/*": {
+      "none": "a store-bought PC game; reads no firmware"
+    },
+    "powerbomberman/*": {
+      "none": "a game engine or port; reads game data, not firmware"
+    },
+    "psxmame/*": {
       "none": "retrobios has no profile for the ZiNc build RetroBat ships"
     },
-    "simcoupe/simcoupe": { "profiles": ["samcoupe"] },
-    "singe2/singe2": { "none": "retrobios has no Singe 2 profile" },
-    "stella/Atari2600Hawk": { "profiles": ["stella2023"] },
-    "teknoparrot/*": { "none": "retrobios has no TeknoParrot profile" },
-    "xemu-chihiro/chihiro": {
+    "raine/*": {
+      "none": "retrobios has no Raine profile"
+    },
+    "raze/*": {
+      "none": "a game engine or port; reads game data, not firmware"
+    },
+    "rtcw/*": {
+      "none": "retrobios profiles iortcw; which engine RetroBat's rtcw emulator runs is unmeasured"
+    },
+    "simcoupe/simcoupe": {
+      "profiles": ["samcoupe"]
+    },
+    "singe2/*": {
+      "none": "retrobios has no Singe 2 profile"
+    },
+    "soh/*": {
+      "none": "a game engine or port; reads game data, not firmware"
+    },
+    "solarus2/*": {
+      "profiles": ["solarus"]
+    },
+    "sonic3air/*": {
+      "profiles": ["sonic3-air"]
+    },
+    "sonicmania/*": {
+      "profiles": ["sonic-mania"]
+    },
+    "sonicretro/*": {
+      "profiles": ["sonic2013"]
+    },
+    "sonicretrocd/*": {
+      "profiles": ["soniccd"]
+    },
+    "starship/*": {
+      "none": "a game engine or port; reads game data, not firmware"
+    },
+    "stella/*": {
+      "profiles": ["stella2023"]
+    },
+    "sudachi/*": {
+      "none": "retrobios has no Sudachi profile; its Switch keys are documented under yuzu"
+    },
+    "teknoparrot/*": {
+      "none": "retrobios has no TeknoParrot profile"
+    },
+    "uzdoom/*": {
+      "none": "retrobios has no UZDoom profile"
+    },
+    "vkquake/*": {
+      "none": "retrobios has no vkQuake profile"
+    },
+    "vkquake2/*": {
+      "none": "retrobios has no vkQuake2 profile"
+    },
+    "windows/*": {
+      "none": "a PC game launcher; reads no firmware"
+    },
+    "winuae/*": {
+      "none": "retrobios has no WinUAE profile"
+    },
+    "xash3d/*": {
+      "profiles": ["xash3d_fwgs"]
+    },
+    "xemu-chihiro/*": {
       "none": "retrobios's xemu profile covers the Xbox, not the Chihiro"
+    },
+    "xenia-manager/*": {
+      "profiles": ["xenia"]
     },
     "zaccariapinball/*": {
       "none": "a store-bought PC game; reads no firmware"
     },
-    "zquestclassic/zc255": {
+    "zinc/*": {
+      "none": "retrobios has no ZiNc profile"
+    },
+    "zquestclassic/*": {
       "none": "a game engine; reads game data, not firmware"
     }
   }

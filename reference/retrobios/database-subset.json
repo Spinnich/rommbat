@@ -212,6 +212,16 @@
     }
    }
   },
+  "04a8e4e7c360f6033dc70f7b09edbc4a6447e462": {
+   "path": "bios/Apogee/Blake Stone/MAPHEAD.BS1",
+   "name": "MAPHEAD.BS1",
+   "size": 834,
+   "sha1": "04a8e4e7c360f6033dc70f7b09edbc4a6447e462",
+   "md5": "4560fb7492c99f9fddde9cc7987fdc77",
+   "sha256": "d203e9c8a9cf20e41021444ab0291381920c0bf46bc8e4d2c675930a8b4716c5",
+   "crc32": "487a08d4",
+   "adler32": "e97b6986"
+  },
   "04e352ab6d6ca7f50109f67c850d9dc0f467de77": {
    "path": "bios/Sinclair/ZX 81/dkchr.rom",
    "name": "dkchr.rom",
@@ -323,6 +333,16 @@
    "crc32": "9ab5a036",
    "adler32": "1c773ab2"
   },
+  "07449ebca18f979b9ab748582b736e402f2bf940": {
+   "path": "bios/IBM/PC Compatible/PCCompatible/ibm-basic-1.10.rom",
+   "name": "ibm-basic-1.10.rom",
+   "size": 32768,
+   "sha1": "07449ebca18f979b9ab748582b736e402f2bf940",
+   "md5": "eb28f0e8d3f641f2b58a3677b3b998cc",
+   "sha256": "3033d1a54c99d7e2aa1fc7c8c2e51a56ae1b61bf4e70e8aa580f43c43e37a63e",
+   "crc32": "ebacb791",
+   "adler32": "28d7e867"
+  },
   "079e6dd3cf14187a4e6419a5fb3e4e811d8009cc": {
    "path": "bios/Sinclair/ZX 81/SSR6.bin",
    "name": "SSR6.bin",
@@ -332,6 +352,23 @@
    "sha256": "094d2e96aecb5c8bc3e4bd84feea459aaafb93094511ac1ac718ade5b4ac35db",
    "crc32": "f2bd5a4b",
    "adler32": "0a352b3f"
+  },
+  "093f8698b54b78dcb701de2043f82639de51d63b": {
+   "path": "bios/Sony/PlayStation 3/PS3UPDAT.PUP",
+   "name": "PS3UPDAT.PUP",
+   "size": 206126236,
+   "sha1": "093f8698b54b78dcb701de2043f82639de51d63b",
+   "md5": "05fe32f5dc8c78acbcd84d36ee7fdc5b",
+   "sha256": "69070a95780f59fc9e0d82bcf53eb9b28fd4ed4a7d54d0a40045f80422fd98d6",
+   "crc32": "24bdb2db",
+   "adler32": "1ec0b1c3",
+   "provenance": {
+    "no-intro": {
+     "dat": "Sony - PlayStation 3 (PSN) (Updates)",
+     "name": "PS3UPDAT.PUP",
+     "description": "[BIOS] PS3 System Software Update (World) (v4.90) (Update)"
+    }
+   }
   },
   "097197d4d08e0b82e0466a5f1fbd49a24f3d2523": {
    "path": "bios/Commodore/C128/vice/CBM-II/kernal-901234-02.bin",
@@ -588,6 +625,16 @@
     }
    }
   },
+  "11a6ae5d8b6ee328b371af7f1e40b82125aa6b4d": {
+   "path": "bios/Roland/mt32-roms/ctrl_mt32_bluer_a.rom",
+   "name": "ctrl_mt32_bluer_a.rom",
+   "size": 32768,
+   "sha1": "11a6ae5d8b6ee328b371af7f1e40b82125aa6b4d",
+   "md5": "c6c8ba9fef6923e1788b8e5e7308df68",
+   "sha256": "6416f335c596d853d6bb773fcdd2f575e291b57aa382092b375ba5bd1f3d8108",
+   "crc32": "d75fc3d9",
+   "adler32": "1dc4a68d"
+  },
   "11f9e62cf299f72184835b7b2a70a16333fc0d88": {
    "path": "bios/Commodore/Amiga/amiga-os-120.rom",
    "name": "amiga-os-120.rom",
@@ -651,6 +698,16 @@
    "sha256": "3dcc570b7728cfbff314a6305c9c0f933c5fa82153c6d50c3b1e780c3615f33e",
    "crc32": "9befb7a1",
    "adler32": "49c11b91"
+  },
+  "13f06b38f0d9e0fc050b6503ab777bb938603260": {
+   "path": "bios/Roland/mt32-roms/ctrl_mt32_1_07_a.rom",
+   "name": "ctrl_mt32_1_07_a.rom",
+   "size": 32768,
+   "sha1": "13f06b38f0d9e0fc050b6503ab777bb938603260",
+   "md5": "d241220ed9c171ffcf347413eaf5969b",
+   "sha256": "967d2e3c782d87015b4a0b08348baf6bef9ad7fa7fb0d2e35d83b3158850bafd",
+   "crc32": "67fd8968",
+   "adler32": "22e1d91b"
   },
   "1431ec628d38f000715545dd2186b684c5fe5a6f": {
    "path": "bios/Amstrad/CPC/MF2.rom",
@@ -752,6 +809,33 @@
    "sha256": "409844660a4fb101f0846e058d30c2b6457fb0616b69e4428dec23111a1982a4",
    "crc32": "cb7b98f7",
    "adler32": "5b2931aa"
+  },
+  "15a17798839a3f7f361119205aebc301c2df5967": {
+   "path": "bios/Sharp/X68000/scsiinrom.dat",
+   "name": "scsiinrom.dat",
+   "size": 8192,
+   "sha1": "15a17798839a3f7f361119205aebc301c2df5967",
+   "md5": "aeb4607a14612606c833227437aaa16a",
+   "sha256": "fe6e700b91c290b19da9aa4d35985f2d8f9686442e250686a95da959088121fa",
+   "crc32": "f65a3e24",
+   "adler32": "cc6a09c6"
+  },
+  "15c23c3b671a8828302603f30c81d464b24a7fb1": {
+   "path": "bios/Nintendo/Nintendo 64/boot1.rom",
+   "name": "boot1.rom",
+   "size": 1984,
+   "sha1": "15c23c3b671a8828302603f30c81d464b24a7fb1",
+   "md5": "d4232dc935cad0650ac2664d52281f3a",
+   "sha256": "79c81fffae934b6df251da6c3a394f52c6a0eaa07115a3b9677743e3c1335f4a",
+   "crc32": "d6650859",
+   "adler32": "3a58a131",
+   "provenance": {
+    "no-intro": {
+     "dat": "Nintendo - Nintendo 64 (BigEndian)",
+     "name": "[BIOS] Nintendo 64 - PIF (Europe).bin",
+     "description": "[BIOS] Nintendo 64 - PIF (Europe)"
+    }
+   }
   },
   "15c94da3cc5a38a582429575af4198c487fe893c": {
    "path": "bios/Sony/PlayStation/scph5903.bin",
@@ -1094,6 +1178,16 @@
     }
    }
   },
+  "1f5f7013f18c08ff50d7942e76c4fbd782412414": {
+   "path": "bios/IBM/PC/ibmpcjr/bios.rom",
+   "name": "bios.rom",
+   "size": 65536,
+   "sha1": "1f5f7013f18c08ff50d7942e76c4fbd782412414",
+   "md5": "c66b49cd7082d1b81442fb2704542401",
+   "sha256": "863df0975a305110a7da4591b704e8f5dc7302f03c63603aa2dcd03e84c36ff9",
+   "crc32": "31e3a7aa",
+   "adler32": "0b927673"
+  },
   "20b98f3d80f11cbf5a7bfd0779b0e63760ecc62c": {
    "path": "bios/Sony/PlayStation/scph1002.bin",
    "name": "scph1002.bin",
@@ -1186,6 +1280,16 @@
    "sha256": "d3cee90a6be5e483e9bec92dff5a3940c0fd8c3e473218fa5fde0a431b627211",
    "crc32": "da7be246",
    "adler32": "3e6f7e57"
+  },
+  "22bf818465da0f32eef9611de936cba9966b14aa": {
+   "path": "bios/Apogee/Blake Stone/SANIM.BS1",
+   "name": "SANIM.BS1",
+   "size": 276784,
+   "sha1": "22bf818465da0f32eef9611de936cba9966b14aa",
+   "md5": "24848d1955e61d7d5d88ece1e9aa1557",
+   "sha256": "3e4f9fee8464040cf2d66f28e1a9e9f94790cdb1f32d7ed739ae68653fb46876",
+   "crc32": "0e6b7a68",
+   "adler32": "b837724f"
   },
   "22e50c6ba4157a3f6a821bd9937cd26e292775c6": {
    "path": "bios/Sinclair/ZX Spectrum/plus3-2.rom",
@@ -1501,6 +1605,26 @@
    "sha256": "a5339b966142dd2ca0e49b7c4cc1307510a753ea3331c85355706d306ac01d86",
    "crc32": "59a49d5c",
    "adler32": "1c0da6e5"
+  },
+  "2cadb99d21a6a4a6f5b61b6218d16e9b43f61d01": {
+   "path": "bios/Roland/mt32-roms/pcm_mt32_h.rom",
+   "name": "pcm_mt32_h.rom",
+   "size": 262144,
+   "sha1": "2cadb99d21a6a4a6f5b61b6218d16e9b43f61d01",
+   "md5": "0d4908e119ddfa6f0283b46bc9fe744d",
+   "sha256": "95f312aee6f359b844776c6a18d9e5ae728d295a1bd256b0a5339b58b3852899",
+   "crc32": "4ee6506c",
+   "adler32": "2687fd60"
+  },
+  "2d95227b9b3eaf1c74d9293ecd0d190ec7ffbbe3": {
+   "path": "bios/Nintendo/Wii U/resources/sharedFonts/CafeCn.ttf",
+   "name": "CafeCn.ttf",
+   "size": 9664448,
+   "sha1": "2d95227b9b3eaf1c74d9293ecd0d190ec7ffbbe3",
+   "md5": "88e8040854b406680406875df51995f2",
+   "sha256": "6afd751a9bb76bc788efb50a138c6f3765624ee84d8d8203be04d871ade40a6a",
+   "crc32": "d734cea1",
+   "adler32": "b11a8c81"
   },
   "2de87767008fc4a303af64a46251156e965d9065": {
    "path": "bios/Sony/PlayStation 2/ps2-0180cd-20030224.bin",
@@ -2041,6 +2165,16 @@
    "crc32": "1dbb7b59",
    "adler32": "76bc8e32"
   },
+  "3a1e19b0cd4036623fd1d1d11f5f25995585962b": {
+   "path": "bios/Roland/mt32-roms/pcm_mt32_l.rom",
+   "name": "pcm_mt32_l.rom",
+   "size": 262144,
+   "sha1": "3a1e19b0cd4036623fd1d1d11f5f25995585962b",
+   "md5": "499539a02b726aa43f9a22cf05c48e7b",
+   "sha256": "990d5bb6b6dd1ba74a009ee4712beb5cecc97b11ee63dfd78c26babd0f8e5b53",
+   "crc32": "dd9deac3",
+   "adler32": "a79ed57d"
+  },
   "3a9a942ed888dd641cddf8deada1879c454df3c6": {
    "path": "bios/Microsoft/MSX/share/systemroms/fs-5500_kanjibasic.rom",
    "name": "fs-5500_kanjibasic.rom",
@@ -2060,6 +2194,16 @@
    "sha256": "0a644f5e7f6ef8cb67b07e7a80f3f9a35584d9b131294c64f6e747a7e5c8a789",
    "crc32": "505365d4",
    "adler32": "cec2b69d"
+  },
+  "3ad889fde5db5b6437cbc2eb6e305312fec3df93": {
+   "path": "bios/Roland/mt32-roms/pcm_cm32l_h.rom",
+   "name": "pcm_cm32l_h.rom",
+   "size": 524288,
+   "sha1": "3ad889fde5db5b6437cbc2eb6e305312fec3df93",
+   "md5": "f7909bed95b04d8dc4cc47970e2bc3e6",
+   "sha256": "5ed28de779c05b35e456cc95bdd4f520ea1b8d3079c6809fd49ae061fee9f763",
+   "crc32": "8e9ea06e",
+   "adler32": "ca9c9fc1"
   },
   "3adf6d6f16df67961ed5a7ecc93fb0c116da1b49": {
    "path": "bios/Sinclair/ZX 81/SSR1.bin",
@@ -2652,6 +2796,16 @@
     }
    }
   },
+  "49616c09a8986ffe6a12ad600febe512f7ba8ae4": {
+   "path": "bios/Other/xm6pro68k/SCSIEXROM.DAT",
+   "name": "SCSIEXROM.DAT",
+   "size": 8192,
+   "sha1": "49616c09a8986ffe6a12ad600febe512f7ba8ae4",
+   "md5": "237be014374b74d327f15f250d4d62bf",
+   "sha256": "063efb1faaa160dad2d236b560243d98274c1089a275b74c257a85e5dbefd04b",
+   "crc32": "7be488de",
+   "adler32": "604622fa"
+  },
   "4a38f7f5bf7fd0a95cf882433c69e67251a46868": {
    "path": "bios/Other/zesarux/cpc664.rom",
    "name": "cpc664.rom",
@@ -2873,6 +3027,16 @@
    "crc32": "b832da9a",
    "adler32": "732ffb19"
   },
+  "52e3c6666db9ef962591a8ee99be0cde17f3a6b6": {
+   "path": "bios/Roland/mt32-roms/ctrl_mt32_1_05_b.rom",
+   "name": "ctrl_mt32_1_05_b.rom",
+   "size": 32768,
+   "sha1": "52e3c6666db9ef962591a8ee99be0cde17f3a6b6",
+   "md5": "cd83d3b708887a5822d5155782b922d0",
+   "sha256": "4d1a74c385abb7e2a1868c9ca1720702d1959ef60376b1f4aa3b9effac5a9c87",
+   "crc32": "e06d8020",
+   "adler32": "5e4235bb"
+  },
   "53314b4d565cc405a67a0936b935e6e08955580d": {
    "path": "bios/Commodore/C128/vice/CBM-II/basic-901240+1-03.bin",
    "name": "basic-901240+1-03.bin",
@@ -2892,6 +3056,16 @@
    "sha256": "e682ec5dcfd75bc488f03a3dde32fd577f968fd1f7f13c6712cb86700492df52",
    "crc32": "88681a61",
    "adler32": "877bb849"
+  },
+  "537676ddcafeee415c22bb9d00097b25bc7e13c5": {
+   "path": "bios/Apogee/Blake Stone/VGADICT.BS1",
+   "name": "VGADICT.BS1",
+   "size": 1024,
+   "sha1": "537676ddcafeee415c22bb9d00097b25bc7e13c5",
+   "md5": "78ea7678704503dbb453c59bffcb4b98",
+   "sha256": "b69688a3071416fa9b0324f2b070c884e73adadcb444a268bbcee51cdacb9bd9",
+   "crc32": "d3291ef1",
+   "adler32": "5577fe02"
   },
   "541271ea46c5166a1e054379963b0dc663e9b60f": {
    "path": "bios/NEC/PC-98/.variants/FONT.ROM.541271ea",
@@ -3011,6 +3185,16 @@
    "sha256": "f605fd169026e18fd1b2f8669492d2ae6821baed81957be9c37ec89588dc83f2",
    "crc32": "4bb771ea",
    "adler32": "ea9ce94a"
+  },
+  "57a09d80d2f7ca5b9734edbe9645e6e700f83701": {
+   "path": "bios/Roland/mt32-roms/ctrl_mt32_1_05_a.rom",
+   "name": "ctrl_mt32_1_05_a.rom",
+   "size": 32768,
+   "sha1": "57a09d80d2f7ca5b9734edbe9645e6e700f83701",
+   "md5": "0dfb58615f6789f9ba382988d88d2014",
+   "sha256": "886433723e396c01efb5844d4edfa9caa419240a03dec2153f075048d79f3129",
+   "crc32": "3281216c",
+   "adler32": "2aa0b562"
   },
   "57c0b6681224378ce1d279fde13d644478423783": {
    "path": "bios/Other/zesarux/128s.rom",
@@ -5014,6 +5198,16 @@
    "crc32": "2591a0dd",
    "adler32": "971eedb4"
   },
+  "8c272ae624c56d48d788fafe0397fab2e33d838f": {
+   "path": "bios/Other/eka2l1/resources/gamecontrollerdb.txt",
+   "name": "gamecontrollerdb.txt",
+   "size": 408885,
+   "sha1": "8c272ae624c56d48d788fafe0397fab2e33d838f",
+   "md5": "b1586eb09b91f65c37a2f5e7c6ef7980",
+   "sha256": "d8d995606af437fff434aa204ca976f21bebaf44170f98bdc3a86074d1a9ac91",
+   "crc32": "d43f1df5",
+   "adler32": "db55d066"
+  },
   "8cafb292af58617907b9e6b9093d3588a75849b8": {
    "path": "bios/Other/zesarux/p2.rom",
    "name": "p2.rom",
@@ -5069,6 +5263,16 @@
      "description": "Sharp X68000 CG ROM (1987)(Sharp)"
     }
    }
+  },
+  "8ec796192ebc710f23ab6bd55453cae523b70444": {
+   "path": "bios/Nintendo/Wii U/resources/sharedFonts/CafeTw.ttf",
+   "name": "CafeTw.ttf",
+   "size": 6593548,
+   "sha1": "8ec796192ebc710f23ab6bd55453cae523b70444",
+   "md5": "bf8fbf9a200affc4428bf4fc2bb22b67",
+   "sha256": "c8f9e16345dbc3b6e165fe12435486a748e730ebe6002b5d713efe73d171d51c",
+   "crc32": "aaf8df7b",
+   "adler32": "de972afe"
   },
   "8ef7503c948314d242da47b7fdc272f68dac2aee": {
    "path": "bios/3DO Company/3DO/3do_goldstar_fc1_enc.bin",
@@ -5625,6 +5829,16 @@
    "crc32": "273e9e88",
    "adler32": "d0a7911d"
   },
+  "9cd4858014c4e8a9dff96053f784bfaac1092a2e": {
+   "path": "bios/Roland/mt32-roms/ctrl_mt32_1_04_a.rom",
+   "name": "ctrl_mt32_1_04_a.rom",
+   "size": 32768,
+   "sha1": "9cd4858014c4e8a9dff96053f784bfaac1092a2e",
+   "md5": "1eddb73995829e4befecd40b13dfb408",
+   "sha256": "70fe51fef3ef16fac12f014f5c03e5cb69d9819d7568322459d9b08c675be78a",
+   "crc32": "a93b65f2",
+   "adler32": "055ee9ab"
+  },
   "9d76f3eefd64e032c763fa1ebf9cd3d9bd22317a": {
    "path": "bios/Elektronika/BK/BAS11M_0.ROM",
    "name": "BAS11M_0.ROM",
@@ -5732,6 +5946,16 @@
      "description": "Editor 901498-01 BASIC4 (198x)(Commodore)(PAL)[h BusinessKeyboard][PET4032]"
     }
    }
+  },
+  "9f9f4c40c9637af472ce5e1a360e51364c3a418a": {
+   "path": "bios/Apogee/Blake Stone/VGAGRAPH.BS1",
+   "name": "VGAGRAPH.BS1",
+   "size": 729462,
+   "sha1": "9f9f4c40c9637af472ce5e1a360e51364c3a418a",
+   "md5": "f5dfd3f330af0274bf87cd08c2513d55",
+   "sha256": "ff1705dc4651a2ea4a7074b1082ffea61d6ffd59bfb73d4ce7b764907322eb85",
+   "crc32": "5c45e6e9",
+   "adler32": "588a592a"
   },
   "a002f4efba42775a31185d443f3ed1790b0e949a": {
    "path": "bios/Nintendo/SNES/SNES_cx4.rom",
@@ -6235,6 +6459,16 @@
     }
    }
   },
+  "ab035b7804089690018318e4a05f9a8fc59421ff": {
+   "path": "bios/Game Engines/Solarus/gamecontrollerdb.txt",
+   "name": "gamecontrollerdb.txt",
+   "size": 600521,
+   "sha1": "ab035b7804089690018318e4a05f9a8fc59421ff",
+   "md5": "1e70da4de91be79b9ccf47209a1fc73f",
+   "sha256": "eb002773dc8a16aa96f9ee2609798e231a9deb60c45e21fbdd4e221c9e8b7d77",
+   "crc32": "c080726f",
+   "adler32": "f0076664"
+  },
   "ab16f56989b27d89babe5f89c5a8cb3da71a82f0": {
    "path": "bios/Commodore/C128/vice/DRIVES/dos1541-325302-01+901229-05.bin",
    "name": "dos1541-325302-01+901229-05.bin",
@@ -6374,6 +6608,23 @@
      "dat": "Commodore C64 - Firmware - Kernal",
      "name": "Chargen 901225-01 (198x)(Commodore)[!].rom",
      "description": "Chargen 901225-01 (198x)(Commodore)[!]"
+    }
+   }
+  },
+  "ae2a4f49ec6c09d124fed20f84231ce27d10c7b7": {
+   "path": "bios/Sony/PlayStation 3/.variants/PS3UPDAT.PUP.ed8ab192",
+   "name": "PS3UPDAT.PUP",
+   "size": 206197916,
+   "sha1": "ae2a4f49ec6c09d124fed20f84231ce27d10c7b7",
+   "md5": "a2b60b6ac1d2e49e230144345616927c",
+   "sha256": "158471fd834f8ea8036136b6aab43cd86c7ba73d79ca30e0af3c0fe0001cf365",
+   "crc32": "ed8ab192",
+   "adler32": "82e06f63",
+   "provenance": {
+    "no-intro": {
+     "dat": "Sony - PlayStation 3 (PSN) (Updates)",
+     "name": "PS3UPDAT.PUP",
+     "description": "[BIOS] PS3 System Software Update (World) (v4.93) (Update)"
     }
    }
   },
@@ -6734,6 +6985,33 @@
     }
    }
   },
+  "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25": {
+   "path": "bios/Apogee/Blake Stone/AUDIOT.BS1",
+   "name": "AUDIOT.BS1",
+   "size": 267636,
+   "sha1": "b79e7afcb4e4b29e59660ec261f72ff1ab4d3a25",
+   "md5": "144a201ef4bd5bd9989dc61d9250eeac",
+   "sha256": "de61ce733202b88db421f1114f0e978078ffdf42d48bf0252bd0845b19ec975b",
+   "crc32": "b33a17d2",
+   "adler32": "98f734c3"
+  },
+  "b7a0070cbe4b9bcaa08ec0b76b8c4955b2ae535a": {
+   "path": "bios/Nintendo/Nintendo 64/boot.rom",
+   "name": "boot.rom",
+   "size": 1984,
+   "sha1": "b7a0070cbe4b9bcaa08ec0b76b8c4955b2ae535a",
+   "md5": "5c124e7948ada85da603a522782940d0",
+   "sha256": "fa7b09795ef1e54461e59f6f2d902368133e3f1cd980e34383e6a780d74beffd",
+   "crc32": "0aa20b09",
+   "adler32": "7267a3f7",
+   "provenance": {
+    "no-intro": {
+     "dat": "Nintendo - Nintendo 64 (BigEndian)",
+     "name": "[BIOS] Nintendo 64 - PIF (Japan, USA).bin",
+     "description": "[BIOS] Nintendo 64 - PIF (Japan, USA)"
+    }
+   }
+  },
   "b7af62f0bc95fdca4b31d236f8327dafc80f83b7": {
    "path": "bios/Enterprise/64-128/zt19uk.rom",
    "name": "zt19uk.rom",
@@ -6874,6 +7152,16 @@
     }
    }
   },
+  "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd": {
+   "path": "bios/Apogee/Blake Stone/IANIM.BS1",
+   "name": "IANIM.BS1",
+   "size": 18977,
+   "sha1": "ba1fa5b0bc34f148deffb4977a3cd1e718e91bbd",
+   "md5": "b13edd1c227806dc1bc4874ea1bd606c",
+   "sha256": "a260eee3079ae9f33fd602357aab0f8496af404729512ffca850442bf1262692",
+   "crc32": "be1cd872",
+   "adler32": "abc81376"
+  },
   "ba28754a3cc31a4ca579829ed4310c313409cf5d": {
    "path": "bios/Sinclair/ZX Spectrum/mf1.rom",
    "name": "mf1.rom",
@@ -6987,6 +7275,33 @@
     }
    }
   },
+  "bbb3cd6ab3e742eada427862504eba06437036d0": {
+   "path": "bios/Apogee/Blake Stone/MAPTEMP.BS1",
+   "name": "MAPTEMP.BS1",
+   "size": 90786,
+   "sha1": "bbb3cd6ab3e742eada427862504eba06437036d0",
+   "md5": "6532d4062fed1817b440684c41a21fb5",
+   "sha256": "d33820ccf41691c4e599f5b0e55c7c50d2703eb703f3edffc23c1da6569a323a",
+   "crc32": "5d5bcf34",
+   "adler32": "ccf00680"
+  },
+  "bbdbb49a917d14f7a997d327ba40d40c39e606ce": {
+   "path": "bios/Other/citron/switch/key_retail.bin",
+   "name": "key_retail.bin",
+   "size": 160,
+   "sha1": "bbdbb49a917d14f7a997d327ba40d40c39e606ce",
+   "md5": "45fd53569f5765eef9c337bd5172f937",
+   "sha256": "7f9283654ec1097fbdff31de946651ae60c2854afb544abe8963d389639c710e",
+   "crc32": "c6408c16",
+   "adler32": "b32244e3",
+   "provenance": {
+    "no-intro": {
+     "dat": "Nintendo - Misc",
+     "name": "key_retail.bin",
+     "description": "[BIOS] Amiibo - Data and Tag Master Keys (World)"
+    }
+   }
+  },
   "bd325c869e1dde8a3872fc21565e0646a3d5b525": {
    "path": "bios/3DO Company/3DO/3do_devkit_1.0fc2.bin",
    "name": "3do_devkit_1.0fc2.bin",
@@ -7045,6 +7360,16 @@
      "description": "Characters 901640-01 (198x)(Commodore)[SuperPET]"
     }
    }
+  },
+  "bf4f15666bc46679579498386704893b630c1171": {
+   "path": "bios/Roland/mt32-roms/ctrl_mt32_1_06_b.rom",
+   "name": "ctrl_mt32_1_06_b.rom",
+   "size": 32768,
+   "sha1": "bf4f15666bc46679579498386704893b630c1171",
+   "md5": "04d9852b98409301ec59f300f6e3d0e9",
+   "sha256": "5be9dba23bebfe4b342d2b086ed5fddca1e7436eb4900b3e4e8fdd7064490c22",
+   "crc32": "4d495d98",
+   "adler32": "95671e78"
   },
   "bf861922dcb78c316360e3e742f4f70ff63c9bc3": {
    "path": "bios/Nintendo/64DD/64DD_IPL_v12_JPN.bin",
@@ -7275,6 +7600,16 @@
    "sha256": "af4e1175ec8afa6853d8d5dfa5af5b7fd3bcacc03c8a67d0e067f020ac0b423c",
    "crc32": "21b80fdf",
    "adler32": "962df544"
+  },
+  "c55e165487d71fa88bd8c5e9c083bc456c1a89aa": {
+   "path": "bios/Roland/mt32-roms/ctrl_mt32_1_07_b.rom",
+   "name": "ctrl_mt32_1_07_b.rom",
+   "size": 32768,
+   "sha1": "c55e165487d71fa88bd8c5e9c083bc456c1a89aa",
+   "md5": "346d6c8ef954c1901822d349dd658aef",
+   "sha256": "f2889cdd5e8dce2989d0a63628480191eba50aa46e3ee349fcc4926045ebaf91",
+   "crc32": "60f45882",
+   "adler32": "7ef725aa"
   },
   "c5839f5cb98a7a8947065c3ed2f14f5f42e334a1": {
    "path": "bios/Commodore/Amiga/amiga-os-204.rom",
@@ -7589,6 +7924,33 @@
    "sha256": "8b7e32bbe42dbb77faee79ed4fc0295ecc8330b78e04c1f606a40e5d7ef20011",
    "crc32": "69d5cbe6",
    "adler32": "f395d803"
+  },
+  "cc72dfcc964577cc29112ef368c28f55277c237c": {
+   "path": "bios/Sony/PlayStation Vita/PSVUPDAT.PUP",
+   "name": "PSVUPDAT.PUP",
+   "size": 133834240,
+   "sha1": "cc72dfcc964577cc29112ef368c28f55277c237c",
+   "md5": "f2c7b12fe85496ec88a0391b514d6e3b",
+   "sha256": "6ef6dc8da6db026f28647713e473486d770087a605c52a8d751bfca7478386cf",
+   "crc32": "39075d41",
+   "adler32": "75d71010",
+   "provenance": {
+    "no-intro": {
+     "dat": "Sony - PlayStation Vita (PSN) (Updates)",
+     "name": "PSVUPDAT.PUP",
+     "description": "[BIOS] PS Vita System Software Update (World) (v3.74)"
+    }
+   }
+  },
+  "cc83bf23cee533097fb4c7e2c116e43b50ebacc8": {
+   "path": "bios/Roland/mt32-roms/ctrl_mt32_1_06_a.rom",
+   "name": "ctrl_mt32_1_06_a.rom",
+   "size": 32768,
+   "sha1": "cc83bf23cee533097fb4c7e2c116e43b50ebacc8",
+   "md5": "2a2e1a6f83d3bfd5799b1b835b68784f",
+   "sha256": "17d9b8b65b92ed73a4608247858f3ffefe901934df4e14783993e49238cdc675",
+   "crc32": "29369ae1",
+   "adler32": "cf81c0d6"
   },
   "cd342579f066c0863e4f769c2e6757085e21b0a1": {
    "path": "bios/MGT/SAM Coupe/atom.rom",
@@ -8138,6 +8500,16 @@
     }
    }
   },
+  "da0d4bcc3b13339179bee946eba16adfd731b4d3": {
+   "path": "bios/Nintendo/Wii U/resources/sharedFonts/CafeStd.ttf",
+   "name": "CafeStd.ttf",
+   "size": 5363768,
+   "sha1": "da0d4bcc3b13339179bee946eba16adfd731b4d3",
+   "md5": "8ca7dae3bd89ce56087d437932c33656",
+   "sha256": "59e2494727b8e7a7bbf48c8749f2dbc07d438c9fabeaa9847a08ec690f9888a1",
+   "crc32": "bc7f3500",
+   "adler32": "55c92ea7"
+  },
   "da5aacead2fb55807d6d4e70b1f10f4fdcfd3281": {
    "path": "bios/Sony/PlayStation 2/ps2-0220e-20060905.bin",
    "name": "ps2-0220e-20060905.bin",
@@ -8258,6 +8630,16 @@
     }
    }
   },
+  "dbde907ba1110bef445d6daae283c4520d6951b4": {
+   "path": "bios/Apogee/Blake Stone/VSWAP.BS1",
+   "name": "VSWAP.BS1",
+   "size": 1996008,
+   "sha1": "dbde907ba1110bef445d6daae283c4520d6951b4",
+   "md5": "35f3d32bad5803b2d69bf3cff92da5ef",
+   "sha256": "89401699ff03ac0297d86c7d4730b45bec2e515eaa9bc49e205cb7bf25a41002",
+   "crc32": "1bc79cb4",
+   "adler32": "a66bf9ea"
+  },
   "dbebd76a448447cb6e524ac3cb0fd19fc065d944": {
    "path": "bios/Sega/32X/32X_G_BIOS.BIN",
    "name": "32X_G_BIOS.BIN",
@@ -8306,6 +8688,16 @@
      "description": "Kanji Driver 32k Panasonic FS-A1WX, Sony HB-F1XDJ (19xx)(-)[KNJDRV.ROM]"
     }
    }
+  },
+  "dce6491424f1726203776dfae9a967a98a4ba7b5": {
+   "path": "bios/IBM/PC/ibm-vga.bin",
+   "name": "ibm-vga.bin",
+   "size": 32768,
+   "sha1": "dce6491424f1726203776dfae9a967a98a4ba7b5",
+   "md5": "95ba6f4b418b2a5f34a4ed13d90dd04f",
+   "sha256": "733d204b1622b397a7be45a18b48e035609a950c413b09f905e9c39427acc918",
+   "crc32": "74e3fadb",
+   "adler32": "042b2af0"
   },
   "dcffe16bd90a723499ad46c641424981338d8378": {
    "path": "bios/Sony/PlayStation/scph101.bin",
@@ -8427,6 +8819,16 @@
     }
    }
   },
+  "e0934320d7cbb5edfaa29e0d01ae835ef620085b": {
+   "path": "bios/Roland/mt32-roms/ctrl_mt32_bluer_b.rom",
+   "name": "ctrl_mt32_bluer_b.rom",
+   "size": 32768,
+   "sha1": "e0934320d7cbb5edfaa29e0d01ae835ef620085b",
+   "md5": "d5ed9d93730d625df29e910527082a0b",
+   "sha256": "9da6e3f5f81915b4956ca4c9398589419b2b82d7a11ff8baae821e22566b85b2",
+   "crc32": "5816476f",
+   "adler32": "afc61de8"
+  },
   "e0f5e2eced447abf9948342b2facc40179f0f527": {
    "path": "bios/Tiger/Game.com/gamecom.zip",
    "name": "gamecom.zip",
@@ -8517,6 +8919,16 @@
      "description": "Sony PlayStation 2 SCPH-30002, SCPH-30003, SCPH-30004, SCPH-35002, SCPH-35003 & SCPH-35004 System ROM v5.0-01.50 (2000-12-28)(Sony)(EU)"
     }
    }
+  },
+  "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2": {
+   "path": "bios/Apogee/Blake Stone/AUDIOHED.BS1",
+   "name": "AUDIOHED.BS1",
+   "size": 1280,
+   "sha1": "e2c101f9fd4bc7e22ddbfa3f019c9303877de4e2",
+   "md5": "52a203285041846c9fd73e8947a64522",
+   "sha256": "7dc7947bceea5ba0ce9f1b069fda6211d3acc7ac5ed2642877ee3f8782fa2d9f",
+   "crc32": "9397d376",
+   "adler32": "2d350e49"
   },
   "e319ed08b4d53a5e421a75ea00ea02039ba6555b": {
    "path": "bios/Sinclair/ZX Spectrum/plus3-0.rom",
@@ -8790,6 +9202,16 @@
    "sha256": "a6f97a57ddd24aba9df43758551269fe3c869e0501fec8d67732e4756d4a8857",
    "crc32": "3a350bc3",
    "adler32": "e1a305de"
+  },
+  "e7fb8f241b8fa94739c3bd09ea05c1afc7bbfc95": {
+   "path": "bios/Apogee/Blake Stone/VGAHEAD.BS1",
+   "name": "VGAHEAD.BS1",
+   "size": 639,
+   "sha1": "e7fb8f241b8fa94739c3bd09ea05c1afc7bbfc95",
+   "md5": "3d6973e5032bfaadefa6684367a26f77",
+   "sha256": "bcb5219c866bd8acacfbb98c3c591db20d695c7cd10d3217c1d19a09d403f1d5",
+   "crc32": "ed7917c0",
+   "adler32": "db49d4f4"
   },
   "e838e1d63dc9c1e518a79195c9512042dffb765f": {
    "path": "bios/Other/zesarux/tbblue.mmc",
@@ -9073,6 +9495,16 @@
    "sha256": "4f796684c72a64f49bcb3594518f206f9f6060902711e2045eb09ccd95ee7b27",
    "crc32": "b2e4c33c",
    "adler32": "36995557"
+  },
+  "f0ef38fcc6133c24f4f38ff9b5c06b37e970d3cc": {
+   "path": "bios/Nintendo/Wii U/resources/sharedFonts/CafeKr.ttf",
+   "name": "CafeKr.ttf",
+   "size": 5626464,
+   "sha1": "f0ef38fcc6133c24f4f38ff9b5c06b37e970d3cc",
+   "md5": "ba18ba58dab47b4f739e0ec28f29f413",
+   "sha256": "c3c326f6ce1899e391dc4996b10a0c30558c5b8f36dfbaa418976862b3e2dffb",
+   "crc32": "fc4cc829",
+   "adler32": "afa5ab2b"
   },
   "f119506eaa3b4b70b9aa0dd83761e8cbe043d042": {
    "path": "bios/Dragon/Dragon/d64rom1.rom",
@@ -9641,6 +10073,16 @@
    "sha256": "74eba0f5e1a22ff08635ea2e03db766d131a79247e096e1b40aeba900c6393ab",
    "crc32": "07b50015",
    "adler32": "ce6aeaa5"
+  },
+  "fe8db469b5bfeb37edb269fd47e3ce6d91014652": {
+   "path": "bios/Roland/mt32-roms/ctrl_mt32_1_04_b.rom",
+   "name": "ctrl_mt32_1_04_b.rom",
+   "size": 32768,
+   "sha1": "fe8db469b5bfeb37edb269fd47e3ce6d91014652",
+   "md5": "87546da1c1b9ad1354baea23a28e6981",
+   "sha256": "4ed69cdcb5a575f869f55f0751a14da7c9d31b3a6720b91c203ba7029d6cde84",
+   "crc32": "b5ee2192",
+   "adler32": "03e7632d"
   },
   "febb2d495b6eda7cdcb4074935d6e9d9f328972d": {
    "path": "bios/Sinclair/ZX Spectrum/tc2048.rom",

@@ -58,11 +58,12 @@ def firmware_evidence(bios):
     rows = list(evidence.rows.values())
     # Not a statistic: a row nothing describes must be resolved in firmware-rows.json or marked.
     check("RetroBat rows no source describes and nothing marks", len(evidence.unresolved), 0)
-    check("retrobios profiles vendored", len(evidence.profiles), 175)
-    check("RetroBat rows", len(rows), 539)
-    check("  ...described by a retrobios profile", sum(1 for s in rows if s.get("profiles")), 455)
-    check("  ...described by BizHawk's firmware list", sum(1 for s in rows if s.get("bizhawk")), 49)
-    check("  ...marked as having no retrobios source", sum(1 for s in rows if "none" in s), 35)
+    check("Row-map entries no RetroBat row uses", evidence.unused, [])
+    check("retrobios profiles vendored", len(evidence.profiles), 221)
+    check("RetroBat rows", len(rows), 709)
+    check("  ...described by a retrobios profile", sum(1 for s in rows if s.get("profiles")), 562)
+    check("  ...described by BizHawk's firmware list", sum(1 for s in rows if s.get("bizhawk")), 55)
+    check("  ...marked as having no retrobios source", sum(1 for s in rows if "none" in s), 92)
 
     shapes = {}
     for key, body in bios.items():
