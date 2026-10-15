@@ -13,14 +13,14 @@ Leave RetroBat on its default, RetroArch with the Genesis Plus GX core.
 
 Avoid two emulators:
 
-- **jgenesis** has not been checked on RetroBat 8.3.0, which changes how it starts Game Gear
-  games.
+- **jgenesis** starts Game Gear games correctly since RetroBat 8.3.0, but RomMBat's saves have not
+  been checked on it yet.
 - **RetroArch's FBNeo core** does not start games named the way RomM libraries usually name them,
   because FBNeo expects its own file names.
 
 A few Game Gear cartridges are really Master System games, held as a `.sms` inside the zip. RetroArch's
-PicoDrive core plays those in the wrong colors; the other emulators that start
-them play them correctly.
+PicoDrive core plays those in the wrong colors and jgenesis shows a black screen; the other
+emulators that start them play them correctly.
 
 ## BIOS
 

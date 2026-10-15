@@ -18,10 +18,10 @@ Sega Game Gear. RetroBat calls the folder `gamegear`, which is what this folder 
 
 - `libretro`/`fbneo` **never boots this library**: FBNeo takes a console game's set from the file
   name, and every ROM here carries its No-Intro name (RB-412), as on `mastersystem`.
-- `jgenesis` **plays a Game Gear cartridge to a black screen**: `emulatorLauncher` starts it with
-  `--hardware MasterSystem` for every `gamegear` game, and no ES option changes that (RB-410). Its
-  saves were measured from a run by hand in Game Gear mode, which is evidence, not certification
-  ([standalone.md](standalone.md#jgenesis-driven-and-not-certifiable-at-this-floor)).
+- `jgenesis` **is not certified at 8.3.0**: `emulatorLauncher` now starts it with
+  `--hardware GameGear` and the intro plays in color (RB-410), but the certification run is owed
+  (#522). Its 8.2.1 evidence is in
+  [standalone.md](standalone.md#jgenesis-driven-at-821-not-yet-certified).
 
 **It certifies those five rows and nothing wider.** The two `libretro` rows needed nothing. The three
 standalone rows each needed a battery rule for `gamegear`, and `mednafen` and `ares` a state
@@ -111,9 +111,9 @@ From the live `es_systems.cfg`:
 527 hold a `.gg` and **19 hold a `.sms`, Game Gear cartridges that run in Master System mode**. So
 `gamegear` has no multi-disc or multi-file shape to settle. Castle of Illusion Starring Mickey Mouse
 (USA, Europe, Brazil) (En), one of the nineteen, was launched on every row: Genesis Plus GX,
-mednafen, ares and jgenesis play it at the Master System's frame, BizHawk plays it cropped to a Game
-Gear screen, PicoDrive plays it cropped and in the wrong colors (RB-411), and FBNeo refuses it for its
-name.
+mednafen and ares play it at the Master System's frame, BizHawk plays it cropped to a Game Gear
+screen, PicoDrive plays it cropped and in the wrong colors, jgenesis, which 8.3.0 starts as Game Gear
+hardware, shows a black screen with blue bars (RB-411), and FBNeo refuses it for its name.
 
 ### 3. BIOS
 
@@ -131,7 +131,7 @@ two Master System files this install keeps for `mastersystem`'s SMSHawk moved ou
 | `libretro`/`genesis_plus_gx` and `picodrive` | Reaches the intro                          |
 | `libretro`/`fbneo`                           | "Romset is unknown", for the name (RB-412) |
 | `mednafen`, `ares`, `bizhawk`/`SMSHawk`      | Reach the intro                            |
-| `jgenesis`                                   | Runs, to a black screen (RB-410)           |
+| `jgenesis`                                   | Reaches the intro in color (RB-410)        |
 
 **SMSHawk starts a Game Gear game with no firmware**, where on `mastersystem` it refuses (RB-322).
 
@@ -171,10 +171,10 @@ passes over as erased (RB-408). **mednafen's md5 is of the whole `.gg` inside th
 
 ## What this file will not claim
 
-- **Nothing about `gamegear` under any build but these.** Every row was measured on RetroBat 8.2.1
-  and RomM `5.3.1`.
+- **Nothing about `gamegear` under any build but these.** Every certified row was measured on RetroBat
+  8.2.1 and RomM `5.3.1`; the facts in `facts.md` were re-measured on 8.3.0.
 - **Nothing about another game.** Defenders of Oasis is one cartridge whose save fits in 3,840 B; the
   sizes in the row files are each emulator's SRAM window, and another game's may differ.
 - **Nothing about a `.sms` cartridge's save.** None of the nineteen has a battery, and
   `MednafenRomHash` answers only for a `.gg` on `gamegear`.
-- **Nothing about jgenesis as RetroBat launches it**, beyond that it runs the game to a black screen.
+- **Nothing about a played jgenesis save at 8.3.0**: its boot write and state mirror are recorded (RB-410), the round trip is #522.

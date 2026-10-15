@@ -30,6 +30,11 @@ line flags** for the console's region handling, and all three write to the same 
 
 ## 4. Where Kega Fusion puts a battery save
 
+**At 8.3.0 it is `saves/megadrive/<rom>.srm`, the file the `libretro` cores share** (RB-283,
+emulatorlauncher#1390): Kega read PicoDrive's 16,384 B save and rewrote it unchanged, and its states
+land in `kega-fusion/sstates/`, which the supplement does not name (#519). What follows is what
+8.2.1 did, and why step 4 failed there.
+
 **`emulators/kega-fusion/<rom>.srm`.** The install launch wrote `Sonic & Knuckles + Sonic The
 Hedgehog 3 (USA) (Lock-on Combination).srm` there, 980 B. RetroBat's `Fusion.ini` template sets
 `SRMFiles=.\..\..\emulators\kega-fusion` while `StateFiles=.\..\..\saves\megadrive\kega-fusion`,
@@ -54,6 +59,9 @@ blind Start from the title went straight into the game. The maintainer's session
 that was the agent's input timing, not Kega's handling of the cartridge.
 
 ## 5. Kega Fusion's states
+
+**At 8.3.0 the states are under `saves/megadrive/kega-fusion/sstates/`** (RB-283); the folder below is
+8.2.1's.
 
 **`saves/megadrive/kega-fusion/<rom>.gs<slot>`**, where `Fusion.ini` sends them. `F5` saves and
 `F7` steps the slot down, wrapping from 0 to 9:

@@ -47,8 +47,8 @@ saves for its file, the older being the seed's upload.
 
 **NBA Jam keeps no save under ares or BizHawk** (RB-415). Booted with no file, ares wrote 512 B of
 `0xFF`, passed over as erased, and BizHawk 8,192 B of `0x00`, which uploaded as `bizhawk:battery` by
-the maintainer's ruling (RB-414). ares, seeded with the 256 B format and run from ES, rewrote it
-unchanged. jgenesis formats it, 256 B in `jgenesis/32x/<rom>.sav`, as PicoDrive does.
+the maintainer's ruling (RB-414). ares, seeded with the 256 B format, kept it in the first 256 B and
+padded the file to 512 B on exit. jgenesis formats it, 256 B in `jgenesis/32x/<rom>.sav`, as PicoDrive does.
 
 ## 5. States on the three
 
@@ -85,19 +85,17 @@ Every one is on the server against its rom. The agent's own launches run no hook
 
 ## `kega-fusion`/`sega32x`: driven, and not certified at this floor
 
-**Step 4 cannot pass on 8.2.1**, for `megadrive`'s reason (RB-283): RetroBat's `Fusion.ini` sends the
-battery save to `emulators/kega-fusion/`, and RomMBat reads only `mastersystem`'s `.ssm` there.
-NBA Jam's boot format landed as `emulators/kega-fusion/<rom>.srm`, 256 B, the same bytes jgenesis
-writes. **Its states land in the parent's tree**, `saves/megadrive/kega-fusion/<rom>.gs0` and `.gs9`,
-676,671 B each, from `F5`, `F7`, `F5`, where `saves` reports them as `megadrive` states with `no rom`
-(RB-416). By the maintainer's ruling they are recorded, not attributed. Kega booted all three games
-with no BIOS, and was not played: its pad needs a remap in its own menu first (RB-284), and the row
-cannot certify whatever a session showed.
+**Step 5 cannot pass at 8.3.0**: the supplement names the parent's folder, not the one Kega's states
+land in, `saves/sega32x/kega-fusion/sstates/<rom>.gs0` and `.gs9`, 676,671 B each, from `F5`, `F7`,
+`F5` (RB-416, #519). Step 4 was not re-driven: Kega's battery save lands loose in `saves/sega32x/`,
+where the `libretro` rule reads it, and NBA Jam's boot format is `<rom>.srm`, 256 B, the same bytes
+jgenesis writes. Kega booted all three games with no BIOS, and was not played: its pad needs a remap in its own menu
+first (RB-284), and the row cannot certify whatever a session showed.
 
-| #   | Result                                                                |
-| --- | --------------------------------------------------------------------- |
-| 1-3 | **Pass**, the system's                                                |
-| 4   | **Fail on 8.2.1**: the save lands in `emulators/kega-fusion/`, RB-283 |
-| 5   | **Fail on 8.2.1**: the states land under `saves/megadrive/`, RB-416   |
-| 6   | **N/A**                                                               |
-| 7-9 | **Not driven**: no ES session, for the reasons above                  |
+| #   | Result                                                                    |
+| --- | ------------------------------------------------------------------------- |
+| 1-3 | **Pass**, the system's                                                    |
+| 4   | **Not re-driven**: the loose `.srm` is read as `libretro:battery`, RB-416 |
+| 5   | **Fail at 8.3.0**: the states' folder is not declared, RB-416             |
+| 6   | **N/A**                                                                   |
+| 7-9 | **Not driven**: no ES session, for the reasons above                      |

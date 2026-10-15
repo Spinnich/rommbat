@@ -696,7 +696,7 @@ public sealed class SaveShapes
     /// </summary>
     /// <remarks>
     /// The rule must also claim the file, because Kega Fusion's folder holds the emulator and
-    /// every system's <c>.srm</c> beside the one <c>.ssm</c> its rule reads (#381).
+    /// its other files beside the one <c>.ssm</c> its rule reads (#381).
     /// </remarks>
     public string? SystemOf(Paths.RelativePath path)
     {

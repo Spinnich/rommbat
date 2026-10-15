@@ -12,9 +12,9 @@
 Leave RetroBat on its default, RetroArch with the Genesis Plus GX core. Avoid two of the
 emulators RetroBat offers:
 
-- **Kega Fusion has not been checked since RetroBat 8.3.0 moved its in-game saves and save
-  states**, so RomMBat may not sync either yet. Its controls also need setting up in Kega's own
-  menu before your pad works.
+- **Kega Fusion**: RetroBat 8.3.0 now keeps its in-game saves in the same file the RetroArch
+  cores use, but RomMBat does not yet find its save states. Its controls also need
+  setting up in Kega's own menu before your pad works.
 - RetroArch's FBNeo core does not start games named the way RomM libraries usually name them,
   such as `Sonic The Hedgehog (USA, Europe).zip`, because FBNeo expects its own file names.
 

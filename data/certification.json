@@ -127,7 +127,7 @@
       "emulator": "kega-fusion",
       "core": "auto",
       "status": "not-certified",
-      "note": "Wrote its battery saves outside saves/ on RetroBat 8.2.1; 8.3.0 moves them under saves/, not yet checked there",
+      "note": "Wrote its battery saves outside saves/ on RetroBat 8.2.1; 8.3.0 writes the .srm loose in saves/megadrive/ and its states under kega-fusion/sstates/, which the supplement does not name (#519)",
       "romm": "5.3.1",
       "retrobat": "8.2.1"
     },
@@ -136,7 +136,7 @@
       "emulator": "kega-fusion",
       "core": "megadrive",
       "status": "not-certified",
-      "note": "Wrote its battery saves outside saves/ on RetroBat 8.2.1; 8.3.0 moves them under saves/, not yet checked there",
+      "note": "Wrote its battery saves outside saves/ on RetroBat 8.2.1; 8.3.0 writes the .srm loose in saves/megadrive/ and its states under kega-fusion/sstates/, which the supplement does not name (#519)",
       "romm": "5.3.1",
       "retrobat": "8.2.1"
     },
@@ -145,7 +145,7 @@
       "emulator": "kega-fusion",
       "core": "genesis",
       "status": "not-certified",
-      "note": "Wrote its battery saves outside saves/ on RetroBat 8.2.1; 8.3.0 moves them under saves/, not yet checked there",
+      "note": "Wrote its battery saves outside saves/ on RetroBat 8.2.1; 8.3.0 writes the .srm loose in saves/megadrive/ and its states under kega-fusion/sstates/, which the supplement does not name (#519)",
       "romm": "5.3.1",
       "retrobat": "8.2.1"
     },
@@ -869,7 +869,7 @@
       "emulator": "jgenesis",
       "core": null,
       "status": "not-certified",
-      "note": "RetroBat 8.2.1 launched it as a Master System, so a Game Gear game played to a black screen; 8.3.0 launches it as a Game Gear, not yet checked there",
+      "note": "RetroBat 8.2.1 launched it as a Master System, so a Game Gear game played to a black screen; 8.3.0 launches it as a Game Gear and the intro plays in color; certification is owed (#522)",
       "romm": "5.3.1",
       "retrobat": "8.2.1"
     },
@@ -902,7 +902,7 @@
       "emulator": "kega-fusion",
       "core": "sega32x",
       "status": "not-certified",
-      "note": "Wrote its battery saves outside saves/, and its states into the Mega Drive's folder, on RetroBat 8.2.1; 8.3.0 moves both, not yet checked there",
+      "note": "Wrote its battery saves outside saves/, and its states into the Mega Drive's folder, on RetroBat 8.2.1; 8.3.0 writes both under saves/sega32x/, and the supplement does not name the states' folder (#519)",
       "romm": "5.3.1",
       "retrobat": "8.2.1"
     },

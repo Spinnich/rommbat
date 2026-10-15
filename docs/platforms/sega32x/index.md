@@ -15,12 +15,12 @@ Sega 32X. RetroBat calls the folder `sega32x`, which is what this folder is name
 - `libretro`/`picodrive`, **the row a stock install gives a user**, selected with no override
 - `ares`/`Mega32X`, `bizhawk`/`PicoDrive` and `jgenesis`
 
-**`kega-fusion`/`sega32x` is driven and not certified**: its battery saves land in
-`emulators/kega-fusion/`, which RomMBat does not read, as on `megadrive` (RB-283), and its states in
-the parent's `saves/megadrive/kega-fusion/` (RB-416).
+**`kega-fusion`/`sega32x` is driven and not certified**: at 8.3.0 its battery saves land loose in
+`saves/sega32x/`, where the loose `libretro` rule reads them as the file PicoDrive shares, and its
+states in `saves/sega32x/kega-fusion/sstates/`, which no supplement entry names (RB-416, #519).
 
 **ares and BizHawk keep no serial EEPROM**, so the two Acclaim cartridges in the library, NBA Jam TE
-and NFL Quarterback Club, keep no save under either (RB-415). An SRAM cartridge round-trips on both.
+and NFL Quarterback Club, keep no save under either (RB-415). An SRAM cartridge round-trips on both (RB-432).
 That is the emulators, and the rows are certified on the SRAM they do keep.
 
 **It certifies those four rows and nothing wider.** `libretro`/`picodrive` needed nothing. The three
@@ -35,7 +35,7 @@ record's games downloaded nothing, wrote nothing under `roms/`, and left every g
 byte-identical. Step 8 was re-driven the same day on two ES launches. Steps 1 to 7 carry: no folder
 name, no BIOS entry and no `es_savestates.cfg` entry for an existing row changed, and no generator
 change between 8.2.1 and 8.3.0 touches where an existing row saves. `kega-fusion` stays not
-certified at 8.2.1, since 8.3.0 probably moves its saves and states as on `megadrive` (#519).
+certified at 8.2.1: 8.3.0 moves its saves and states under `saves/sega32x/`, as on `megadrive` (RB-416, #519).
 `blastem` is new in 8.3.0 and untested (#521).
 
 | File                           | What it holds                                                                                 |
@@ -139,7 +139,7 @@ every file was deleted before the first ES session. RB-413 and RB-414 hold the d
 | ----------------------- | ------------------------------------------ | -------------------------------------------- | ---------------- |
 | `libretro`/`picodrive`  | nothing                                    | `<rom>.srm`, 8,192 B, the 256 B format first | nothing          |
 | `ares`/`Mega32X`        | `ares/Mega 32X/<rom>.ram`, 512 B, `0xFF`   | `<rom>.eeprom`, 512 B, `0xFF`                | nothing          |
-| `kega-fusion`/`sega32x` | nothing                                    | `emulators/kega-fusion/<rom>.srm`, 256 B     | nothing          |
+| `kega-fusion`/`sega32x` | nothing                                    | `saves/sega32x/<rom>.srm`, 256 B             | nothing          |
 | `bizhawk`/`PicoDrive`   | `bizhawk/<title>.SaveRAM`, 1,024 B, `0x00` | 8,192 B, `0x00`                              | 16,384 B, `0x00` |
 | `jgenesis`              | nothing                                    | `jgenesis/32x/<rom>.sav`, 256 B, the format  | nothing          |
 

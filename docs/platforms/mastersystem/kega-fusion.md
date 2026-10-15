@@ -24,8 +24,8 @@ on a build reading Kega's folder (#381). The other seven steps carry from the dr
 | 8   | **Pass** for `auto`, 17:39:17Z to 17:40:26Z, 1m 8s. Carried to `mastersystem`, which the agent launched |
 | 9   | **Pass**, re-run on 2026-10-01                                                                          |
 
-**Kega's Master System save is `emulators/kega-fusion/<rom>.ssm`**, 8,191 B, beside the `megadrive`
-`.srm` from that pass: `Fusion.ini` sends both there, the `.ssm` under `SxMFiles`. Seeded with the
+**Kega's Master System save is `emulators/kega-fusion/<rom>.ssm`**, 8,191 B, where `Fusion.ini`'s
+`SxMFiles` sends it, at 8.3.0 as at 8.2.1 (RB-283). Seeded with the
 `libretro` `.srm`, Kega rewrote it on exit on both rows. Its states go where `SMSStateFiles` sends
 them, `saves/mastersystem/kega-fusion/<rom>.ss<slot>`, `.ss` where `megadrive` is `.gs`, 32,958 B,
 `F5` saving and `F7` stepping the slot down from 0 to 9:
