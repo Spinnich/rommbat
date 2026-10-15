@@ -1,0 +1,44 @@
+emulator: "Mupen64Plus-Next"
+type: libretro
+core_classification: enhanced_fork
+source: "https://github.com/libretro/mupen64plus-libretro-nx"
+upstream: "https://github.com/mupen64plus/mupen64plus-core"
+profiled_date: "2026-03-24"
+source_commit: "12edd2c74a517ff86dfa8cfc71ad75e4c10486d5"
+core_version: "2.6.0"
+display_name: "Nintendo - Nintendo 64 (Mupen64Plus-Next)"
+systems: [nintendo-64, nintendo-64dd]
+cores: [mupen64plus_next, mupen64plus_next_develop, mupen64plus_next_gles3, mupen64plus_next_gles2, mupen64plus, mupen64plus-next]
+
+files:
+  - name: "IPL.n64"
+    path: "Mupen64plus/IPL.n64"
+    standalone_path: "64DD_IPL.bin"
+    aliases: ["64DD_IPL.bin"]
+    size: 4194304
+    required: false
+    description: "64DD IPL ROM"
+    source_ref: "mupen64plus-core/src/main/main.c:940-1024"
+
+  - name: "font.ttf"
+    path: "Mupen64plus/font.ttf"
+    required: false
+    description: "TrueType font for on-screen display text"
+    note: "Fallback font for OSD text rendering (FPS counter, messages). System fonts tried first. No impact on emulation."
+    source_ref: "GLideN64/src/TextDrawer.cpp:165-170"
+
+notes:
+  hle_available: true
+  hle_note: >
+    PIF boot ROM is fully HLE'd (bootrom_hle.c). CIC challenge/response
+    handled in software (n64_cic_nus_6105.c). No BIOS files needed for
+    standard cartridge games.
+  dd_note: >
+    64DD IPL ROM loaded from system/Mupen64plus/IPL.n64 when a .ndd disk
+    is present. Accepts Z64, N64, and V64 byte-swap formats.
+  transferpak_note: >
+    Transfer Pak support (GB/GBC games on N64) handled via subsystem API.
+    No additional firmware files needed.
+  embedded_data: >
+    mupen64plus.ini (ROM database) and GLideN64.custom.ini (per-game GPU
+    settings) are embedded as compiled headers and auto-generated at init.

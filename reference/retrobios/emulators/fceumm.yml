@@ -1,0 +1,49 @@
+emulator: FCEUmm
+type: libretro
+core_classification: community_fork
+source: "https://github.com/libretro/libretro-fceumm"
+upstream: "https://sourceforge.net/projects/fceumm/"
+profiled_date: "2026-03-23"
+source_commit: "7a542dab1e87679921962a9f056186eca425c0c2"
+core_version: "SVN"
+display_name: "Nintendo - NES / Famicom (FCEUmm)"
+cores:
+  - fceumm
+systems: [nintendo-nes, nintendo-fds]
+
+notes: |
+  FCEUmm (FCE Ultra mappers modified) is a NES/Famicom emulator forked from
+  FCEU Ultra by CaH4e3. FDS games require the FDS BIOS ROM (disksys.rom).
+  Game Genie emulation requires gamegenie.nes when the core option is enabled.
+  An external palette file (nes.pal) overrides the built-in palette when the
+  core option is set to Custom.
+
+  File path construction: src/general.c FCEU_MakeFName() joins the system
+  directory with each filename directly - no subdirectories.
+
+files:
+  # --- Famicom Disk System BIOS (required for FDS games) ---
+  - name: "disksys.rom"
+    system: nintendo-fds
+    description: "FDS BIOS ROM"
+    required: true
+    size: 8192
+    validation: [size]
+    source_ref: "src/fds.c:680-715 (FDSLoad), src/general.c:65-67 (FCEUMKF_FDSROM)"
+    note: "Loaded at 0xE000, mapped as 8 KB PRG bank 0. Load fails if missing or short read."
+
+  # --- Game Genie ROM (optional, core option fceumm_game_genie) ---
+  - name: "gamegenie.nes"
+    system: nintendo-nes
+    description: "Game Genie add-on cartridge ROM"
+    required: false
+    source_ref: "src/cart.c:401-455 (FCEU_OpenGenie), src/general.c:61-63 (FCEUMKF_GGROM)"
+    note: "iNES format ROM (4 KB PRG + 256 bytes CHR). Core option disabled by default. Only applies to cartridge games."
+
+  # --- Custom palette (optional, core option fceumm_palette) ---
+  - name: "nes.pal"
+    system: nintendo-nes
+    description: "External NES color palette"
+    required: false
+    source_ref: "src/palette.c:170-200 (FCEU_LoadGamePalette), src/general.c:69-71 (FCEUMKF_PALETTE), src/drivers/libretro/libretro.c:1992-2001"
+    note: "RGB triplets (64 standard or 512 with de-emphasis). Only loaded when palette core option is set to Custom."

@@ -1,0 +1,59 @@
+emulator: Citra
+type: standalone + libretro
+core_classification: community_fork
+source: "https://github.com/libretro/citra"
+upstream: "https://github.com/citra-emu/citra"
+profiled_date: "2026-03-23"
+source_commit: "a0483e9abe8134ae6b290cdca7d49cb77689f05b"
+core_version: "Git"
+display_name: "Nintendo - 3DS (Citra)"
+cores: [citra]
+systems: [nintendo-3ds]
+
+notes: |
+  Citra 3DS emulator. Upstream taken down March 2024 (Nintendo lawsuit).
+  Mirror: https://github.com/citra-mirror/citra
+  Data dir: {save_dir}/Citra/ or {system_dir}/Citra/
+  ref: src/citra_libretro/citra_libretro.cpp:460-466
+
+  HLE for most services. Embedded open-source replacements for shared font,
+  Mii data, country list, and bad word list compiled into the binary.
+  ref: src/core/file_sys/archive_ncch.cpp:9-27, 133-167
+
+  firmware_count absent in .info (= 0). All files optional.
+
+files:
+  - name: aes_keys.txt
+    path: "Citra/sysdata/aes_keys.txt"
+    system: nintendo-3ds
+    description: "AES encryption keys"
+    required: false
+    source_ref: "src/core/hw/aes/key.cpp:207-208 LoadPresetKeys()"
+    note: "needed for encrypted games"
+
+  - name: boot9.bin
+    path: "Citra/sysdata/boot9.bin"
+    system: nintendo-3ds
+    description: "ARM9 bootrom"
+    required: false
+    size: 65536
+    validation: [size]
+    source_ref: "src/core/hw/aes/key.cpp:162-172 LoadBootromKeys(), src/core/hw/rsa/rsa.cpp:55-65 InitSlots()"
+    note: "provides AES and RSA keys"
+
+  - name: shared_font.bin
+    path: "Citra/sysdata/shared_font.bin"
+    system: nintendo-3ds
+    description: "system shared font (legacy format)"
+    required: false
+    hle_fallback: true
+    source_ref: "src/core/hle/service/apt/apt.cpp:259-267 LoadLegacySharedFont()"
+    note: "fallback to embedded open-source replacement font"
+
+  - name: seeddb.bin
+    path: "Citra/sysdata/seeddb.bin"
+    system: nintendo-3ds
+    description: "game seed database"
+    required: false
+    source_ref: "src/core/file_sys/seed_db.cpp:13-27 SeedDB::Load()"
+    note: "needed for seed-encrypted games (9.6+ titles), creates empty if missing"

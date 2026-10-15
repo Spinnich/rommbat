@@ -1,0 +1,433 @@
+emulator: MAME 2003-Plus
+type: libretro
+core_classification: enhanced_fork
+source: "https://github.com/libretro/mame2003-plus-libretro"
+upstream: "https://www.mamedev.org"
+logo: "https://raw.githubusercontent.com/mamedev/mame/master/docs/source/images/MAMElogo.svg"
+profiled_date: "2026-03-24"
+source_commit: "f073a5af73503e782ae2e01dc84d7904028e5203"
+core_version: "2003-Plus"
+display_name: "Arcade (MAME 2003-Plus)"
+mame_version: "0.78 (plus backports)"
+
+cores:
+  - mame2003_plus
+  - mame078plus
+
+systems:
+  - snk-neogeo-mvs
+  - snk-neogeo-aes
+  - igs-pgm
+  - sega-stv
+  - sega-megaplay
+  - sega-megatech
+  - deco-cassette
+  - nintendo-playch10
+  - nintendo-nss
+  - super-kaneko-nova
+  - konami-gx
+  - zn1-capcom
+  - zn2-capcom
+  - zn1-taito
+  - zn1-tecmo
+  - zn1-video-system
+  - zn1-acclaim
+  - zn1-atlus
+  - century-cvs
+
+notes: |
+  MAME 2003-Plus is a libretro port of MAME 0.78 with backported drivers, bug fixes,
+  and new game support contributed after the original 0.78 snapshot. It targets
+  low-end hardware (Raspberry Pi, handhelds) while expanding game compatibility
+  beyond stock 0.78.
+
+  BIOS handling follows standard MAME conventions. Each arcade board with a shared
+  BIOS defines a parent ROM set. Game drivers reference this parent, and the emulator
+  merges the parent ZIP contents at load time.
+
+  BIOS ZIPs must be in {content_dir}/ (same folder as the game ROMs).
+  The core resolves parent ROMs by walking the clone_of chain within the
+  content directory only (osd_get_path returns content_path for FILETYPE_ROM).
+
+  ROM naming follows MAME 0.78 conventions with some updates from the Plus patches.
+  Requires a mame2003-plus-specific romset for full CRC32/SHA1 compatibility.
+
+  Neo Geo uses mame.sm1, mamelo.lo, sfix.sfx naming. PGM uses pgm_p01s.rom naming.
+  ZN-1/ZN-2 boards are present but most games are NOT_WORKING (incomplete PS1
+  emulation in the 0.78 codebase). PGM and ST-V have partial support.
+
+  Data files go in {system_dir}/mame2003-plus/. Samples in samples/ subfolder,
+  artwork in artwork/ subfolder (both per-game ZIPs). hiscore.dat is compiled
+  into the binary and auto-generated on first run if absent.
+
+files:
+  # Data files (system_dir/mame2003-plus/)
+  - name: hiscore.dat
+    path: "mame2003-plus/hiscore.dat"
+    required: false
+    category: game_data
+    source_ref: "src/hiscore.c:15,248"
+    note: "high score definitions, compiled into binary and spawned on first run"
+
+  - name: cheat.dat
+    path: "mame2003-plus/cheat.dat"
+    required: false
+    category: game_data
+    source_ref: "src/cheat.c:383,8249-8255"
+    note: "cheat definitions, requires cheats core option enabled"
+
+  - name: history.dat
+    path: "mame2003-plus/history.dat"
+    required: false
+    category: game_data
+    source_ref: "src/datafile.c:327,608"
+    note: "game history and information database"
+
+  - name: mameinfo.dat
+    path: "mame2003-plus/mameinfo.dat"
+    required: false
+    category: game_data
+    source_ref: "src/datafile.c:327,638"
+    note: "technical driver information, appended to history display"
+
+  # ---------------------------------------------------------
+  # SNK Neo Geo MVS/AES (neogeo.zip)
+  # ---------------------------------------------------------
+  - name: neogeo.zip
+    required: true
+    category: bios_zip
+    system: snk-neogeo-mvs
+    note: "MVS/AES BIOS, 15 variants including Universe BIOS 4.0"
+    source_ref: "src/drivers/neogeo.c:1677-1714"
+    contents:
+      # 68K BIOS variants (one active at a time via dipswitch)
+      - name: sp-s2.sp1
+        description: Europe MVS v2, default
+      - name: sp-s.sp1
+        description: Europe MVS v1
+      - name: usa_2slt.bin
+        description: US MVS v2
+      - name: sp-e.sp1
+        description: US MVS v1
+      - name: asia-s3.rom
+        description: Asia MVS v3
+      - name: vs-bios.rom
+        description: Japan MVS v6
+      - name: sp-j2.sp1
+        description: Japan MVS v2
+      - name: uni-bios_4_0.rom
+        description: Universe BIOS 4.0, hack
+      - name: uni-bios_3_3.rom
+        description: Universe BIOS 3.3, hack
+      - name: uni-bios_2_0.rom
+        description: Universe BIOS 2.0, hack
+      - name: uni-bios_1_3.rom
+        description: Universe BIOS 1.3, hack
+      - name: uni-bios_1_1.rom
+        description: Universe BIOS 1.1, hack
+      - name: uni-bios_1_0.rom
+        description: Universe BIOS 1.0, hack
+      - name: neodebug.rom
+        description: Debug MVS
+      - name: neo-epo.bin
+        description: Asia AES
+      # Z80 sound BIOS (always required)
+      - name: mame.sm1
+        description: Z80 sound BIOS
+        size: 131072
+      # Fix tiles (always required)
+      - name: sfix.sfx
+        description: fix layer tiles
+        size: 131072
+      # Zoom table (always required)
+      - name: mamelo.lo
+        description: Y zoom control
+        size: 65536
+
+  # ---------------------------------------------------------
+  # IGS PGM (pgm.zip)
+  # ---------------------------------------------------------
+  - name: pgm.zip
+    required: true
+    category: bios_zip
+    system: igs-pgm
+    note: "PGM system BIOS - 68K program, text tiles, samples"
+    source_ref: "src/drivers/pgm.c:3459-3468"
+    contents:
+      - name: pgm_p01s.rom
+        description: 68K BIOS
+        size: 131072
+      - name: pgm_t01s.rom
+        description: text tiles
+        size: 2097152
+      - name: pgm_m01s.rom
+        description: samples
+        size: 2097152
+
+  # ---------------------------------------------------------
+  # Sega ST-V (stvbios.zip)
+  # ---------------------------------------------------------
+  - name: stvbios.zip
+    required: true
+    category: bios_zip
+    system: sega-stv
+    note: "ST-V (Saturn-based arcade) BIOS, 6 region variants"
+    source_ref: "src/drivers/stv.c:3741-3767"
+    contents:
+      - name: epr19730.ic8
+        description: Japan
+      - name: mp17951a.s
+        description: Japan alt
+      - name: mp17952a.s
+        description: USA
+      - name: 20091.bin
+        description: Japan alt 2
+      - name: mp17953a.ic8
+        description: Taiwan
+      - name: mp17954a.s
+        description: Europe
+
+  # ---------------------------------------------------------
+  # Sega Mega Play (megaplay.zip)
+  # ---------------------------------------------------------
+  - name: megaplay.zip
+    required: true
+    category: bios_zip
+    system: sega-megaplay
+    note: "Mega Play BIOS, 2 versions"
+    source_ref: "src/drivers/segac2.c:5794-5804"
+    contents:
+      - name: ep15294.ic2
+        description: Mega Play BIOS v1
+      - name: megaplay.bin
+        description: Mega Play BIOS v2
+
+  # ---------------------------------------------------------
+  # Sega Mega Tech (megatech.zip)
+  # ---------------------------------------------------------
+  - name: megatech.zip
+    required: true
+    category: bios_zip
+    system: sega-megatech
+    note: "Mega Tech BIOS - menu/instruction screen processor"
+    source_ref: "src/drivers/segac2.c:5434-5437"
+    contents:
+      - name: epr12664.20
+        description: Mega Tech BIOS
+        size: 32768
+
+  # ---------------------------------------------------------
+  # DECO Cassette (decocass.zip)
+  # ---------------------------------------------------------
+  - name: decocass.zip
+    required: true
+    category: bios_zip
+    system: deco-cassette
+    note: "DECO Cassette shared BIOS - 6502 CPU, sound, MCU, PROMs"
+    source_ref: "src/drivers/decocass.c:696-727"
+    contents:
+      - name: v0a-.7e
+        description: 6502 BIOS variant A
+      - name: rms8.cpu
+        description: 6502 BIOS variant B
+      - name: rms8.snd
+        description: audio CPU
+        size: 2048
+      - name: cass8041.bin
+        description: MCU
+        size: 1024
+      - name: dsp8.3m
+        description: PROM
+      - name: dsp8.10d
+        description: PROM
+      - name: rms8.j3
+        description: DRAM banking PROM
+
+  # ---------------------------------------------------------
+  # Nintendo PlayChoice-10 (playch10.zip)
+  # ---------------------------------------------------------
+  - name: playch10.zip
+    required: true
+    category: bios_zip
+    system: nintendo-playch10
+    note: "PlayChoice-10 BIOS - Z80 main CPU + character ROMs + PROMs"
+    source_ref: "src/drivers/playch10.c:815-827"
+    contents:
+      - name: pch1-c.8t
+        description: Z80 BIOS
+        size: 16384
+      - name: pch1-c.8p
+        description: character ROM
+      - name: pch1-c.8m
+        description: character ROM
+      - name: pch1-c.8k
+        description: character ROM
+      - name: 82s129.6f
+        description: color PROM
+      - name: 82s129.6e
+        description: color PROM
+      - name: 82s129.6d
+        description: color PROM
+
+  # ---------------------------------------------------------
+  # Nintendo Super System (nss.zip)
+  # ---------------------------------------------------------
+  - name: nss.zip
+    required: true
+    category: bios_zip
+    system: nintendo-nss
+    note: "Nintendo Super System BIOS - SPC700 boot ROM + BIOS CPU"
+    source_ref: "src/drivers/nss.c:260-269"
+    contents:
+      - name: spc700.rom
+        description: SPC700 boot ROM
+        size: 64
+      - name: nss-c.dat
+        description: NSS BIOS CPU
+        size: 32768
+      - name: nss-ic14.02
+        description: NSS BIOS CPU alt
+        size: 32768
+
+  # ---------------------------------------------------------
+  # Super Kaneko Nova System (skns.zip)
+  # ---------------------------------------------------------
+  - name: skns.zip
+    required: true
+    category: bios_zip
+    system: super-kaneko-nova
+    note: "Super Kaneko Nova System BIOS, 4 region variants"
+    source_ref: "src/drivers/suprnova.c:1226-1229"
+    contents:
+      - name: sknsj1.u10
+        description: Japan BIOS
+        size: 524288
+      - name: sknse1.u10
+        description: Europe BIOS
+        size: 524288
+      - name: sknsa1.u10
+        description: Asia BIOS
+        size: 524288
+      - name: sknsu1.u10
+        description: USA BIOS
+        size: 524288
+
+  # ---------------------------------------------------------
+  # Konami GX (konamigx.zip)
+  # ---------------------------------------------------------
+  - name: konamigx.zip
+    required: true
+    category: bios_zip
+    system: konami-gx
+    note: "Konami System GX BIOS"
+    source_ref: "src/drivers/konamigx.c:2404"
+    contents:
+      - name: 300a01.34k
+        description: GX BIOS
+        size: 131072
+
+  # ---------------------------------------------------------
+  # ZN-1/ZN-2 PlayStation-based arcade boards
+  # Most are NOT_WORKING in mame2003-plus due to
+  # incomplete PS1 emulation in the 0.78 codebase
+  # ---------------------------------------------------------
+
+  # Capcom ZN-1
+  - name: cpzn1.zip
+    required: true
+    category: bios_zip
+    system: zn1-capcom
+    note: "Capcom ZN-1 BIOS (PS1-based). Most games NOT_WORKING"
+    source_ref: "src/drivers/zn.c:1016-1018"
+    contents:
+      - name: coh1002c.bin
+        description: Capcom ZN-1 BIOS
+        size: 524288
+
+  # Capcom ZN-2
+  - name: cpzn2.zip
+    required: true
+    category: bios_zip
+    system: zn2-capcom
+    note: "Capcom ZN-2 BIOS (PS1-based). Most games NOT_WORKING"
+    source_ref: "src/drivers/zn.c:1274-1276"
+    contents:
+      - name: coh3002c.bin
+        description: Capcom ZN-2 BIOS
+        size: 524288
+
+  # Taito FX-1
+  - name: taitofx1.zip
+    required: true
+    category: bios_zip
+    system: zn1-taito
+    note: "Taito FX-1 BIOS (PS1-based). Most games NOT_WORKING"
+    source_ref: "src/drivers/zn.c:1579-1581"
+    contents:
+      - name: coh1002t.bin
+        description: Taito FX-1 BIOS
+        size: 524288
+
+  # Tecmo TPS
+  - name: tps.zip
+    required: true
+    category: bios_zip
+    system: zn1-tecmo
+    note: "Tecmo TPS BIOS (PS1-based). Most games NOT_WORKING"
+    source_ref: "src/drivers/zn.c:1466-1468"
+    contents:
+      - name: coh1002m.bin
+        description: Tecmo TPS BIOS
+        size: 524288
+
+  # Video System / Taito KN
+  - name: sncwgltd.zip
+    required: false
+    category: bios_zip
+    system: zn1-video-system
+    note: "Video System KN BIOS (PS1-based). NOT_WORKING"
+    source_ref: "src/drivers/zn.c:1555-1557"
+    contents:
+      - name: coh1002v.bin
+        description: KN BIOS
+        size: 524288
+
+  # Acclaim PSX
+  - name: acpsx.zip
+    required: true
+    category: bios_zip
+    system: zn1-acclaim
+    note: "Acclaim PSX BIOS (PS1-based). NOT_WORKING"
+    source_ref: "src/drivers/zn.c:1815-1817"
+    contents:
+      - name: coh1000a.bin
+        description: Acclaim PSX BIOS
+        size: 524288
+
+  # Century Electronics CVS
+  - name: cvs.zip
+    required: true
+    category: bios_zip
+    system: century-cvs
+    source_ref: "src/drivers/cvs.c:475-482,1393"
+    contents:
+      - name: 5b.bin
+        description: sound CPU
+        size: 2048
+        crc32: "f055a624"
+      - name: 82s185.10h
+        description: PROM
+        size: 2048
+        crc32: "c205bca6"
+      - name: 82s123.10k
+        description: PROM
+        size: 32
+        crc32: "b5221cec"
+
+  # Atlus PSX (PSARC95) - BIOS ROM is NO_DUMP
+  # - name: psarc95.zip
+  #   note: "PSARC95 BIOS is NO_DUMP (coh1002e.bin), games won't boot"
+
+  # Atari PSX - BIOS ROM is NO_DUMP
+  # - name: atpsx.zip
+  #   note: "Atari PSX BIOS is NO_DUMP (coh1000t.bin), games won't boot"

@@ -1,0 +1,39 @@
+emulator: b2
+type: standalone + libretro
+core_classification: community_fork
+source: "https://github.com/zoltanvb/b2-libretro"
+upstream: "https://github.com/tom-seddon/b2"
+profiled_date: "2026-03-23"
+source_commit: "9793f6a8040c416d147003cada29363b955b54e7"
+core_version: "v0.4"
+display_name: "Acorn - BBC Micro (b2)"
+cores: [b2]
+systems:
+  - bbc-micro-b
+  - bbc-micro-bplus
+  - bbc-master-128
+
+notes: |
+  Libretro port by Zoltan Balogh of Tom Seddon's b2 BBC Micro emulator.
+  is_experimental=true in .info.
+  ref: zoltanvb/b2-libretro, tom-seddon/b2
+
+  Standalone loads ROMs from etc/roms/ via GetAssetPath() + LoadFile().
+  ref: src/b2/roms.cpp:9-10
+
+  Libretro port embeds all ROMs as hex arrays in src/libretro/roms.hpp.
+  create_core() loads OS and sideways ROMs from static machine_types[] arrays.
+  GetAssetPath() and LoadFile() are stubbed — no file I/O at runtime.
+  ref: zoltanvb/b2-libretro/src/libretro/roms.hpp
+  ref: src/libretro/core.cpp:275-305
+  ref: src/libretro/adapters.cpp:74-78
+
+  9 machine types: B/Acorn 1770, B/Watford DDB2, B/Watford DDB3,
+  B/Opus 1770, B/Opus Challenger 256K, B/Opus Challenger 512K,
+  B+, B+128, Master 128 (MOS 3.20).
+  Master 3.50, Master Turbo, Master Compact not yet implemented.
+  ref: src/libretro/core.h:117
+
+files: []
+# all ROMs embedded in binary via roms.hpp — no external files needed
+# .info firmware_count=0 matches code reality

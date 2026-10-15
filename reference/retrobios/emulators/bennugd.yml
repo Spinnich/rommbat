@@ -1,0 +1,24 @@
+emulator: BennuGD
+type: libretro
+core_classification: community_fork
+source: "https://github.com/diekleinekuh/BennuGD_libretro"
+upstream: "https://github.com/SplinterGU/BennuGD"
+profiled_date: "2026-03-23"
+source_commit: "a78319991d62520bed4e873d3538657ad0ae2ca7"
+core_version: "git"
+display_name: "Bennu Game Development"
+cores:
+  - bennugd
+systems:
+  - bennugd
+
+# .info firmware_count: 0. Code verified: retro_load_game() (libretro.c:887-910)
+# uses RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY only as save directory fallback.
+# bgdi_main() (core/bgdi/src/main.c:80-371) loads .dcb/.dat bytecode content
+# directly. No files read from system directory.
+
+notes: |
+  Self-contained interpreter for BennuGD bytecode (.dcb/.dat). Successor to
+  DIV Games Studio / Fenix. Games bundle all assets with the content file.
+
+files: []

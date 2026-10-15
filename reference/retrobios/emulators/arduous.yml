@@ -1,0 +1,21 @@
+emulator: Arduous
+type: libretro
+core_classification: pure_libretro
+source: "https://github.com/libretro/arduous"
+upstream: "https://github.com/jmaroeder/arduous"
+profiled_date: "2026-03-23"
+source_commit: "831b83e67ad46e8c86b8165649ff81bc6fc6c157"
+core_version: "0.1.0"
+display_name: "Arduboy (Arduous)"
+cores:
+  - arduous
+systems:
+  - arduboy
+
+notes: |
+  ATmega32U4 AVR simulator built on simavr with SSD1306 OLED display
+  emulation. MCU hardcoded at 16 MHz (include/arduous/arduous.h:70-71). Game content
+  (.hex) parsed via in-tree ihex reader and written directly into
+  simavr flash (src/arduous/arduous.cpp:169-179). No system directory access.
+
+files: []

@@ -1,0 +1,24 @@
+emulator: TGB Dual
+type: libretro
+core_classification: community_fork
+source: "https://github.com/libretro/tgbdual-libretro"
+upstream: "http://gigo.retrogames.com/download.html#tgb-dual"
+profiled_date: "2026-03-25"
+source_commit: "933707c0ba8f12360f6d79712f735a917713709a"
+core_version: "v0.8.3"
+display_name: "Nintendo - Game Boy / Color (TGB Dual)"
+cores:
+  - TGB Dual
+systems:
+  - nintendo-gb
+  - nintendo-gbc
+
+notes: |
+  Game Boy / Game Boy Color emulator by GIGO and Hii with link cable support
+  for two units side by side. Libretro port based on shinichiro.h's SDL port.
+
+  cpu::reset() initializes PC to 0x100 and sets post-boot register values
+  (AF=0x01B0 DMG, 0x11B0 CGB), bypassing the boot ROM via HLE.
+  No system directory access, no file I/O for firmware.
+
+files: []

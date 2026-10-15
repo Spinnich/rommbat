@@ -1,0 +1,21 @@
+emulator: Beetle NGP (Mednafen Neo Geo Pocket)
+type: libretro
+core_classification: community_fork
+source: "https://github.com/libretro/beetle-ngp-libretro"
+upstream: "https://mednafen.github.io/"
+profiled_date: "2026-03-24"
+source_commit: "139fe34c8dfc5585d6ee1793a7902bca79d544de"
+core_version: "v1.29.0.0"
+display_name: "SNK - Neo Geo Pocket / Color (Beetle NeoPop)"
+cores: [mednafen_ngp]
+systems: [snk-ngp, snk-ngpc]
+
+notes: |
+  Libretro port of Mednafen's NeoPop module (originally by neopop_uk).
+  HLE BIOS only, constructed at runtime by bios_install() in
+  mednafen/ngp/bios.c. No external BIOS or firmware files loaded.
+  Upstream Mednafen also uses HLE only (Documentation/ngp.html:
+  "BIOS is HLE'd"). The only core option is ngp_language
+  (english/japanese).
+
+files: []

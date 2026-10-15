@@ -1,0 +1,218 @@
+emulator: NP2kai
+type: libretro
+core_classification: enhanced_fork
+source: "https://github.com/libretro/NP2kai"
+upstream: "https://github.com/AZO234/NP2kai"
+profiled_date: "2026-03-24"
+source_commit: "1ea561cd7fd62b33f4e7b3f1c2e30fc3e6089f28"
+core_version: "0.86"
+display_name: "NEC - PC-98 (Neko Project II Kai)"
+cores: [np2kai]
+systems: [pc-98]
+
+# NP2kai is a PC-9801/9821 emulator by AZO234, enhanced fork of Neko Project II
+# by Yui (original upstream dead: np2.yui.ne.jp). All files load from
+# <system>/np2kai/ subdirectory, set in retro_load_game()
+# (sdl/libretro/libretro.c:1800-1815). All getbiospath() calls resolve
+# relative to that directory.
+#
+# BIOS_SIMULATE is unconditionally #define'd (bios/bios.c:78), so the core
+# always has a built-in BIOS simulator. itf.rom loading (bios.c:569) is dead
+# code behind #else of this define and is never executed.
+#
+# .info declares firmware_count=11 but is incomplete: misses IDE, SCSI, SASI,
+# PCI, GPIB ROMs and key.txt. Lists itf.rom which is dead code (phantom).
+#
+# The fmgen YM2608 rhythm engine (fmgen_opna.cpp:1413-1443) loads WAV files
+# with uppercase names (2608_BD.WAV). The built-in rhythm engine (rhythmc.c)
+# uses lowercase (2608_bd.wav). Both resolve from np2kai/.
+# The fmgen engine also accepts "2608_RYM.WAV" as fallback for the rim sample.
+#
+# Sound ROM has board-specific variants tried before the generic fallback:
+# sound26.rom (26K), sound86.rom (86), sound118.rom (118), soundSPB.rom
+# (Speak Board), soundMO.rom (MO), sound14.rom (14). Built as "sound" +
+# board name + ".rom" in soundrom.c:21-33.
+
+files:
+  # -- Main BIOS ROM --
+  # Loaded in bios/bios.c:440-447 via getbiospath(). 96 KB (0x18000) mapped
+  # at 0xe8000. Only loaded when np2cfg.usebios is set, which is the default
+  # (pccore.c:129) and has no core option. Without this, CopyMemory copies
+  # the nosyscode[] built-in simulator (bios/bios.c:463).
+  - name: "bios.rom"
+    path: "np2kai/bios.rom"
+    min_size: 98304
+    validation: [size]
+    required: false
+    hle_fallback: true
+    note: >
+      PC-9801 system BIOS ROM. The first 0x18000 bytes are read to 0xe8000;
+      a file shorter than that is ignored and the built-in BIOS simulator
+      is used, as when the file is absent.
+    source_ref: "bios/bios.c:440-447, pccore.c:129, common/strres.c:67"
+
+  # -- Font file --
+  # Path set in libretro.c:1813 as "<system>/np2kai/font.bmp".
+  # font_load() in font/font.c:125 detects type by extension:
+  # .bmp/.BMP = PC98 format (fontpc98.c), FONT.ROM = V98 format (fontv98.c).
+  # Without any font file, fontdata_8 provides 8x8 ASCII only.
+  - name: "font.bmp"
+    path: "np2kai/font.bmp"
+    required: false
+    hle_fallback: true
+    aliases: ["FONT.ROM", "font.rom", "FONT.BMP"]
+    note: >
+      PC-98 font bitmap. Required for correct Japanese kanji display.
+      Without this, only basic ASCII renders using built-in 8x8 data.
+      FONT.ROM (V98 format) is also accepted.
+    source_ref: "sdl/libretro/libretro.c:1830, font/font.c:86-125, font/fontdata.c:11"
+
+  # -- Sound BIOS ROM --
+  # Loaded by soundrom_load() in soundrom.c:93-106 via loadsoundrom().
+  # Filename composed as "sound" + optional board name + ".rom" (soundrom.c:27-32).
+  # Board-specific variants tried first, then sound.rom as fallback.
+  # 16 KB (0x4000). Falls back to 9-byte defsoundrom[] stub.
+  - name: "sound.rom"
+    path: "np2kai/sound.rom"
+    size: 16384
+    required: false
+    hle_fallback: true
+    note: >
+      FM sound board BIOS ROM (16 KB). Generic fallback for all sound boards.
+      Board-specific variants are tried first: sound26.rom (PC-9801-26K),
+      sound86.rom (86), sound118.rom (118), soundSPB.rom (Speak Board),
+      soundMO.rom (MO), sound14.rom (14).
+    source_ref: "sound/soundrom.c:15-16,21-55,93-106"
+
+  # -- YM2608 OPNA rhythm samples --
+  # Loaded by the built-in rhythm engine (rhythmc.c:60-71) using lowercase
+  # filenames, and by the fmgen engine (fmgen_opna.cpp:1413-1443) using
+  # uppercase (2608_BD.WAV etc). Both resolve via getbiospath().
+  - name: "2608_bd.wav"
+    path: "np2kai/2608_bd.wav"
+    required: false
+    aliases: ["2608_BD.WAV"]
+    note: "YM2608 OPNA rhythm sample: bass drum"
+    source_ref: "sound/rhythmc.c:11, 60-71, sound/fmgen/fmgen_opna.cpp:1435"
+
+  - name: "2608_sd.wav"
+    path: "np2kai/2608_sd.wav"
+    required: false
+    aliases: ["2608_SD.WAV"]
+    note: "YM2608 OPNA rhythm sample: snare drum"
+    source_ref: "sound/rhythmc.c:12, sound/fmgen/fmgen_opna.cpp:1435-1439"
+
+  - name: "2608_top.wav"
+    path: "np2kai/2608_top.wav"
+    required: false
+    aliases: ["2608_TOP.WAV"]
+    note: "YM2608 OPNA rhythm sample: top cymbal"
+    source_ref: "sound/rhythmc.c:13, sound/fmgen/fmgen_opna.cpp:1435-1439"
+
+  - name: "2608_hh.wav"
+    path: "np2kai/2608_hh.wav"
+    required: false
+    aliases: ["2608_HH.WAV"]
+    note: "YM2608 OPNA rhythm sample: hi-hat"
+    source_ref: "sound/rhythmc.c:14, sound/fmgen/fmgen_opna.cpp:1435-1439"
+
+  - name: "2608_tom.wav"
+    path: "np2kai/2608_tom.wav"
+    required: false
+    aliases: ["2608_TOM.WAV"]
+    note: "YM2608 OPNA rhythm sample: tom"
+    source_ref: "sound/rhythmc.c:15, sound/fmgen/fmgen_opna.cpp:1435-1439"
+
+  - name: "2608_rim.wav"
+    path: "np2kai/2608_rim.wav"
+    required: false
+    aliases: ["2608_RIM.WAV", "2608_RYM.WAV"]
+    note: "YM2608 OPNA rhythm sample: rim shot. fmgen also accepts 2608_RYM.WAV."
+    source_ref: "sound/rhythmc.c:16, sound/fmgen/fmgen_opna.cpp:1435-1445"
+
+  # -- IDE BIOS ROM --
+  # Loaded by ideio_reset (cbus/ideio.c:1944-1981). Tried in order:
+  # ide.rom, d8000.rom, bank3.bin, bios9821.rom. Only opened when
+  # np2cfg.idebios and np2cfg.usebios are both set and IDEBADDR is not
+  # zero (cbus/ideio.c:1928-1930). The bios9821.rom read in bios/bios.c is
+  # commented out (bios/bios.c:473-482).
+  - name: "ide.rom"
+    path: "np2kai/ide.rom"
+    min_size: 8192
+    validation: [size]
+    required: false
+    hle_fallback: true
+    aliases: ["d8000.rom", "bank3.bin", "bios9821.rom"]
+    note: >
+      IDE BIOS of a PC-9821, the ROM a real machine maps at D8000h. The
+      first 0x2000 bytes of the first name found are read to
+      idebaddr << 12 and nothing past them; a shorter file is dropped.
+      Without a loaded ROM the emulated IDE BIOS is used.
+    source_ref: "cbus/ideio.c:1928-1930, cbus/ideio.c:1944-1981"
+
+  # -- SCSI BIOS ROM --
+  # Read into a 0x4000 buffer; any non-empty read is kept. Falls back to the
+  # scsibios[] stub.
+  - name: "scsi.rom"
+    path: "np2kai/scsi.rom"
+    max_size: 16384
+    required: false
+    hle_fallback: true
+    note: >
+      SCSI controller BIOS ROM, up to 16 KB: the full-size test is commented
+      out and a shorter file is used as read. The core includes a built-in
+      SCSI BIOS stub as fallback.
+    source_ref: "cbus/scsiio.c:720-732"
+
+  # -- SASI BIOS ROM --
+  # Loaded by sasiio.c:455. 4 KB (0x1000). Falls back to sasibios[] stub.
+  - name: "sasi.rom"
+    path: "np2kai/sasi.rom"
+    size: 4096
+    required: false
+    hle_fallback: true
+    note: >
+      SASI controller BIOS ROM (4 KB). The core includes a built-in
+      SASI BIOS stub as fallback.
+    source_ref: "cbus/sasiio.c:451-467"
+
+  # -- PCI BIOS ROM --
+  # Loaded by pcidev.c:360-382. Tries pci.rom then bank0.bin.
+  # 32 KB (0x8000). Falls back to built-in PCI BIOS simulation.
+  - name: "pci.rom"
+    path: "np2kai/pci.rom"
+    size: 32768
+    required: false
+    hle_fallback: true
+    aliases: ["bank0.bin"]
+    note: >
+      PCI BIOS ROM (32 KB). For PC-9821 PCI bus emulation.
+      Without this, the built-in PCI BIOS simulator is used.
+    source_ref: "io/pcidev.c:356-382"
+
+  # -- GPIB BIOS ROM --
+  # Loaded by gpibio.c:327-356. 8 KB (0x2000). No built-in fallback:
+  # if missing, GPIB is disabled entirely (gpib.enable = 0).
+  - name: "gpib.rom"
+    path: "np2kai/gpib.rom"
+    size: 8192
+    required: false
+    unsourceable: "never publicly dumped, GP-IB emulation is stub code (source comment: not implemented)"
+    note: >
+      GP-IB interface BIOS ROM (8 KB). If missing, GP-IB emulation
+      is disabled entirely.
+    source_ref: "cbus/gpibio.c:320-356"
+
+  # -- Keyboard remapping config --
+  # Loaded by keystat_initialize() in keystat.c:43 via getbiospath().
+  # Plain text file mapping keyboard scancodes. If missing, default
+  # built-in table is used.
+  - name: "key.txt"
+    path: "np2kai/key.txt"
+    required: false
+    hle_fallback: true
+    unsourceable: "user-created keyboard config, no default distributed in any NP2kai release"
+    note: >
+      Keyboard remapping configuration (text file). User-created file
+      for custom keyboard layout. The core uses built-in defaults if absent.
+    source_ref: "keystat.c:46,116-151"

@@ -1,0 +1,92 @@
+emulator: ymir
+type: standalone + libretro
+core_classification: community_fork
+source:
+  standalone: "https://github.com/StrikerX3/Ymir"
+  libretro: "https://github.com/warmenhoven/Emir/tree/libretro"
+upstream: "https://github.com/StrikerX3/Ymir"
+profiled_date: "2026-03-26"
+source_commit:
+  standalone: "5e9310410baa47cb7da5b068f399c9e4a34eedbc"
+  libretro: "5d99cbbf813206736f38b3574ecca7a8aedc07e5"
+core_version:
+  standalone: "v0.2.1"
+  libretro: "PR#746"
+display_name: "Sega - Saturn (Ymir)"
+cores:
+  - ymir
+systems:
+  - sega-saturn
+
+notes: |
+  Ymir is a Sega Saturn emulator by StrikerX3. The libretro port by
+  warmenhoven wraps the shared ymir-core library (PR #746, not yet merged).
+  No .info file exists in libretro-core-info.
+
+  Standalone: scans configured directories recursively for files matching
+  the expected size. No specific filenames required. Identifies known ROMs
+  by XXH128 hash from an internal database (19 IPL variants, 4 CD Block
+  versions, 2 ROM carts). Unknown files are accepted if size matches.
+
+  Libretro: searches {system}/sega_101.bin, mpr-17933.bin, saturn_bios.bin
+  in order. First file found with exact 512 KiB size wins.
+
+  Batocera standalone: configgen maps IPLROMImages to /userdata/bios,
+  CDBlockROMImages to /userdata/roms/saturn/cdb/, ROMCartImages to
+  /userdata/roms/saturn.
+
+  No HLE fallback for IPL ROM. CD Block LLE is optional; falls back to
+  HLE when disabled or no ROM found. Known CDB versions: 1.04, 1.05, 1.06.
+
+  ROM cartridges: KoF95 and Ultraman shipped with physical ROM carts.
+  Auto-detected from game database when loading a disc.
+
+  Addon cartridges: 1M/4M DRAM expansion handled via core option (no files).
+
+  XXH128 hashes used for ROM identification only, not validation.
+  All file loading validates size only.
+
+files:
+  - name: "sega_101.bin"
+    system: sega-saturn
+    required: true
+    size: 524288
+    validation: [size]
+    aliases: [mpr-17933.bin, saturn_bios.bin]
+    description: "Saturn IPL ROM (BIOS). Any region accepted."
+    source_ref:
+      standalone: "apps/ymir-sdl3/src/util/rom_loader.cpp:9-22, apps/ymir-sdl3/src/app/rom_manager.cpp:14-56, libs/ymir-core/include/ymir/sys/memory_defs.hpp:9"
+      libretro: "apps/ymir-libretro/src/libretro.cpp:260-263,534-558"
+
+  - name: "cdb/cdb_rom.bin"
+    system: sega-saturn
+    required: false
+    hle_fallback: true
+    size: 65536
+    validation: [size]
+    description: "SH1 CD Block ROM for low-level CD drive emulation. Scans cdb/ subdirectory for any matching file."
+    source_ref:
+      standalone: "apps/ymir-sdl3/src/util/rom_loader.cpp:25-38, apps/ymir-sdl3/src/app/rom_manager.cpp:58-93, libs/ymir-core/include/ymir/hw/sh1/sh1_defs.hpp:7"
+      libretro: "apps/ymir-libretro/src/libretro.cpp:565-591"
+
+  - name: "mpr-18811-mx.ic1"
+    system: sega-saturn
+    required: false
+    category: game_data
+    size: 2097152
+    validation: [size]
+    description: "ROM cartridge for The King of Fighters '95."
+    source_ref:
+      standalone: "apps/ymir-sdl3/src/app/rom_manager.cpp:96-131, libs/ymir-core/include/ymir/db/rom_cart_db.hpp:19-22"
+      libretro: "apps/ymir-libretro/src/libretro.cpp:621, 598-618"
+
+  - name: "mpr-19367-mx.ic1"
+    system: sega-saturn
+    required: false
+    category: game_data
+    size: 2097152
+    validation: [size]
+    description: "ROM cartridge for Ultraman: Hikari no Kyojin Densetsu."
+    source_ref:
+      standalone: "apps/ymir-sdl3/src/app/rom_manager.cpp:96-131, libs/ymir-core/include/ymir/db/rom_cart_db.hpp:25-28"
+      libretro: "apps/ymir-libretro/src/libretro.cpp:622, 598-618"

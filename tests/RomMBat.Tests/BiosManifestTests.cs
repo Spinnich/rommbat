@@ -106,7 +106,7 @@ public sealed class BiosManifestTests
     {
         var manifest = Fixtures.LoadBiosManifest();
 
-        // mastersystem is one of the 29 systems with no joinable entry at all. Reporting these
+        // mastersystem is one of the 30 systems with no joinable entry at all. Reporting these
         // as "not in your library" would send a user looking for a file RomMBat could not
         // recognize if they already had it.
         var mastersystem = manifest.For("mastersystem");
@@ -285,7 +285,7 @@ public sealed class BiosManifestTests
     public void Every_system_the_manifest_names_resolves_to_a_folder_RetroBat_has()
     {
         // The manifest is keyed by batocera system names, a third vocabulary beside
-        // es_systems.cfg's <name> and its <path> basename. 97 of 99 keys are already a folder;
+        // es_systems.cfg's <name> and its <path> basename. 99 of 101 keys are already a folder;
         // the generator aliases the two that are not, and this is what catches a new one.
         var manifest = Fixtures.LoadBiosManifest();
         var systems = Fixtures.LoadEsSystems();

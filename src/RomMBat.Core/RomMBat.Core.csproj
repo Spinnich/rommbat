@@ -28,7 +28,7 @@
   </ItemGroup>
 
   <!--
-    data/retrobat/*.json are shipped tables read at runtime. Embedded for the same reason
+    The tables below are shipped and read at runtime. Embedded for the same reason
     the migrations are: a single-file publish carries them and nothing has to resolve a
     path to find them. The link name is what the resource name is built from, so moving
     one breaks the lookup in the class that reads it.

@@ -1,0 +1,52 @@
+emulator: snes9x
+type: libretro
+core_classification: official_port
+source: "https://github.com/libretro/snes9x"
+upstream: "https://github.com/snes9xgit/snes9x"
+logo: "https://raw.githubusercontent.com/snes9xgit/snes9x/master/gtk/data/snes9x.svg"
+profiled_date: "2026-03-25"
+source_commit: "fae2fea08f74180759ef540ee94259213f503480"
+core_version: "1.61"
+display_name: "Nintendo - SNES / SFC (Snes9x)"
+systems: [nintendo-snes, nintendo-satellaview, nintendo-sufami-turbo]
+
+cores:
+  snes9x:
+  snes9x_next:
+  pocketsnes:
+    source: "https://github.com/libretro/snes9x"
+    firmware_loading: true
+    hle_only: true
+    note: |
+      Loads BS-X.bin and STBIOS.bin via LoadBIOS() in libretro.cpp.
+      BSX_LoadBIOS() in bsx.cpp tries BS-X.bios as fallback.
+      Auto-detects Satellaview and Sufami Turbo carts on load.
+      Subsystem support via retro_load_game_special() for
+      RETRO_GAME_TYPE_BSX, RETRO_GAME_TYPE_SUFAMI_TURBO,
+      RETRO_GAME_TYPE_MULTI_CART.
+
+files:
+  - name: "BS-X.bin"
+    system: nintendo-satellaview
+    description: "Satellaview BS-X BIOS"
+    required: false
+    size: 1048576
+    validation: [size]
+    source_ref: "libretro/libretro.cpp:1414, bsx.cpp:1209, bsx.cpp:1214"
+    aliases: ["BS-X.bios"]
+    note: "Needed for Satellaview (.bs) games."
+
+  - name: "STBIOS.bin"
+    system: nintendo-sufami-turbo
+    description: "Sufami Turbo BIOS"
+    required: false
+    size: 262144
+    validation: [size]
+    source_ref: "libretro/libretro.cpp:1506, libretro/libretro.cpp:1546, memmap.cpp:1720"
+    note: "Needed for Sufami Turbo multi-cart games."
+
+notes:
+  coprocessor_hle: |
+    All coprocessors are HLE (DSP1-4, ST010, ST011, ST018, CX4).
+    No external firmware files needed. Lookup tables and math
+    emulation hardcoded in dsp1-4.cpp, seta010-018.cpp, c4emu.cpp.

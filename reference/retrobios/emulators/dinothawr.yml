@@ -1,0 +1,32 @@
+emulator: Dinothawr
+type: libretro
+core_classification: game_engine
+source: "https://github.com/libretro/Dinothawr"
+upstream: "https://github.com/libretro/Dinothawr"
+profiled_date: "2026-03-23"
+source_commit: "62d3e1ecf85f0feea01cad6809a80303a87e8a28"
+core_version: "v1.0"
+display_name: "Dinothawr"
+cores: [dinothawr]
+systems: [dinothawr]
+
+notes: |
+  Puzzle game by the libretro team (Themaister, Agnes Heyer). Push blocks on ice.
+  Game data (TMX levels, sprites, music) needed for the core to work.
+
+  Two loading modes:
+  1. Load dinothawr.game as content (data in content directory)
+  2. supports_no_game=true: loads from system_dir/dinothawr/
+     ref: libretro.c:476-479 —
+       game_path_dir = join(system_dir, "/", "dinothawr")
+       game_path = join(game_path_dir, "/", "dinothawr.game")
+
+  Buildbot provides Dinothawr.zip via Core System Files Downloader.
+  ref: buildbot.libretro.com/assets/system/Dinothawr.zip
+
+data_directories:
+  - ref: dinothawr
+    source_ref: "libretro.c:479"
+
+files: []
+# no BIOS/firmware — game data loaded via data_directories or content

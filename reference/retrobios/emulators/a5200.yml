@@ -1,0 +1,45 @@
+emulator: a5200
+type: libretro
+core_classification: community_fork
+source: "https://github.com/libretro/a5200"
+upstream: "https://github.com/alekmaul/a5200"
+profiled_date: "2026-03-22"
+source_commit: "40c6f2f1ad4a3145b328d5baaf010fae6c7e752b"
+core_version: "2.0.2"
+display_name: "Atari - 5200 (a5200)"
+cores:
+  - a5200
+systems:
+  - atari-5200
+
+# Dedicated Atari 5200 emulator forked from Atari800 2.0.2 codebase by Alekmaul
+# for GCW Zero. Libretro port later enhanced by wavemotion-dave with Altirra OS
+# fallback, Super Cart support, frame blending and analog input.
+#
+# Loads 5200 OS ROM from <system_dir>/5200.rom (2048 bytes, mapped to 0xF800-0xFFFF
+# via MEMORY_InitialiseMachine). If missing or user selects "internal" via core
+# option "a5200_bios", falls back to built-in Altirra 5200 OS (altirra_5200_os.c,
+# compiled from Altirra-3.20-test4).
+#
+# BIOS loading (libretro.c:408-499):
+#   1. check_bios_variable() reads core option "a5200_bios" (official/internal)
+#   2. load_bios() reads <system_dir>/5200.rom, validates size == 0x800
+#   3. On failure or "internal" selected: memcpy from ROM_altirra_5200_os
+#
+# Upstream divergence: alekmaul's standalone requires 5200.rom (exits on missing).
+# Libretro port makes it optional via Altirra fallback.
+#
+# Cart type detection via MD5 database in cartridge.c (standard 4K-512K, bounty bob,
+# super cart, EE banked). Unknown ROMs detected by size heuristic.
+
+files:
+  - name: "5200.rom"
+    path: "5200.rom"
+    size: 2048
+    required: false
+    hle_fallback: true
+    validation: [size]
+    note: >
+      Atari 5200 OS ROM. Core option "a5200_bios" controls official vs internal.
+      Altirra replacement has lower compatibility with some titles.
+    source_ref: "libretro/libretro.c:58-59, libretro/libretro.c:416-507, emu/memory.c:46"

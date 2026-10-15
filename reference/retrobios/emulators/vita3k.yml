@@ -1,0 +1,60 @@
+emulator: Vita3K
+type: standalone
+source: "https://github.com/Vita3K/Vita3K"
+upstream: "https://github.com/Vita3K/Vita3K"
+profiled_date: "2026-03-29"
+source_commit: "df2880875f397ff8c6e76513ed5d7d0a947af9a0"
+core_version: "0.2.1"
+display_name: "Vita3K (PS Vita)"
+cores:
+  - vita3k
+systems: [sony-playstation-vita]
+
+# Standalone emulator, no libretro core exists.
+# Firmware PUP files are one-time installations: install_pup() decrypts and
+# extracts partition images (os0, vs0, sa0, pd0) into the emulator data directory.
+# The PUP file itself is deleted after extraction.
+# Three separate PUP packages exist on Sony servers:
+#   1. PSVUPDAT.PUP (main firmware) from psv.update.playstation.net
+#   2. PSP2UPDAT.PUP (font package) from psp2.update.playstation.net (sd_ prefix)
+#   3. PSP2UPDAT.PUP (preinst firmware) from psp2.update.playstation.net (pre_ prefix)
+# Vita3K uses hybrid LLE/HLE: some modules always loaded from firmware (libc,
+# libSceFt2, libpvf, libcdlg), others toggleable per-module via settings.
+
+files:
+  - name: PSVUPDAT.PUP
+    path: "psvita/PSVUPDAT.PUP"
+    required: true
+    hle_fallback: true
+    note: >
+      Main PS Vita firmware. Decrypted via SCE keys, extracts os0 (kernel),
+      vs0 (system modules and apps), sa0 (fonts), pd0 (system data).
+      Games load LLE modules from vs0/sys/external/*.suprx. Preload modules
+      (libc, libSceFt2, libpvf) are always LLE. Without firmware most games fail.
+      Some simple titles may run on HLE alone.
+    source_ref: "vita3k/packages/src/pup.cpp:260-314, vita3k/app/src/app.cpp:176, vita3k/module/src/load_module.cpp:142-161, 187"
+
+  - name: PSP2UPDAT.PUP
+    path: "psvita/PSP2UPDAT.PUP"
+    required: false
+    hle_fallback: true
+    note: >
+      Supplementary firmware font package. Populates the sa0 partition with
+      system fonts (PVF format), which the renderer registers as the firmware
+      font directory when the partition holds content.
+    source_ref: "vita3k/packages/src/pup.cpp:296-297, vita3k/app/src/app.cpp:177, vita3k/renderer/src/renderer.cpp:121-127"
+
+notes: |
+  Standalone PS Vita emulator. No libretro core.
+  Firmware installed via File > Install Firmware or CLI --firmware flag.
+  PUP files validated by SCEUF magic header only (vita3k/packages/src/pup.cpp:119), no hash check.
+  After install, four partitions are extracted:
+    os0 (FAT, kernel modules), vs0 (FAT, system modules/apps),
+    sa0 (FAT, fonts), pd0 (exFAT, system data/BGM).
+  Module loading: app0:sce_module/{name}.suprx (game-bundled) then
+  vs0:sys/external/{name}.suprx (firmware). Auto-LLE modules include
+  libhttp, libssl, libult, libsas, libpgf, libfios2, libsystemgesture,
+  libSceXml, libSceSqlite, librudp, libatrac, libface, libsmart,
+  libsceavplayer, libSceJson, and more (vita3k/module/src/load_module.cpp:142-162).
+  A third optional preinst firmware PUP (pd0 partition: system BGM, resources)
+  is available from Sony but not commonly required for game compatibility.

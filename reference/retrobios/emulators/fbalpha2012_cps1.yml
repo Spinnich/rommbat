@@ -1,0 +1,42 @@
+emulator: "FB Alpha 2012 CPS-1"
+type: libretro
+core_classification: frozen_snapshot
+source: "https://github.com/libretro/fbalpha2012_cps1"
+upstream: "https://www.fbalpha.com"
+profiled_date: "2026-03-23"
+source_commit: "5542c1848ef81e92db311193b01dc349bc29d7cc"
+core_version: "v0.2.97.28"
+display_name: "Arcade (FB Alpha 2012 CPS-1)"
+cores:
+  - fbalpha2012_cps1
+systems:
+  - cps1
+
+notes: |
+  Frozen snapshot of Final Burn Alpha v0.2.97.28 (circa 2012), CPS-1 only.
+  Exists for RAM-constrained platforms (3DS, embedded). Most users should use FBNeo.
+
+  CPS-1 has no system BIOS. Each game's ROM set is self-contained:
+  68000 program ROMs + Z80 sound program + GFX ROMs + (optional) QSound samples.
+  QSound games (Cadillacs & Dinosaurs, etc.) include audio samples directly in
+  their ROM set (cd-q1.1k through cd-q4.4k), not as a separate DSP BIOS.
+
+  Board PLDs (buf1, ioa1, prg1, rom1, sou1) are listed in ROM definitions as
+  BRF_OPT (optional). These are GAL/PAL dumps for hardware preservation —
+  never loaded by the emulator.
+
+  ROM path: ROMs are loaded from the content directory (g_rom_dir).
+  system_directory (libretro.cpp:2202) is used only for hiscore.dat.
+
+  The .info note "BIOS files must be inside the ROM directory" is misleading —
+  there are no BIOS files for CPS-1. This note is generic across all FBA cores.
+
+  244 ROM sets defined (488 STD_ROM_PICK/FN entries = 244 games).
+  is_experimental=false, need_fullpath=true, block_extract=true.
+
+files:
+  - name: "hiscore.dat"
+    path: "fbalpha2012/hiscore.dat"
+    required: false
+    description: "High score database, loaded from system directory"
+    source_ref: "src/burn/hiscore.cpp:226"

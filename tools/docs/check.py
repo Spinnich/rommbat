@@ -37,6 +37,7 @@ EXCLUDED_PREFIXES = (
     # reference/README.md is hand-written and checked; everything beside it is vendored.
     "reference/batocera-",
     "reference/es_",
+    "reference/retrobios/",
     "reference/romm-",
     "reference/systems_",
     "LICENSE",

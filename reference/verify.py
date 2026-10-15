@@ -48,6 +48,58 @@ def read_aliases(path, members):
     return {folder: members[name] for folder, name in pairs if name in members}
 
 
+def firmware_evidence(bios):
+    """What retrobios adds to RetroBat's hashless entries, by the rules the manifest follows."""
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent / "tools"))
+    import firmware_sources
+
+    evidence = firmware_sources.Evidence(HERE)
+    print(f"\nFirmware evidence (retrobios {evidence.ref[:12]})")
+    rows = list(evidence.rows.values())
+    # Not a statistic: a row nothing describes must be resolved in firmware-rows.json or marked.
+    check("RetroBat rows no source describes and nothing marks", len(evidence.unresolved), 0)
+    check("Row-map entries no RetroBat row uses", evidence.unused, [])
+    check("retrobios profiles vendored", len(evidence.profiles), 221)
+    check("RetroBat rows", len(rows), 709)
+    check("  ...described by a retrobios profile", sum(1 for s in rows if s.get("profiles")), 562)
+    check("  ...described by BizHawk's firmware list", sum(1 for s in rows if s.get("bizhawk")), 55)
+    check("  ...marked as having no retrobios source", sum(1 for s in rows if "none" in s), 92)
+
+    shapes = {}
+    for key, body in bios.items():
+        folder = {"astrocde": "astrocade", "msx": "msx1"}.get(key, key)
+        for entry in body.get("biosFiles", []):
+            if entry["md5"].strip():
+                continue
+            path = entry["file"]
+            name = path.rsplit("/", 1)[-1]
+            if not path.startswith("bios/"):
+                shape = "outside"
+            elif name.lower().endswith(".xml"):
+                shape = "xml"
+            elif name.lower().endswith(".zip"):
+                shape = "zip+" if evidence.zip_contents(folder, name) else "zip"
+            elif evidence.stated_md5s(folder, name):
+                shape = "stated"
+            elif evidence.catalog_md5(name):
+                shape = "catalog"
+            elif evidence.romm_md5(name):
+                shape = "romm"
+            else:
+                shape = "none"
+            shapes[shape] = shapes.get(shape, 0) + 1
+
+    # MAME's software lists are hash metadata RetroBat ships under bios/mame/hash, not firmware.
+    check("Hashless entries that are MAME software lists (.xml)", shapes.get("xml", 0), 63)
+    check("Hashless BIOS zips", shapes.get("zip", 0) + shapes.get("zip+", 0), 64)
+    check("  ...whose contents a row's profile lists", shapes.get("zip+", 0), 24)
+    check("Hashless single files under bios/", sum(shapes.get(k, 0) for k in ("stated", "catalog", "romm", "none")), 53)
+    check("  ...a profile or BizHawk states a hash for", shapes.get("stated", 0), 7)
+    check("  ...named exactly as one dump-catalog entry", shapes.get("catalog", 0), 3)
+    check("  ...RomM's known_bios_files names one hash for", shapes.get("romm", 0), 12)
+    check("  ...with no identity anywhere", shapes.get("none", 0), 31)
+
+
 def main():
     systems = {l.strip() for l in (HERE / "systems_names.lst").read_text().splitlines() if l.strip()}
 
@@ -164,6 +216,8 @@ def main():
     )
     check("Deepest destination path, in segments", max(f.count("/") + 1 for _s, _m, f in entries), 6)
     check("Manifest keys that are not a RetroBat system", len(set(bios) - systems), 2)
+
+    firmware_evidence(bios)
 
     print("\nGamelist export")
     exporter = (HERE / "romm-gamelist_exporter.py").read_text(encoding="utf-8")

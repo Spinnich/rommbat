@@ -11,13 +11,13 @@ the tests beyond a plain `dotnet test` is in [docs/contributing/testing.md](docs
 
 ## 1. Toolchain
 
-| Tool                   | Why                                 | Get it                                                                  |
-| ---------------------- | ----------------------------------- | ----------------------------------------------------------------------- |
-| .NET SDK 10.0 or newer | Build and test                      | <https://dotnet.microsoft.com/download>                                 |
-| Git                    | Source control                      | <https://git-scm.com/download/win>                                      |
-| Python 3.10+           | `reference/verify.py`, docs checks  | <https://www.python.org/downloads/>                                     |
-| Trunk                  | Lint and format                     | `curl -fsSL https://trunk.io/releases/trunk -o trunk` (WSL or Git Bash) |
-| GitHub CLI             | Reading upstream repos, opening PRs | <https://cli.github.com/>                                               |
+| Tool                   | Why                                 | Get it                                                                                                                                                    |
+| ---------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| .NET SDK 10.0 or newer | Build and test                      | <https://dotnet.microsoft.com/download>                                                                                                                   |
+| Git                    | Source control                      | <https://git-scm.com/download/win>                                                                                                                        |
+| Python 3.10+           | `reference/verify.py`, docs checks  | <https://www.python.org/downloads/>, then `pip install -r tools/docs/requirements.txt` (mkdocs, which brings the PyYAML `verify.py` reads retrobios with) |
+| Trunk                  | Lint and format                     | `curl -fsSL https://trunk.io/releases/trunk -o trunk` (WSL or Git Bash)                                                                                   |
+| GitHub CLI             | Reading upstream repos, opening PRs | <https://cli.github.com/>                                                                                                                                 |
 
 Verify:
 
