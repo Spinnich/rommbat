@@ -763,7 +763,8 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
 
             case BiosPlanned(var bios):
                 // The two states only a person can settle: a slot RomM holds several equally
-                // ranked files for, and a zip on disk that no reader accepts.
+                // ranked files for, and a zip on disk that no reader accepts. An upgrade is not
+                // one, and the screen's notes are its problems list, so it is not noted.
                 foreach (var step in bios.Steps.Where(step => step.Action is BiosAction.Ambiguous or BiosAction.ContentsMismatch))
                 {
                     Note($"{step.Path}: {step.Reason}");
@@ -772,13 +773,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
                 Publish(state => state with { Pass = "Fetching firmware...", Game = null });
                 break;
 
-            case BiosApplied(var applied):
-                if (applied.Upgraded > 0)
-                {
-                    Note($"{applied.Upgraded} firmware {(applied.Upgraded == 1 ? "file was" : "files were")} "
-                        + "replaced by a better-ranked one RomM now has.");
-                }
-
+            case BiosApplied:
                 Publish(state => state with { Pass = "Fetching firmware...", Game = null });
                 break;
 

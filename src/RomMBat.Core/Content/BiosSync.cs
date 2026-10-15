@@ -205,6 +205,17 @@ public sealed class BiosSync
                         break;
                     }
 
+                    // Replaced only while the disk still holds the bytes RomMBat recorded.
+                    // Anything else got there since the plan was built and is the user's now.
+                    // A fault of this one destination, so the bytes stay wanted elsewhere.
+                    if (step.Action == BiosAction.Upgrade && Changed(step) is { } changed)
+                    {
+                        failed++;
+                        cause = FailureCauses.Worst(cause, FailureCause.Failed);
+                        problems.Add($"{step.Path}: {changed}");
+                        break;
+                    }
+
                     if (fetched.TryGetValue(key, out var source))
                     {
                         var copied = CopyInto(step, source.Path);
@@ -217,7 +228,7 @@ public sealed class BiosSync
                         }
 
                         Record(step, FileOrigin.Synced, source.Md5);
-                        written++;
+                        Count(step);
                         break;
                     }
 
@@ -227,7 +238,11 @@ public sealed class BiosSync
                     {
                         failed++;
                         cause = FailureCauses.Worst(cause, result.Cause);
-                        refused.Add(key);
+                        if (result.Refuse)
+                        {
+                            refused.Add(key);
+                        }
+
                         problems.Add($"{step.Requirement.FileName}: {wrong}");
                         break;
                     }
@@ -236,20 +251,23 @@ public sealed class BiosSync
                     fetched[key] = (step.Path, result.Md5!);
                     downloaded++;
                     bytes += result.Bytes;
-
-                    if (step.Action == BiosAction.Upgrade)
-                    {
-                        upgraded++;
-                    }
-                    else
-                    {
-                        written++;
-                    }
-
+                    Count(step);
                     break;
 
                 default:
                     break;
+            }
+        }
+
+        void Count(BiosStep step)
+        {
+            if (step.Action == BiosAction.Upgrade)
+            {
+                upgraded++;
+            }
+            else
+            {
+                written++;
             }
         }
 
@@ -268,13 +286,13 @@ public sealed class BiosSync
     }
 
     /// <summary>Fetches one file, verifies it, and moves it into place.</summary>
-    private async Task<(long Bytes, string? Md5, string? Problem, FailureCause Cause)> FetchAsync(
+    private async Task<(long Bytes, string? Md5, string? Problem, FailureCause Cause, bool Refuse)> FetchAsync(
         BiosStep step,
         CancellationToken cancellationToken)
     {
         if (_connection is null)
         {
-            return (0, null, "RomM was not asked about it, so there is nothing to fetch from.", FailureCause.Unreachable);
+            return (0, null, "RomM was not asked about it, so there is nothing to fetch from.", FailureCause.Unreachable, true);
         }
 
         var part = _install.Resolve(BiosPlanner.PartFor(step.TransferKey!));
@@ -297,7 +315,7 @@ public sealed class BiosSync
             if (!response.IsSuccess)
             {
                 SafeDelete(part);
-                return (0, null, response.Message, FailureCauses.Of(response.Status));
+                return (0, null, response.Message, FailureCauses.Of(response.Status), true);
             }
 
             var found = ContentHasher.ComputeFileMd5(part);
@@ -305,49 +323,42 @@ public sealed class BiosSync
             if (Verify(step, part, found) is { } refusal)
             {
                 SafeDelete(part);
-                return (0, null, refusal, FailureCause.Failed);
+                return (0, null, refusal, FailureCause.Failed, true);
             }
 
-            if (step.Action == BiosAction.Upgrade)
+            // Checked again after the transfer, which can take long enough for a user to swap the
+            // file. The bytes are still good for any other destination, so they are not refused.
+            if (step.Action == BiosAction.Upgrade && Changed(step) is { } changed)
             {
-                // Replaced only while the disk still holds the bytes RomMBat recorded. Anything
-                // else got there since the plan was built and is the user's now.
-                if (!ContentHasher.Matches(ContentHasher.ComputeFileMd5(target), step.Found))
-                {
-                    SafeDelete(part);
-                    return (0, null, "it changed on disk since the plan was made, so it was left as it is.", FailureCause.Failed);
-                }
-
-                File.Move(part, target, overwrite: true);
-            }
-            else
-            {
-                // Not overwrite: true. A file that appeared at the destination since the plan was
-                // built is the user's, and the IOException below reports it rather than losing it.
-                File.Move(part, target, overwrite: false);
+                SafeDelete(part);
+                return (0, null, changed, FailureCause.Failed, false);
             }
 
-            return (response.Value!.BytesWritten, found, null, FailureCause.None);
+            // Overwrites only an upgrade's target, which holds RomMBat's own bytes. Anywhere else a file that appeared since the plan was built is the user's,
+            // and the IOException below reports it rather than losing it.
+            File.Move(part, target, overwrite: step.Action == BiosAction.Upgrade);
+
+            return (response.Value!.BytesWritten, found, null, FailureCause.None, false);
         }
         catch (RomMUnreachableException ex)
         {
             SafeDelete(part);
-            return (0, null, ex.Message, FailureCause.Unreachable);
+            return (0, null, ex.Message, FailureCause.Unreachable, true);
         }
         catch (PathTooLongException)
         {
             SafeDelete(part);
-            return (0, null, "the path to it is longer than this machine allows.", FailureCause.Failed);
+            return (0, null, "the path to it is longer than this machine allows.", FailureCause.Failed, true);
         }
         catch (IOException ex)
         {
             SafeDelete(part);
-            return (0, null, $"it could not be written: {ex.Message}", FailureCause.Failed);
+            return (0, null, $"it could not be written: {ex.Message}", FailureCause.Failed, true);
         }
         catch (UnauthorizedAccessException ex)
         {
             SafeDelete(part);
-            return (0, null, $"it could not be written: {ex.Message}", FailureCause.Failed);
+            return (0, null, $"it could not be written: {ex.Message}", FailureCause.Failed, true);
         }
     }
 
@@ -373,6 +384,23 @@ public sealed class BiosSync
             : $"RomM's {step.Match!.FileName} holds members none of its readers accepts, so it was discarded.";
     }
 
+    /// <summary>Why an upgrade's target may not be replaced, or null when it still holds RomMBat's bytes.</summary>
+    private string? Changed(BiosStep step)
+    {
+        var target = _install.Resolve(step.Path);
+
+        try
+        {
+            return File.Exists(target) && ContentHasher.Matches(ContentHasher.ComputeFileMd5(target), step.Found)
+                ? null
+                : "it changed on disk since the plan was made, so it was left as it is.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return $"it could not be read to check it is still RomMBat's: {ex.Message}";
+        }
+    }
+
     /// <summary>Writes a second destination for bytes this pass already verified.</summary>
     private string? CopyInto(BiosStep step, RelativePath source)
     {
@@ -382,7 +410,9 @@ public sealed class BiosSync
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(to)!);
-            File.Copy(from, to, overwrite: false);
+
+            // As in FetchAsync: only an upgrade, already checked, replaces what is there.
+            File.Copy(from, to, overwrite: step.Action == BiosAction.Upgrade);
             return null;
         }
         catch (IOException ex)

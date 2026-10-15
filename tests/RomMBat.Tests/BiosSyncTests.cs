@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using RomM.Client;
+using RomMBat.Core;
 using RomMBat.Core.Content;
 using RomMBat.Core.Paths;
 using RomMBat.Core.RetroBat;
@@ -257,9 +258,9 @@ public sealed class BiosSyncTests : IDisposable
     [Fact]
     public async Task A_requirement_RetroBat_names_no_hash_for_is_its_own_state_and_never_missing()
     {
-        // 180 of the 354 requirements, and 30 systems have nothing else. Reporting these as
-        // "not in your library" would send a user looking for a file RomMBat could not
-        // recognize if they already had it.
+        // 71 of the 943 firmware slots have no identity. Reporting these as "not in your
+        // library" would send a user looking for a file RomMBat could not recognize if they
+        // already had it.
         using var stub = new StubRomMServer();
         stub.Platforms.Add(new StubPlatform(1, "mastersystem", "mastersystem", "Master System"));
 
@@ -1139,6 +1140,94 @@ public sealed class BiosSyncTests : IDisposable
         Assert.NotEqual(BiosAction.Upgrade, step.Action);
         Assert.Equal(2, step.Better!.Id);
         Assert.Equal(edited, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "dc", "dc_boot.bin")));
+    }
+
+    [Fact]
+    public async Task One_better_file_upgrades_every_destination_that_holds_RomMBat_s_older_one()
+    {
+        // The second destination of an upgrade is a copy of the bytes the first one fetched, and
+        // the copy replaces RomMBat's own file there rather than refusing to overwrite it.
+        var older = Content("coleco.rom, the fallback");
+        var better = Content("coleco.rom, the preferred");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "colecovision", "coleco", "ColecoVision")
+        {
+            Firmware = [new StubFirmware(1, "old.rom", older)],
+        });
+
+        Offer[] accepted = [new Offer(Md5(better), Priority: 1), new Offer(Md5(older), Priority: 2)];
+        var manifest = Slots(
+            new Slot("colecovision", "bios/coleco.rom", accepted),
+            new Slot("colecovision", "bios/colecovision.rom", accepted));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var first = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(2, first.Written);
+
+        stub.Platforms[0] = stub.Platforms[0] with
+        {
+            Firmware = [new StubFirmware(1, "old.rom", older), new StubFirmware(2, "new.rom", better)],
+        };
+
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.All(plan.Steps, step => Assert.Equal(BiosAction.Upgrade, step.Action));
+        Assert.Equal(1, plan.DownloadCount);
+
+        // A plan of upgrades alone still says what it will transfer.
+        Assert.StartsWith($"1 to upgrade ({ByteSize.Format(better.Length)})", plan.Summary, StringComparison.Ordinal);
+
+        using var connection = Connect(stub);
+        var outcome = await new BiosSync(_tree.Install(), store, connection)
+            .ApplyAsync(plan, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(2, outcome.Upgraded);
+        Assert.Equal(better, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "coleco.rom")));
+        Assert.Equal(better, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "colecovision.rom")));
+        Assert.All(store.Files.List(kind: LocalFileKind.Firmware), row => Assert.Equal(Md5(better), row.Md5Hash));
+    }
+
+    [Fact]
+    public async Task An_upgrade_refused_for_a_changed_file_blocks_no_other_destination_of_the_same_file()
+    {
+        var older = Content("coleco.rom, the fallback");
+        var better = Content("coleco.rom, the preferred");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "colecovision", "coleco", "ColecoVision")
+        {
+            Firmware = [new StubFirmware(1, "old.rom", older)],
+        });
+
+        // The first slot takes the older file now and upgrades later; the second takes only the
+        // better one, so it is a plain download of the same bytes in the same pass.
+        var manifest = Slots(
+            new Slot("colecovision", "bios/coleco.rom", [new Offer(Md5(better), Priority: 1), new Offer(Md5(older), Priority: 2)]),
+            new Slot("colecovision", "bios/colecovision.rom", [new Offer(Md5(better))]));
+
+        using var store = LocalStore.Open(_tree.Install());
+        await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        stub.Platforms[0] = stub.Platforms[0] with
+        {
+            Firmware = [new StubFirmware(1, "old.rom", older), new StubFirmware(2, "new.rom", better)],
+        };
+
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal([BiosAction.Upgrade, BiosAction.Download], plan.Steps.Select(step => step.Action));
+
+        // The user swaps the first file between the plan and the pass.
+        var theirs = Content("a coleco.rom the user put there");
+        Write("bios/coleco.rom", theirs);
+
+        using var connection = Connect(stub);
+        var outcome = await new BiosSync(_tree.Install(), store, connection)
+            .ApplyAsync(plan, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Failed);
+        Assert.Equal(theirs, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "coleco.rom")));
+        Assert.Equal(better, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "colecovision.rom")));
     }
 
     // ------------------------------------------------------------------ helpers

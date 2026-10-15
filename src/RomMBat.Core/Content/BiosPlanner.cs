@@ -149,14 +149,27 @@ public sealed record BiosPlan
             }
 
             var parts = new List<string>();
-            var fetches = Downloads.Where(step => step.Action == BiosAction.Download).Select(step => step.TransferKey).Distinct(StringComparer.Ordinal).Count();
+
+            // One size for every transfer, fresh and upgrade alike, since BytesToTransfer counts both.
+            var transfers = new List<string>();
+            var fetches = Distinct(BiosAction.Download);
+            var upgrades = Distinct(BiosAction.Upgrade);
 
             if (fetches > 0)
             {
-                parts.Add($"{fetches} to fetch ({ByteSize.Format(BytesToTransfer)})");
+                transfers.Add($"{fetches} to fetch");
             }
 
-            Add(BiosAction.Upgrade, "to upgrade");
+            if (upgrades > 0)
+            {
+                transfers.Add($"{upgrades} to upgrade");
+            }
+
+            if (transfers.Count > 0)
+            {
+                parts.Add($"{string.Join(" and ", transfers)} ({ByteSize.Format(BytesToTransfer)})");
+            }
+
             Add(BiosAction.Adopt, "already on disk to adopt");
             Add(BiosAction.AlreadyPresent, "present");
             Add(BiosAction.Mismatch, "on disk but not a file any reader accepts");
@@ -174,6 +187,9 @@ public sealed record BiosPlan
             }
 
             return parts.Count == 0 ? "nothing to do" : string.Join(", ", parts);
+
+            int Distinct(BiosAction action) =>
+                Downloads.Where(step => step.Action == action).Select(step => step.TransferKey).Distinct(StringComparer.Ordinal).Count();
 
             void Add(BiosAction action, string label)
             {
