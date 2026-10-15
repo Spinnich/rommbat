@@ -1,15 +1,18 @@
 # Bundled data
 
-Tables RomMBat ships and reads at runtime, and two that only the build and the docs read. Not to be confused with
+Tables RomMBat ships and reads at runtime, and two that nothing reads at runtime. Not to be confused with
 [reference/](../reference/), which vendors upstream files purely so the numbers in
 [reference/README.md](../reference/README.md) can be re-derived offline.
 
-| File                             | Shape                                                        | Derived from                                                                |
-| -------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| `retrobat/platforms.json`        | RomM slug to an **ordered list** of RetroBat folders         | `systems_names.lst`, resolved by RomM's `backend/utils/platform_aliases.py` |
-| `retrobat/save_directories.json` | **RetroBat system** to save subdirectories, in Grout's shape | `tools/m0-probes/probe2-emit-data.py`, run against a real install           |
-| `retrobat/save_shapes.json`      | RetroBat system to save class A/B/C/D                        | `tools/m0-probes/probe2-emit-data.py`, run against a real install           |
-| `retrobat/bios.json`             | RetroBat system to the firmware it requires                  | `reference/batocera-systems.json`, thinned by a generator                   |
+| File                                    | Shape                                                                 | Derived from                                                                |
+| --------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `retrobat/platforms.json`               | RomM slug to an **ordered list** of RetroBat folders                  | `systems_names.lst`, resolved by RomM's `backend/utils/platform_aliases.py` |
+| `retrobat/save_directories.json`        | **RetroBat system** to save subdirectories, in Grout's shape          | `tools/m0-probes/probe2-emit-data.py`, run against a real install           |
+| `retrobat/save_shapes.json`             | RetroBat system to save class A/B/C/D                                 | `tools/m0-probes/probe2-emit-data.py`, run against a real install           |
+| `retrobat/bios.json`                    | RetroBat system to the firmware it requires                           | `reference/batocera-systems.json`, thinned by a generator                   |
+| `retrobat/save_rules.json`              | Which files under `saves/` and two emulators' folders are whose saves | `tools/m6-probes/m6-emit-save-rules.py`, plus hand-measured rules           |
+| `retrobat/multi_file.json`              | Systems whose multi-file ROMs sync, and how each lands                | One certification pass per system                                           |
+| `retrobat/es_savestates.supplement.xml` | State entries for emulators `es_savestates.cfg` leaves out            | Driven on a real install, one row at a time                                 |
 
 Nothing reads the other two at runtime. `certification.json` holds each certified or driven
 `(system, emulator, core)` row, and the guide's platform table is generated from it.

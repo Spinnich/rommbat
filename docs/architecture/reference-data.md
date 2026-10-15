@@ -11,7 +11,8 @@ Two different things, easy to confuse.
 offline. It is an audit trail, not a runtime input. Never hand-edit it, and never resolve
 a drift by updating the expected number.
 
-**`data/retrobat/`** holds tables RomMBat actually ships and reads at runtime:
+**`data/retrobat/`** holds the tables RomMBat actually ships and reads at runtime, below, and the
+firmware row map, which only the vendoring step and `verify.py` read:
 
 | File                           | Shape                                                                  | Derived from                                                                                  |
 | ------------------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |

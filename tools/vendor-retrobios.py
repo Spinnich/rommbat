@@ -100,9 +100,6 @@ def main() -> int:
 
     rows = firmware_sources.read_rows(reference / "es_systems.cfg")
     resolved, unresolved = firmware_sources.resolve_all(rows, profiles, firmware_sources.read_row_map())
-    if unresolved:
-        listed = "\n  ".join(sorted({f"{row.key}  ({row.folder})" for row in unresolved}))
-        sys.exit(f"RetroBat rows no retrobios source describes and data/retrobat/firmware-rows.json does not mark:\n  {listed}")
     wanted = sorted(firmware_sources.profiles_named(resolved))
 
     if (out / "emulators").exists():
@@ -146,6 +143,13 @@ def main() -> int:
     }
     previous.write_text(json.dumps(subset, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"  database-subset.json  {len(kept)} of {len(database['files'])} rows")
+
+    # Reported after the slice is written rather than instead of it, so a refresh at a RetroBat
+    # release that adds an emulator still vendors the rest and verify.py still runs.
+    if unresolved:
+        listed = "\n    ".join(sorted({f"{row.key}  ({row.folder})" for row in unresolved}))
+        print(f"  rows no retrobios source describes and data/retrobat/firmware-rows.json does not mark:\n    {listed}")
+        return 1
     return 0
 
 

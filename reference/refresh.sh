@@ -96,7 +96,9 @@ grep -oE '^\s{4}[A-Z0-9_]+ *= *"[^"]+"' "$out/romm-platform_slugs.py" |
 if [ -z "$retrobios_ref" ]; then
   retrobios_ref=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["_ref"])' "$here/retrobios/database-subset.json")
 fi
-python3 ../tools/vendor-retrobios.py "$out" "$retrobios_ref"
+# Collected like the generator checks below: an unresolved row must not stop the refresh.
+unmapped=0
+python3 ../tools/vendor-retrobios.py "$out" "$retrobios_ref" || unmapped=1
 
 echo "RetroBat version at $retrobat_ref:"
 gh api "repos/RetroBat-Official/retrobat/contents/build.ini?ref=$retrobat_ref" --jq '.content' |
@@ -125,6 +127,15 @@ echo
 drift=0
 python3 verify.py || drift=1
 
+if [ "$unmapped" -ne 0 ]; then
+  echo
+  echo "RetroBat offers emulator rows no retrobios source describes (listed above)."
+  if [ -n "${ROMMBAT_REFERENCE_DIR:-}" ]; then
+    echo "This is a scratch refresh: report each as a row-map entry the adoption owes."
+  else
+    echo "Map or mark each in data/retrobat/firmware-rows.json, then re-run this script."
+  fi
+fi
 if [ "$stale" -ne 0 ]; then
   echo
   echo "A bundled data file no longer matches the vendored source it is derived from."
@@ -133,6 +144,9 @@ if [ "$stale" -ne 0 ]; then
   else
     echo "Run the generator named above, review its diff, then re-run this script."
   fi
+  exit 1
+fi
+if [ "$unmapped" -ne 0 ]; then
   exit 1
 fi
 exit "$drift"
