@@ -9,7 +9,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 
 ## RB-218. `es_input.cfg` is enough to drive a UI, and a vendor-id table could not be
 
-Verified: RetroBat 8.2.1, 2026-08-25, and 2026-09-28. How: resolved the 8BitDo's names from live hardware through the shipped parser, and re-read the file.
+Verified: RetroBat 8.2.1, 2026-08-25, and 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, `es_input.cfg`'s format is unchanged; 8.3.0's template adds one N64 pad and re-indents a line. How: resolved the 8BitDo's names from live hardware through the shipped parser, and re-read the file.
 The file is semantic: it records which physical input is `a` on each pad, not what kind of pad it
 is. All 21 names in the 8BitDo's config resolved. Two cannot be expressed by pad type: the
 8BitDo's `select` and `hotkey` are the same `button6`, and the Switch Pro reports its d-pad as
@@ -18,14 +18,14 @@ file and never detects a layout.
 
 ## RB-219. ES stops reading the pad while a full-screen app is in front of it
 
-Verified: RetroBat 8.2.1, 2026-08-25. How: stamped every `game-selected` event from a hook while RomMBat ran from the ES menu.
+Verified: RetroBat 8.2.1, 2026-08-25. Carried: RetroBat 8.3.0, 2026-10-14, ES still suspends input behind a launched process (FileData::launchGame is unchanged in 8.3.0), and 8.3.0's InputManager changes are enumeration and hotplug. How: stamped every `game-selected` event from a hook while RomMBat ran from the ES menu.
 ES logged 63 navigation events, then none for the 26.5 s RomMBat was in front, while five d-pad
 presses landed in RomMBat. It resumed 0.64 s after RomMBat exited, with the selection unchanged.
 A `.menu` app is suspended exactly as a game is, so RomMBat needs no input workaround.
 
 ## RB-220. An ES-menu launch passes no controller arguments, and PadToKey attaches to nothing
 
-Verified: RetroBat 8.2.1, 2026-08-25. How: compared `emulatorLauncher.log` for a menu launch and a game launch.
+Verified: RetroBat 8.2.1, 2026-08-25. Carried: RetroBat 8.3.0, 2026-10-14, the `es_menu` command still passes no %CONTROLLERSCONFIG%, and 8.3.0's PadToKey change adds a user/padtokey lookup, not a joystick to attach to. How: compared `emulatorLauncher.log` for a menu launch and a game launch.
 A game launch carries `-p1index`, `-p1guid`, `-p1path`, `-p1name` and the button, axis and hat
 counts. A menu launch runs `RomMBat.exe` with no arguments, so `[SdlGameController] connected` and
 `[PadToKey] Add joystick` never appear: PadToKey loads `es_padtokey.cfg` and attaches to nothing.
@@ -33,7 +33,7 @@ RomMBat has the controller to itself.
 
 ## RB-223. An analog trigger rests at `-32768`, not zero
 
-Verified: RetroBat 8.2.1, 2026-08-25. How: read L2 and R2 through SDL on the 8BitDo, at rest and after release.
+Verified: RetroBat 8.2.1, 2026-08-25. Carried: RetroBat 8.3.0, 2026-10-14, it reads one pad through SDL in RomMBat's process, which no RetroBat change reaches. How: read L2 and R2 through SDL on the 8BitDo, at rest and after release.
 The same pad's sticks rest at zero. So an axis binding names a direction, and only a reading of
 that sign is that input. `GamepadReader` checks the sign; a reader that took any non-zero value as
 input would report both triggers permanently held.
@@ -49,7 +49,7 @@ never shows these names as button labels (RB-230).
 
 ## RB-226. A console process sees no joysticks through SDL's default backend, silently
 
-Verified: RetroBat 8.2.1, 2026-08-30. How: polled `SDL_NumJoysticks()` in a console process for 120 s with three controllers attached.
+Verified: RetroBat 8.2.1, 2026-08-30. Carried: RetroBat 8.3.0, 2026-10-14, it measures SDL in RomMBat's own console process, which no RetroBat change reaches. How: polled `SDL_NumJoysticks()` in a console process for 120 s with three controllers attached.
 SDL 2.32.8 defaults to the RAWINPUT joystick backend, which needs a window message pump. The count
 stayed 0 while Windows reported the Parsec pad, an Xbox Wireless Controller and the 8BitDo.
 Setting `SDL_JOYSTICK_RAWINPUT=0` made the same process report 1 device at once. The Avalonia UI
@@ -66,13 +66,13 @@ the name CRC, so a GUID read with the backend changed does not match the file.
 
 ## RB-229. ES treats a controller as hotpluggable
 
-Verified: RetroBat 8.2.1, 2026-08-30. How: read ES's string tables in `resources/locale/*/LC_MESSAGES/emulationstation2.po`.
+Verified: RetroBat 8.2.1, 2026-08-30. Carried: RetroBat 8.3.0, 2026-10-14, ES still carries the connected and disconnected notifications, and 812f6cd6 fixes hotplug rather than removing it. How: read ES's string tables in `resources/locale/*/LC_MESSAGES/emulationstation2.po`.
 ES carries `%s connected` and `%s disconnected` as its own notifications. A front end launched
 from inside ES is expected to notice a pad arriving, so `GamepadReader` re-enumerates (RB-231).
 
 ## RB-230. ES's footer draws a button's position, because a letter is wrong on two layouts of three
 
-Verified: RetroBat 8.2.1, 2026-08-30, and 2026-09-28. How: read ES's footer on screen and the pads configured in `es_input.cfg`.
+Verified: RetroBat 8.2.1, 2026-08-30, and 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, `es_input.cfg` still encodes position, and 9c48a461's rewrite of the help SVGs, RB-426's to re-read, keeps the four-dot diamond. How: read ES's footer on screen and the pads configured in `es_input.cfg`.
 The bottom face button is A on an Xbox pad, Cross on a DualSense and B on a Switch Pro, and the
 live file configures a Switch Pro, a DualSense, a PS4 pad, the 8BitDo and an Xbox 360 pad. ES
 draws a four-dot diamond with one dot filled, which names a position, and `es_input.cfg` encodes
@@ -81,7 +81,7 @@ the same thing: `a` is the bottom button, `b` the right, `y` the left and `x` th
 
 ## RB-231. A controller switched off and on reaches `GamepadReader` again
 
-Verified: RetroBat 8.2.1, 2026-08-30. How: ran `GamepadReader` in a probe while switching the 8BitDo off and on.
+Verified: RetroBat 8.2.1, 2026-08-30. Carried: RetroBat 8.3.0, 2026-10-14, it measures RomMBat's GamepadReader in its own process, which no RetroBat change reaches. How: ran `GamepadReader` in a probe while switching the 8BitDo off and on.
 Started with the pad off, the reader reported `NoDevice`, then `Ready` with the pad's name once it
 was switched on. Switched off, it returned to `NoDevice`; switched on again, to `Ready`, and input
 resumed. 16 of the 21 configured names read correctly. The 11.1 s between the last two states is
@@ -90,7 +90,7 @@ scan interval.
 
 ## RB-234. ES's on-screen keyboard is compiled into `emulationstation.exe`, three layouts of four faces a key
 
-Verified: RetroBat 8.2.1, 2026-08-30 and 2026-08-31. How: read `es-core/src/guis/GuiTextEditPopupKeyboard.cpp` in `batocera-linux/batocera-emulationstation`, and the keyboard on a live session.
+Verified: RetroBat 8.2.1, 2026-08-30 and 2026-08-31. Carried: RetroBat 8.3.0, 2026-10-14, GuiTextEditPopupKeyboard.cpp, which holds the layouts, is unchanged in 8.3.0's ES diff; resources/kblayout.svg was only minified. How: read `es-core/src/guis/GuiTextEditPopupKeyboard.cpp` in `batocera-linux/batocera-emulationstation`, and the keyboard on a live session.
 `kbUs`, `kbFr` and `kbKr` are the only layouts: a 13-column grid over five rows, four faces per
 key, `DEL`, `OK` (two rows tall) and `ALT` down the right, and `SHIFT`, `SPACE`, `RESET` and
 `CANCEL` along the bottom, spanning 2, 7, 2 and 2. `a` presses the key, `start` is OK, `b` BACK,
@@ -100,7 +100,7 @@ does nothing. `OnScreenKeyboard` transcribes these tables, so the shoulders are 
 
 ## RB-235. ES picks the keyboard layout from `es_settings.cfg`'s `Language`
 
-Verified: RetroBat 8.2.1, 2026-08-31, and 2026-09-28. How: read `SystemConf` and `Paths.cpp` upstream, and checked the live install for `batocera.conf`.
+Verified: RetroBat 8.2.1, 2026-08-31, and 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, SystemConf gains getKeysStartingWith only, and Paths.cpp is unchanged in 8.3.0's ES diff. How: read `SystemConf` and `Paths.cpp` upstream, and checked the live install for `batocera.conf`.
 ES asks `SystemConf` for `system.language`. `Paths.cpp` gives `SystemConf` a file only under
 `#if defined(WIN32) && defined(_DEBUG)`, so a Windows release build falls back to ES's own
 `Settings`, and `batocera.conf` is absent on the live install. The value is split on `_` and the
@@ -118,7 +118,7 @@ searches on the left button for the same reason.
 
 ## RB-422. ES's letter jump, text filter and sort live in a popup Select opens
 
-Verified: RetroBat 8.2.1, 2026-10-06. How: pressed Select in a game list on the agent tree and read the popup.
+Verified: RetroBat 8.2.1, 2026-10-06. Carried: RetroBat 8.3.0, 2026-10-14, GuiGamelistOptions changes for RTL alignment only in 8.3.0's ES diff. How: pressed Select in a game list on the agent tree and read the popup.
 Select opens VIEW OPTIONS. Under NAVIGATION it offers FILTER GAMES BY TEXT, OTHER FILTERS, SELECT
 RANDOM GAME, JUMP TO GAME BEGINNING WITH THE LETTER (a letter stepped with left and right) and
 SORT GAMES BY, and under VIEW OPTIONS the GAMELIST VIEW STYLE and VIEW CUSTOMIZATION. No button
@@ -126,7 +126,7 @@ jumps by letter.
 
 ## RB-423. ES's menus are a centered panel that Start opens and closes, and the bottom button selects
 
-Verified: RetroBat 8.2.1, 2026-10-06. How: opened MAIN MENU, VIEW OPTIONS and GAME OPTIONS on the agent tree and read each screen.
+Verified: RetroBat 8.2.1, 2026-10-06. Carried: RetroBat 8.3.0, 2026-10-14, MenuComponent and GuiMsgBox change for RTL alignment only, and GuiMenu adds MSAA, LED and Wi-Fi rows, not the panel or its help. How: opened MAIN MENU, VIEW OPTIONS and GAME OPTIONS on the agent tree and read each screen.
 MAIN MENU's help bar reads START CLOSE, SELECT on the bottom button, and CHOOSE on the d-pad. Each
 menu is a dark panel with its title in capitals, small capital group headings in the accent
 color, rows in capitals with a full-width accent bar on the selected one, and a chevron on a row
@@ -136,7 +136,7 @@ selects on the bottom button.
 
 ## RB-425. The carbon theme draws every ES menu in Cabin, on a dark panel with a blue gradient bar
 
-Verified: RetroBat 8.2.1, 2026-10-06. How: read `views/menu.xml` and `subsets/colorsets/blue.xml` under `emulationstation/.emulationstation/themes/es-theme-carbon` on the agent tree, and sampled MAIN MENU's pixels at 1920x1080.
+Verified: RetroBat 8.2.1, 2026-10-06. Carried: RetroBat 8.3.0, 2026-10-14, es-theme-carbon's commits up to 8.3.0 touch art/ only (gzdoom, zeldaclassic, an SVG cleanup), not views/menu.xml, the colorsets or the fonts. How: read `views/menu.xml` and `subsets/colorsets/blue.xml` under `emulationstation/.emulationstation/themes/es-theme-carbon` on the agent tree, and sampled MAIN MENU's pixels at 1920x1080.
 `es_settings.cfg` names `es-theme-carbon` as the `ThemeSet`, and the theme sits in
 `emulationstation/.emulationstation/themes`, with its fonts in `art/fonts`. `menu.xml` draws the
 title in `Cabin-Bold.ttf`, `FAFAFA`, and rows in `Cabin-Regular.ttf`, `969696`, turning
@@ -159,7 +159,7 @@ along the bottom left. RomMBat draws its help bar from the same files.
 
 ## RB-424. ES's message box selects YES first, and the right button answers no
 
-Verified: RetroBat 8.2.1, 2026-10-06. How: opened DELETE GAME's confirmation on a synced game, pressed the right button, and checked the file was still in `roms/snes`.
+Verified: RetroBat 8.2.1, 2026-10-06. Carried: RetroBat 8.3.0, 2026-10-14, GuiMsgBox's 8.3.0 change is RTL layout, and the YES-first selection is unchanged. How: opened DELETE GAME's confirmation on a synced game, pressed the right button, and checked the file was still in `roms/snes`.
 The box shows a question icon, the question in capitals and a row of buttons, YES then NO, with
 YES selected even for a delete. The help bar names only YES on the bottom button and CHOOSE on the
 d-pad. The right button closed the box and deleted nothing. RomMBat's confirmation copies the

@@ -9,7 +9,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 
 ## RB-26. `emulatorLauncher.log` is the only in-tree record of what a launch ran
 
-Verified: RetroBat 8.2.0, 2026-08-08, and 8.2.1, 2026-09-28. How: read `emulationstation/emulatorLauncher.log` on each install, read-only.
+Verified: RetroBat 8.2.0, 2026-08-08, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's Program.cs strips -monitor from the overrides but logs the [Startup] line as before, and #478's step 8 read two 8.3.0 launches from this log through LaunchLog. How: read `emulationstation/emulatorLauncher.log` on each install, read-only.
 Each launch line carries the rom, `-system`, `-emulator`, a millisecond timestamp, and `-core` when
 there is one: 58 of 383 launches in the 8.2.1 `.log.old` have none.
 No other file in the tree holds those together, and a hook is given none of the system, emulator
@@ -17,7 +17,7 @@ or core. So `LaunchLog` reads this file and the `game-end` hook is only the trig
 
 ## RB-112. The log rotates at about 1 MiB into `.log.old`, and the halves do not overlap
 
-Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. How: compared the last stamp of `.log.old` with the first stamp of the live file.
+Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, SimpleLogger, which rotates the log, is unchanged in 8.3.0's launcher diff. How: compared the last stamp of `.log.old` with the first stamp of the live file.
 On 8.2.0 the live file was 503,225 B beside a 1,048,604 B `.log.old`. On 8.2.1 they were 148,769 B
 and 1,049,083 B, and `.old` ended eleven minutes before the live file began. Rotation is a size
 threshold, so reading `.old` then the live file yields launches in time order. `LaunchLogPosition`
@@ -26,21 +26,21 @@ file after a rotation.
 
 ## RB-113. A rom path in the log carries the drive letter the install had at the time
 
-Verified: RetroBat 8.2.0, 2026-08-16. How: counted the roots of every `-rom` in one install's log.
+Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, -rom is ES's %ROM%, and neither reference diff changes a `<command>` line; 8.2.1's FileData.cpp change only pauses watchers around a launch. How: counted the roots of every `-rom` in one install's log.
 Of 424 launches, 295 read `D:\RetroBat` and 129 read `E:\RetroBat`: one install that moved, in one
 continuous log. Stripping the current root would drop 70% of the history, so `LaunchLog` cuts the
 path at its `roms\` or `system\` segment instead.
 
 ## RB-114. `emulatorLauncher` also runs for non-launches, so `-rom` marks a launch
 
-Verified: RetroBat 8.2.0, 2026-08-16. How: counted `[Startup]` invocation lines against those carrying `-rom`.
+Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, Program.cs adds no invocation without -rom in 8.2.1's or 8.3.0's launcher diff; 8.2.1's .decomp redirect still carries -rom. How: counted `[Startup]` invocation lines against those carrying `-rom`.
 Of 730 `[Startup]` lines, 424 were a game launch. The rest were `-updatestores` and similar, so
 keying on `[Startup]` over-counts by 72%. `LaunchLog` takes a line as a launch only when it carries
 `-rom`.
 
 ## RB-115. `-rom` is sometimes unquoted and often not the last flag
 
-Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. How: matched every launch line against a quoted and a positional read.
+Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's reference diff changes no `<command>` line, so ES orders -rom and -core as before. How: matched every launch line against a quoted and a positional read.
 In 424 launches, `-rom` was unquoted once, with spaces and parentheses in the path, and not the
 final flag 19 times, 5 of them with `-core` after it. On 8.2.1, 111 of 383 launches in `.log.old`
 wrote `-core` after `-rom`. `-rom "([^"]+)"` misses the first shape and a positional read the
@@ -56,21 +56,21 @@ Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. How: counted launch
 
 ## RB-117. The log opens with a UTF-8 BOM and carries unstamped lines
 
-Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. How: read the first bytes of both halves, and every line without a timestamp.
+Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, SimpleLogger is unchanged in 8.3.0's launcher diff; its new exception logging adds unstamped stack lines of the kind the fact already names. How: read the first bytes of both halves, and every line without a timestamp.
 Both files open with `EF BB BF`, since each rotation half starts a new file. The 8.2.0 log carried
 15 unstamped continuation lines across the two files, .NET stack traces among them. `LaunchLog`
 tolerates both.
 
 ## RB-118. An ES-menu launch is identifiable in the log
 
-Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. How: counted launches with `-system retrobat` and a rom under `system\es_menu\`.
+Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, the `es_menu` command, -system retrobat, is unchanged in 8.3.0's reference diff. How: counted launches with `-system retrobat` and a rom under `system\es_menu\`.
 There were 27 on 8.2.0 and 9 in the 8.2.1 `.log.old`. So RomMBat's own exit, which fires a
 `game-end` with no game behind it, is recognized from the log rather than inferred.
 `LaunchRecord.IsMenuLaunch` carries it, and `PlaytimeCorrelator` discards that `game-end`.
 
 ## RB-252. `-core` means nothing for an emulator that declares no core
 
-Verified: RetroBat 8.2.1, 2026-09-13. How: launched every `nes` row from ES and read the launch lines.
+Verified: RetroBat 8.2.1, 2026-09-13. Carried: RetroBat 8.3.0, 2026-10-14, nes's `<core>` and command are unchanged in 8.3.0's reference diff, and neither Mesen's nor jgenesis's generator gains -core handling (Sinden cleanup; portable.txt and other systems' hardware names). How: launched every `nes` row from ES and read the launch lines.
 A row whose emulator declares no core inherits the system's `<core>` and passes it down anyway.
 `mesen` standalone and `jgenesis` were both launched with `-core nestopia` from `nes.core`, ignored
 it, and ran correctly. Read the emulator from `-emulator`, and take `-core` as identifying nothing
@@ -103,7 +103,7 @@ the one visible top-level window the launcher owns.
 
 ## RB-420. A zip the launcher extracted ends on an untitled "keep the uncompressed game?" modal
 
-Verified: RetroBat 8.3.0-beta, 2026-10-06. How: launched `gba` under `nosgba` on a `.zip` through `emulatorLauncher`, closed NO\$GBA with `WM_CLOSE`, and watched the windows the launcher raised.
+Verified: RetroBat 8.3.0-beta, 2026-10-06. Carried: RetroBat 8.3.0, 2026-10-14, the launcher commits after the beta's ref (6bc8cb71..79f5b1aa) change Generator.cs's cleanup, screen placement and zc255 unzip extensions, not ValidateUncompressedGame or its dialog, and NO\$GBA's zip fix d603ae10 predates the beta. How: launched `gba` under `nosgba` on a `.zip` through `emulatorLauncher`, closed NO\$GBA with `WM_CLOSE`, and watched the windows the launcher raised.
 For an emulator that cannot read an archive, the launcher extracts the game to
 `roms\.uncompressed\<system>\<zip>\` and starts the emulator on the extracted file. After the
 emulator exits, it shows _"Do you want to keep the uncompressed game for further use?"_ with Yes
@@ -141,7 +141,7 @@ rather than globbing `<rom>.ds*`, which would take the battery save as slot `v`.
 
 ## RB-372. BigPEmu's save state cannot be reached from a keyboard
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: launched Rayman under `bigpemu`, swept F1 to F8 into its window, and read `BigPEmuConfig.bigpcfg`.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, BigPEmu's generator changes only its Display key (8.3.0), its `es_padtokey.cfg` entry is unchanged in both RetroBat diffs, and neither changelog bumps it. How: launched Rayman under `bigpemu`, swept F1 to F8 into its window, and read `BigPEmuConfig.bigpcfg`.
 It saves states from its own overlay menu. RetroBat's `es_padtokey.cfg` binds only a close hotkey
 for it, the sweep wrote no file of any kind, and the config binds no save-state key (only
 `System/StateSlot = -1`). A state is made through the overlay with a gamepad, which is how RB-166
@@ -149,7 +149,7 @@ drove six and read them off the declared path.
 
 ## RB-373. A system overlay can take an emulator's hotkey
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: sent Alt+F2, RetroBat's openMSX save-state key, and watched the screen and the tree.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, it describes NVIDIA's overlay taking a key, outside RetroBat. How: sent Alt+F2, RetroBat's openMSX save-state key, and watched the screen and the tree.
 NVIDIA's Photo mode overlay took the key and opened its own panel, openMSX never saw it, and
 nothing in the emulator or RetroBat reported it. A hotkey RomMBat documents or a pass relies on
 can be lost this way, so a save is confirmed by the file it writes, never by the keypress.

@@ -20,8 +20,9 @@ upstream fix would carry the workaround and the fix at once.
 
 What adoption costs, each time: re-run `reference/refresh.sh` and resolve the drift, move the
 floor and the tested row together, re-read the upstream changelog for anything that touches a
-measured rule, re-check every fact `tools/docs/check.py --stale` lists as stamped below the new
-floor, and every entry in `docs/upstream/issues.md`. Moving the
+measured rule, classify every fact `tools/docs/check.py --stale` lists against the delta, re-measuring the ones it
+touches and carrying the rest with a reason ([decision](decisions/delta-directed-recheck.md)), and
+re-check every entry in `docs/upstream/issues.md`. Moving the
 RomM floor also moves the pinned OpenAPI schema, because the pin is the minimum version on
 purpose. And every platform record under `docs/platforms/` is mapped onto the nine steps: the
 steps the move touches are re-run or recorded as owed at the new floor, step 9 always among

@@ -9,7 +9,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 
 ## RB-361. The tree is `saves/<system>/<emulator>/`, and the loose level is mostly libretro's
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: inventoried every file under `saves/` on a real install with a substantial library.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, the delta adds save folders (gopher64's saves/n64/gopher64, LR-amiberry, saves/chihiro) and moved Flycast's native states to reicast/states in 8.2.1 (RB-343), which add to the table and move none of its rows; PR #532 found dreamcast's VMUs under flycast/vmu at 8.3.0. How: inventoried every file under `saves/` on a real install with a substantial library.
 Most standalone emulators write under an emulator-named subdirectory (`ps2/pcsx2`,
 `dreamcast/flycast`, `saturn/kronos`, `3ds/azahar`, `wii/dolphin-emu`). Libretro battery saves
 land loose at `saves/<system>/*.srm`, and so do a few standalone emulators', such as `mesen`
@@ -36,13 +36,13 @@ containers) and the class C unit paths in `save_shapes.json`, never by position 
 
 ## RB-119. Nine top-level folders under `saves/` are emulators, not systems
 
-Verified: RetroBat 8.2.0, 2026-08-16. How: listed `saves/` on a real install and diffed it against the 243 systems its live `es_systems.cfg` declares.
+Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, it lists one install's saves/ against its own `es_systems.cfg`, and the only folder the delta renames, gzdoom to doom, is a system. How: listed `saves/` on a real install and diffed it against the 243 systems its live `es_systems.cfg` declares.
 The nine are `amiga`, `dolphin`, `gameandwatch`, `ghostship`, `loopy`, `mesen`, `pb`, `psxmame`
 and `windows`. A first path segment is a system only when `es_systems.cfg` declares it.
 
 ## RB-120. The second path segment does not reliably name an emulator
 
-Verified: RetroBat 8.2.0, 2026-08-16. How: classified every second-level directory under `saves/` on a real install.
+Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, it classifies one install's second-level folders, and the delta's new ones (LR-amiberry, gopher64) are more of the same. How: classified every second-level directory under `saves/` on a real install.
 `mame/artwork`, `mame/cfg`, `mame/ctrlr`, `n64/sram`, `n64/games`, `n64/sstates`, `psp/SYSTEM`,
 `psp/Cheats`, `switch/user`, `switch/sdmc`, `rtcw/Main` and `dolphin/User` name no emulator.
 Where states live the segment is emulator and core, so `saves/gbc/libretro.gambatte/` sits
@@ -50,7 +50,7 @@ beside `saves/gbc/*.srm`. Discovery cannot be positional at either level.
 
 ## RB-121. A loose file under `saves/<system>/` can be a shared container
 
-Verified: RetroBat 8.2.0, 2026-08-16. How: classified every loose file under a system folder on a real install.
+Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, xemu's xbox eeprom.bin and `xbox_hdd.qcow2` handling is unchanged (8.3.0 gives chihiro its own saves/chihiro), and megacd's existing rows write as before. How: classified every loose file under a system folder on a real install.
 `xbox` keeps `eeprom.bin` and a 39,714,816 B `xbox_hdd.qcow2` loose at the system root, and both
 are class D. `megacd` mixes classes at one level: per-game `.brm` and `.srm` beside the shared
 `4Mbit_cart.brm`. So `save_rules.json`'s `shared_containers` names each one, and the scanner
@@ -58,14 +58,14 @@ excludes by that list rather than by position.
 
 ## RB-122. Every system `save_shapes.json` leaves unclassified holds saves
 
-Verified: RetroBat 8.2.0, 2026-08-16. How: compared the file's `_unclassified` list and `shapes` against the systems holding content on a real install.
+Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, it compares RomMBat's bundled `save_shapes.json` with one install, which no RetroBat change reaches. How: compared the file's `_unclassified` list and `shapes` against the systems holding content on a real install.
 All 21 unclassified systems hold content. `ports` holds content too and appears in neither list.
 So the bundled data falls short of a used tree in two ways, and a scan reports what no shape
 covers rather than guessing a class for it.
 
 ## RB-123. The four class D options and `dolphin_sync_saves` are unset by default
 
-Verified: RetroBat 8.2.0, 2026-08-16 and 2026-08-24. How: read `es_settings.cfg` on a real, heavily used install, 261 settings on the second reading.
+Verified: RetroBat 8.2.0, 2026-08-16 and 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, the `es_settings.cfg` template is unchanged in both RetroBat diffs, and all five options are still in 8.3.0's `es_features.cfg`. How: read `es_settings.cfg` on a real, heavily used install, 261 settings on the second reading.
 None of `pcsx2_slot1_memory`, `duckstation_memcardtype`, `dolphin_slotA`, `flycast_vmupergame`
 or `dolphin_sync_saves` appears, and no per-game `[&quot;` key of any kind does. `ps2.emulator`
 is `pcsx2`. So the stock shape of each system is the one to build for, and a conversion is
@@ -97,13 +97,13 @@ uploading: every save RomMBat syncs is content-hashed.
 
 ## RB-125. A class A pass over a whole install costs half a second
 
-Verified: RetroBat 8.2.0, 2026-08-16. How: timed a read of every loose file under every system folder on a real install.
+Verified: RetroBat 8.2.0, 2026-08-16. Carried: RetroBat 8.3.0, 2026-10-14, it times RomMBat's own scan of one install, which no RetroBat change reaches. How: timed a read of every loose file under every system folder on a real install.
 37 loose files, 43.0 MB, 0.51 s. 38 MB of that is `xbox`'s class D disk image, which a scan
 must not read (RB-121). MAME's whole `nvram` tree, for comparison, is 1,531 files and 8.0 s.
 
 ## RB-158. A class C scan of a whole tree costs about four seconds
 
-Verified: RetroBat 8.2.0, 2026-08-17. How: timed a save scan over the whole `saves/` tree of the `K:` development install, hashing included.
+Verified: RetroBat 8.2.0, 2026-08-17. Carried: RetroBat 8.3.0, 2026-10-14, it times RomMBat's own scan of one install, which no RetroBat change reaches. How: timed a save scan over the whole `saves/` tree of the `K:` development install, hashing included.
 4.1 s wall, 1,231 MAME `nvram` units and everything else included.
 
 ## RB-140. A class C unit is not a directory per game
@@ -117,13 +117,13 @@ pair, which is what migration `008` stores.
 
 ## RB-141. The unit key is a prefix of the directory name
 
-Verified: RetroBat 8.2.0, 2026-08-17. How: joined each class C directory on a real install against the title ids its games carry.
+Verified: RetroBat 8.2.0, 2026-08-17. Carried: RetroBat 8.3.0, 2026-10-14, the directory names are the games' own PSP and PS3 save formats, which an emulator build passes through. How: joined each class C directory on a real install against the title ids its games carry.
 `ULES01513SYSDATA` carries key `ULES01513`, and `BLUS30187GAMEDAT9ZLDR0F5K7M4000` carries
 `BLUS30187`. Matching the whole segment finds nothing.
 
 ## RB-143. A ROM's header yields a Game ID for GameCube and Wii only
 
-Verified: RetroBat 8.2.0, 2026-08-17. How: read the first bytes of every image in five systems on a real install.
+Verified: RetroBat 8.2.0, 2026-08-17. Carried: RetroBat 8.3.0, 2026-10-14, it reads the headers of one install's ROM files, which no RetroBat change reaches. How: read the first bytes of every image in five systems on a real install.
 `gamecube`, 178 `.rvz`: 100% readable at `0x58` with the version checked. `wii`, 40 `.rvz` and
 13 `.wad`: 75.5%. `psp` (147 `.cso`, 7 `.chd`), `ps3` (23 `.dec.iso`) and `psx` (386 `.chd`):
 0%. No constant offset reaches into a `.cso`, a `.chd` or an ISO9660 image. `RomGameId` serves
@@ -131,7 +131,7 @@ GameCube and Wii, and PSP attribution goes through the journal and the sidecar (
 
 ## RB-144. `PARAM.SFO` adds nothing the directory name does not
 
-Verified: RetroBat 8.2.0, 2026-08-17. How: parsed the `PARAM.SFO` of every `psp` save directory on a real install.
+Verified: RetroBat 8.2.0, 2026-08-17. Carried: RetroBat 8.3.0, 2026-10-14, PARAM.SFO's keys are the PSP's save format, which an emulator build passes through. How: parsed the `PARAM.SFO` of every `psp` save directory on a real install.
 Its keys are `SAVEDATA_DIRECTORY`, which is the directory's own name, and `TITLE`, a human string
 (`'echochrome'`, `'The 3rd Birthday'`). Parsing it buys a fuzzy title match, never an exact key,
 so RomMBat does not read it.
@@ -153,7 +153,7 @@ short name, so the basename is the key, but this library cannot demonstrate the 
 
 ## RB-253. A system's save shape depends on the emulator
 
-Verified: RetroBat 8.2.1, 2026-09-13. How: drove all nine `nes` rows from EmulationStation, confirming each emulator from `emulatorLauncher.log`.
+Verified: RetroBat 8.2.1, 2026-09-13. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0 moves no nes row's files: none of its launcher changes to these emulators reaches a save, file or launch argument (BizHawk's .m3u hand-off, jgenesis's portable.txt whose save paths held in PR #532, display index and Sinden cleanup, libretro's monitor, rumble and bezel defaults), its reference diff has no nes line, and its changelog bumps none of their builds. How: drove all nine `nes` rows from EmulationStation, confirming each emulator from `emulatorLauncher.log`.
 Three libretro cores share one `saves/nes/<rom>.srm`, so switching core continues the same save,
 measured on Kirby's Adventure under `nestopia` then `fceumm`. The other six rows write four other
 shapes in their own subdirectories or under other extensions. So `nes` is class A on libretro and
@@ -161,7 +161,7 @@ on nothing else, and shape belongs to `(system, emulator)`, as `save_shapes.json
 
 ## RB-254. BizHawk names a battery save after the game's display name
 
-Verified: RetroBat 8.2.1, 2026-09-13. How: launched `StarTropics (USA).zip` under BizHawk and read what it wrote.
+Verified: RetroBat 8.2.1, 2026-09-13. Carried: RetroBat 8.3.0, 2026-10-14, BizHawk's 8.3.0 launcher change is the .m3u hand-off and Sinden cleanup, and 8.3.0 bumps no BizHawk build. How: launched `StarTropics (USA).zip` under BizHawk and read what it wrote.
 It wrote `saves/nes/bizhawk/StarTropics.SaveRAM`, dropping the region tag, which no ROM filename
 yields. Its own state sidecar spells the convention out as `StarTropics.NesHawk`, so the mapping
 is recoverable from the tree. `DisplayNameAttributor` joins it through that sidecar or a BizHawk
@@ -169,14 +169,14 @@ launch, and refuses a title two ROMs answer to.
 
 ## RB-139. BizHawk's display name can abbreviate a region tag
 
-Verified: RetroBat 8.2.0, 2026-08-17. How: launched `mastersystem`'s Phantasy Star (Brazil) under BizHawk on the `K:` install, made a state, and read what it wrote.
+Verified: RetroBat 8.2.0, 2026-08-17. Carried: RetroBat 8.3.0, 2026-10-14, BizHawk's launcher changes are controller mapping (8.2.1) and the .m3u hand-off (8.3.0), and neither changelog bumps its build. How: launched `mastersystem`'s Phantasy Star (Brazil) under BizHawk on the `K:` install, made a state, and read what it wrote.
 `Phantasy Star (Brazil).zip` produced `bizhawk/Phantasy Star (B).SaveRAM`. So a BizHawk stem can
 differ from the ROM's in more than a dropped tag, and joining goes through RB-254's routes, never
 the filename.
 
 ## RB-404. A launch alone writes a battery save, and its content can pass for a real one
 
-Verified: RetroBat 8.2.0, 2026-08-11. How: booted Phantasy Star (Brazil) under `libretro` `genesis_plus_gx` to its title screen, pressed nothing, and read `saves/mastersystem/` during the run and after exit.
+Verified: RetroBat 8.2.0, 2026-08-11. Carried: RetroBat 8.3.0, 2026-10-14, retroarch.cfg's template keeps `autosave_interval` at 10 in both releases, `genesis_plus_gx` is in neither changelog's core bumps, and PR #532 found it writing mastersystem saves as recorded at 8.3.0. How: booted Phantasy Star (Brazil) under `libretro` `genesis_plus_gx` to its title screen, pressed nothing, and read `saves/mastersystem/` during the run and after exit.
 A 65,536 B `<rom>.srm` appeared while the game ran and an 8,188 B one after a clean exit.
 RetroBat's `retroarch.cfg` sets `autosave_interval = "10"`, so the file lands within seconds of
 boot and survives a crash. It held the cartridge formatting its own backup RAM, legible ASCII
@@ -186,7 +186,7 @@ baseline is not evidence of play.
 
 ## RB-405. Dolphin writes its own working files into the save tree, and none is a save
 
-Verified: RetroBat 8.2.1, 2026-09-29. How: booted Bust-A-Move 3000 (USA) under `libretro` `dolphin` on `R:` to its title screen, listed `saves/gamecube/dolphin-emu/User/`, and read `emulatorlauncher`'s `Dolphin.Generator.cs`.
+Verified: RetroBat 8.2.1, 2026-09-29. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's Dolphin.Generator changes (SlotB microphone reset, Triforce's SegaBoot copy, backend and hack defaults) create no folder under gamecube's or wii's User/, and the libretro dolphin core is not among 8.3.0's core bumps. How: booted Bust-A-Move 3000 (USA) under `libretro` `dolphin` on `R:` to its title screen, listed `saves/gamecube/dolphin-emu/User/`, and read `emulatorlauncher`'s `Dolphin.Generator.cs`.
 One boot left 19 files that are not saves: `Cache/` (the uidcache and shader caches),
 `Config/`, `Logs/dolphin.log`, `ResourcePacks/Packs.ini` at 0 B, `Wii/fst.bin`,
 `Wii/shared2/sys/SYSCONF` and `GC/SRAM.raw`, the IPL's 68 B settings SRAM. The generator creates

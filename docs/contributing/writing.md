@@ -82,6 +82,6 @@ the tree.
 
 A reported rule becomes a failing one once the tree meets it. The context ceiling stays reported,
 because it counts the maintainer's local `MEMORY.md`, which CI never sees. `check.py --stale` is a
-listing rather than a rule: the facts owed a re-check at the current floor, which a floor move
+listing rather than a rule: the facts owed a re-check or a carry at the current floor, which a floor move
 works through (`docs/upstream/README.md`). Commit messages are
 outside the checker's reach, so the em-dash rule there is on the author.
