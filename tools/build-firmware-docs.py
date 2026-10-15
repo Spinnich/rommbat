@@ -39,9 +39,17 @@ ORIGINS = {
 }
 
 
-def slug(heading: str) -> str:
-    """GitHub's anchor for a heading: msx2+ is #msx2."""
-    return re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-")
+def anchors(headings: list[str]) -> dict[str, str]:
+    """GitHub's anchor for each heading, in page order. A repeated slug takes -1, -2 and so on,
+    so msx2+, whose slug is msx2, is #msx2-1 below the msx2 heading."""
+    found: dict[str, str] = {}
+    seen: dict[str, int] = {}
+    for heading in headings:
+        base = re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-")
+        count = seen.get(base, 0)
+        seen[base] = count + 1
+        found[heading] = f"{base}-{count}" if count else base
+    return found
 
 
 def cell(text: str) -> str:
@@ -132,6 +140,8 @@ def render() -> str:
     evidence = firmware_sources.Evidence(REFERENCE)
     profiles, by_reader = evidence.profiles, reader_profiles(evidence)
     systems = manifest["systems"]
+    # Every heading the page has, in order, since a slug repeats across levels too.
+    anchor = anchors(["Firmware matrix", *systems])
 
     out = [
         "---",
@@ -164,7 +174,7 @@ def render() -> str:
         + "; ".join(manifest["_source"])
         + ".",
         "",
-        "Systems: " + ", ".join(f"[{name}](#{slug(name)})" for name in systems) + ".",
+        "Systems: " + ", ".join(f"[{name}](#{anchor[name]})" for name in systems) + ".",
     ]
 
     for name, body in systems.items():
