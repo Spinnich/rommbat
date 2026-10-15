@@ -96,9 +96,14 @@ grep -oE '^\s{4}[A-Z0-9_]+ *= *"[^"]+"' "$out/romm-platform_slugs.py" |
 if [ -z "$retrobios_ref" ]; then
   retrobios_ref=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["_ref"])' "$here/retrobios/database-subset.json")
 fi
-# Collected like the generator checks below: an unresolved row must not stop the refresh.
+# An unresolved row (exit 3) is collected like the generator checks below, so it does not stop
+# the refresh; any other failure is a broken fetch and does.
 unmapped=0
-python3 ../tools/vendor-retrobios.py "$out" "$retrobios_ref" || unmapped=1
+python3 ../tools/vendor-retrobios.py "$out" "$retrobios_ref" || {
+  status=$?
+  [ "$status" -eq 3 ] || exit "$status"
+  unmapped=1
+}
 
 echo "RetroBat version at $retrobat_ref:"
 gh api "repos/RetroBat-Official/retrobat/contents/build.ini?ref=$retrobat_ref" --jq '.content' |

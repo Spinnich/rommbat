@@ -11,13 +11,13 @@ Two different things, easy to confuse.
 offline. It is an audit trail, not a runtime input. Never hand-edit it, and never resolve
 a drift by updating the expected number.
 
-**`data/retrobat/`** holds the tables RomMBat actually ships and reads at runtime, below, and the
-firmware row map, which only the vendoring step and `verify.py` read:
+**`data/retrobat/`** holds the tables RomMBat actually ships and reads at runtime, below, and two
+it does not: `save_directories.json`, a probe's output that nothing embeds, and the firmware row
+map, which only the vendoring step and `verify.py` read:
 
 | File                           | Shape                                                                  | Derived from                                                                                  |
 | ------------------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `platforms.json`               | RomM slug to an **ordered list** of RetroBat folders                   | `systems_names.lst`, each folder resolved by RomM's `backend/utils/platform_aliases.py`       |
-| `save_directories.json`        | **RetroBat system** to emulator save subdirectories                    | [Save locations](../upstream/retrobat/save-locations.md), in Grout's shape                    |
 | `save_shapes.json`             | RetroBat system to save class A/B/C/D                                  | [Save locations](../upstream/retrobat/save-locations.md)                                      |
 | `save_rules.json`              | Which files under `saves/` and two emulators' folders are whose saves  | `tools/m6-probes/m6-emit-save-rules.py`, plus one hand-measured rule per `(system, emulator)` |
 | `es_savestates.supplement.xml` | State entries for emulators `es_savestates.cfg` leaves out, per system | Driven on a real install, one row at a time, from `nes` to `n64`                              |

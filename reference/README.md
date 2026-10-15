@@ -35,6 +35,7 @@ one, and `tools/vendor-retrobios.py` never fetches one.
 | `romm-gamelist_exporter.py`    | `rommapp/romm` `backend/utils/gamelist_exporter.py`                                     | The gamelist field reference RomMBat's writer follows, and the source of two unit conversions RomMBat would otherwise have to guess at                                              |
 | `retrobios/emulators/*.yml`   | `Abdess/retrobios` `emulators/`, at the commit in `database-subset.json`'s `_ref`        | Which files each emulator's code reads, cited file:line, with any hash it checks. Only the 221 profiles a RetroBat row resolves to (`tools/firmware_sources.py`)    |
 | `retrobios/platforms/bizhawk.yml` | `Abdess/retrobios` `platforms/bizhawk.yml`, same commit                             | BizHawk's `FirmwareDatabase.cs` as retrobios scrapes it, by sha1. BizHawk has no emulator profile                                                                     |
+| `retrobios/LICENSE`            | `Abdess/retrobios` `LICENSE`, same commit                                               | The MIT notice the files above are copied under. It excludes retrobios's firmware files, which nothing here fetches |
 | `retrobios/database-subset.json` | `Abdess/retrobios` `database.json`, same commit, **filtered**                         | md5, sha1, size and dump-catalog provenance for the 688 of 19,005 rows a vendored source or RetroBat's list reaches. Rows are copied unchanged; only the selection is RomMBat's |
 
 ## Derived facts

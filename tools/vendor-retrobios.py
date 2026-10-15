@@ -7,6 +7,7 @@ fetched here. Only metadata comes down, at one pinned commit:
   * emulators/<profile>.yml, verbatim, for every profile a RetroBat row resolves to
     through tools/firmware_sources.py
   * platforms/bizhawk.yml, verbatim, BizHawk's FirmwareDatabase.cs as retrobios scrapes it
+  * LICENSE, verbatim, whose MIT notice covers everything above
   * database-subset.json, the rows of database.json the profiles above, BizHawk and
     RetroBat's own list can reach by a hash or by a dump-catalog name, each row unchanged.
     The full file is 25 MB, almost all of it firmware no RetroBat row reads
@@ -34,6 +35,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import firmware_sources  # noqa: E402
 
 REPO = "Abdess/retrobios"
+# Distinct from a crash's 1, so refresh.sh can collect this one and still stop on a failed fetch.
+UNRESOLVED = 3
 
 
 def raw(ref: str, path: str) -> bytes:
@@ -102,6 +105,12 @@ def main() -> int:
     resolved, unresolved = firmware_sources.resolve_all(rows, profiles, firmware_sources.read_row_map())
     wanted = sorted(firmware_sources.profiles_named(resolved))
 
+    # Everything is fetched before anything is written, so a failed download leaves the
+    # previous slice whole rather than profiles from one pin beside a subset from another.
+    bizhawk_text = raw(ref, "platforms/bizhawk.yml")
+    license_text = raw(ref, "LICENSE")
+    database = json.loads(raw(ref, "database.json"))
+
     if (out / "emulators").exists():
         shutil.rmtree(out / "emulators")
     (out / "emulators").mkdir(parents=True)
@@ -110,16 +119,18 @@ def main() -> int:
     print(f"  emulators/  {len(wanted)} of {len(paths)} profiles")
 
     (out / "platforms").mkdir(exist_ok=True)
-    bizhawk_text = raw(ref, "platforms/bizhawk.yml")
     (out / "platforms" / "bizhawk.yml").write_bytes(bizhawk_text)
     print("  platforms/bizhawk.yml")
+
+    # MIT asks for its notice in every copy, and this is one.
+    (out / "LICENSE").write_bytes(license_text)
+    print("  LICENSE")
 
     names, known = names_and_hashes(
         {name: profiles[name] for name in wanted},
         yaml.safe_load(bizhawk_text),
         json.loads((reference / "batocera-systems.json").read_text(encoding="utf-8")),
     )
-    database = json.loads(raw(ref, "database.json"))
     kept = {}
     for sha1, row in database["files"].items():
         catalog = {
@@ -149,7 +160,7 @@ def main() -> int:
     if unresolved:
         listed = "\n    ".join(sorted({f"{row.key}  ({row.folder})" for row in unresolved}))
         print(f"  rows no retrobios source describes and data/retrobat/firmware-rows.json does not mark:\n    {listed}")
-        return 1
+        return UNRESOLVED
     return 0
 
 
