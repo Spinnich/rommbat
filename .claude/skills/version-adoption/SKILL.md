@@ -89,7 +89,8 @@ and must move, and some are the version a measurement was taken on and must not.
 
 1. `reference/refresh.sh --ref <project>=<stable tag>`, into `reference/`. Resolve every drift it
    reports rather than editing the expected number. A drift is a signal to revisit the docs that
-   cite it. Run the generator it names and review that diff.
+   cite it. Run the generator it names and review that diff. Rewrite `reference/README.md`'s
+   "Snapshot" table to the refs the refresh printed, which nothing checks.
 2. Move together, or the startup check disagrees with the README: `RetroBatVersion.Minimum`,
    `RetroBatVersion.LastTested`, `RetroBatRoot.MinimumVersion`, the `README.md` requirements
    table, and the guide's `wiki/getting-started/requirements.md`. A test asserts the first three

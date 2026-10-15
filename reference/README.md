@@ -187,4 +187,5 @@ The files are at the floor:
 
 A pull from either upstream's default branch would put the vendored copy ahead of every shipped
 release, so what master carries beyond the floor is a scout pass's to report, not this
-directory's (the `version-adoption` skill).
+directory's (the `version-adoption` skill). `refresh.sh` prints each ref it fetched at, and a
+refresh that moves one rewrites this table, since no check compares it to the code.
