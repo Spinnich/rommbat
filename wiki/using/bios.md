@@ -71,12 +71,13 @@ Some files have to come from you:
 - A zipped firmware set whose files inside are not the ones the emulator expects. RomMBat
   downloads a zip with the right name, checks every file inside it, and keeps it only if they
   match.
-- Firmware an emulator installs through its own menu, such as the Switch and PS3 system software,
-  and files an emulator reads from its own folder rather than `bios`.
+- Files an emulator reads from its own folder rather than `bios`.
 
-Copy these into RetroBat's `bios` folder yourself, where RetroBat's own documentation says they
-go. This is why a game on a [certified row](../platforms/index.md) can still refuse to start: the
-row was tested with its BIOS in place.
+Copy these where RetroBat's own documentation says they go, which for most is the `bios` folder.
+Firmware an emulator installs through its own menu, such as the Switch and PS3 system software,
+goes in through that menu instead ([Switch and PS3](#switch-and-ps3)). This is why a game on a
+[certified row](../platforms/index.md) can still refuse to start: the row was tested with its
+BIOS in place.
 
 ## Checking from a terminal
 
