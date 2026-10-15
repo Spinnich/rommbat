@@ -1420,6 +1420,20 @@ public sealed class SetsScreenTests : IDisposable
         }
     }
 
+    /// <summary>Pairs this install, so a screen given a stub connection gets past authenticating.</summary>
+    private void Pair()
+    {
+        _session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(_session.Install));
+        _session.Store.Device.SavePairing(
+            new PairingResult(
+                Origin,
+                "device-1",
+                "Handheld",
+                new GrantedScopes(["roms.read", "assets.read"]),
+                TokenProtector.Protect("rmm_token", null, Now.AddYears(1))),
+            Now);
+    }
+
     /// <summary>A new-set editor with the filter scope chosen, driven the way a person does it.</summary>
     private SetEditorViewModel FilterEditor()
     {
@@ -1479,16 +1493,26 @@ public sealed class SetsScreenTests : IDisposable
     // ---- nothing waits on the network while it is drawing ----
 
     [Fact]
-    public void A_picker_that_asks_the_server_opens_at_once_and_says_it_is_loading()
+    public async Task A_picker_that_asks_the_server_opens_at_once_and_says_it_is_loading()
     {
-        var editor = FilterEditor();
-        MoveTo(editor, FilterFacet.Genres);
+        Pair();
+
+        // Held open, or the loader is not running when the footer is read. Unpaired, it answered
+        // "not paired" in milliseconds, and on CI's runner that sometimes landed first and moved
+        // Done from Back to Accept before the assertion looked (#538).
+        using var stub = new StubRomMServer();
+        var held = new TaskCompletionSource();
+        stub.HoldRomPages = held;
+
+        var choices = new FilterChoices(
+            _session,
+            connect: _ => new RomMConnection(new RomMClientOptions { Origin = Origin, AccessToken = "rmm_test" }, stub));
 
         // The filter values are worked out by RomM across every game in the library, which is
         // minutes on a large one. Fetching that on the thread that draws froze the interface
         // with nothing on screen saying why, which from the couch is a crash.
         var clock = Stopwatch.StartNew();
-        var picker = Assert.IsType<ListScreen>(editor.Handle(NavAction.Accept).Screen);
+        using var picker = Assert.IsType<ListScreen>(choices.Open(FilterFacet.Genres).Screen);
         clock.Stop();
 
         Assert.True(
@@ -1497,8 +1521,11 @@ public sealed class SetsScreenTests : IDisposable
 
         // Leavable while it loads, and the footer says so: Done, on Back, because the confirm
         // button does not leave a screen whose loader is still running.
-        Assert.NotEmpty(picker.LoadingMessage);
+        Assert.True(picker.IsLoading);
         Assert.Contains(picker.Hints, hint => hint.Action == NavAction.Back && hint.Label == ListScreen.DoneLabel);
+
+        held.SetResult();
+        await picker.Loaded.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
     }
 
     [Fact]
