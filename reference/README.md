@@ -18,6 +18,11 @@ there instead of here, which is how a scout pass reads a prerelease (the `versio
 A RetroBat release downloads emulatorlauncher from its rolling `continuous` build, so the two
 emulatorlauncher files come from its last commit at or before the RetroBat release was published.
 
+**retrobios is pinned to a commit**, because it versions its firmware packs and not its
+metadata. The commit is `_ref` in `retrobios/database-subset.json`; a plain refresh re-pulls it,
+and `--ref retrobios=<sha>` moves it. Its metadata is MIT. Its firmware files are licensed to no
+one, and `tools/vendor-retrobios.py` never fetches one.
+
 | File                           | Source                                                                                  | What it settles                                                                                                                                                        |
 | ------------------------------ | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `systems_names.lst`            | `RetroBat-Official/retrobat` `system/configgen/systems_names.lst`                       | The authoritative list of RetroBat system folder names (241)                                                                                                           |
@@ -28,6 +33,9 @@ emulatorlauncher files come from its last commit at or before the RetroBat relea
 | `romm-platform_aliases.py`     | `rommapp/romm` `backend/utils/platform_aliases.py`                                      | `PLATFORM_FS_ALIASES` and `resolve_platform_slug`: how RomM turns a folder name into a slug. Seed for the platform map. A seed, **not** an answer                       |
 | `romm-known_bios_files.json`   | `rommapp/romm` `backend/models/fixtures/known_bios_files.json`                          | What RomM's `is_verified` flag is computed from                                                                                                                        |
 | `romm-gamelist_exporter.py`    | `rommapp/romm` `backend/utils/gamelist_exporter.py`                                     | The gamelist field reference RomMBat's writer follows, and the source of two unit conversions RomMBat would otherwise have to guess at                                              |
+| `retrobios/emulators/*.yml`   | `Abdess/retrobios` `emulators/`, at the commit in `database-subset.json`'s `_ref`        | Which files each emulator's code reads, cited file:line, with any hash it checks. Only the 175 profiles a RetroBat row resolves to (`tools/firmware_sources.py`)    |
+| `retrobios/platforms/bizhawk.yml` | `Abdess/retrobios` `platforms/bizhawk.yml`, same commit                             | BizHawk's `FirmwareDatabase.cs` as retrobios scrapes it, by sha1. BizHawk has no emulator profile                                                                     |
+| `retrobios/database-subset.json` | `Abdess/retrobios` `database.json`, same commit, **filtered**                         | md5, sha1, size and dump-catalog provenance for the 648 of 19,005 rows a vendored source or RetroBat's list reaches. Rows are copied unchanged; only the selection is RomMBat's |
 
 ## Derived facts
 
@@ -75,8 +83,34 @@ folder is itself named `atari800`. The `platform-mapping` skill has the detail.
 | Overlap                            | 63  |
 | RetroBat-required, unknown to RomM | 93  |
 
-The operative consequence: **join firmware on md5 only.** Filenames differ between the two
-projects, and RomM's `is_verified` misses 60% of what RetroBat requires.
+The operative consequence: **join firmware on md5, never on a name alone.** Filenames differ
+between the two projects, and RomM's `is_verified` misses 60% of what RetroBat requires.
+
+**retrobios knows which emulator reads a file far more often than it knows the file's hash**
+
+`verify.py` sorts RetroBat's 186 hashless entries by what the vendored sources state about them.
+A name alone identifies nothing: retrobios's own by-name index files the Store Display Unit BIOS
+under `bios_U.sms`. So a single file counts only where a source states a hash for it, or where its
+name is exactly one dump-catalog entry's name, or where RomM's list names one hash for it.
+
+|                                                    |     |
+| -------------------------------------------------- | --- |
+| RetroBat rows (system, emulator, core)             | 539 |
+| ...described by a retrobios profile                | 455 |
+| ...described by BizHawk's firmware list            | 49  |
+| ...marked as having no retrobios source            | 35  |
+| Hashless entries that are MAME software lists      | 63  |
+| Hashless BIOS zips                                 | 64  |
+| ...whose contents a row's profile lists            | 24  |
+| Hashless single files under `bios/`                | 53  |
+| ...a profile or BizHawk states a hash for          | 7   |
+| ...named exactly as one dump-catalog entry         | 3   |
+| ...RomM's `known_bios_files` names one hash for    | 12  |
+| ...with no identity anywhere                       | 31  |
+
+The software lists are MAME's own hash metadata, which RetroBat ships, not firmware. A zip's md5
+depends on how it was packed, so a zip is identified by the crc32 and size of the files inside
+it, which MAME's source states and retrobios records.
 
 **The gamelist exporter settles two units and gets a third field wrong**
 

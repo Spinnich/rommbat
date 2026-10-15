@@ -10,8 +10,8 @@ es_systems.cfg, there is no live copy to prefer, and RomMBat bundles the manifes
 The transform is deliberately thin, because the vendored file is the authority and a
 generator that decided things would be a second authority that can disagree with it:
 
-  * an empty md5 becomes null, which is a third state and not a missing file. 181 of the
-    355 entries carry one, across 50 systems, and 29 systems have nothing else
+  * an empty md5 becomes null, which is a third state and not a missing file. 186 of the
+    360 entries carry one, across 51 systems, and 30 systems have nothing else
   * the destination path is kept exactly as RetroBat writes it, relative to the RetroBat
     root, because that is the whole point of the manifest
   * two system keys are aliased to the RetroBat folder of the same system, below

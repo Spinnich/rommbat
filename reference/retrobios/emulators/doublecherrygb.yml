@@ -1,0 +1,26 @@
+emulator: DoubleCherryGB
+type: libretro
+core_classification: enhanced_fork
+source: "https://github.com/TimOelrichs/doublecherryGB-libretro"
+upstream: "https://github.com/libertyernie/tgbdual"
+profiled_date: "2026-03-22"
+source_commit: "2e7a8bd5442ad7b2cb98ea07dbb5000ac95193e9"
+core_version: "v0.18.1"
+display_name: "Nintendo - Game Boy / Color (DoubleCherryGB)"
+cores:
+  - DoubleCherryGB
+systems:
+  - nintendo-gb
+  - nintendo-gbc
+
+notes: |
+  Game Boy / Game Boy Color emulator forked from TGB Dual (Hii, 2000-2004)
+  via the libretro port tgbdual. Adds multi-Game Boy emulation with link
+  cable support for up to 16 players, DMG-07 4-Player Adapter emulation,
+  infrared peripherals, and built-in Pokemon distribution events.
+
+  No boot ROM support. cpu::reset() sets PC=0x100 and post-boot register
+  values directly (AF=0x01B0 DMG, 0x11B0 CGB). The core does not access
+  the system directory and loads no external firmware files.
+
+files: []

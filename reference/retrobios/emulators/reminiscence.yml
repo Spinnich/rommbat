@@ -1,0 +1,102 @@
+emulator: REminiscence
+type: libretro
+core_classification: community_fork
+source: "https://github.com/libretro/REminiscence"
+upstream: "https://github.com/cyxx/REminiscence"
+upstream_commit: "947a4dce261aacc4f6ec0c2c90cb9d7e37712c7b"
+profiled_date: "2026-03-25"
+source_commit: "e6c0b0039258004f8bc377ddb88c0e931db131ce"
+core_version: "0.3.6"
+display_name: "Flashback (REminiscence)"
+cores:
+  - reminiscence
+systems:
+  - flashback
+
+notes: |
+  Game engine re-implementation of Flashback (Delphine Software, 1992) by Gregory Montoir,
+  ported to libretro by Stuart Carnie. Version 0.3.6 (upstream is at 0.5.5).
+
+  The core sets need_fullpath = true and valid_extensions = "map" (src/libretro.cpp:66).
+  Content loading (retro_load_game) extracts the parent directory from the provided .MAP
+  file path and uses it as the data root via FileSystem (src/libretro.cpp:186-188).
+
+  Version detection (src/libretro.cpp:117-140) probes for these files in order:
+    DEMO_UK.ABA -> DOS Demo
+    INTRO.SEQ   -> DOS CD
+    LEVEL1.MAP  -> DOS
+    LEVEL1.LEV  -> Amiga
+    DEMO.LEV    -> Amiga Demo
+  Only kResourceTypeDOS is accepted (line 199); Amiga data is rejected.
+
+  Language detection (src/libretro.cpp:142-166) probes for:
+    ENGCINE.TXT -> English
+    FR_CINE.TXT -> French
+    GERCINE.TXT -> German
+    SPACINE.TXT -> Spanish
+    ITACINE.TXT -> Italian
+    FRCINE.TXT  -> French (Amiga)
+  Falls back to English if none found.
+
+  All game data files are loaded from the content directory via FileSystem (fs.cpp),
+  which scans the directory and matches filenames case-insensitively (strcasecmp at
+  fs.cpp:53-56). The resource system (resource.cpp) loads files by constructing names
+  like "LEVEL1.MAP", "GLOBAL.ICN", "PERSO.SPR", "FB_TXT.FNT", etc.
+
+  The core never calls RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY. All data files must live
+  alongside the loaded .MAP content file. No BIOS or firmware files; the required files
+  are the original Flashback DOS game data.
+
+  Music loaded from .mod files (mod_player.cpp, staticres.cpp:3198-3225). Optional;
+  the core has a built-in SFX player for in-game action music (sfx_player.cpp with
+  embedded music data in staticres.cpp).
+
+  VOICE.VCE from the SegaCD version can be placed in the data directory for in-game
+  voice playback (resource.cpp:900-941). Optional.
+
+  SEQ cutscene playback is disabled in the libretro build: g_options is zero-initialized
+  (game.cpp:30) and rs.cfg is never parsed, so use_seq_cutscenes defaults to false.
+  The core always uses polygon-based cutscenes (cutscene.cpp).
+
+  Upstream (0.5.5) additionally supports Amiga, Macintosh, PC98 data, MIDI music,
+  OGG playback, SEQ cutscenes, and widescreen modes. None of these are in the
+  libretro port.
+
+files: []
+
+exclusion_note: >
+  Game engine core. All data files (game data, music, voice) are loaded from the content
+  directory alongside the .MAP file via FileSystem. The core never accesses the system
+  directory (RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY is never called). The .info declares
+  firmware_count=0, consistent with the code.
+
+analysis:
+  content_type: game_data
+  content_extensions: ["map"]
+  system_directory_used: false
+  filesystem_access: true
+  data_files_location: "same directory as loaded content"
+  game_data_files:
+    dos_floppy:
+      required:
+        - "LEVEL1.MAP through LEVEL7.MAP (level map data)"
+        - "LEVEL1.* (MBK, PGE, PAL, CT, SPC, RP, ANI, OBJ, TBN, SGD, BNQ, LEV)"
+        - "GLOBAL.ICN, GLOBAL.SPC, GLOBAL.FIB"
+        - "PERSO.SPR, PERSO.OFF"
+        - "FB_TXT.FNT"
+        - "ENGCINE.TXT or equivalent language file"
+        - "ENGCINE.BIN or equivalent"
+      optional:
+        - "intro, options, journal, etc. (.mod files for cutscene music)"
+        - "VOICE.VCE (SegaCD voice data)"
+    dos_cd:
+      additional:
+        - "INTRO.SEQ, CREDITS.SEQ, and other .SEQ cutscene videos (SEQ playback disabled in libretro build)"
+    demo:
+      archive: "DEMO_UK.ABA (contains all demo data in a single archive)"
+  detection_order:
+    - { file: "DEMO_UK.ABA", type: "DOS Demo" }
+    - { file: "INTRO.SEQ", type: "DOS CD" }
+    - { file: "LEVEL1.MAP", type: "DOS Floppy" }
+    - { file: "LEVEL1.LEV", type: "Amiga (rejected by libretro port)" }
+    - { file: "DEMO.LEV", type: "Amiga Demo (rejected by libretro port)" }

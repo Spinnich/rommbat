@@ -1,0 +1,36 @@
+emulator: Beetle Lynx (Mednafen Lynx)
+type: libretro
+core_classification: community_fork
+source: "https://github.com/libretro/beetle-lynx-libretro"
+upstream: "https://mednafen.github.io/"
+profiled_date: "2026-03-24"
+source_commit: "fcdefcfb3c11d6d2e71be076a5d3df2e88ab73ed"
+core_version: "v1.24.0"
+display_name: "Atari - Lynx (Beetle Lynx)"
+cores: [mednafen_lynx]
+systems: [atari-lynx]
+verification: existence
+
+notes: >
+  Community fork of Mednafen's Lynx module (itself based on Handy by
+  K. Wilkins) for libretro. Loads lynxboot.img from the system directory
+  at game load time (libretro.cpp:191). CRom constructor reads exactly
+  512 bytes (rom.cpp:50-78). If the file is missing or undersized, the
+  ROM array is filled with 0x88 (DEFAULT_ROM_CONTENTS) and the core
+  continues without error, but games will not boot without the real boot
+  ROM. No hash validation is performed on the BIOS at load time.
+  The cart database in cart.cpp includes the BIOS CRC32 0x0d973c9d for
+  identification purposes, not validation.
+  Upstream Mednafen throws an exception if the BIOS is missing or
+  undersized; the libretro port silently degrades. Upstream supports
+  custom palette loading (lynx.pal); the libretro port does not.
+
+files:
+  - name: "lynxboot.img"
+    description: "Atari Lynx boot ROM"
+    region: [world]
+    required: true
+    size: 512
+    crc32: "0d973c9d"
+    source_ref: "libretro.cpp:191, mednafen/lynx/rom.cpp:50-78, mednafen/lynx/cart.cpp:67"
+    note: "512-byte boot ROM. Core silently degrades without it but games will not run."

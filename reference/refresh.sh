@@ -7,11 +7,15 @@
 #   ./refresh.sh                                   # at the floor in code, into reference/
 #   ./refresh.sh --ref romm=5.4.0-alpha.1 --out /tmp/scout
 #   ./refresh.sh --ref retrobat=beta_8.3.0 --out /tmp/scout
+#   ./refresh.sh --ref retrobios=<commit sha>      # move the retrobios pin
 #
 # --ref takes a project's release tag; each project defaults to the floor in code, so the
 # vendored files describe the builds RomMBat supports and not upstream's default branch.
 # --out writes into a scratch directory instead of reference/, which is how a scout pass reads
 # a prerelease without touching the vendored copy (the version-adoption skill).
+# retrobios versions its firmware packs, not its metadata, so its ref is a commit, kept as _ref in
+# retrobios/database-subset.json, and a plain refresh re-pulls that same commit. Needs PyYAML,
+# which mkdocs (tools/docs/requirements.txt) already depends on.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -21,6 +25,7 @@ floor() { # source file -> the version its Minimum parses
 
 romm_ref=$(floor src/RomM.Client/RomMServerVersion.cs)
 retrobat_ref=$(floor src/RomMBat.Core/Diagnostics/RetroBatVersion.cs)
+retrobios_ref=
 out=.
 
 while [ $# -gt 0 ]; do
@@ -29,8 +34,9 @@ while [ $# -gt 0 ]; do
     case "${2:-}" in
     romm=?*) romm_ref=${2#romm=} ;;
     retrobat=?*) retrobat_ref=${2#retrobat=} ;;
+    retrobios=?*) retrobios_ref=${2#retrobios=} ;;
     *)
-      echo "--ref wants romm=<tag> or retrobat=<tag>" >&2
+      echo "--ref wants romm=<tag>, retrobat=<tag> or retrobios=<sha>" >&2
       exit 2
       ;;
     esac
@@ -84,6 +90,13 @@ grep -oE '^\s{4}[A-Z0-9_]+ *= *"[^"]+"' "$out/romm-platform_slugs.py" |
 # LC_ALL=C is required: these slugs are punctuation-heavy and locale-aware
 # collation makes `sort -u` treat some distinct pairs as equal, silently
 # undercounting (it collapsed one pair and reported 456 instead of 457).
+
+# The retrobios slice is chosen by RetroBat's rows and names, so it follows the files above. A
+# scratch refresh starts from the vendored pin, since its directory has none of its own.
+if [ -z "$retrobios_ref" ]; then
+  retrobios_ref=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["_ref"])' "$here/retrobios/database-subset.json")
+fi
+python3 ../tools/vendor-retrobios.py "$out" "$retrobios_ref"
 
 echo "RetroBat version at $retrobat_ref:"
 gh api "repos/RetroBat-Official/retrobat/contents/build.ini?ref=$retrobat_ref" --jq '.content' |

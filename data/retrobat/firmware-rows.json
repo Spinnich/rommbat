@@ -1,0 +1,44 @@
+{
+  "_comment": "How each (emulator, core) row RetroBat's es_systems.cfg offers is joined to the retrobios source that describes the firmware its code reads. A row is first looked up by the core name each retrobios profile declares (by the core for libretro, by the emulator otherwise); an entry under 'emulators' replaces that lookup, keyed by 'emulator/core' or 'emulator/*'. Its value is {'profiles': [...]} naming retrobios emulator profiles, {'bizhawk': true} for BizHawk's FirmwareDatabase.cs, or {'none': '<why>'} for a row no retrobios source describes. A row that resolves to nothing and has no entry fails tools/vendor-retrobios.py and reference/verify.py, so coverage never shrinks silently. Hand-maintained; the vendored sources are described in reference/README.md.",
+  "emulators": {
+    "bizhawk/*": { "bizhawk": true },
+    "daphne/daphne": { "none": "retrobios's daphne profile names no file" },
+    "gemrb/gemrb": { "none": "a game engine; reads game data, not firmware" },
+    "jynx/mame": { "none": "retrobios has no Jynx profile" },
+    "jzintv/IntelliHawk": { "none": "retrobios has no jzIntv profile" },
+    "kega-fusion/*": {
+      "none": "retrobios has no Kega Fusion profile; Fusion.ini names bios_U.sms, bios_E.sms and bios_J.sms (#533)"
+    },
+    "libretro/genesis_plus_gx_expanded": { "profiles": ["genesis_plus_gx"] },
+    "libretro/mame2014": {
+      "none": "retrobios profiles mame2010 and mame2015 but not mame2014"
+    },
+    "libretro/o2em": { "profiles": ["o2em"] },
+    "libretro/stella": { "profiles": ["stella2023"] },
+    "libretro/tgbdual": { "profiles": ["tgbdual"] },
+    "mame64/*": { "profiles": ["mame"] },
+    "mesen/*": { "profiles": ["mesence"] },
+    "mugen/mugen": { "none": "a game engine; reads game data, not firmware" },
+    "mupen64/*": { "profiles": ["rosalies-mupen-gui"] },
+    "nosgba/gba": { "none": "retrobios has no NO$GBA profile" },
+    "pcsx2/pcsx2": { "profiles": ["pcsx2"] },
+    "pcsx2-16/pcsx2": { "profiles": ["pcsx2"] },
+    "pinballfx/*": { "none": "a store-bought PC game; reads no firmware" },
+    "psxmame/mame": {
+      "none": "retrobios has no profile for the ZiNc build RetroBat ships"
+    },
+    "simcoupe/simcoupe": { "profiles": ["samcoupe"] },
+    "singe2/singe2": { "none": "retrobios has no Singe 2 profile" },
+    "stella/Atari2600Hawk": { "profiles": ["stella2023"] },
+    "teknoparrot/*": { "none": "retrobios has no TeknoParrot profile" },
+    "xemu-chihiro/chihiro": {
+      "none": "retrobios's xemu profile covers the Xbox, not the Chihiro"
+    },
+    "zaccariapinball/*": {
+      "none": "a store-bought PC game; reads no firmware"
+    },
+    "zquestclassic/zc255": {
+      "none": "a game engine; reads game data, not firmware"
+    }
+  }
+}

@@ -130,7 +130,7 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    expected filename and hash. Run `rommbat-agent bios <system>` for the report and
    `bios <system> --apply` to fetch, and record all four states rather than a pass or fail:
    present, fetched, not in the library, and the ones RetroBat names no hash for. A system whose
-   whole list is hashless (28 of the 99 are) is certified on the other eight steps, and step 3
+   whole list is hashless (30 of the 101 are) is certified on the other eight steps, and step 3
    says so in those words.
 
    **A missing file never fails this step or holds a platform back.** RetroBat's list is what

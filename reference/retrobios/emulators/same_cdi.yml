@@ -1,0 +1,179 @@
+emulator: SAME CDi
+type: libretro
+core_classification: community_fork
+source: "https://github.com/libretro/same_cdi"
+upstream: "https://github.com/mamedev/mame"
+profiled_date: "2026-03-25"
+source_commit: "ff9bb99a50d518aef6d2add1c49b7c44447e3e78"
+core_version: "Git"
+display_name: "Philips - CDi (SAME CDi)"
+cores: [same_cdi]
+systems:
+  - cdi
+
+notes: |
+  SAME CDi is a Single Arcade Machine Emulator fork of MAME libretro, stripped
+  down to just the Philips CD-i driver. The core hardcodes "cdimono1" as the
+  forced system (src/osd/libretro/libretro-internal/retro_init.cpp:86,463) and searches for MAME ROM ZIPs in:
+    <system_dir>/same_cdi/bios/
+
+  The ROM path (-rp) is built at src/osd/libretro/libretro-internal/retro_init.cpp:543 as:
+    <game_path>;<system_dir>/same_cdi/bios/
+
+  MAME expects each romset as a ZIP containing the individual ROM files.
+  The ZIP filenames match the MAME driver names. Only cdimono1.zip is required
+  for consumer CD-i games; the other ZIPs are for alternate hardware models
+  (unreachable without boot_from_cli core option).
+
+  ROM definitions: src/mame/drivers/cdi.cpp:639-704. The fork carries four
+  sets, cdimono1, cdimono2, cdi910 and cdi490a, declared at
+  src/mame/drivers/cdi.cpp:713-716; the Quizard game ROMs upstream MAME
+  keeps in this driver are not in it. The .info also lists cdibios.zip, a set
+  this driver does not declare.
+
+  The Mono-I machine is built with the Digital Video Cartridge, whose driver
+  ROM vmpega.rom is an optional member of cdimono1.zip: without it the
+  region stays zero-filled and the player boots as a bare Mono-I
+  (src/mame/drivers/cdi.cpp:658-659).
+
+  System forced: src/osd/libretro/libretro-internal/retro_init.cpp:86,463,534.
+  BIOS path: src/osd/libretro/libretro-internal/retro_init.cpp:543.
+
+files:
+  - name: cdimono1.zip
+    path: "same_cdi/bios/cdimono1.zip"
+    category: bios_zip
+    system: cdi
+    required: true
+    note: "Forced system. Main CPU BIOS (3 region variants via MAME BIOS switch) + servo/slave MCU dumps. vmpega.rom is ROM_LOAD_OPTIONAL: full-motion video needs it, the machine starts without it."
+    source_ref: "src/mame/drivers/cdi.cpp:713"
+    contents:
+      - name: cdi200.rom
+        description: Magnavox CD-i 200 BIOS (default, US)
+        size: 524288
+        crc32: "40c4e6b9"
+        sha1: "d961de803c89b3d1902d656ceb9ce7c02dccb40a"
+      - name: cdi220b.rom
+        description: Philips CD-i 220 F2 BIOS (alternate, PAL)
+        size: 524288
+        crc32: "279683ca"
+        sha1: "53360a1f21ddac952e95306ced64186a3fc0b93e"
+      - name: cdi220.rom
+        description: Philips CD-i 220 BIOS (non-working, does not boot)
+        size: 524288
+        crc32: "584c0af8"
+        sha1: "5d757ab46b8c8fc36361555d978d7af768342d47"
+      - name: "zx405037p__cdi_servo_2.1__b43t__llek9215.mc68hc705c8a_withtestrom.7201"
+        description: Servo MCU 2.1 MC68HC705C8A (BAD_DUMP, from cdi910)
+        size: 8192
+        crc32: "7a3af407"
+        sha1: "fdf8d78d6a0df4a56b5b963d72eabd39fcec163f"
+      - name: "zx405042p__cdi_slave_2.0__b43t__zzmk9213.mc68hc705c8a_withtestrom.7206"
+        description: Slave MCU 2.0 MC68HC705C8A (BAD_DUMP, from cdi910)
+        size: 8192
+        crc32: "688cda63"
+        sha1: "56d0acd7caad51c7de703247cd6d842b36173079"
+      - name: vmpega.rom
+        description: Digital Video Cartridge driver ROM (optional)
+        size: 262144
+        crc32: "db264e8b"
+        sha1: "be407fbc102f1731a0862554855e963e5a47c17b"
+
+  - name: cdimono2.zip
+    path: "same_cdi/bios/cdimono2.zip"
+    category: bios_zip
+    system: cdi
+    required: false
+    note: "CD-i Mono-II (NTSC). MACHINE_NOT_WORKING. Listed in .info as optional."
+    source_ref: "src/mame/drivers/cdi.cpp:714"
+    contents:
+      - name: "philips__cdi-220_ph3_r1.2__mb834200b-15__02f_aa__9402_z04.tc574200-le._1.7211"
+        description: Mono-II main CPU BIOS, Philips CDI-220 PH3 R1.2
+        size: 524288
+        crc32: "17d723e7"
+        sha1: "6c317a82e35d60ca5e7a74fc99f665055693169d"
+      - name: "zc405351p__servo_cdi_4.1__0d67p__lluk9404.mc68hc705c8a.7490"
+        description: Mono-II servo MCU 4.1
+        size: 8192
+        crc32: "2bc8e4e9"
+        sha1: "8cd052b532fc052d6b0077261c12f800e8655bb1"
+      - name: "zc405352p__slave_cdi_4.1__0d67p__lltr9403.mc68hc705c8a.7206"
+        description: Mono-II slave MCU 4.1
+        size: 8192
+        crc32: "5b19da07"
+        sha1: "cf02d84977050c71e87a38f1249e83c43a93949b"
+
+  - name: cdi910.zip
+    path: "same_cdi/bios/cdi910.zip"
+    category: bios_zip
+    system: cdi
+    required: false
+    note: "CD-i 910-17P Mini-MMC (PAL). MACHINE_NOT_WORKING. Not in .info firmware list."
+    source_ref: "src/mame/drivers/cdi.cpp:715"
+    contents:
+      - name: "philips__cd-i_2.1__mb834200b-15__26b_aa__9224_z01.tc574200.7211"
+        description: CD-i 910-17P Mini-MMC BIOS (default)
+        size: 524288
+        crc32: "4ae3bee3"
+        sha1: "9729b4ee3ce0c17172d062339c47b1ab822b222b"
+      - name: cdi910.rom
+        description: CD-i 910 alternate BIOS
+        size: 524288
+        crc32: "2f3048d2"
+        sha1: "11c4c3e602060518b52e77156345fa01f619e793"
+      - name: "zx405037p__cdi_servo_2.1__b43t__llek9215.mc68hc705c8a_withtestrom.7201"
+        description: Servo MCU 2.1 (same ROM as cdimono1, not BAD_DUMP here)
+        size: 8192
+        crc32: "7a3af407"
+        sha1: "fdf8d78d6a0df4a56b5b963d72eabd39fcec163f"
+      - name: "zx405042p__cdi_slave_2.0__b43t__zzmk9213.mc68hc705c8a_withtestrom.7206"
+        description: Slave MCU 2.0 (same ROM as cdimono1, not BAD_DUMP here)
+        size: 8192
+        crc32: "688cda63"
+        sha1: "56d0acd7caad51c7de703247cd6d842b36173079"
+      - name: "ti_portugal_206xf__tibpal20l8-15cnt__m7205n.7205.bin"
+        description: PAL chip dump
+        size: 324
+        crc32: "dd167e0d"
+        sha1: "2ba82a4619d7a0f19e62e02a2841afd4d45d56ba"
+      - name: "ti_portugal_774_206xf__tibpal16l8-10cn_m7204n.7204.bin"
+        description: PAL chip dump
+        size: 260
+        crc32: "04e6bd37"
+        sha1: "153d1a977291bedb7420484a9f889325dbd3628e"
+
+  - name: cdi490a.zip
+    path: "same_cdi/bios/cdi490a.zip"
+    category: bios_zip
+    system: cdi
+    required: false
+    note: "CD-i 490. MACHINE_NOT_WORKING. Not in .info firmware list."
+    source_ref: "src/mame/drivers/cdi.cpp:716"
+    contents:
+      - name: cdi490a.rom
+        description: CD-i 490 main CPU BIOS
+        size: 524288
+        crc32: "e2f200f6"
+        sha1: "c9bf3c4c7e4fe5cbec3fe3fc993c77a4522ca547"
+      - name: vmpega.rom
+        description: Digital video driver ROM
+        size: 262144
+        crc32: "db264e8b"
+        sha1: "be407fbc102f1731a0862554855e963e5a47c17b"
+      - name: impega.rom
+        description: IMPEG ROM, loaded into its own region and not read by the emulation
+        size: 262144
+        crc32: "84d6f6aa"
+        sha1: "02526482a0851ea2a7b582d8afaa8ef14a8bd914"
+
+platform_details:
+  cdi:
+    bios_path: "same_cdi/bios/"
+    forced_system: "cdimono1"
+    primary_zip: "cdimono1.zip"
+    optional_zips: ["cdimono2.zip", "cdi910.zip", "cdi490a.zip"]
+    mame_romsets: ["cdimono1", "cdimono2", "cdi910", "cdi490a"]
+    rom_path_flag: "-rp"
+    rom_search_path: "<game_path>;<system_dir>/same_cdi/bios/"
+    supported_extensions: ["chd", "iso", "cue"]
+    source_ref: "src/osd/libretro/libretro-internal/retro_init.cpp:86, src/osd/libretro/libretro-internal/retro_init.cpp:463, src/osd/libretro/libretro-internal/retro_init.cpp:534, src/osd/libretro/libretro-internal/retro_init.cpp:543"

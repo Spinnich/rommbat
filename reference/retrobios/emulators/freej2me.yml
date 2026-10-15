@@ -1,0 +1,29 @@
+emulator: FreeJ2ME
+type: libretro
+core_classification: official_port
+source: "https://github.com/hex007/freej2me"
+upstream: "https://github.com/hex007/freej2me"
+profiled_date: "2026-03-23"
+source_commit: "fae9304b85ac1c61d0117f6c8efe528612388278"
+core_version: "GIT"
+display_name: "Mobile - J2ME (FreeJ2ME)"
+cores:
+  - freej2me
+systems:
+  - j2me
+
+notes: |
+  The native core is a C bridge that spawns a Java process running
+  freej2me-lr.jar, which handles all J2ME emulation. Communication
+  happens over pipes (Linux) or named pipes (Windows). A Java runtime
+  (JRE/JDK 8+) must be installed on the host. The jar is built from
+  source via Apache Ant (build.xml). Same repo hosts standalone AWT
+  and SDL2 frontends alongside the libretro frontend.
+
+files:
+  - name: "freej2me-lr.jar"
+    system: j2me
+    description: "FreeJ2ME libretro Java application"
+    required: true
+    source_ref: "src/libretro/freej2me_libretro.c:483-486 (GET_SYSTEM_DIRECTORY + fill_pathname_join + java -jar)"
+    note: "Not a BIOS dump. Java emulator loaded by the native core at startup via execvp('java', '-jar', path). Built from source via 'ant'. Must be in the system directory root."

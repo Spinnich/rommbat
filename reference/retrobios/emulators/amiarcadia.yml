@@ -1,0 +1,35 @@
+emulator: amiarcadia
+type: libretro
+core_classification: official_port
+source: "https://github.com/warmenhoven/amiarcadia"
+upstream: "https://amigan.1emu.net/releases/"
+profiled_date: "2026-03-22"
+source_commit: "4b84422985457b53dcc22ab46f525d7c34d3e51f"
+core_version: "4.42"
+display_name: "Arcadia 2001 / Interton VC 4000 (AmiArcadia)"
+cores:
+  - amiarcadia
+  - winarcadia
+systems:
+  - emerson-arcadia-2001
+  - interton-vc4000
+  - elektor-tv-games-computer
+
+# Libretro port of AmiArcadia/WinArcadia/DroidArcadia by James Jacobs.
+# Emulates Signetics 2636 PVI / 2637 UVI + 2650 CPU systems:
+# Emerson Arcadia 2001 and clones, Interton VC 4000 family,
+# Elektor TV Games Computer, Zaccaria and Malzak coin-ops.
+#
+# No external files required. These systems have no separate system ROM;
+# all code runs from the game cartridge. The core auto-identifies known
+# ROMs by CRC32 via games.h lookup table.
+#
+# source_ref: src/libretro.c:497-624 (retro_load_game — no file I/O)
+# source_ref: DroidArcadia/app/src/main/cpp/android.c:893-1052 (parse_bytes — ROM-only)
+# source_ref: DroidArcadia/app/src/main/cpp/da.h:3-5 (version 4.42)
+# source_ref: amiarcadia_libretro.info (firmware_count=0)
+
+notes: |
+  No BIOS or firmware files required. firmware_count=0 confirmed by source.
+
+files: []

@@ -106,7 +106,7 @@ public sealed class BiosManifestTests
     {
         var manifest = Fixtures.LoadBiosManifest();
 
-        // mastersystem is one of the 29 systems with no joinable entry at all. Reporting these
+        // mastersystem is one of the 30 systems with no joinable entry at all. Reporting these
         // as "not in your library" would send a user looking for a file RomMBat could not
         // recognize if they already had it.
         var mastersystem = manifest.For("mastersystem");

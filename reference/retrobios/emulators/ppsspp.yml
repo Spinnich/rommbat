@@ -1,0 +1,45 @@
+emulator: PPSSPP
+type: standalone + libretro
+core_classification: official_port
+source: "https://github.com/libretro/ppsspp"
+upstream: "https://github.com/hrydgard/ppsspp"
+profiled_date: "2026-03-24"
+source_commit: "7b4ddb426bbe9e287bb7f19b0cfaebb4ea0d41d8"
+core_version: "Git"
+display_name: "Sony - PlayStation Portable (PPSSPP)"
+cores:
+  - ppsspp
+systems: [sony-psp]
+
+pack_structure:
+  libretro: "PPSSPP"
+
+data_directories:
+  - ref: ppsspp-assets
+    destination: ""
+    source_ref: "libretro/libretro.cpp:537,549"
+
+notes: |
+  Full HLE emulator. No Sony firmware or BIOS required.
+  All PSP kernel modules (flash0:/kd/*.prx) are reimplemented in C++.
+  Libretro core loads assets from system/PPSSPP/ via VFS.
+  Assets include replacement PGF fonts (18 files in flash0/font/),
+  game compatibility database (compat.ini), language mapping (langregion.ini),
+  and post-processing shaders (shaders/).
+  Libretro fork (2020-03-18) behind upstream.
+  PSP_DEFAULT_FIRMWARE = 660 (Core/ConfigValues.h:40).
+
+files:
+  - name: "ppge_atlas.zim"
+    path: "PPSSPP/ppge_atlas.zim"
+    description: "PPGe dialog texture atlas for save/load dialogs, on-screen keyboard, system UI"
+    required: false
+    source_ref: "Core/Util/PPGeDraw.cpp:227-228"
+    note: "PanicAlert if missing. System dialogs render without graphics but core continues running."
+
+  - name: "ppge_atlas.meta"
+    path: "PPSSPP/ppge_atlas.meta"
+    description: "PPGe atlas metadata (glyph positions, UV coords)"
+    required: false
+    source_ref: "Core/Util/PPGeDraw.cpp:235-237"
+    note: "Loaded after ppge_atlas.zim. Without it, dialog UI has no glyph layout."

@@ -1,0 +1,97 @@
+emulator: PCSX2
+type: standalone
+core_classification: official_port
+bios_mode: agnostic
+source: "https://github.com/PCSX2/pcsx2"
+upstream: "https://github.com/PCSX2/pcsx2"
+cores:
+  - pcsx2
+profiled_date: "2026-03-30"
+source_commit: "81526d4dc7cc70e4ae75abb35a789417456c6d43"
+core_version: "Git"
+display_name: "Sony - PlayStation 2 (PCSX2)"
+systems: [sony-playstation-2]
+
+notes: |
+  Filename-agnostic BIOS detection. Scans bios/ for any file between 4-8 MB
+  with valid romdir structure (RESET + ROMVER entries). No hash validation.
+  Companion files (.rom1, .rom2, .nvm, .mec) derive their names from the selected BIOS.
+  ROM1 (DVD player) and ROM2 (Chinese extension) silently skipped if missing.
+  NVM and MEC auto-created with defaults if missing.
+
+files:
+  - name: ps2-0230a-20080220.bin
+    required: true
+    min_size: 4194304
+    max_size: 8388608
+    validation: [size]
+    source_ref: "pcsx2/ps2/BiosTools.cpp:16-17,80-197,258-283,317-370"
+    note: "Accepts any file 4-8 MB with valid romdir (RESET + ROMVER). Naming convention ps2-VVVVr-YYYYMMDD.bin (version, region, date)."
+
+  - name: ps2-0230a-20080220.rom1
+    required: false
+    max_size: 4194304
+    description: "DVD player ROM"
+    note: "Tried as {bios}.rom1 then {biosbase}.rom1, opened case-insensitively. Copied to the ROM1 region. Logged and skipped when absent."
+    source_ref: "pcsx2/ps2/BiosTools.cpp:214-241, pcsx2/ps2/BiosTools.cpp:366"
+
+  - name: ps2-0230a-20080220.rom2
+    required: false
+    max_size: 4194304
+    description: "Chinese ROM extension"
+    note: "Same two-step naming as rom1. Only Chinese region consoles carry one."
+    source_ref: "pcsx2/ps2/BiosTools.cpp:214-241, pcsx2/ps2/BiosTools.cpp:367"
+
+  - name: ps2-0230a-20080220.nvm
+    required: false
+    hle_fallback: true
+    size: 1024
+    description: "Console NVRAM"
+    note: "Read at the BIOS path with the extension replaced by nvm, opened case-insensitively. Built in memory from region defaults when absent or blank."
+    source_ref: "pcsx2/CDVD/CDVD.cpp:165-189"
+
+  - name: ps2-0230a-20080220.mec
+    required: false
+    hle_fallback: true
+    size: 4
+    description: "Mechacon version"
+    note: "Read at the BIOS path with the extension replaced by mec. Defaults to 0x00020603 and is written back when it cannot be read."
+    source_ref: "pcsx2/CDVD/CDVD.cpp:190-204"
+
+  - name: eeprom.dat
+    required: false
+    hle_fallback: true
+    size: 64
+    source_ref: "pcsx2/DEV9/DEV9.cpp:110-160"
+    note: "DEV9 network adapter EEPROM. Falls back to built-in defaults if missing."
+
+  - name: GameIndex.yaml
+    path: resources/GameIndex.yaml
+    required: false
+    bundled: true
+    sha1: 5e2d50a3376dc6a0750505bec68626d39a5bd4c1
+    size: 2683897
+    category: game_data
+    description: "per-title compatibility and fix database"
+    source_ref: "pcsx2/GameDatabase.cpp:39, pcsx2/GameDatabase.cpp:1026-1035"
+    note: "Read from the resources directory shipped with the application. Console error and no per-title fixes if missing."
+
+  - name: RedumpDatabase.yaml
+    path: resources/RedumpDatabase.yaml
+    required: false
+    bundled: true
+    sha1: bf2c73d668cd671df8adfe2ec3c7074e8ba9176a
+    size: 1917242
+    category: game_data
+    description: "disc hash database"
+    source_ref: "pcsx2/GameDatabase.cpp:1133, pcsx2/GameDatabase.cpp:1188-1197"
+    note: "Read from the resources directory shipped with the application, used to name a disc from its dump."
+
+  - name: patches.zip
+    path: resources/patches.zip
+    required: false
+    bundled: true
+    category: game_data
+    description: "built-in game patch archive"
+    source_ref: "pcsx2/Patch.cpp:117, pcsx2/Patch.cpp:289-318"
+    note: "Opened read only from the resources directory shipped with the application and searched for the pnach matching the running serial and CRC. Widescreen and no-interlacing patches live inside it."

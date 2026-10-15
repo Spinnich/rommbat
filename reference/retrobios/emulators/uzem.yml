@@ -1,0 +1,39 @@
+emulator: uzem
+type: libretro
+core_classification: pure_libretro
+source: "https://github.com/libretro/libretro-uzem"
+upstream: "https://github.com/Uzebox/uzebox"
+profiled_date: "2026-03-25"
+source_commit: "cd6004ea143435cfdb6b12e7c6779dab499f7829"
+core_version: "v2.0"
+display_name: "Uzebox (Uzem)"
+cores:
+  - uzem
+systems:
+  - uzebox
+
+# No BIOS or firmware files required. The Uzebox is an open-source 8-bit game
+# console (ATmega644 AVR MCU) with no proprietary firmware. Games are
+# self-contained .uze files loaded directly into progmem
+# (uzem_libretro.cpp:254-286, "UZEBOX" magic header + RomHeader + program data).
+#
+# The libretro core does not call RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY.
+# SD card emulation uses GET_CORE_ASSETS_DIRECTORY (uzem_libretro.cpp:186-192)
+# for optional game data via virtual FAT16 filesystem (SDEmulator.cpp).
+# EEPROM is handled via RETRO_MEMORY_SAVE_RAM (uzem_libretro.cpp:407-408).
+#
+# The standalone uzem supports --boot (PC=0xF000) for bootloader mode
+# (uzem.cpp:206) and .hex format loading, neither exposed in the libretro port.
+#
+# The .info file declares no firmware entries (firmware_count absent).
+
+files: []
+
+notes:
+  open_source_console: >
+    Fully open-source hardware and software designed by Alec Bourque.
+    No proprietary BIOS or bootloader. Games are self-contained .uze files.
+  sd_card: >
+    Some games use SD card access for loading assets. The core reads from the
+    libretro core assets directory to emulate a FAT16 SD card (game data, not
+    system firmware).

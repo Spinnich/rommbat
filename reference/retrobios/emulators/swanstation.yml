@@ -1,0 +1,88 @@
+emulator: swanstation
+type: libretro
+core_classification: community_fork
+source: "https://github.com/libretro/swanstation"
+upstream: "https://github.com/stenzek/duckstation"
+profiled_date: "2026-03-25"
+source_commit: "b6c30a7b270a3f68ac41f268eafdfa678d17dea2"
+core_version: "v0.1"
+display_name: "Sony - PlayStation (SwanStation)"
+cores: [swanstation]
+systems: [sony-playstation]
+notes: |
+  Fork of DuckStation maintained by the libretro community after stenzek removed
+  libretro support. Frozen at an early DuckStation state.
+
+  Boot loads a BIOS image; when none is found a built-in OpenBIOS copy
+  (dep/openbios) boots instead.
+  ref: src/core/system.cpp:650,678-682
+
+  Auto-detects BIOS by scanning system_dir for files of known sizes.
+  ref: src/core/host_interface.cpp:136-194 (FindBIOSImageInDirectory)
+  Accepts PS1 (512 KB), PS2 (4 MB), and PS3 (0x3E66F0) BIOS images.
+  Only the first 512 KB are loaded (src/core/bios.cpp:84, Image(BIOS_SIZE)).
+  ref: src/core/bios.h:9 (BIOS_SIZE=0x80000, BIOS_SIZE_PS2=0x400000, BIOS_SIZE_PS3=0x3E66F0)
+
+  27 known BIOS entries identified by MD5 hash.
+  ref: src/core/bios.cpp:28-71 (s_image_infos)
+  Each entry has: description, region, hash, patch_compatible flag.
+
+  Upstream DuckStation has evolved significantly (105 entries, PS2 BIOS, OpenBIOS,
+  priority system). SwanStation is frozen at the fork point.
+
+files:
+  - name: "scph5500.bin"
+    description: "SCPH-5500 (v3.0 09-09-96 J)"
+    region: [japan]
+    required: false
+    hle_fallback: true
+    md5: "8dd7d5296a650fac7319bce665a6a53c"
+    size: 524288
+    validation: [size, md5]
+    source_ref: "src/core/bios.cpp:49"
+    aliases: []
+
+  - name: "scph5501.bin"
+    description: "SCPH-5501, 5503, 7003 (v3.0 11-18-96 A)"
+    region: [north-america]
+    required: false
+    hle_fallback: true
+    md5: "490f666e1afb15b7362b406ed1cea246"
+    size: 524288
+    validation: [size, md5]
+    source_ref: "src/core/bios.cpp:50-51"
+    aliases: []
+
+  - name: "scph5502.bin"
+    description: "SCPH-5502, 5552 (v3.0 01-06-97 E)"
+    region: [europe, oceania]
+    required: false
+    hle_fallback: true
+    md5: "32736f17079d0b2b7024407c39bd3050"
+    size: 524288
+    validation: [size, md5]
+    source_ref: "src/core/bios.cpp:52-53"
+    aliases: []
+
+  - name: "psxonpsp660.bin"
+    description: "PSP, SCPH-1000R (v4.5 05-25-00 J)"
+    region: [world]
+    required: false
+    hle_fallback: true
+    md5: "c53ca5908936d412331790f4426c6c33"
+    size: 524288
+    validation: [size, md5]
+    source_ref: "src/core/bios.cpp:67-68"
+    aliases: []
+
+  - name: "ps1_rom.bin"
+    description: "PS3 embedded PS1 BIOS (v5.0 06-23-03 A)"
+    region: [world]
+    required: false
+    hle_fallback: true
+    md5: "81bbe60ba7a3d1cea1d48c14cbcc647b"
+    size: [524288, 4194304, 4089584]
+    validation: [size, md5]
+    note: "Accepts PS1 (512KB), PS2 (4MB), and PS3 (0x3E66F0) sizes. Only first 512KB used."
+    source_ref: "src/core/bios.h:9, src/core/bios.cpp:69-70, src/core/bios.cpp:81-90"
+    aliases: []

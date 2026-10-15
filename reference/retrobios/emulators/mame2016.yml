@@ -1,0 +1,488 @@
+emulator: MAME 2016
+type: libretro
+core_classification: frozen_snapshot
+source: "https://github.com/libretro/mame2016-libretro"
+upstream: "https://github.com/mamedev/mame/tree/mame0174"
+logo: "https://raw.githubusercontent.com/mamedev/mame/master/docs/source/images/MAMElogo.svg"
+profiled_date: "2026-03-22"
+source_commit: "ae07c2f88ff2482ba9f50ffc8c9e7e6fbfe97d0a"
+core_version: "0.174"
+
+cores:
+  - mame2016
+  - mess2016
+
+display_name: "Arcade (MAME 2016)"
+mame_version: "0.174"
+systems:
+  - snk-neogeo-mvs
+  - snk-neogeo-aes
+  - igs-pgm
+  - sega-naomi
+  - sega-naomi2
+  - sega-naomigd
+  - sammy-atomiswave
+  - sega-stv
+  - sega-lindbergh
+  - sega-hikaru
+  - sega-chihiro
+  - sega-triforce
+  - deco-cassette
+  - nintendo-playch10
+  - sega-megaplay
+  - sega-megatech
+  - nintendo-sfcbox
+  - nintendo-nss
+  - philips-cdi
+  - commodore-cubo
+  - namco-system246
+  - namco-system256
+  - namco-system573
+  - konami-viper
+  - taito-gnet
+  - super-kaneko-nova
+  - capcom-zn1
+  - capcom-zn2
+  - konami-gv
+  - panasonic-3do
+  - hyper-neogeo64
+  - konami-twinkle
+
+notes: |
+  Frozen snapshot of MAME 0.174 (mid-2016). 69 BIOS root sets. Upstream
+  comparison (tag mame0174): BIOS root sets identical, romload.cpp unmodified,
+  no hiscore.c added. Shallowest libretro fork.
+
+  Cheats use per-game XML files loaded from system_dir/mame2016/cheat/.
+  Samples in system_dir/mame2016/samples/.
+  Artwork in system_dir/mame2016/artwork/.
+  Software list hash XMLs in system_dir/mame2016/hash/ (437 files).
+
+  ROM naming follows MAME 0.174 conventions.
+
+files:
+  # SNK Neo Geo MVS/AES
+  - name: neogeo.zip
+    required: true
+    category: bios_zip
+    system: snk-neogeo-mvs
+    source_ref: "src/mame/drivers/neogeo.cpp:2033"
+    contents:
+      - name: sp-s2.sp1
+        description: Europe MVS v2, default
+      - name: sp-u2.sp1
+        description: US MVS v2
+      - name: asia-s3.rom
+        description: Asia MVS v3
+      - name: vs-bios.rom
+        description: Japan MVS v6 VS
+      - name: sp-45.sp1
+        description: MV1C Asia
+        size: 524288
+      - name: sm1.sm1
+        description: Z80 sound, always required
+      - name: sfix.sfix
+        description: fix tiles, always required
+      - name: 000-lo.lo
+        description: zoom table, always required
+      - name: uni-bios_3_2.rom
+        description: Universe BIOS 3.2, hack
+
+  # IGS PGM
+  - name: pgm.zip
+    required: true
+    category: bios_zip
+    system: igs-pgm
+    source_ref: "src/mame/drivers/pgm.cpp:4518"
+
+  # Sega NAOMI / NAOMI 2 / GD-ROM / Atomiswave
+  - name: naomi.zip
+    required: true
+    category: bios_zip
+    system: sega-naomi
+    source_ref: "src/mame/drivers/naomi.cpp:9464"
+
+  - name: naomi2.zip
+    required: true
+    category: bios_zip
+    system: sega-naomi2
+    source_ref: "src/mame/drivers/naomi.cpp:9469"
+
+  - name: naomigd.zip
+    required: true
+    category: bios_zip
+    system: sega-naomigd
+    source_ref: "src/mame/drivers/naomi.cpp:9470"
+
+  - name: awbios.zip
+    required: true
+    category: bios_zip
+    system: sammy-atomiswave
+    source_ref: "src/mame/drivers/naomi.cpp:9788"
+
+  - name: hod2bios.zip
+    required: false
+    category: bios_zip
+    source_ref: "src/mame/drivers/naomi.cpp:9465"
+    note: "game-specific BIOS for House of the Dead 2"
+
+  - name: f355dlx.zip
+    required: false
+    category: bios_zip
+    source_ref: "src/mame/drivers/naomi.cpp:9466"
+    note: "game-specific BIOS for Ferrari F355 Challenge deluxe"
+
+  - name: f355bios.zip
+    required: false
+    category: bios_zip
+    source_ref: "src/mame/drivers/naomi.cpp:9467"
+    note: "game-specific BIOS for Ferrari F355 Challenge twin"
+
+  - name: airlbios.zip
+    required: false
+    category: bios_zip
+    source_ref: "src/mame/drivers/naomi.cpp:9468"
+    note: "game-specific BIOS for Airline Pilots deluxe"
+
+  # Sega ST-V / Lindbergh / SP / Hikaru / Chihiro / Triforce
+  - name: stvbios.zip
+    required: true
+    category: bios_zip
+    system: sega-stv
+    source_ref: "src/mame/drivers/stv.cpp:3404"
+
+  - name: lindbios.zip
+    required: true
+    category: bios_zip
+    system: sega-lindbergh
+    source_ref: "src/mame/drivers/lindbergh.cpp:585"
+
+  - name: segasp.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/segasp.cpp:540"
+
+  - name: hikaru.zip
+    required: true
+    category: bios_zip
+    system: sega-hikaru
+    source_ref: "src/mame/drivers/hikaru.cpp:752"
+
+  - name: chihiro.zip
+    required: true
+    category: bios_zip
+    system: sega-chihiro
+    source_ref: "src/mame/drivers/chihiro.cpp:1487"
+
+  - name: triforce.zip
+    required: true
+    category: bios_zip
+    system: sega-triforce
+    source_ref: "src/mame/drivers/triforce.cpp:1027"
+
+  - name: sammymdl.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/sigmab98.cpp:2937"
+
+  # Sega Mega Drive arcade
+  - name: megaplay.zip
+    required: true
+    category: bios_zip
+    system: sega-megaplay
+    source_ref: "src/mame/drivers/megaplay.cpp:944"
+
+  - name: megatech.zip
+    required: true
+    category: bios_zip
+    system: sega-megatech
+    source_ref: "src/mame/drivers/megatech.cpp:1411"
+
+  # DECO Cassette
+  - name: decocass.zip
+    required: true
+    category: bios_zip
+    system: deco-cassette
+    source_ref: "src/mame/drivers/decocass.cpp:1653"
+
+  # Nintendo arcade
+  - name: playch10.zip
+    required: true
+    category: bios_zip
+    system: nintendo-playch10
+    source_ref: "src/mame/drivers/playch10.cpp:1660"
+
+  - name: nss.zip
+    required: true
+    category: bios_zip
+    system: nintendo-nss
+    source_ref: "src/mame/drivers/nss.cpp:1062"
+
+  - name: sfcbox.zip
+    required: true
+    category: bios_zip
+    system: nintendo-sfcbox
+    source_ref: "src/mame/drivers/sfcbox.cpp:574"
+
+  # Philips CD-i
+  - name: cdibios.zip
+    required: true
+    category: bios_zip
+    system: philips-cdi
+    source_ref: "src/mame/drivers/cdi.cpp:1294"
+
+  # Commodore Cubo (CD32-based arcade)
+  - name: cubo.zip
+    required: true
+    category: bios_zip
+    system: commodore-cubo
+    source_ref: "src/mame/drivers/cubo.cpp:1365"
+
+  # Namco boards
+  - name: sys246.zip
+    required: true
+    category: bios_zip
+    system: namco-system246
+    source_ref: "src/mame/drivers/namcops2.cpp:1582"
+
+  - name: sys256.zip
+    required: true
+    category: bios_zip
+    system: namco-system256
+    source_ref: "src/mame/drivers/namcops2.cpp:1622"
+
+  - name: sys573.zip
+    required: true
+    category: bios_zip
+    system: namco-system573
+    source_ref: "src/mame/drivers/ksys573.cpp:4691"
+
+  # Konami
+  - name: konamigx.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/konamigx.cpp:3928"
+
+  - name: konamigv.zip
+    required: true
+    category: bios_zip
+    system: konami-gv
+    source_ref: "src/mame/drivers/konamigv.cpp:848"
+
+  - name: kviper.zip
+    required: true
+    category: bios_zip
+    system: konami-viper
+    source_ref: "src/mame/drivers/viper.cpp:2811"
+
+  - name: gq863.zip
+    required: true
+    category: bios_zip
+    system: konami-twinkle
+    source_ref: "src/mame/drivers/twinkle.cpp:1334"
+
+  # Taito
+  - name: taitogn.zip
+    required: true
+    category: bios_zip
+    system: taito-gnet
+    source_ref: "src/mame/drivers/taitogn.cpp:1076"
+
+  - name: taitotz.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/taitotz.cpp:2918"
+
+  - name: taitofx1.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/zn.cpp:4986"
+
+  # PSX-based arcade boards (ZN)
+  - name: cpzn1.zip
+    required: true
+    category: bios_zip
+    system: capcom-zn1
+    source_ref: "src/mame/drivers/zn.cpp:4879"
+
+  - name: cpzn2.zip
+    required: true
+    category: bios_zip
+    system: capcom-zn2
+    source_ref: "src/mame/drivers/zn.cpp:4902"
+
+  - name: atpsx.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/zn.cpp:4932"
+
+  - name: acpsx.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/zn.cpp:4941"
+
+  - name: tps.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/zn.cpp:4952"
+
+  - name: vspsx.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/zn.cpp:4976"
+
+  - name: psarc95.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/zn.cpp:5015"
+
+  - name: atluspsx.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/zn.cpp:5041"
+
+  # Super Kaneko Nova System
+  - name: skns.zip
+    required: true
+    category: bios_zip
+    system: super-kaneko-nova
+    source_ref: "src/mame/drivers/suprnova.cpp:1785"
+
+  - name: mac2bios.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/macs.cpp:771"
+
+  - name: macsbios.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/macs.cpp:770"
+
+  # Panasonic 3DO
+  - name: 3dobios.zip
+    required: true
+    category: bios_zip
+    system: panasonic-3do
+    source_ref: "src/mame/drivers/3do.cpp:253"
+
+  # Hyper Neo-Geo 64
+  - name: hng64.zip
+    required: true
+    category: bios_zip
+    system: hyper-neogeo64
+    source_ref: "src/mame/drivers/hng64.cpp:1994"
+
+  # Arcadia Systems
+  - name: ar_bios.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/arsystems.cpp:974"
+
+  # American Laser Games
+  - name: alg_bios.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/alg.cpp:783"
+
+  # Aleck64 (N64-based)
+  - name: aleck64.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/aleck64.cpp:1166"
+
+  # Atari System 1
+  - name: atarisy1.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/atarisy1.cpp:2483"
+
+  # Exidy Max-A-Flex
+  - name: maxaflex.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/maxaflex.cpp:538"
+
+  # Crystal System
+  - name: crysbios.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/crystal.cpp:1415"
+
+  # Galaxy Games
+  - name: galgbios.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/tmaster.cpp:1865"
+
+  # Aristocrat MK5/MK6
+  - name: aristmk5.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/aristmk5.cpp:2191"
+
+  - name: aristmk6.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/aristmk6.cpp:2922"
+
+  # Pinball
+  - name: allied.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/allied.cpp:711"
+
+  - name: gp_110.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/gp_1.cpp:531"
+
+  - name: gts1.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/gts1.cpp:978"
+
+  - name: gts1s.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/gts1.cpp:981"
+
+  # Other BIOS root sets
+  - name: bubsys.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/nemesis.cpp:2720"
+
+  - name: isgsm.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/segas16b.cpp:9463"
+
+  - name: iteagle.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/iteagle.cpp:585"
+
+  - name: pyson.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/pyson.cpp:253"
+
+  - name: shtzone.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/shtzone.cpp:123"
+
+  - name: su2000.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/su2000.cpp:269"
+
+  - name: tourvis.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/tourvis.cpp:550"
+
+  - name: v4bios.zip
+    required: true
+    category: bios_zip
+    source_ref: "src/mame/drivers/mpu4vid.cpp:3654"

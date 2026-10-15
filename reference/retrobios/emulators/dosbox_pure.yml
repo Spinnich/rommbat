@@ -1,0 +1,271 @@
+emulator: DOSBox Pure
+type: standalone + libretro
+core_classification: enhanced_fork
+source: "https://github.com/libretro/dosbox-pure"
+upstream: "https://codeberg.org/schelling/dosbox-pure"
+logo: "https://raw.githubusercontent.com/schellingb/dosbox-pure/main/images/logo.png"
+profiled_date: "2026-03-23"
+source_commit: "cdaea10ce8cac231bc341ca05d4c5e4e5fe0fbd5"
+core_version: "1.0-preview7"
+display_name: "DOS (DOSBox-Pure)"
+cores: [dosbox_pure]
+systems: [dos]
+verification: sha1
+notes: |
+  No BIOS required. MT-32, Sound Canvas and SoundFont support is optional for
+  MIDI music.
+
+  ROM scanning (both modes):
+    Recursive scan of system directory for *_CONTROL.ROM and *.SF2/*.SF3.
+    ref: dosbox_pure_libretro.cpp:1399-1410
+    MT-32 requires matched pair: *_CONTROL.ROM + *_PCM.ROM (PCM name derived
+    from CONTROL name by replacing CONTROL with PCM, preserving case).
+    ref: src/gui/midi_mt32.h:189-199
+    ZIP archives also supported — scanned for files by size (65536/131072 =
+    control, 524288/1048576 = PCM), not by name.
+    ref: src/gui/midi_mt32.h:160-166
+    Files can also be on mounted C: drive (DOSBOX.SF2, MT32_CONTROL.ROM,
+    ROM1.BIN).
+    ref: dosbox_pure_libretro.cpp:2806-2813
+    Cache file DOSBoxPureMidiCache.txt written when scan >2s.
+    ref: dosbox_pure_libretro.cpp:1449-1464
+
+  Sound Canvas: the scan also lists every file whose name ends in ROM1.BIN,
+  WAVEROM1.BIN excepted, as "Sound Canvas SC-55". Selected, the Nuked-SC55
+  driver opens it at exactly 32768 bytes, then ROM2, ROM2_ST, ROM_SM,
+  WAVEROM1, WAVEROM2 and WAVEROM3 beside it, spelled with the capitalization
+  and extension of ROM1.BIN. Each file fills the slot its size names. Byte 67
+  of ROM1 selects the model, SC-55mkII/SC-55st, SC-55/SC-155, CM-300/SCC-1,
+  JV-880 or SCB-55, and the sizes the other ROMs must have. The driver does
+  not open without ROM1 and ROM2.
+  ref: dosbox_pure_libretro.cpp:1405, src/gui/midi_sc55.h:38-47,
+       src/gui/midi_sc55.h:71-95, src/gui/midi_sc55.h:97-134
+
+  Bundled MUNT (header-only mt32emu.h) for MT-32 emulation.
+  SHA1+size validation at load: unrecognized ROMs rejected (Synth::open fails).
+  ref: src/gui/mt32emu.h:2982-2988,3016-3019,5183-5187
+  12 full control ROMs + 2 PCM ROMs supported (no split ROMs in this MUNT).
+  TinySoundFont (tsf.h) for SF2/SF3 playback.
+  No firmware entries in .info file — all MIDI files optional.
+
+  DBP_STANDALONE build mode exists (same MIDI logic, different I/O layer).
+  ref: dosbox_pure_libretro.cpp:81,1588,2302
+
+files:
+  # -- MT-32 Control ROMs (64 KB) --
+
+  - name: "MT32_CONTROL.ROM"
+    description: "MT-32 Control v1.04"
+    required: false
+    hle_fallback: true
+    size: 65536
+    sha1: "5a5cb5a77d7d55ee69657c2f870416daed52dea7"
+    validation: [sha1, size]
+    source_ref: "src/gui/mt32emu.h:5112, src/gui/mt32emu.h:5129"
+
+  - name: "MT32_CONTROL.ROM"
+    description: "MT-32 Control v1.05"
+    required: false
+    hle_fallback: true
+    size: 65536
+    sha1: "e17a3a6d265bf1fa150312061134293d2b58288c"
+    validation: [sha1, size]
+    source_ref: "src/gui/mt32emu.h:5113, src/gui/mt32emu.h:5130"
+
+  - name: "MT32_CONTROL.ROM"
+    description: "MT-32 Control v1.06"
+    required: false
+    hle_fallback: true
+    size: 65536
+    sha1: "a553481f4e2794c10cfe597fef154eef0d8257de"
+    validation: [sha1, size]
+    source_ref: "src/gui/mt32emu.h:5114, src/gui/mt32emu.h:5131"
+
+  - name: "MT32_CONTROL.ROM"
+    description: "MT-32 Control v1.07"
+    required: false
+    hle_fallback: true
+    size: 65536
+    sha1: "b083518fffb7f66b03c23b7eb4f868e62dc5a987"
+    validation: [sha1, size]
+    source_ref: "src/gui/mt32emu.h:5115, src/gui/mt32emu.h:5132"
+
+  - name: "MT32_CONTROL.ROM"
+    description: "MT-32 Control BlueRidge"
+    required: false
+    hle_fallback: true
+    size: 65536
+    sha1: "7b8c2a5ddb42fd0732e2f22b3340dcf5360edf92"
+    validation: [sha1, size]
+    source_ref: "src/gui/mt32emu.h:5116, src/gui/mt32emu.h:5133"
+
+  # -- MT-32 v2.x Control ROMs (128 KB) --
+
+  - name: "MT32_CONTROL.ROM"
+    description: "MT-32 Control v2.03 (new MT-32)"
+    required: false
+    hle_fallback: true
+    size: 131072
+    sha1: "5837064c9df4741a55f7c4d8787ac158dff2d3ce"
+    validation: [sha1, size]
+    source_ref: "src/gui/mt32emu.h:5118, src/gui/mt32emu.h:5135"
+
+  - name: "MT32_CONTROL.ROM"
+    description: "MT-32 Control v2.04"
+    required: false
+    hle_fallback: true
+    size: 131072
+    sha1: "2c16432b6c73dd2a3947cba950a0f4c19d6180eb"
+    validation: [sha1, size]
+    source_ref: "src/gui/mt32emu.h:5119, src/gui/mt32emu.h:5136"
+
+  - name: "MT32_CONTROL.ROM"
+    description: "MT-32 Control v2.06"
+    required: false
+    hle_fallback: true
+    size: 131072
+    sha1: "2869cf4c235d671668cfcb62415e2ce8323ad4ed"
+    validation: [sha1, size]
+    source_ref: "src/gui/mt32emu.h:5120, src/gui/mt32emu.h:5137"
+
+  - name: "MT32_CONTROL.ROM"
+    description: "MT-32 Control v2.07"
+    required: false
+    hle_fallback: true
+    size: 131072
+    sha1: "47b52adefedaec475c925e54340e37673c11707c"
+    validation: [sha1, size]
+    source_ref: "src/gui/mt32emu.h:5121, src/gui/mt32emu.h:5138"
+
+  # -- CM-32L / LAPC-I Control ROMs (64 KB) --
+
+  - name: "CM32L_CONTROL.ROM"
+    description: "CM-32L/LAPC-I Control v1.00"
+    required: false
+    hle_fallback: true
+    size: 65536
+    sha1: "73683d585cd6948cc19547942ca0e14a0319456d"
+    validation: [sha1, size]
+    source_ref: "src/gui/mt32emu.h:5122, src/gui/mt32emu.h:5139"
+
+  - name: "CM32L_CONTROL.ROM"
+    description: "CM-32L/LAPC-I Control v1.02"
+    required: false
+    hle_fallback: true
+    size: 65536
+    sha1: "a439fbb390da38cada95a7cbb1d6ca199cd66ef8"
+    validation: [sha1, size]
+    source_ref: "src/gui/mt32emu.h:5123, src/gui/mt32emu.h:5140"
+
+  # -- CM-32LN / CM-500 / LAPC-N Control ROM (64 KB) --
+
+  - name: "CM32LN_CONTROL.ROM"
+    description: "CM-32LN/CM-500/LAPC-N Control v1.00"
+    required: false
+    hle_fallback: true
+    size: 65536
+    sha1: "dc1c5b1b90a4646d00f7daf3679733c7badc7077"
+    validation: [sha1, size]
+    source_ref: "src/gui/mt32emu.h:5124, src/gui/mt32emu.h:5141"
+
+  # -- PCM ROMs --
+
+  - name: "MT32_PCM.ROM"
+    description: "MT-32 PCM ROM"
+    required: false
+    hle_fallback: true
+    size: 524288
+    sha1: "f6b1eebc4b2d200ec6d3d21d51325d5b48c60252"
+    validation: [sha1, size]
+    source_ref: "src/gui/mt32emu.h:5126, src/gui/mt32emu.h:5143"
+    note: >
+      accepted by every MT-32 control ROM, v1.x and v2.x. Each control ROM
+      fixes the PCM size it accepts through its pcmCount: 128 requires this
+      524288 byte image. ref: src/gui/mt32emu.h:2586-2598,3167,3025
+
+  - name: "CM32L_PCM.ROM"
+    description: "CM-32L/CM-64/LAPC-I PCM ROM"
+    required: false
+    hle_fallback: true
+    size: 1048576
+    sha1: "289cc298ad532b702461bfc738009d9ebe8025ea"
+    validation: [sha1, size]
+    aliases: ["CM32LN_PCM.ROM"]
+    source_ref: "src/gui/mt32emu.h:5127, src/gui/mt32emu.h:5144"
+    note: >
+      accepted by the CM-32L and CM-32LN control ROMs, which carry pcmCount
+      256 and require this 1048576 byte image. The alias covers the name
+      derived from CM32LN_CONTROL.ROM.
+      ref: src/gui/mt32emu.h:2586-2598,3167,3025, src/gui/midi_mt32.h:194-195
+
+  # -- General MIDI SoundFont --
+
+  - name: "DOSBOX.SF2"
+    description: "General MIDI SoundFont (any .sf2/.sf3 accepted)"
+    required: false
+    hle_fallback: true
+    source_ref: "dosbox_pure_libretro.cpp:1405 (scan classifies .SF* as a SoundFont), dosbox_pure_libretro.cpp:2495-2499 (path taken from the system directory), dosbox_pure_libretro.cpp:2806-2813 (auto-detected on the mounted C: drive)"
+    note: >
+      Any .SF2 or .SF3 file in the system directory works. The core lists all
+      found SoundFonts in the MIDI config dropdown. DOSBOX.SF2 is the conventional
+      name and is also auto-detected when placed inside game content on C: drive.
+
+  # -- Roland SC-55 family ROMs (Nuked-SC55 driver) --
+
+  - name: "ROM1.BIN"
+    path: "SC-55/ROM1.BIN"
+    aliases: ["rom1.bin"]
+    description: "SC-55 family program ROM 1"
+    required: false
+    size: 32768
+    validation: [size]
+    source_ref: "dosbox_pure_libretro.cpp:1405, src/gui/midi_sc55.h:71-75, src/gui/midi_sc55.h:97-101"
+    note: >-
+      Any name ending in ROM1.BIN anywhere under the system directory is
+      listed; byte 67 selects the emulated model.
+
+  - name: "ROM2.BIN"
+    path: "SC-55/ROM2.BIN"
+    aliases: ["rom2.bin", "ROM2_ST.BIN", "rom2_st.bin"]
+    description: "SC-55 family program ROM 2"
+    required: false
+    size: [262144, 524288]
+    validation: [size]
+    source_ref: "src/gui/midi_sc55.h:41, src/gui/midi_sc55.h:78-93, src/gui/midi_sc55.h:95"
+    note: "The driver does not open without ROM1 and ROM2. ROM2_ST fills the same slot when ROM2 did not."
+
+  - name: "ROM_SM.BIN"
+    path: "SC-55/ROM_SM.BIN"
+    aliases: ["rom_sm.bin"]
+    description: "SC-55mkII/SC-55st sub-MCU ROM"
+    required: false
+    size: 4096
+    validation: [size]
+    source_ref: "src/gui/midi_sc55.h:42, src/gui/midi_sc55.h:78-93, src/gui/midi_sc55.h:113-116"
+
+  - name: "WAVEROM1.BIN"
+    path: "SC-55/WAVEROM1.BIN"
+    aliases: ["waverom1.bin"]
+    description: "SC-55 family wave ROM 1"
+    required: false
+    size: [1048576, 2097152]
+    validation: [size]
+    source_ref: "src/gui/midi_sc55.h:43-45, src/gui/midi_sc55.h:78-93, src/gui/midi_sc55.h:111-134"
+
+  - name: "WAVEROM2.BIN"
+    path: "SC-55/WAVEROM2.BIN"
+    aliases: ["waverom2.bin"]
+    description: "SC-55 family wave ROM 2"
+    required: false
+    size: [1048576, 2097152]
+    validation: [size]
+    source_ref: "src/gui/midi_sc55.h:43-45, src/gui/midi_sc55.h:78-93, src/gui/midi_sc55.h:111-134"
+
+  - name: "WAVEROM3.BIN"
+    path: "SC-55/WAVEROM3.BIN"
+    aliases: ["waverom3.bin"]
+    description: "SC-55/SC-155/CM-300 wave ROM 3"
+    required: false
+    size: 1048576
+    validation: [size]
+    source_ref: "src/gui/midi_sc55.h:43-45, src/gui/midi_sc55.h:78-93, src/gui/midi_sc55.h:117-125"

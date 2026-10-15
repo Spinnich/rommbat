@@ -1,0 +1,84 @@
+emulator: O2EM
+type: libretro
+core_classification: community_fork
+core: o2em_libretro
+cores: [o2em_libretro]
+source: "https://github.com/libretro/libretro-o2em"
+upstream: "https://sourceforge.net/projects/o2em/"
+profiled_date: "2026-03-24"
+source_commit: "679d6fec04963f6e70a7ec217e3d0ebb1fe472fc"
+core_version: "1.18"
+display_name: "Magnavox - Odyssey2 / Philips Videopac+ (O2EM)"
+systems:
+  - odyssey2
+  - videopac
+
+notes: |
+  Libretro port of O2EM, an Odyssey2/Videopac emulator by Daniel Boris
+  and André de la Rocha. Port by Arlindo M. de Oliveira.
+
+  One BIOS ROM selected via o2em_bios core option (default o2rom.bin).
+  Loaded into rom_table[0] (1024 bytes), identified by CRC32.
+  vpp=1 for Videopac+ variants (g7400.bin, jopac.bin).
+  Core fails to load without the selected BIOS.
+
+  Voice module ("The Voice" speech synthesis add-on) emulation via WAV
+  samples in system/voice/. 9 banks × 128 samples, named {bank}{sample}.WAV
+  (e.g. E480.WAV). Compiled with HAVE_VOICE=1 on most platforms. Optional:
+  core works without samples, speech is silently skipped.
+
+  BIOS loading: libretro.c load_bios() lines 145-212.
+  BIOS selection: libretro_core_options.h lines 52-64.
+  Voice loading: voice.c init_voice() lines 38-79, called from libretro.c:1060-1067.
+
+files:
+  - name: "o2rom.bin"
+    system: odyssey2
+    required: true
+    size: 1024
+    md5: "562d5ebf9e030a40d6fabfc2f33139fd"
+    sha1: "b2e1955d957a475de2411770452eff4ea19f4cee"
+    crc32: "8016a315"
+    validation: [size, crc32]
+    note: "Odyssey2 BIOS (G7000 NTSC). Default, vpp=0."
+    source_ref: "libretro.c:1143-1147"
+
+  - name: "c52.bin"
+    system: videopac
+    required: true
+    size: 1024
+    md5: "f1071cdb0b6b10dde94d3bc8a6146387"
+    sha1: "a6120aed50831c9c0d95dbdf707820f601d9452e"
+    crc32: "a318e8d6"
+    validation: [size, crc32]
+    note: "Videopac G7000 European BIOS. vpp=0, auto-sets PAL."
+    source_ref: "libretro.c:1149-1155"
+
+  - name: "g7400.bin"
+    system: videopac
+    required: true
+    size: 1024
+    md5: "c500ff71236068e0dc0d0603d265ae76"
+    sha1: "5130243429b40b01a14e1304d0394b8459a6fbae"
+    crc32: "e20a9f41"
+    validation: [size, crc32]
+    note: "Videopac+ G7400 European BIOS. vpp=1."
+    source_ref: "libretro.c:1156-1161"
+
+  - name: "jopac.bin"
+    system: videopac
+    required: true
+    size: 1024
+    md5: "279008e4a0db2dc5f1c048853b033828"
+    sha1: "54b8d2c1317628de51a85fc1c424423a986775e4"
+    crc32: "11647ca5"
+    validation: [size, crc32]
+    note: "Videopac+ G7400 French BIOS (JoPac). vpp=1."
+    source_ref: "libretro.c:1162-1167"
+
+  - name: "voice/"
+    type: directory
+    required: false
+    category: game_data
+    note: "The Voice speech synthesis WAV samples. 9 banks (E4, E8-EF) × 128 samples."
+    source_ref: "src/voice.c:38-90, libretro.c:1130-1137"

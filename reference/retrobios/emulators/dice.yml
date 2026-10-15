@@ -1,0 +1,42 @@
+emulator: DICE
+type: libretro
+core_classification: community_fork
+source: "https://github.com/mittonk/dice-libretro"
+upstream: "https://sourceforge.net/projects/dice/"
+profiled_date: "2026-03-23"
+source_commit: "ab766aa25c6ed970ece28f2df5be7daa26b9e439"
+core_version: "v0.4.2"
+display_name: "Arcade (DICE)"
+cores:
+  - dice
+systems:
+  - discrete-arcade
+
+notes: |
+  Discrete Integrated Circuit Emulator. Emulates early arcade hardware built
+  from discrete logic components with no CPU. Libretro port by Ken Mitton,
+  based on upstream DICE by Adam B.
+
+  Games load as MAME-style ZIP archives matched by CRC32 per ROM chip
+  (chips/rom.cpp:41-218). ROM-less games (Pong, Breakout, etc.) use .dmy
+  dummy launcher files. The system directory is retrieved but never used
+  for file loading (libretro.cpp:60-62).
+
+exclusion_note: >
+  The system directory is asked for and stored in retro_base_directory, which
+  is named in no other file of the tree and read nowhere: the answer is never
+  used (libretro.cpp:28,60-63).
+
+files: []
+
+analysis:
+  rom_loading:
+    method: "MAME-style ZIP, matched by CRC32 per RomDesc"
+    source_ref: "chips/rom.cpp:41-218"
+    zip_handling: "unzip library (unzip/), opened via libretro_zip_filename"
+  game_count: 21
+  rom_games: 10
+  romless_games: 11
+  filesystem_access: false
+  system_directory_used: false
+  bios_required: false

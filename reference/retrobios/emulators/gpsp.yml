@@ -1,0 +1,66 @@
+emulator: gpSP
+type: libretro
+core_classification: community_fork
+source: "https://github.com/libretro/gpsp"
+upstream: "https://github.com/davidgfnet/gpsp"
+profiled_date: "2026-03-23"
+source_commit: "5819380c2ffb0900219d700a382ee68c464ebb99"
+core_version: "Git"
+display_name: "Nintendo - Game Boy Advance (gpSP)"
+cores:
+  - gpsp
+systems:
+  - nintendo-gba
+
+notes: |
+  gpSP is a Game Boy Advance emulator originally by Exophase, forked by
+  notaz for GP2X/Pandora, now maintained by davidgfnet for libretro.
+  Ships a built-in open-source BIOS (bios/open_gba_bios.bin) compiled
+  from bios/source/ that covers most games.
+
+  The core option gpsp_bios controls BIOS selection:
+    auto     (default) - try official gba_bios.bin, fall back to built-in
+    builtin  - always use the built-in open-source BIOS
+    official - try gba_bios.bin, warn and fall back to built-in if missing
+
+  BIOS loading path (libretro/libretro.c:1239-1276):
+    1. Resolve system directory (RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY)
+    2. Append "/gba_bios.bin"
+    3. load_bios() reads 0x4000 (16 KB) into bios_rom[]
+    4. Sanity check: bios_rom[0] must be 0x18 (ARM branch opcode)
+    5. On failure, memcpy open_gba_bios_rom[] as fallback
+
+  The official BIOS improves compatibility for games that rely on
+  precise SWI behavior or BIOS checksum verification.
+
+  Upstream (notaz/Exophase) required the official BIOS with no fallback.
+  The built-in open-source BIOS is a davidgfnet/libretro addition.
+
+files:
+  - name: gba_bios.bin
+    system: nintendo-gba
+    required: false
+    hle_fallback: true
+    size: 16384
+    description: "Official GBA BIOS"
+    note: "Built-in open-source BIOS used as fallback. Real BIOS needed for full SWI accuracy and boot animation."
+    source_ref: "libretro/libretro.c:1254, gba_memory.c:3270-3281"
+
+platform_details:
+  gba:
+    bios_size: 16384
+    hle_bios: true
+    source_ref: "libretro/libretro.c:1239-1276, bios/source/core.s"
+    note: |
+      The built-in BIOS (open_gba_bios_rom, 16 KB) is an open-source
+      reimplementation compiled from bios/source/. It implements most
+      SWI calls (SoftReset, RegisterRamReset, Halt, VBlankIntrWait,
+      arithmetic, decompression, sound, multiboot).
+
+      No hash or checksum verification is performed. The only check
+      is bios_rom[0] == 0x18 (ARM branch at reset vector).
+
+      The bios_type enum (main.h:56-61) defines three modes:
+        auto_detect  - try official first, fall back to built-in
+        builtin_bios - skip file load entirely, use open_gba_bios_rom
+        official_bios - try file, warn on failure, still fall back

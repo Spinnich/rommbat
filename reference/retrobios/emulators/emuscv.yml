@@ -1,0 +1,79 @@
+emulator: EmuSCV
+type: libretro
+core_classification: community_fork
+source: "https://github.com/wzcwzc/emuscv"
+upstream: "http://takeda-toshiya.my.coocan.jp/"
+profiled_date: "2026-03-23"
+source_commit: "6d6e4594d79862dd5c2ff7f725c109e4266f0b03"
+core_version: "0.12"
+display_name: "EPOCH/YENO Super Cassette Vision"
+cores:
+  - emuscv
+systems:
+  - scv
+
+notes: |
+  Libretro port of eSCV by Takeda Toshiya (Common Source Code Project),
+  ported to libretro by MARCONATO Maxime. Upstream source mirrored at
+  https://github.com/tautologico/common-src-project (src/vm/scv/).
+
+  BIOS loading in src/vm/scv/memory.cpp:initialize() (lines 74-243).
+  Tries filenames in order: upd7801g.s01, upd7801g.bin, upd7801g.bios,
+  bios.rom, bios.bin. First successful open wins. Upstream eSCV uses
+  only BIOS.ROM (uppercase); the libretro port renamed and added
+  fallback aliases.
+
+  The BIOS is read as 0x1000 (4096) bytes into the bios[] array, mapped
+  read-only at CPU address 0x0000-0x0FFF (UPD7801 internal ROM area).
+
+  When CHECKBIOS core option is YES, the core computes MD5 of the loaded
+  data and compares against 635a978fd40db9a18ee44eff449fc126. If the
+  hash does not match, the BIOS is rejected (zeroed out,
+  bios_present=false). When CHECKBIOS is AUTO (default) or NO, any file
+  content is accepted. The log message for AUTO says "automatic (yes)"
+  but the code skips the check (code bug: != YES_VAL at line 80).
+
+  The font/character data is embedded within the BIOS at offset 0x200
+  (memory.h get_font() returns bios + 0x200). No separate font ROM file.
+
+  The core can start without BIOS (supports_no_game=true) but shows
+  "BIOS not found" or "Bad BIOS" on the OSD. Games will not run without
+  it.
+
+  The .info declares firmware_count=1, firmware0_opt=false. Matches code.
+
+files:
+  - name: "upd7801g.s01"
+    system: scv
+    required: true
+    size: 4096
+    md5: 635a978fd40db9a18ee44eff449fc126
+    validation: [md5]
+    note: "UPD7801G internal ROM (BIOS). Mapped at 0x0000-0x0FFF. Contains character font at offset 0x200."
+    source_ref: "src/vm/scv/memory.cpp:74-243"
+    aliases:
+      - "upd7801g.bin"
+      - "upd7801g.bios"
+      - "bios.rom"
+      - "bios.bin"
+
+platform_details:
+  cpu: "NEC UPD7801G"
+  bios_mapping:
+    upd7801g:
+      target: "0x0000-0x0FFF (CPU internal ROM, 4 KB)"
+      format: "raw binary"
+      source_ref: "src/vm/scv/memory.cpp:249-254"
+      notes: |
+        Memory map from memory.cpp:initialize():
+          0x0000-0x0FFF  BIOS ROM (read-only)
+          0x2000-0x3FFF  VRAM (8 KB)
+          0x8000-0xFF7F  Cartridge ROM (up to 4 banks of 32 KB)
+          0xFF80-0xFFFF  CPU internal RAM (128 bytes)
+        Font data lives inside the BIOS at offset 0x200, accessed via
+        get_font() for the VDP character rendering (src/vm/scv/vdp.cpp).
+
+  cartridge_loading:
+    formats: "cart, bin, rom, 0 (multi-file: .0/.1/.2/.3), zip"
+    banking: "4 banks of 32 KB via PC5/PC6 port lines"
+    source_ref: "src/vm/scv/memory.h, src/vm/scv/memory.cpp"

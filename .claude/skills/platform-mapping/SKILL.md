@@ -108,7 +108,7 @@ shipped 8.2.1 file: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`, `ca
 ## A third vocabulary: the BIOS manifest's system names
 
 `batocera-systems.json` is keyed by **batocera system names**, which are neither
-`es_systems.cfg`'s `<name>` nor RomM's slug. 97 of its 99 keys are exactly a `<path>` basename
+`es_systems.cfg`'s `<name>` nor RomM's slug. 99 of its 101 keys are exactly a `<path>` basename
 and so need no translation at all; the two that are not are aliased in
 `tools/build-bios-manifest.py`, which fails the build if a third appears:
 
