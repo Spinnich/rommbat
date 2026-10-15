@@ -15,16 +15,17 @@ extra chip, since it needs no firmware for one (below).
 
 ## BIOS
 
-RetroBat lists no BIOS for the Super Nintendo, and RomMBat fetches none. A few games carry an
-extra chip, such as Super Mario Kart's DSP-1, and three emulators refuse to start those without
-the chip's firmware:
+RetroBat lists no BIOS for the Super Nintendo. A few games carry an extra chip, such as Super
+Mario Kart's DSP-1, and some emulators read the chip's firmware. A sync fetches the files those
+emulators read under their own names when your RomM library has them, such as `dsp1b.data.rom`
+and `dsp1b.program.rom`. Three emulators refuse to start a DSP-1 game without its firmware:
 
 - RetroArch's Mesen-S core, which reads `dsp1b.rom` from RetroBat's `bios` folder.
 - The standalone Mesen, which reads `dsp1b.rom` from `emulators\mesen\Firmware`, not from `bios`.
 - jgenesis, which needs the file's path set in its own configuration by hand.
 
-RomMBat cannot fetch these files, so you supply them yourself. On the default emulator you need
-none of them.
+The single `dsp1b.rom` those three read has no checksum in any source RomMBat uses, so RomMBat
+cannot fetch it, and you supply it yourself. On the default emulator you need none of them.
 
 ## Saves
 

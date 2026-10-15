@@ -130,10 +130,10 @@ $ rommbat-agent bios mastersystem
     no hash to check         bios/[BIOS] Sega Master System (USA, Europe) (v1.3).sms
 ```
 
-**Exit 0. Both files RetroBat lists are hashless**, so RomMBat can neither find them in RomM nor
-recognize them on disk, and says so. That is the fourth of step 3's states for both; present,
-fetched and not in the library do not apply. `mastersystem` is one of the 30 systems with no
-joinable entry.
+**Exit 0. Both files RetroBat lists are hashless**, and that run's manifest held RetroBat's list
+alone, so it reported both in step 3's fourth state. The manifest now identifies both by the
+hashes RB-322 names, from No-Intro's names and BizHawk's database, so `bios mastersystem` reports
+them as present, to fetch, or not in the library, and fetches them to RetroBat's names.
 
 ## Which rows need firmware
 
@@ -158,8 +158,8 @@ US/EU file**: with it alone SMSHawk starts, and with the Japanese file alone it 
 and `SMSEURBIOS` to `bios_U.sms`, `bios_J.sms` and `bios_E.sms`, which RetroBat's list does not name,
 and Kega boots the cartridge without them. RB-322.
 
-So `bizhawk`/`SMSHawk` is certified with the US/EU file present, **which a user supplies**: RetroBat
-names it without a hash, and RomMBat fetches only by md5. By the maintainer's decision the two files
+So `bizhawk`/`SMSHawk` is certified with the US/EU file present, **which `bios mastersystem`
+fetches when RomM holds it**, by the hash RB-322 names. By the maintainer's decision the two files
 stay in this install's `bios\`.
 
 ## What the boot launches wrote

@@ -138,9 +138,10 @@ $ echo $?
 0
 ```
 
-**A real system with nothing to fetch, which counts as step 3 passing.** `nes` is one of the
-sixteen systems whose requirement is empty, so none of the four fetch states arises: nothing is
-present, fetched, missing from the library, or hashless.
+**A real system with nothing to fetch, which counts as step 3 passing.** RetroBat's list names
+nothing for `nes`, and at that run the manifest was RetroBat's list alone. The manifest now gives
+`nes` two firmware slots no certified row needs to boot a cartridge: BizHawk's Famicom Disk System
+BIOS and Nestopia's `NstDatabase.xml`, which `bios nes` fetches when RomM holds them.
 
 The refusal path was checked at the same time, because "no BIOS needed" and "that system does
 not exist" must not look alike:

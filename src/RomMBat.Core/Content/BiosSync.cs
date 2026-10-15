@@ -46,17 +46,16 @@ public sealed record BiosSyncOutcome
             }
 
             var parts = new List<string>();
-            var fresh = Downloaded - Upgraded;
 
-            if (fresh > 0)
+            // Downloaded counts transfers and the other two count destinations, which one
+            // transfer can serve several of, fresh and upgraded alike.
+            if (Downloaded > 0)
             {
-                var writes = Written > fresh ? $", written to {Written} paths" : string.Empty;
-                parts.Add($"{fresh} fetched ({ByteSize.Format(BytesTransferred)}){writes}");
-            }
+                var detail = Upgraded > 0
+                    ? string.Join(" and ", new[] { Written > 0 ? $"{Written} new" : null, $"{Upgraded} upgraded" }.OfType<string>())
+                    : Written > Downloaded ? $"written to {Written} paths" : null;
 
-            if (Upgraded > 0)
-            {
-                parts.Add($"{Upgraded} upgraded");
+                parts.Add($"{Downloaded} fetched ({ByteSize.Format(BytesTransferred)})" + (detail is null ? string.Empty : $", {detail}"));
             }
 
             if (Adopted > 0)
@@ -334,9 +333,18 @@ public sealed class BiosSync
                 return (0, null, changed, FailureCause.Failed, false);
             }
 
-            // Overwrites only an upgrade's target, which holds RomMBat's own bytes. Anywhere else a file that appeared since the plan was built is the user's,
-            // and the IOException below reports it rather than losing it.
-            File.Move(part, target, overwrite: step.Action == BiosAction.Upgrade);
+            // Overwrites only an upgrade's target, which holds RomMBat's own bytes. Anywhere else a
+            // file that appeared since the plan was built is the user's, and is reported rather
+            // than lost. A refused move is this destination's fault, so the bytes are not refused.
+            try
+            {
+                File.Move(part, target, overwrite: step.Action == BiosAction.Upgrade);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                SafeDelete(part);
+                return (0, null, $"it could not be written: {ex.Message}", FailureCause.Failed, false);
+            }
 
             return (response.Value!.BytesWritten, found, null, FailureCause.None, false);
         }

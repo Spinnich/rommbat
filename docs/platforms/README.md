@@ -193,12 +193,13 @@ work. All three counts are against the 51 systems above.
   step 4 in waves 4 through 7 either confirms it or finds the exception. A confirmation is worth
   recording: the file is generated, so a new entry comes from re-running the probe against an
   install that has the system populated, not from hand-editing.
-- **BIOS is smaller than the system count suggests.** Sixteen of the 51 require nothing at all.
-  Five (`mastersystem`, `vectrex`, `sega32x`, `ngp`, `ngpc`) have a requirement RetroBat names no
-  hash for, in whole. retrobios's evidence identifies every slot of `mastersystem` and `sega32x`
-  and two of `vectrex`'s three, and none of `ngp`'s or `ngpc`'s, which step 3 records in those
-  words while the pass certifies on the other eight. `neogeocd` is the outlier at 12 slots, all
-  identified.
+- **BIOS is smaller than the system count suggests.** RetroBat's own list names nothing for
+  sixteen of the 51, and five (`mastersystem`, `vectrex`, `sega32x`, `ngp`, `ngpc`) only files
+  it gives no hash for. The bundled manifest adds what every other emulator reads, mostly
+  optional boot ROMs, so most of the sixteen have a firmware slot, and retrobios's evidence
+  identifies every slot of `mastersystem` and `sega32x`, two of `vectrex`'s three, and none of
+  `ngp`'s or `ngpc`'s. A system with nothing identified certifies step 3 in those words. The
+  arcade folders hold the most slots, `mame` 100 and `fbneo` 44.
 - **Artwork outweighs the ROMs on a retro platform, by a lot.** Measured across two whole
   platforms with three kinds each and no video: `atari2600` is 296.6 KB of ROM against 28 MB of
   artwork over 53 games, and `atari5200` is 757.5 KB against 46.8 MB over 76. A set whose budget

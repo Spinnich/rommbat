@@ -17,8 +17,9 @@ RomMBat does not find its save states yet.
 
 ## BIOS
 
-No 32X emulator needs a BIOS. RetroBat lists three 32X files without a checksum, so RomMBat cannot
-look them up in RomM; every emulator here starts the games without them.
+No 32X emulator needs a BIOS: every emulator here starts the games without one. RetroBat lists
+three 32X files without a checksum, and other sources give their checksums, so a sync fetches them
+when your RomM library has them.
 
 ## Saves
 

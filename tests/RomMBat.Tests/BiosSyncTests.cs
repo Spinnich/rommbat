@@ -1230,6 +1230,54 @@ public sealed class BiosSyncTests : IDisposable
         Assert.Equal(better, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "colecovision.rom")));
     }
 
+    [Fact]
+    public async Task A_destination_taken_since_the_plan_blocks_no_other_destination_of_the_same_file()
+    {
+        // The move is refused for its own destination, so the bytes are still wanted elsewhere.
+        var wanted = Content("coleco.rom");
+        var theirs = Content("a coleco.rom the user dropped in mid-pass");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "colecovision", "coleco", "ColecoVision")
+        {
+            Firmware = [new StubFirmware(1, "bios.col", wanted)],
+        });
+
+        var manifest = Manifest(
+            ("colecovision", Md5(wanted), "bios/coleco.rom"),
+            ("colecovision", Md5(wanted), "bios/colecovision.rom"));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        Write("bios/coleco.rom", theirs);
+
+        using var connection = Connect(stub);
+        var outcome = await new BiosSync(_tree.Install(), store, connection)
+            .ApplyAsync(plan, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Failed);
+        Assert.Equal(theirs, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "coleco.rom")));
+        Assert.Equal(wanted, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "colecovision.rom")));
+    }
+
+    [Theory]
+    [InlineData(1, 1, 1, "BIOS: 1 fetched (8 KB), 1 new and 1 upgraded")]
+    [InlineData(1, 0, 2, "BIOS: 1 fetched (8 KB), 2 upgraded")]
+    [InlineData(1, 3, 0, "BIOS: 1 fetched (8 KB), written to 3 paths")]
+    [InlineData(2, 2, 0, "BIOS: 2 fetched (8 KB)")]
+    public void A_pass_summary_counts_transfers_and_says_what_each_destination_got(int downloaded, int written, int upgraded, string expected)
+    {
+        var outcome = new BiosSyncOutcome
+        {
+            Downloaded = downloaded,
+            Written = written,
+            Upgraded = upgraded,
+            BytesTransferred = 8192,
+        };
+
+        Assert.Equal(expected, outcome.Summary);
+    }
+
     // ------------------------------------------------------------------ helpers
 
     /// <summary>A stub carrying all six measured pairs, and the manifest that wants them.</summary>
