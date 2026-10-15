@@ -462,6 +462,27 @@ def build() -> dict:
             if not any(entry["path"].lower() == path.lower() for entry in target.reported.values()):
                 target.report(path, f"installed by the emulator: {item['why']}", {"*"})
 
+    # 4. One file on disk serves every folder that names its path, and a pass acts on a path once,
+    # from whichever folder's step it reaches first. So every folder's slot on a shared path takes
+    # the union of what any of them accepts, members included, and RetroBat's md5 still ranks first.
+    by_path: dict[str, list[Slot]] = {}
+    for target in folders.values():
+        for key, slot in target.slots.items():
+            by_path.setdefault(key, []).append(slot)
+    for slots in by_path.values():
+        if len(slots) < 2:
+            continue
+        for slot in slots:
+            for other in slots:
+                if other is slot:
+                    continue
+                for entry in other.accepted.values():
+                    facts = {k: v for k, v in entry.items() if k not in ("md5", "from")}
+                    for origin in entry["from"]:
+                        slot.accept(entry["md5"], origin, **facts)
+                for group in other.contents:
+                    slot.add_contents(group["files"], set(group["readers"]))
+
     systems = {}
     for name in sorted(folders):
         target = folders[name]

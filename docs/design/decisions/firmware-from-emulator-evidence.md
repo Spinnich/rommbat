@@ -21,6 +21,10 @@ list names. `data/retrobat/bios.json` is the union, built by `tools/build-bios-m
   profiles, vendored at a pinned commit under `reference/retrobios/`, cite the emulator's code by
   file and line. A multi-system profile contributes only the files for the folder's own systems,
   through the hand-maintained map in `firmware-rows.json`.
+- **A path several folders name is one file**, so every folder's firmware slot on it accepts the
+  union of what any of them accepts, members included. `ATARIOSB.ROM` serves `atari5200` and
+  `atari800`, and a pass acts on a path once, so two slots that disagreed would let the first
+  folder decide for the second.
 - **A boot measured on our tree overrides both**, recorded as a `SUPPLEMENT` in the builder with
   its evidence (`gb` takes `sgb`'s four files and `gbc`'s boot ROM, RB-293).
 

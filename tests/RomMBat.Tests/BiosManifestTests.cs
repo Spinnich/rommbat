@@ -79,8 +79,8 @@ public sealed class BiosManifestTests
         Assert.Equal(46, retrobat.Count(slot => slot.RetroBatMd5 is null && !slot.IsUnverifiable));
 
         Assert.Equal(71, slots.Count(slot => slot.IsUnverifiable));
-        Assert.Equal(327, slots.Count(slot => slot.Contents.Count > 0));
-        Assert.Equal(4, slots.Count(slot => slot.Accepted.Count > 1));
+        Assert.Equal(331, slots.Count(slot => slot.Contents.Count > 0));
+        Assert.Equal(14, slots.Count(slot => slot.Accepted.Count > 1));
         Assert.Equal(352, slots.SelectMany(slot => slot.Accepted).Select(accepted => accepted.Md5).Distinct().Count());
         Assert.Equal(615, slots.Select(slot => slot.Path).Distinct().Count());
     }
@@ -329,6 +329,32 @@ public sealed class BiosManifestTests
     }
 
     [Fact]
+    public void Every_folder_s_slot_on_a_shared_path_accepts_the_same_files()
+    {
+        // One file on disk serves every folder that names its path, and a pass acts on a path
+        // once, from the first folder's step. If two folders disagreed on what the path accepts,
+        // the first would decide for the second: atari5200's ATARIOSB.ROM slot skipping the file
+        // atari800's would fetch, or megadrive-msu calling megacd's download a different file.
+        var manifest = Fixtures.LoadBiosManifest();
+
+        var shared = manifest.Requirements
+            .GroupBy(slot => slot.Path)
+            .Where(group => group.Count() > 1)
+            .ToList();
+
+        Assert.NotEmpty(shared);
+        Assert.All(shared, group =>
+        {
+            var first = group.First();
+            Assert.All(group, slot =>
+            {
+                Assert.Equal(first.Accepted.Select(accepted => accepted.Md5), slot.Accepted.Select(accepted => accepted.Md5));
+                Assert.Equal(Members(first), Members(slot));
+            });
+        });
+    }
+
+    [Fact]
     public void Every_system_the_manifest_names_resolves_to_a_folder_RetroBat_has()
     {
         // The manifest is keyed by RetroBat folder. The generator aliases the two batocera keys
@@ -403,6 +429,9 @@ public sealed class BiosManifestTests
 
         Assert.IsType<SqliteException>(exception);
     }
+
+    private static List<(string Name, uint Crc32, long? Size)> Members(BiosRequirement slot) =>
+        [.. slot.Contents.SelectMany(contents => contents.Files).Select(member => (member.Name, member.Crc32, member.Size)).Distinct().Order()];
 
     /// <summary>The two batocera keys that are not a RetroBat folder, as the generator aliases them.</summary>
     private static string Alias(string key) => key switch

@@ -449,12 +449,27 @@ public sealed class BiosPlanner
     private static (int RetroBat, int Priority, int Region) Key(BiosAccepted accepted, FirmwareRegionOrder order) =>
         (accepted.IsRetroBats ? 0 : 1, accepted.Priority ?? int.MaxValue, order.Rank(accepted.Regions));
 
-    private static BiosStep Block(BiosStep step, string reason) => step with
-    {
-        Action = BiosAction.Blocked,
-        BytesToTransfer = 0,
-        Reason = reason,
-    };
+    /// <summary>
+    /// A transfer that will not fit. An upgrade's slot already holds an accepted file, so it stays
+    /// present and names the better one rather than reading as a missing BIOS.
+    /// </summary>
+    private static BiosStep Block(BiosStep step, string reason) => step.Action == BiosAction.Upgrade
+        ? step with
+        {
+            Action = BiosAction.AlreadyPresent,
+            Better = step.Match,
+            Match = null,
+            Chosen = null,
+            BytesToTransfer = 0,
+            Reason = $"RomM has a better-ranked file for this slot ({step.Match!.FileName}, {step.Match.NormalizedMd5}), "
+                + "and replacing RomMBat's copy would not fit the budget or the free-space floor, so the one here stays.",
+        }
+        : step with
+        {
+            Action = BiosAction.Blocked,
+            BytesToTransfer = 0,
+            Reason = reason,
+        };
 
     /// <summary>Decides where one slot stands.</summary>
     private BiosStep Inspect(

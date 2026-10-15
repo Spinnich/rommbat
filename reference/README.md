@@ -129,15 +129,17 @@ folder's own retrobios system ids, and its untagged files only where the folder'
 | ...of those, with RetroBat's md5                  | 179   |
 | ...of those, hashless and identified by a source  | 46    |
 | ...with no identity anywhere                      | 71    |
-| ...zips identified by their members               | 327   |
-| ...where several accepted files compete           | 4     |
+| ...zips identified by their members               | 331   |
+| ...where several accepted files compete           | 14    |
 | Distinct accepted md5s                            | 352   |
 | Distinct destination paths                        | 615   |
 | Read by some emulator, reported and never fetched | 2,287 |
 | ...of those, MAME software lists                  | 63    |
 
 296 is RetroBat's 360 entries less the 6 outside `bios/` and the 63 software lists, plus the 5
-`gb` takes from its siblings. The 46 are the 24 zips and 22 single files above.
+`gb` takes from its siblings. The 46 are the 24 zips and 22 single files above. A path several
+folders name, such as `ATARIOSB.ROM` for `atari5200` and `atari800`, is one file on disk, so each
+folder's slot on it accepts what any of them accepts; that union is most of the 14.
 
 **The gamelist exporter settles two units and gets a third field wrong**
 

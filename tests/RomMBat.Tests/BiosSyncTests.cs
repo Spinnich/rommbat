@@ -1105,6 +1105,43 @@ public sealed class BiosSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task An_upgrade_that_does_not_fit_leaves_the_file_present_rather_than_blocked()
+    {
+        // The slot already holds an accepted file, so a full budget costs the upgrade, not the
+        // BIOS. "Blocked" would read as a system that will not launch.
+        var older = Content("dc_boot.bin, the fallback");
+        var better = Content("dc_boot.bin, the preferred.");
+        Assert.True(better.Length > older.Length);
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "dreamcast", "dc", "Dreamcast")
+        {
+            Firmware = [new StubFirmware(1, "old.bin", older)],
+        });
+
+        var manifest = Slots(new Slot("dreamcast", "bios/dc/dc_boot.bin",
+            [new Offer(Md5(better), Priority: 1), new Offer(Md5(older), Priority: 2)]));
+
+        using var store = LocalStore.Open(_tree.Install());
+        await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        store.Settings.Set(SettingStore.ContentMaxBytes, older.Length.ToString(CultureInfo.InvariantCulture), DateTimeOffset.UtcNow);
+        stub.Platforms[0] = stub.Platforms[0] with
+        {
+            Firmware = [new StubFirmware(1, "old.bin", older), new StubFirmware(2, "new.bin", better)],
+        };
+
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+        var step = Assert.Single(plan.Steps);
+
+        Assert.Equal(BiosAction.AlreadyPresent, step.Action);
+        Assert.Equal(2, step.Better!.Id);
+        Assert.DoesNotContain("will not launch", step.Reason, StringComparison.Ordinal);
+        Assert.Equal(0, plan.Count(BiosAction.Blocked));
+        Assert.True(plan.IsNoOp);
+    }
+
+    [Fact]
     public async Task An_upgrade_leaves_a_file_changed_since_RomMBat_wrote_it()
     {
         var older = Content("dc_boot.bin, the fallback");

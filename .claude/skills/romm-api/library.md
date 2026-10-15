@@ -261,7 +261,7 @@ columns for that reason.
   md5 only when both sides hold a byte-identical build**, and otherwise on its members. RomM
   serves no member hashes, so the reference side is the manifest: where a reader's retrobios
   profile lists the members' crc32 and size, a same-named zip is downloaded aside and lands only
-  if every member one reader lists matches (`BiosZip`). 327 firmware slots are zips identified
+  if every member one reader lists matches (`BiosZip`). 331 firmware slots are zips identified
   that way. A zip no reader lists members for, where the library holds one under the exact name,
   stays `MissingFromLibrary` with `BiosStep.SameName` set and is never fetched. A slot with no
   identity at all, absent from disk, gets the same pointer and stays `Unverifiable`.

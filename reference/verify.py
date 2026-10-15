@@ -133,8 +133,15 @@ def manifest_slots():
         46,
     )
     check("  ...with no identity anywhere", sum(1 for s in slots if not s["accepted"] and not s.get("contents")), 71)
-    check("  ...zips identified by their members", sum(1 for s in slots if s.get("contents")), 327)
-    check("  ...where several accepted files compete", sum(1 for s in slots if len(s["accepted"]) > 1), 4)
+    check("  ...zips identified by their members", sum(1 for s in slots if s.get("contents")), 331)
+    check("  ...where several accepted files compete", sum(1 for s in slots if len(s["accepted"]) > 1), 14)
+    # Not a statistic: a pass acts on a path once, so every folder's slot on it must agree.
+    agreed = {}
+    for s in slots:
+        agreed.setdefault(s["path"].lower(), set()).add(
+            (tuple(a["md5"] for a in s["accepted"]), tuple(sorted(str(g["files"]) for g in s.get("contents", []))))
+        )
+    check("Shared paths whose slots accept different files", sorted(p for p, v in agreed.items() if len(v) > 1), [])
     check("Distinct accepted md5s", len({a["md5"] for s in slots for a in s["accepted"]}), 352)
     check("Distinct destination paths", len({s["path"] for s in slots}), 615)
     check("Reported, never fetched", sum(len(body["reported"]) for body in systems.values()), 2287)

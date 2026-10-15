@@ -123,17 +123,20 @@ extension.
 
 ```console
 $ rommbat-agent bios mastersystem
-2 RetroBat names no hash for
+6 present, 1 not in your RomM library
+Where files compete for one slot, regions are preferred USA > Europe > Japan > world.
 
   mastersystem
-    no hash to check         bios/[BIOS] Sega Master System (Japan) (v2.1).sms
-    no hash to check         bios/[BIOS] Sega Master System (USA, Europe) (v1.3).sms
+    not in your library      bios/SMS_kr.sms
+      read by bizhawk/SMSHawk
+      e49e63328c78fe3d24ae32bf903583e0
 ```
 
-**Exit 0. Both files RetroBat lists are hashless**, and that run's manifest held RetroBat's list
-alone, so it reported both in step 3's fourth state. The manifest now identifies both by the
-hashes RB-322 names, from No-Intro's names and BizHawk's database, so `bios mastersystem` reports
-them as present, to fetch, or not in the library, and fetches them to RetroBat's names.
+Run on the agent tree at RetroBat 8.3.0, 2026-10-15, after `bios mastersystem --apply`. **Exit 0.**
+RetroBat lists both `[BIOS]` files without a hash, and the manifest identifies them by the hashes
+RB-322 names, from No-Intro's names and BizHawk's database. So both are among the six present,
+beside the copies Genesis Plus GX and gearsystem read under their own names. BizHawk's Korean
+BIOS is the one file the test library lacks.
 
 ## Which rows need firmware
 

@@ -64,7 +64,8 @@ Schema 2 keys each RetroBat folder to its firmware slots and a `reported` list. 
 `{md5, sha1, size, priority, region, from}`, ranked with RetroBat's own md5 first; `readers`, the
 `emulator/core` rows that read it and `retrobat` where RetroBat's list names it; `required`; an
 optional `supplement`; and for a zip, `contents`, the members each reader lists by crc32 and size.
-`reported` holds what is read but never fetched, with why: no identity, a path outside `bios/`,
+A path several folders name accepts the same files in each, the union of theirs, since it is one
+file on disk. `reported` holds what is read but never fetched, with why: no identity, a path outside `bios/`,
 an emulator with no cited directory, a MAME software list, firmware an emulator installs itself.
 Who decides what is in
 [firmware-from-emulator-evidence](../docs/design/decisions/firmware-from-emulator-evidence.md).
