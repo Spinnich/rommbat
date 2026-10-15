@@ -36,7 +36,7 @@ shape, slot, set and floor are defined in [docs/design/glossary.md](docs/design/
 | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | Calling RomM: `RomM.Client`, pairing, scopes, a 401, 403 or 409                        | `romm-api`: "Traps", "Scopes"                                                                                |
 | Reading or writing inside RetroBat: `es_*.cfg`, hooks, the ES menu, `gamelist.xml`     | `retrobat-layout`: the section named after the file                                                          |
-| BIOS and firmware                                                                      | `retrobat-layout`: "bios/ is a shared tree", then `platform-mapping` for the manifest's names                |
+| BIOS and firmware: which file a row reads, and what to upload to RomM                  | `python3 tools/firmware.py`, then `retrobat-layout`: "bios/ is a shared tree", `platform-mapping`            |
 | A RomM platform landing in the wrong folder, or unmapped                               | `platform-mapping`: "Resolution chain", "Adding or fixing a mapping"                                         |
 | Saves, states, slots, conflicts, memory cards: `SaveSync`, `SaveFlushService`, `Save*` | `save-sync`: "Where the flush passes live", then "The four shapes" or "Protocol rules"                       |
 | Outbox, journal, spool, `TreeLock`, relative paths, the token, clock skew              | `offline-and-portable`                                                                                       |

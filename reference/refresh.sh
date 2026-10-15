@@ -116,10 +116,11 @@ if [ "$out" != "$here" ]; then
 fi
 
 # data/retrobat/bios.json and data/retrobat/platforms.json are derived from the files
-# just fetched, so a refresh that moves a firmware entry or a platform name leaves them
-# stale. Checked rather than regenerated, deliberately: this script's contract is "review
-# the resulting diff", and silently rewriting a committed generated file hides exactly the
-# change the script exists to surface.
+# just fetched, and docs/platforms/firmware.md from bios.json and the retrobios profiles, so
+# a refresh that moves a firmware entry or a platform name leaves them stale. Checked rather
+# than regenerated, deliberately: this script's contract is "review the resulting diff", and
+# silently rewriting a committed generated file hides exactly the change the script exists to
+# surface.
 #
 # Collected rather than left to `set -e`, so one stale file does not hide the other or
 # stop verify.py from reporting the numbers.
@@ -127,6 +128,7 @@ echo
 stale=0
 python3 ../tools/build-bios-manifest.py --check || stale=1
 python3 ../tools/build-platform-map.py --check || stale=1
+python3 ../tools/build-firmware-docs.py --check || stale=1
 
 echo
 drift=0

@@ -111,6 +111,10 @@ class SizeBudgetTest(unittest.TestCase):
         self.assertEqual(self.errors("wiki/x.md", 500), [])
         self.assertEqual(self.errors("CLAUDE.md", 200), [])
 
+    def test_the_generated_firmware_matrix_has_no_budget(self) -> None:
+        self.assertEqual(self.errors("docs/platforms/firmware.md", 5000), [])
+        self.assertEqual(self.errors("docs/platforms/other.md", 501), ["docs/platforms/other.md: 501 lines, budget 500"])
+
 
 class HistoryPhrasingTest(unittest.TestCase):
     def errors(self, text: str) -> list[str]:

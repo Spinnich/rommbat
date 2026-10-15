@@ -22,14 +22,19 @@ own menu before your pad works.
 Only BizHawk's SMSHawk needs a BIOS, and it refuses to start any game without one. Every other
 emulator starts without.
 
-A sync fetches both Master System BIOS files from your RomM library, under the names SMSHawk looks
-for, whatever they are called in RomM:
+Upload these to RomM, under any name, and a sync fetches them under the names SMSHawk looks for:
 
-- `[BIOS] Sega Master System (USA, Europe) (v1.3).sms`, for a USA or European game
-- `[BIOS] Sega Master System (Japan) (v2.1).sms`, for a Japanese one
+| For                    | The BIOS                         | md5                                |
+| ---------------------- | -------------------------------- | ---------------------------------- |
+| A USA or European game | Master System (USA, Europe) v1.3 | `840481177270d5642a14ca71ee72844c` |
+| A Japanese game        | Master System (Japan) v2.1       | `24a519c53f67b00640d0048ef7089105` |
+| A Korean game          | Master System (Korea)            | `e49e63328c78fe3d24ae32bf903583e0` |
 
-It also fetches the copies some RetroArch cores read under their own names, such as `bios_U.sms`.
-If your library lacks them, see [BIOS and firmware](../using/bios.md).
+The first two also land as the copies some RetroArch cores read under their own names, such as
+`bios_U.sms`, though those cores start without them. The
+[firmware matrix](https://github.com/Spinnich/rommbat/blob/main/docs/platforms/firmware.md#mastersystem)
+lists every file and which emulator reads it, and [BIOS and firmware](../using/bios.md) covers
+what to do when your library lacks one.
 
 ## Saves
 

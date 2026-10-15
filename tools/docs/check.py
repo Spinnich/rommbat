@@ -46,8 +46,10 @@ EXCLUDED_PREFIXES = (
 )
 EXCLUDED_PARTS = ("/fixtures/",)
 
-# Hand-written Markdown line budgets. The first matching rule wins.
+# Hand-written Markdown line budgets. The first matching rule wins, and None is no budget: a
+# generated page is as long as its data, and its generator's --check owns it.
 LINE_BUDGETS = (
+    (re.compile(r"^docs/platforms/firmware\.md$"), None),
     (re.compile(r"(^|/)SKILL\.md$"), 300),
     (re.compile(r"^CLAUDE\.md$"), 200),
     (re.compile(r"(^|/)CLAUDE\.md$"), 60),
@@ -283,7 +285,7 @@ def check_file(rel: str, text: str, findings: Findings, defined_facts: set[str] 
     lines = text.count("\n") + (0 if text.endswith("\n") or not text else 1)
     for pattern, budget in LINE_BUDGETS:
         if pattern.search(rel):
-            if lines > budget:
+            if budget is not None and lines > budget:
                 findings.errors.append(f"{rel}: {lines} lines, budget {budget}")
             break
 

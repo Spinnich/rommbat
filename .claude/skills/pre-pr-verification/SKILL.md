@@ -24,6 +24,8 @@ mkdocs build --strict           # the guide in wiki/: its links, anchors and nav
 cd reference && python3 verify.py
 python3 tools/build-platform-map.py --check     # bundled data is what its generator emits
 python3 tools/build-bios-manifest.py --check
+python3 tools/build-firmware-docs.py --check  # docs/platforms/firmware.md, from bios.json
+python3 tools/firmware_guard.py   # no tracked or unignored file is known firmware, by md5
 git ls-files --eol -- '*.sh'    # every line must start i/lf
 ```
 
@@ -81,6 +83,8 @@ cost there.
 - No emulator INI was written. Configuration goes through `es_settings.cfg`.
 - Nothing was written outside the RetroBat tree.
 - No secret, token or instance URL is in the diff.
+- No firmware, ROM or save bytes are in the diff. `tools/firmware_guard.py` catches known firmware
+  by md5; nothing catches the rest.
 - Every new user-visible string is reachable without a mouse.
 
 ## When the change touches sync
@@ -125,6 +129,7 @@ docs for the terms the diff touches (the command name, the class, the table, the
 | A rule that only exists because something was measured       | The skill for that area, plus its fact in `docs/upstream/`, and a `docs/design/decisions/` record it amends |
 | A milestone or stage changing state                          | The GitHub milestone and issue that track it                                                                |
 | A minimum RomM or RetroBat version                           | The `version-adoption` skill, "Adopt: a stable"                                                             |
+| The BIOS manifest, its builder, the row map or retrobios     | Rerun `tools/build-firmware-docs.py`; fix the guide pages that say what to upload                           |
 | A new project, folder, probe set or bundled data file        | `docs/architecture/projects.md` and `reference-data.md`                                                     |
 | A folder, type or trap a nested `CLAUDE.md` names            | That project's `CLAUDE.md`, and the routing table in the root `CLAUDE.md`                                   |
 

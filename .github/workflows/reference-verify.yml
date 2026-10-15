@@ -8,7 +8,8 @@ name: Verify reference data
 # The bundled platform map and BIOS manifest are derived from the same vendored files,
 # so both are checked here too: nothing else would notice data/retrobat/platforms.json
 # drifting from the generator that owns it, and a stale data/retrobat/bios.json fails only
-# in the .NET suite, a long way from the refresh that caused it.
+# in the .NET suite, a long way from the refresh that caused it. The firmware matrix in
+# docs/platforms/ is generated from the manifest, so it is checked with it.
 
 on:
   push:
@@ -21,6 +22,8 @@ on:
       - data/retrobat/firmware-rows.json
       - tools/build-platform-map.py
       - tools/build-bios-manifest.py
+      - tools/build-firmware-docs.py
+      - docs/platforms/firmware.md
       - tools/firmware_sources.py
       - tools/vendor-retrobios.py
       - .github/workflows/reference-verify.yml
@@ -57,3 +60,6 @@ jobs:
 
       - name: Check the bundled BIOS manifest is what its generator emits
         run: python3 tools/build-bios-manifest.py --check
+
+      - name: Check the firmware matrix is what its generator emits
+        run: python3 tools/build-firmware-docs.py --check

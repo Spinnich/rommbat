@@ -28,8 +28,9 @@ game. Three of the nine can be staged ahead of time, which is a different claim 
 1. Folder mapping resolves, and the record names **which layer** resolved it.
 2. Multi-disc and multi-file games land correctly: the shapes this library holds for the
    system are recorded, and each lands where the emulator reads it and launches from ES.
-3. The firmware slots the system's emulators read, in the bundled manifest, resolved against
-   RomM by md5; what RomM lacks is listed, and never fails the pass.
+3. The firmware slots the system's emulators read, in the bundled manifest and its
+   [matrix](firmware.md), resolved against RomM by md5; what RomM lacks is listed, and never
+   fails the pass.
 4. Save shape classified (A/B/C/D) **for this emulator**, and the battery save round-trips.
 5. Save state round-trips including its screenshot, per this emulator's `es_savestates.cfg`
    entry, with the declared directory confirmed against where it really writes.
@@ -174,9 +175,9 @@ police formats, and which one a user keeps in RomM is theirs to choose.
 
 Steps 1, 2 and 3 need no emulator running, so they can be batched for a whole wave ahead of
 time: the mapping layer, the `<extension>` list and the library's multi-file shapes, and
-`rommbat-agent bios <system>` for all four BIOS states. That stages the record files with six
-of nine steps open, and it means the wave's BIOS gaps are known before a controller is picked
-up. Steps 4 through 8 cannot be staged, because each needs a game running, and step 9 is a
+`tools/firmware.py gaps <system>` with `rommbat-agent bios <system>` for the BIOS states. That
+stages the record files with six of nine steps open, and it means the wave's BIOS gaps are
+known before a controller is picked up. Steps 4 through 8 cannot be staged, because each needs a game running, and step 9 is a
 re-sync over what they leave behind.
 
 ### What the bundled data already answers, and what it does not

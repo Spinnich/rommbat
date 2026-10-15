@@ -62,5 +62,7 @@ note naming the better file instead. Every other rule of "never overwrite under 
 
 No tool downloads a retrobios binary. `tools/vendor-retrobios.py` fetches metadata alone, under
 retrobios's MIT notice; its firmware files are licensed to no one.
+`tools/firmware_guard.py` fails a tree holding any file whose md5 a vendored source or the
+manifest names, in `tools/pre-pr.ps1` and on every pull request.
 
 Fetch timing, the budget and eviction are [firmware-budget-and-triggers](firmware-budget-and-triggers.md).

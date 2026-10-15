@@ -138,6 +138,39 @@ def applies_to(entry: dict, profile: dict, libretro: bool) -> bool:
     return mode == "both" or (mode == "libretro") == libretro
 
 
+def load_profiles(reference: Path) -> dict[str, dict]:
+    import yaml  # Only the generators, the query tool and verify.py need it; mkdocs already installs it.
+
+    return {
+        path.stem: yaml.safe_load(path.read_text(encoding="utf-8"))
+        for path in sorted((reference / "retrobios" / "emulators").glob("*.yml"))
+    }
+
+
+def _ref_text(value) -> str | None:
+    if isinstance(value, dict):
+        return "; ".join(f"{mode}: {ref}" for mode, ref in value.items())
+    return str(value) if value else None
+
+
+def source_refs(profile: dict, slot_path: str) -> list[str]:
+    """The emulator source lines a profile cites for the entries that land on one slot. An entry
+    lands on a slot when its relative path, standalone path, name, archive or an alias is the
+    slot path's tail, which is how tools/build-bios-manifest.py joined them."""
+    wanted = slot_path.replace("\\", "/").lower()
+    found: list[str] = []
+    for entry in profile.get("files") or []:
+        if not isinstance(entry, dict):
+            continue
+        names = [entry.get(key) for key in ("standalone_path", "path", "name", "archive")]
+        names += [str(alias).replace("\\", "/").rsplit("/", 1)[-1] for alias in entry.get("aliases") or []]
+        if any(name and wanted.endswith("/" + str(name).replace("\\", "/").lstrip("./").lower()) for name in names):
+            ref = _ref_text(entry.get("source_ref"))
+            if ref and ref not in found:
+                found.append(ref)
+    return found
+
+
 class Evidence:
     """What the vendored sources say identifies a file a RetroBat folder's rows read.
 
@@ -146,12 +179,9 @@ class Evidence:
     leads is a dump catalog, where the name is the catalog's own and stands for one dump."""
 
     def __init__(self, reference: Path):
-        import yaml  # Only the generator and verify.py need it; mkdocs already installs it.
+        import yaml
 
-        self.profiles = {
-            path.stem: yaml.safe_load(path.read_text(encoding="utf-8"))
-            for path in sorted((reference / "retrobios" / "emulators").glob("*.yml"))
-        }
+        self.profiles = load_profiles(reference)
         self.bizhawk = yaml.safe_load((reference / "retrobios" / "platforms" / "bizhawk.yml").read_text(encoding="utf-8"))
         subset = json.loads((reference / "retrobios" / "database-subset.json").read_text(encoding="utf-8"))
         self.ref = subset["_ref"]
