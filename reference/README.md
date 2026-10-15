@@ -176,16 +176,16 @@ ScreenScraper's marquee is an arcade cabinet marquee.
 
 ## Snapshot
 
-The RetroBat files are RetroBat 8.2.1 (`system/version.info: 8.2.1-stable-win64`), pulled
-2026-08-25. The `romm-*` files are `rommapp/romm` master, pulled 2026-09-14.
+The files are at the floor:
 
-**The RetroBat files are level with the floor, not with master.** They stay at the newest
-release, because a pull from master would put the vendored copy ahead of every shipped RetroBat.
+| Files                                                         | Ref                                                                                             |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `systems_names.lst`, `es_systems.cfg`, `retrobat-license.txt` | `RetroBat-Official/retrobat` tag `8.3.0`, published 2026-10-10                                  |
+| `es_savestates.cfg`, `batocera-systems.json`                  | `RetroBat-Official/emulatorlauncher` commit `79f5b1aaf659`, the last before 8.3.0 was published |
+| `romm-*`                                                      | `rommapp/romm` tag `5.3.1`                                                                      |
+| `retrobios/`                                                  | `Abdess/retrobios` commit `527526a8e2be`, `_ref` in `database-subset.json`                      |
 
-**RetroBat master carries three changes the snapshot does not**, none of which moves a number in
-`verify.py`. They are listed so the next RetroBat adoption starts from a list rather than a diff:
-
-- `es_systems.cfg` adds `.decomp` to `cps3`, `naomi` and `naomi2`.
-- `es_systems.cfg` adds `gearsystem` as a libretro core for one system.
-- `es_savestates.cfg` gains an `amiberry` emulator block: slots 1 to 9, `{{system}}/amiberry`,
-  files named `{{romfilename}}-{{slot0}}.uss`.
+A pull from either upstream's default branch would put the vendored copy ahead of every shipped
+release, so what master carries beyond the floor is a scout pass's to report, not this
+directory's (the `version-adoption` skill). `refresh.sh` prints each ref it fetched at, and a
+refresh that moves one rewrites this table, since no check compares it to the code.
