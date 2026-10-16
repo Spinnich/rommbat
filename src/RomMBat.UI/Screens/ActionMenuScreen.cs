@@ -16,7 +16,7 @@ namespace RomMBat.UI.Screens;
 /// and the cursor skips it, exactly as a list row is.
 /// </para>
 /// </remarks>
-public sealed class ActionMenuScreen : IScreen, IWindowedScreen, IPopupScreen, IDisposable
+public sealed class ActionMenuScreen : IScreen, IWindowedScreen, IPointerScreen, IPopupScreen, IDisposable
 {
     private readonly ListScreen _list;
 
@@ -57,6 +57,8 @@ public sealed class ActionMenuScreen : IScreen, IWindowedScreen, IPopupScreen, I
     public ListView Window => _list.Window;
 
     public bool Reading => false;
+
+    public bool PointAt(int index) => _list.PointAt(index);
 
     public ScreenCommand Handle(NavAction action) => _list.Handle(action);
 

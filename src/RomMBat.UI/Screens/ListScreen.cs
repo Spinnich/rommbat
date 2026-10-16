@@ -55,7 +55,7 @@ public sealed record LoadProgress(int Done, int Total)
 /// window at a time and stop at the ends, so either end is one press away.
 /// </para>
 /// </remarks>
-public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveScreen, IActionScreen, IDisposable
+public sealed class ListScreen : IScreen, IWindowedScreen, IPointerScreen, IReturnAware, ILiveScreen, IActionScreen, IDisposable
 {
     private readonly Func<IReadOnlyList<ListRow>> _rows;
     private readonly Func<int, ScreenCommand> _choose;
@@ -631,6 +631,23 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
         }
 
         _state = new ListState(rows, cursor);
+    }
+
+    /// <summary>
+    /// Selects a row under a pointer. A fact on a reading list, or a row that cannot be chosen,
+    /// is not selectable, for the reason the cursor skips it.
+    /// </summary>
+    public bool PointAt(int index)
+    {
+        var state = _state;
+
+        if (Reading || IsLoading || index < 0 || index >= state.Rows.Count || !state.Rows[index].Available)
+        {
+            return false;
+        }
+
+        _state = state with { Cursor = index };
+        return true;
     }
 
     public ScreenCommand Handle(NavAction action)

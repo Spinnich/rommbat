@@ -270,6 +270,29 @@ public interface IWindowedScreen
 }
 
 /// <summary>
+/// A screen whose items a pointer can land on.
+/// </summary>
+/// <remarks>
+/// <b>An index into what the screen draws, so a screen never sees a coordinate.</b> The renderer
+/// tags each item with its index and the shell hit-tests; the index is the row's place in
+/// <see cref="IWindowedScreen.Rows"/>, an answer's in a confirmation, a key's in the keyboard.
+/// Pointing never commits: a click is pointing followed by Accept, run by the navigator.
+/// </remarks>
+public interface IPointerScreen
+{
+    /// <summary>Moves the selection to the item, or leaves it when that item cannot be selected.</summary>
+    /// <returns>True when the item is now selected.</returns>
+    bool PointAt(int index);
+}
+
+/// <summary>A screen that takes typed characters as well as button presses.</summary>
+public interface ITextEntryScreen
+{
+    /// <summary>Appends characters a physical keyboard produced.</summary>
+    void Type(string text);
+}
+
+/// <summary>
 /// A screen that has to rebuild when it becomes current again.
 /// </summary>
 /// <remarks>

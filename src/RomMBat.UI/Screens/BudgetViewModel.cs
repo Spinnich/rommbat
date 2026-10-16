@@ -24,7 +24,7 @@ namespace RomMBat.UI.Screens;
 /// it here would be the speculative acquire that makes a concurrent flush skip its upload.
 /// </para>
 /// </remarks>
-public sealed class BudgetViewModel : IScreen, IActionScreen
+public sealed class BudgetViewModel : IScreen, IPointerScreen, IActionScreen
 {
     /// <summary>The ladder for the disk budget. Null is "no budget", which is the state today.</summary>
     private static readonly long?[] Budgets =
@@ -82,6 +82,18 @@ public sealed class BudgetViewModel : IScreen, IActionScreen
     public string Title => "Disk space";
 
     public int Cursor { get; private set; }
+
+    /// <summary>Selects a row under a pointer.</summary>
+    public bool PointAt(int index)
+    {
+        if (index < 0 || index >= Rows.Count)
+        {
+            return false;
+        }
+
+        Cursor = index;
+        return true;
+    }
 
     /// <summary>
     /// Which slice of the rows is on screen.

@@ -415,7 +415,12 @@ types at all, so every screen is walked in tests by the gamepad map alone with n
 `ShellWindow` knows about both the framework and the pad. If something in the UI project cannot
 be tested without a window, it is in the wrong project.
 
-No primary flow may require a mouse.
+The pad, the keyboard and the mouse all drive it, and the pad comes first. A key means what
+`es_input.cfg`'s keyboard entry says (`KeyboardBindings`), so it is the key EmulationStation
+uses, and it reaches the screens as the same held names a pad produces. The mouse points at items
+a screen tagged with their index (`IPointerScreen`): hover selects, a click is selecting then
+Accept, the wheel steps, right-click is Back, and a footer hint is clickable. A screen never sees
+a coordinate. A physical keyboard types directly on a text screen (`ITextEntryScreen`).
 
 ## `tests/RomMBat.Tests`
 

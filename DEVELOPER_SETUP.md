@@ -173,7 +173,7 @@ dotnet run --project src/RomMBat.Agent -- pair --root D:\retrobat-test --server 
 dotnet run --project src/RomMBat.UI -- --root D:\retrobat-test
 ```
 
-The desk keyboard map is in [src/RomMBat.UI/CLAUDE.md](src/RomMBat.UI/CLAUDE.md). What each
+The keyboard and mouse behavior is in [src/RomMBat.UI/CLAUDE.md](src/RomMBat.UI/CLAUDE.md). What each
 screen and command does for a user is in the guide under [wiki/](wiki/README.md), which says how
 to preview it.
 

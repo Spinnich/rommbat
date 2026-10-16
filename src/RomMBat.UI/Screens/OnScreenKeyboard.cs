@@ -103,7 +103,7 @@ public sealed record KeyboardKey(
 /// does not have.
 /// </para>
 /// </remarks>
-public sealed class OnScreenKeyboard : IScreen
+public sealed class OnScreenKeyboard : IScreen, IPointerScreen, ITextEntryScreen
 {
     /// <summary>Cells across, which every row fills exactly.</summary>
     public const int Columns = KeyboardLayouts.Columns;
@@ -449,6 +449,27 @@ public sealed class OnScreenKeyboard : IScreen
 
         return ScreenCommand.Stay;
     }
+
+    /// <summary>Selects the key under a pointer, by its place in <see cref="Keys"/>.</summary>
+    public bool PointAt(int index)
+    {
+        var keys = Keys;
+
+        if (index < 0 || index >= keys.Count)
+        {
+            return false;
+        }
+
+        CursorRow = keys[index].Row;
+        CursorColumn = keys[index].Column;
+        return true;
+    }
+
+    /// <summary>What a physical keyboard types: appended as it is, and the grid is left where it was.</summary>
+    void ITextEntryScreen.Type(string text) => Type(text);
+
+    /// <summary>Removes the last character, for a physical Backspace.</summary>
+    public void DeleteLast() => Backspace();
 
     private void Type(string face)
     {

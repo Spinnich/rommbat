@@ -134,13 +134,27 @@ internal static class ScreenView
     /// <summary>How tall a help icon is drawn.</summary>
     private const double IconSize = 30;
 
-    public static Control Hint(FooterHint hint)
+    /// <summary>Marks a control as the item at <paramref name="index"/>, for the shell's hit test.</summary>
+    private static T Pointable<T>(T control, int index)
+        where T : Control
+    {
+        control.Tag = new PointerTarget(index);
+        return control;
+    }
+
+    /// <param name="key">
+    /// The keyboard key to show in place of the pad's glyph, or null to draw the glyph. Given
+    /// once the keyboard was the last thing used, so the footer names what the hand is on.
+    /// </param>
+    public static Control Hint(FooterHint hint, string? key = null)
     {
         ArgumentNullException.ThrowIfNull(hint);
 
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
 
-        row.Children.Add(EsGlyph(IconName(hint)) ?? DrawnGlyph(hint));
+        row.Children.Add(key is null
+            ? EsGlyph(IconName(hint)) ?? DrawnGlyph(hint)
+            : KeyCap(key));
 
         // In capitals and the help font, as ES's help bar reads (RB-423).
         row.Children.Add(new TextBlock
@@ -154,6 +168,24 @@ internal static class ScreenView
 
         return row;
     }
+
+    /// <summary>A key's name in a small rounded box, as a keyboard footer draws it.</summary>
+    private static Border KeyCap(string key) => new()
+    {
+        BorderBrush = Theme.Base,
+        BorderThickness = new Thickness(2),
+        CornerRadius = new CornerRadius(5),
+        Padding = new Thickness(7, 0, 7, 0),
+        VerticalAlignment = VerticalAlignment.Center,
+        Child = new TextBlock
+        {
+            Text = key.ToUpperInvariant(),
+            Foreground = Theme.Base,
+            FontFamily = Theme.HelpFont,
+            FontSize = 20,
+            VerticalAlignment = VerticalAlignment.Center,
+        },
+    };
 
     /// <summary>One of ES's help icons in the theme's tint, or null when the install has none to read.</summary>
     private static Viewbox? EsGlyph(string name)
@@ -380,8 +412,9 @@ internal static class ScreenView
             grid.RowDefinitions.Add(new RowDefinition(CellHeight, GridUnitType.Pixel));
         }
 
-        foreach (var key in keyboard.Keys)
+        for (var keyIndex = 0; keyIndex < keyboard.Keys.Count; keyIndex++)
         {
+            var key = keyboard.Keys[keyIndex];
             var selected = key == keyboard.Selected;
             var face = keyboard.Face(key);
 
@@ -410,6 +443,7 @@ internal static class ScreenView
                 },
             };
 
+            cell.Tag = new PointerTarget(keyIndex);
             Grid.SetRow(cell, key.Row);
             Grid.SetColumn(cell, key.Column);
             Grid.SetRowSpan(cell, key.Height);
@@ -643,7 +677,7 @@ internal static class ScreenView
 
         for (var index = window.Start; index < window.Start + window.Count; index++)
         {
-            body.Children.Add(ListItem(rows[index], index == screen.Cursor, screen.Reading));
+            body.Children.Add(Pointable(ListItem(rows[index], index == screen.Cursor, screen.Reading), index));
         }
 
         body.Children.Add(More(window.Below, "below"));
@@ -994,7 +1028,7 @@ internal static class ScreenView
 
         for (var index = window.Start; index < window.Start + window.Count; index++)
         {
-            stack.Children.Add(EditorItem(rows[index], index == cursor));
+            stack.Children.Add(Pointable(EditorItem(rows[index], index == cursor), index));
         }
 
         stack.Children.Add(More(window.Below, "below"));
@@ -1278,6 +1312,9 @@ internal static class ScreenView
     {
         var behind = Build(underneath);
         behind.Opacity = 0.25;
+
+        // Seen and not touched: a click that landed on a row under the dimming would choose it.
+        behind.IsHitTestVisible = false;
         return behind;
     }
 
@@ -1300,7 +1337,7 @@ internal static class ScreenView
 
         for (var index = window.Start; index < window.Start + window.Count; index++)
         {
-            stack.Children.Add(ListItem(menu.Rows[index], index == menu.Cursor));
+            stack.Children.Add(Pointable(ListItem(menu.Rows[index], index == menu.Cursor), index));
         }
 
         stack.Children.Add(More(window.Below, "below"));
@@ -1355,7 +1392,7 @@ internal static class ScreenView
             var button = confirm.Buttons[index];
             var selected = index == confirm.Selected;
 
-            buttons.Children.Add(new Border
+            buttons.Children.Add(Pointable(new Border
             {
                 Background = selected ? Theme.Selector : Theme.Well,
                 BorderBrush = Brushes.Transparent,
@@ -1370,7 +1407,7 @@ internal static class ScreenView
                     FontSize = 20,
                     HorizontalAlignment = HorizontalAlignment.Center,
                 },
-            });
+            }, index));
         }
 
         stack.Children.Add(buttons);
@@ -1606,3 +1643,9 @@ internal static class ScreenView
         return canvas;
     }
 }
+
+/// <summary>What a drawn item stands for, read back by the shell when a pointer lands on it.</summary>
+internal readonly record struct PointerTarget(int Index);
+
+/// <summary>What a drawn footer hint does when clicked.</summary>
+internal readonly record struct HintTarget(NavAction Action);

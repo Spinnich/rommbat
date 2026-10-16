@@ -18,7 +18,7 @@ namespace RomMBat.UI.Screens;
 /// a sort other than name there is no index, and the row says so rather than vanishing.
 /// </para>
 /// </remarks>
-public sealed class ViewOptionsScreen : IScreen, IWindowedScreen, IPopupScreen, ILiveScreen, IReturnAware, IDisposable
+public sealed class ViewOptionsScreen : IScreen, IWindowedScreen, IPointerScreen, IPopupScreen, ILiveScreen, IReturnAware, IDisposable
 {
     private const string SearchRow = "Search for";
     private const string LetterRow = "Jump to letter";
@@ -83,6 +83,8 @@ public sealed class ViewOptionsScreen : IScreen, IWindowedScreen, IPopupScreen, 
     public ListView Window => _list.Window;
 
     public bool Reading => false;
+
+    public bool PointAt(int index) => _list.PointAt(index);
 
     public ScreenCommand Handle(NavAction action) => _list.Handle(action);
 
