@@ -76,7 +76,7 @@ that case gets caught.
 **Read and write the declared directory, not the emulator's native one.** Several emulators
 write states under their own naming and RetroBat mirrors them into the declared path a moment
 later, live. Measured on PPSSPP: native `psp/PPSSPP_STATE/<GAMEID>_<ver>_<slot>.ppst` is
-mirrored to `psp/ppsspp/<rom filename>_<slot>.ppst` about 120 ms after each save, and ES hands
+mirrored to `psp/ppsspp/<rom filename>_<slot>.ppst` a few milliseconds after each save, and ES hands
 the launcher the **declared** path via `-state_file`, which reaches the emulator as `--state=`.
 So writing a downloaded state into the declared directory is what makes it loadable.
 

@@ -96,13 +96,15 @@ driven under stock `PerGameTitle` produced **one card for the set**:
 and `_2` is an empty formatted card. The stem is `gamedb.yaml`'s `saveName` with the disc
 marker removed, so it carries the region (`(USA)`) but not the disc and not the rom's
 `(Rev 1)`. DuckStation binds a disc set through its own database, which is exactly what
-`PerGameFileTitle` would throw away by keying on three separate filenames.
+`PerGameFileTitle` throws away for a disc launched from its own file, keying the card on that
+file's name.
 
-**The playlist is not what binds the set; the database is.** Final Fantasy VII, three discs
-loose with no `.m3u` and launched as disc 1 alone, produced one `Final Fantasy VII (USA)_1.mcd`
-resolving to all three serials. That is the layout a RomM sync creates, so stock is safe on it.
+**The playlist is not what binds the set; the database is.** Metal Gear Solid's disc 2, launched
+from its own `.cue` rather than through the `.m3u` a RomM sync lands beside it, opened the same
+`Metal Gear Solid (USA)_1.mcd` the playlist opens (RB-9b). So stock keeps one card for the set
+however a disc is launched.
 
-**But the card and the state are keyed differently, in the same session.** The card is per disc
+**But the card and the state are keyed differently.** The card is per disc
 **set**; the save state is `Final Fantasy VII (USA) (Disc 1)_01.sav`, named from the rom file
 and therefore per **disc**. A `rom_id` can own one card and three states, so never assume one
 save per game or one save per file. The mapping is many-to-many: 130 of the database's 698

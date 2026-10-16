@@ -62,8 +62,9 @@ Keys read from the live `es_features.cfg`, with the value RomMBat should set:
 Leave `duckstation_memcardtype` alone. The stock `PerGameTitle` keys the card by DuckStation's
 internal database title, which sounds worse than a filename key until a multi-disc set is
 driven: the title is `gamedb.yaml`'s `saveName` with the disc marker stripped, so the whole set
-shares one card while regions stay separate. `PerGameFileTitle` keys on three separate
-filenames and splits it.
+shares one card while regions stay separate. `PerGameFileTitle` keys on the file launched:
+through the set's `.m3u` it opens the playlist's one card, but a disc launched from its own
+file gets a card of its own, so loose discs split the set (RB-9b).
 
 **`dolphin_sync_saves` does not do what its description says, and four documents repeated the
 description.** It is GameCube only, it runs once per launch inside `emulatorlauncher` before
