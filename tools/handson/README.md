@@ -110,3 +110,21 @@ with `Enter` as Start, `Backspace` as Select and `Home` and `End` as L2 and R2.
   for launches the agent drives with `Send-Key`.
 - **Evidence stays local.** Screenshots go under `probe-output/`, which git ignores. The PR's
   Hands-on section names the paths and says what each showed.
+
+## Driving an emulator by keyboard
+
+Emulators are played with a controller. Keyboard input reaches them only as far as each
+emulator's generated config happens to bind it, which RetroBat does not promise, so a missing
+bind is a limit of this kit, not a defect to report. These are the ones met so far:
+
+- **PCSX2 has no keyboard Start.** `emulatorlauncher` writes `P1_Start = Keyboard/Return` under
+  `[Pad1]`, a key PCSX2 does not read, so a game waiting on Start never moves. To drive one, set
+  `ps2.disableautocontrollers=1` in `es_settings.cfg`, which stops the generator rewriting
+  `[Pad1]`, and add `Start = Keyboard/Return` to the tree's `PCSX2.ini`. Take both back out
+  afterwards.
+- **`Send-Key -Window` lands only the first key of a call** on PCSX2 and PPSSPP, and none at all
+  on RetroArch. Send one key per call, with a screenshot between, and send to RetroArch without
+  `-Window`, which reaches it while it holds the foreground.
+- **Each emulator maps the face buttons to different letters.** PCSX2 takes Cross as `KeyZ`,
+  PPSSPP takes it as `KeyX` (`saves/psp/SYSTEM/controls.ini`), and RetroArch takes it as `x`, the
+  RetroPad's B (`input_player1_b` in `retroarch.cfg`). Read the bind before sending.
