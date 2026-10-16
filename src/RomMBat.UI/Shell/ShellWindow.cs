@@ -19,7 +19,8 @@ namespace RomMBat.UI.Shell;
 /// </summary>
 /// <remarks>
 /// <b>This is the only class that knows about both Avalonia and the pad</b>, which is what
-/// keeps every screen testable: the screens see <see cref="NavAction"/> and nothing else.
+/// keeps every screen testable: the screens see no Avalonia type and no coordinate, only a
+/// <see cref="NavAction"/>, the index of an item pointed at, or text typed.
 /// <para>
 /// <b>The pad, the keyboard and the mouse are all supported, and the pad is first.</b> A key
 /// means what <c>es_input.cfg</c>'s keyboard entry says it does, so it is the key EmulationStation
@@ -370,7 +371,9 @@ internal sealed class ShellWindow : Window
             return;
         }
 
-        if (!properties.IsLeftButtonPressed)
+        // The first press of a double click has already acted, and a second would choose
+        // whatever the screen it opened draws under the pointer.
+        if (!properties.IsLeftButtonPressed || e.ClickCount > 1)
         {
             return;
         }
