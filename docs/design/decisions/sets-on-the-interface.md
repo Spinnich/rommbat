@@ -35,7 +35,11 @@ A sync the budget cut short says so and offers nothing. `evict --apply`, and its
 transfers under `partial/`, stay on the console.
 
 **A set is named after what it mirrors.** Every scope already has a name in RomM, so creating a
-set is pick, pick, create, and the on-screen keyboard is not on the path at all.
+set is pick, pick, create, and the on-screen keyboard is not on the path at all. A name another
+set already has gains what tells the new set apart: its folder when it has one, otherwise its
+scope, then a number. A set holding the same scope, value and folder as an existing one is
+refused with that set's name, because it would pull the same games twice. Both rules are the
+interface's: `sets add` is given its name, refuses a taken one, and takes an exact duplicate.
 
 **A scope that can be picked has to be completable.** A test asserts the general rule: every
 scope offered as pickable has something that can produce its value, the platform picker or the

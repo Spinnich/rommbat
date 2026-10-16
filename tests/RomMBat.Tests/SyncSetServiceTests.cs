@@ -365,6 +365,106 @@ public sealed class SyncSetServiceTests : IDisposable
         Assert.Equal(SetRefusal.NameTaken, Service.Add(draft, Now).Refusal);
     }
 
+    // ---- naming a set after what it holds ----
+
+    [Fact]
+    public void A_name_another_set_holds_takes_the_scope_and_the_set_is_still_made()
+    {
+        SeedPlatform(4, "snes");
+        Service.Add(new SetDraft { Name = "snes", Scope = CatalogScopeKind.Platform, ScopeValue = "7" }, Now);
+
+        var outcome = Service.AddNamedAfterScope(
+            new SetDraft { Name = "snes", Scope = CatalogScopeKind.Platform, ScopeValue = "4" },
+            Now);
+
+        // The interface cannot type a name, so a taken one is answered with a free one rather
+        // than with a refusal there is no way past.
+        Assert.Equal(SetRefusal.None, outcome.Refusal);
+        Assert.Equal("snes (Platform)", outcome.Set!.Name);
+        Assert.Equal(2, Service.List().Count);
+    }
+
+    [Fact]
+    public void A_second_set_over_one_platform_into_another_folder_is_named_after_the_folder()
+    {
+        var folders = Service.FoldersKnownHere();
+        Service.AddNamedAfterScope(
+            new SetDraft { Name = "Arcade", Scope = CatalogScopeKind.Platform, ScopeValue = "9", FolderOverride = folders[0] },
+            Now);
+
+        var outcome = Service.AddNamedAfterScope(
+            new SetDraft { Name = "Arcade", Scope = CatalogScopeKind.Platform, ScopeValue = "9", FolderOverride = folders[1] },
+            Now);
+
+        // The folder is what tells the two apart, so it is what the name says.
+        Assert.Equal(SetRefusal.None, outcome.Refusal);
+        Assert.Equal($"Arcade ({folders[1]})", outcome.Set!.Name);
+    }
+
+    [Fact]
+    public void When_the_described_name_is_taken_too_a_number_follows_it()
+    {
+        Service.Add(new SetDraft { Name = "snes", Scope = CatalogScopeKind.Platform, ScopeValue = "7" }, Now);
+        Service.Add(new SetDraft { Name = "snes (Platform)", Scope = CatalogScopeKind.Platform, ScopeValue = "8" }, Now);
+
+        var outcome = Service.AddNamedAfterScope(
+            new SetDraft { Name = "snes", Scope = CatalogScopeKind.Platform, ScopeValue = "4" },
+            Now);
+
+        Assert.Equal("snes (Platform) 2", outcome.Set!.Name);
+    }
+
+    [Fact]
+    public void A_set_holding_exactly_what_another_holds_is_refused_and_names_that_one()
+    {
+        var folder = Service.FoldersKnownHere()[0];
+        Service.Add(
+            new SetDraft { Name = "mine", Scope = CatalogScopeKind.Platform, ScopeValue = "9", FolderOverride = folder },
+            Now);
+
+        var outcome = Service.AddNamedAfterScope(
+            new SetDraft
+            {
+                Name = "Arcade",
+                Scope = CatalogScopeKind.Platform,
+                ScopeValue = "9",
+                FolderOverride = folder.ToUpperInvariant(),
+            },
+            Now);
+
+        // Two identical sets would pull the same games twice for nothing. The folder is
+        // compared without case, as es_systems.cfg's folders are.
+        Assert.Equal(SetRefusal.AlreadyHeld, outcome.Refusal);
+        Assert.Equal("mine", outcome.Value);
+        Assert.Contains("'mine'", outcome.Problem, StringComparison.Ordinal);
+        Assert.Single(Service.List());
+    }
+
+    [Fact]
+    public void A_platform_given_by_slug_is_compared_by_the_id_it_resolves_to()
+    {
+        SeedPlatform(4, "snes");
+        Service.Add(new SetDraft { Name = "mine", Scope = CatalogScopeKind.Platform, ScopeValue = "4" }, Now);
+
+        var outcome = Service.AddNamedAfterScope(
+            new SetDraft { Name = "snes", Scope = CatalogScopeKind.Platform, ScopeValue = "snes" },
+            Now);
+
+        Assert.Equal(SetRefusal.AlreadyHeld, outcome.Refusal);
+    }
+
+    [Fact]
+    public void The_console_still_takes_an_exact_duplicate_under_a_name_of_its_own()
+    {
+        SeedPlatform(4, "snes");
+        Service.Add(new SetDraft { Name = "a", Scope = CatalogScopeKind.Platform, ScopeValue = "4" }, Now);
+
+        // The rule is the interface's, which picks names itself; sets add is given one.
+        Assert.Equal(
+            SetRefusal.None,
+            Service.Add(new SetDraft { Name = "b", Scope = CatalogScopeKind.Platform, ScopeValue = "4" }, Now).Refusal);
+    }
+
     [Fact]
     public void Removing_a_set_that_is_not_there_says_so()
     {
@@ -426,6 +526,12 @@ public sealed class SyncSetServiceTests : IDisposable
                     ScopeValue = "4",
                     FolderOverride = "nope",
                 },
+                Now).Problem,
+            Service.AddNamedAfterScope(
+                new SetDraft { Name = "again", Scope = CatalogScopeKind.Platform, ScopeValue = "4" },
+                Now).Problem,
+            Service.AddNamedAfterScope(
+                new SetDraft { Name = "again", Scope = CatalogScopeKind.Platform, ScopeValue = "4" },
                 Now).Problem,
             Service.Edit("ghost", new SetEdit(), Now).Problem,
             Service.Remove("ghost").Problem,

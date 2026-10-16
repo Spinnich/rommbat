@@ -35,6 +35,9 @@ public enum SetRefusal
     /// <summary>A set of that name already exists.</summary>
     NameTaken,
 
+    /// <summary>Another set already holds the same scope, value and folder.</summary>
+    AlreadyHeld,
+
     /// <summary>No set of that name exists.</summary>
     NotFound,
 }
@@ -387,6 +390,115 @@ public sealed class SyncSetService
     {
         ArgumentNullException.ThrowIfNull(draft);
 
+        return Validate(draft) is { } refused ? refused : Store(Definition(draft), now);
+    }
+
+    /// <summary>
+    /// Defines a set named after what it holds, taking a free name when that one is taken.
+    /// </summary>
+    /// <remarks>
+    /// <b>The interface's add, because the interface cannot type a name.</b> It names a set after
+    /// the platform or collection picked, and refusing a taken name there is a dead end with no
+    /// row to rename on. So a taken name gains what tells the new set apart: its folder when it
+    /// has one, which is what separates two sets over one arcade platform, and otherwise its
+    /// scope, then a number. <see cref="Add"/> keeps refusing, because a console is given its name.
+    /// <para>
+    /// <b>A set holding exactly what another holds is refused, and only here.</b> Same scope,
+    /// value and folder would pull the same games twice under two names, and naming the set that
+    /// already holds them is the useful answer. <c>sets add</c> is told a name and takes it.
+    /// </para>
+    /// </remarks>
+    public SetOutcome AddNamedAfterScope(SetDraft draft, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+
+        if (Validate(draft) is { } refused)
+        {
+            return refused;
+        }
+
+        var definition = Definition(draft);
+        var sets = _session.Store.SyncSets.List();
+
+        if (sets.FirstOrDefault(set => Holds(set, definition)) is { } holder)
+        {
+            return SetOutcome.No(
+                SetRefusal.AlreadyHeld,
+                $"'{holder.Name}' already holds this {SyncSetStore.ScopeLabel(holder.Scope).ToLowerInvariant()}.",
+                holder.Name);
+        }
+
+        var taken = sets.Select(set => set.Name).ToHashSet(StringComparer.Ordinal);
+        return Store(definition with { Name = FreeName(definition, taken) }, now);
+    }
+
+    private static bool Holds(SyncSetDefinition set, SyncSetDefinition other) =>
+        set.Scope == other.Scope
+        && string.Equals(set.ScopeValue, other.ScopeValue, StringComparison.Ordinal)
+        && string.Equals(set.FolderOverride, other.FolderOverride, StringComparison.OrdinalIgnoreCase);
+
+    private static string FreeName(SyncSetDefinition definition, HashSet<string> taken)
+    {
+        if (!taken.Contains(definition.Name))
+        {
+            return definition.Name;
+        }
+
+        var described =
+            $"{definition.Name} ({definition.FolderOverride ?? SyncSetStore.ScopeLabel(definition.Scope)})";
+
+        var name = described;
+
+        for (var number = 2; taken.Contains(name); number++)
+        {
+            name = string.Create(CultureInfo.InvariantCulture, $"{described} {number}");
+        }
+
+        return name;
+    }
+
+    private SetOutcome Store(SyncSetDefinition definition, DateTimeOffset now)
+    {
+        try
+        {
+            return SetOutcome.Ok(_session.Store.SyncSets.Add(definition, now));
+        }
+        catch (SyncSetExistsException ex)
+        {
+            return SetOutcome.No(SetRefusal.NameTaken, ex.Message, definition.Name);
+        }
+    }
+
+    /// <summary>The definition a validated draft stores, with a platform slug turned into its id.</summary>
+    private SyncSetDefinition Definition(SetDraft draft) =>
+        new()
+        {
+            Name = draft.Name,
+            Scope = draft.Scope,
+            ScopeValue = ScopeValueOf(draft),
+            MaxGames = draft.MaxGames,
+            MaxBytes = draft.MaxBytes,
+            Ordering = draft.Ordering,
+            FolderOverride = draft.FolderOverride,
+        };
+
+    // A platform scope takes the fs_slug the mapping table lists as readily as the numeric
+    // id the API wants, because the fs_slug is the one a person has in front of them.
+    // Resolved here so the stored scope stays the id the endpoint accepts.
+    private string ScopeValueOf(SetDraft draft)
+    {
+        var value = draft.ScopeValue ?? string.Empty;
+
+        return draft.Scope == CatalogScopeKind.Platform
+            && !int.TryParse(value, out _)
+            && _session.Store.PlatformMap.Find(value)?.PlatformId is { } platformId
+                ? platformId.ToString(CultureInfo.InvariantCulture)
+                : value;
+    }
+
+    /// <summary>The refusal for a draft that cannot be stored, or null when it can.</summary>
+    private SetOutcome? Validate(SetDraft draft)
+    {
         // A narrowed grant degrades by feature rather than failing later with a 403 in the
         // middle of a sync, so the refusal happens here, at the point of definition.
         if (RequiresCollections(draft.Scope)
@@ -404,20 +516,14 @@ public sealed class SyncSetService
                 $"A set that holds a {SyncSetStore.ScopeLabel(draft.Scope).ToLowerInvariant()} needs to say which one.");
         }
 
-        // A platform scope takes the fs_slug the mapping table lists as readily as the numeric
-        // id the API wants, because the fs_slug is the one a person has in front of them.
-        // Resolved here so the stored scope stays the id the endpoint accepts.
-        if (draft.Scope == CatalogScopeKind.Platform && !int.TryParse(value, out _))
+        if (draft.Scope == CatalogScopeKind.Platform
+            && !int.TryParse(value, out _)
+            && _session.Store.PlatformMap.Find(value)?.PlatformId is null)
         {
-            if (_session.Store.PlatformMap.Find(value)?.PlatformId is not { } platformId)
-            {
-                return SetOutcome.No(
-                    SetRefusal.UnknownPlatform,
-                    $"'{value}' is not a platform this install knows.",
-                    value);
-            }
-
-            value = platformId.ToString(CultureInfo.InvariantCulture);
+            return SetOutcome.No(
+                SetRefusal.UnknownPlatform,
+                $"'{value}' is not a platform this install knows.",
+                value);
         }
 
         if (draft.FolderOverride is { } folder && !EsSystemsFile.Load(_session.Install).HasFolder(folder))
@@ -428,25 +534,7 @@ public sealed class SyncSetService
                 folder);
         }
 
-        try
-        {
-            return SetOutcome.Ok(_session.Store.SyncSets.Add(
-                new SyncSetDefinition
-                {
-                    Name = draft.Name,
-                    Scope = draft.Scope,
-                    ScopeValue = value,
-                    MaxGames = draft.MaxGames,
-                    MaxBytes = draft.MaxBytes,
-                    Ordering = draft.Ordering,
-                    FolderOverride = draft.FolderOverride,
-                },
-                now));
-        }
-        catch (SyncSetExistsException ex)
-        {
-            return SetOutcome.No(SetRefusal.NameTaken, ex.Message, draft.Name);
-        }
+        return null;
     }
 
     /// <summary>

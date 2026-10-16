@@ -30,7 +30,9 @@ A collection sync set does not need it, because RomMBat asks RomM for collection
 4. Choose the platform or collection.
 5. Choose Create set, the last row.
 
-RomMBat names the set after what you chose, so you type nothing. It then
+RomMBat names the set after what you chose, so you type nothing. If another set already has that
+name, the new one adds its folder or its kind, such as `Arcade (fbneo)` or `SNES (Platform)`. A
+set that holds exactly what another one does is refused, and the message names that set. It then
 asks RomM which games are in the set straight away, which on a large library can take a few
 minutes. Press Back and choose Stop to stop early: what it found so far is kept, and the next
 check carries on from there. When it finishes, press Accept to reach the set.

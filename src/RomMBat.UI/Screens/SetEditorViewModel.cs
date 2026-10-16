@@ -164,7 +164,9 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
     public ListView Window => ListWindow.Compute(Cursor, Rows.Count);
 
 
-    /// <summary>The refusal from Core, shown where the eye already is.</summary>
+    /// <summary>
+    /// The refusal from Core, shown where the eye already is, until a pick changes what it described.
+    /// </summary>
     public string? Problem { get; private set; }
 
     /// <summary>
@@ -337,6 +339,7 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
             index =>
             {
                 _scope = scopes[index].Kind;
+                Problem = null;
                 _platformValue = null;
                 _platformLabel = null;
                 _platformFolder = null;
@@ -372,6 +375,7 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
             index =>
             {
                 _platformValue = platforms[index].PlatformId.ToString(CultureInfo.InvariantCulture);
+                Problem = null;
                 _platformLabel = platforms[index].Label;
                 _platformFolder = platforms[index].Folder;
                 _name = platforms[index].Label;
@@ -429,6 +433,7 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
             index =>
             {
                 _collectionValue = options[index].Value;
+                Problem = null;
                 _collectionLabel = options[index].Label;
                 _name = options[index].Label;
                 return ScreenCommand.Pop;
@@ -478,6 +483,7 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
             index =>
             {
                 _folder = index == 0 ? null : folders[index - 1];
+                Problem = null;
                 return ScreenCommand.Pop;
             },
             acceptLabel: "Use this");
@@ -512,7 +518,9 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
             return ScreenCommand.Pop;
         }
 
-        var added = service.Add(
+        // Named after the pick, and given a free name when that one is taken, because there is
+        // no row here to rename it on.
+        var added = service.AddNamedAfterScope(
             new SetDraft
             {
                 Name = _name,
