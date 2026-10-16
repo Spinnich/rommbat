@@ -197,10 +197,11 @@ re-reads it each pass. `save-sync` holds the rules, including that `save_target`
 `title_id`, that neither is unique per ROM, and that GameCube's has two shapes from 5.3.1.
 
 **A directory save this device has never held is placed when its container is fixed and on
-disk.** The key comes from the server's file name by the same rule, so `BASLUS-21050.zip` lands as
+disk and no unit already sits under its key.** The key comes from the server's file name by the same rule, so `BASLUS-21050.zip` lands as
 `Mcdf01.ps2/BASLUS-21050/` beside the card's other saves. A container with a `*` segment, or one
 the emulator has not made yet, is refused with "run the game once", because only a local unit or
-the emulator can say where it goes.
+the emulator can say where it goes. A unit already under the key may belong to another game that
+shares the serial, so it is refused with `saves bind` as the remedy (#205).
 
 **Disagreement fails closed, and an absence is not a disagreement.** Two routes naming different
 games bind nothing and record the refusal, because picking a side uploads one game's save under
