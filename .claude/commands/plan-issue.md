@@ -81,15 +81,17 @@ issue under "Settled".
 
 Write the issue draft to the plan file, plus what the sweep checked and found, and call
 `ExitPlanMode`. The draft is the title, the labels and the body below. The maintainer's approval
-is the go-ahead to file.
+is the go-ahead to file. When the sweep ended on a duplicate, the draft is the comment for that
+issue instead, and step 6 files nothing new.
 
 ## Step 6: file
 
 1. Write the body to a file in the scratchpad.
-   `gh issue create --title "<title>" --label <bug|enhancement> --body-file <file>`. Add the
-   `platform` label for a certified row or a system's support. Do not set `semver:*`; `/start-issue`
-   picks it from the diff.
-2. Apply what the maintainer approved on existing issues, now that the new number exists to link:
+   `gh issue create --title "<title>" --label <bug|enhancement|platform> --body-file <file>`. One
+   type label, as CONTRIBUTING's "Labels and release notes" has it: `platform` alone for a
+   certified row or a system's support, otherwise `bug` or `enhancement`. Do not set `semver:*`;
+   `/start-issue` picks it from the diff. Skip this when the sweep ended on a duplicate.
+2. Apply what the maintainer approved on existing issues, linking the new number when there is one:
    `gh issue close <n> --reason completed|"not planned" --comment "<why, with the commit or #new>"`,
    `gh issue comment <n> --body "<findings>"`, or `gh issue edit <n>`. Do nothing they did not
    approve.

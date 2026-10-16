@@ -6,7 +6,8 @@ read-when: Before starting, driving or reviewing a PR, or when deciding whether 
 # Workflow
 
 You have three jobs: **decide, play, merge.** Everything else runs without you. Each command
-runs its work to a merge-ready PR and stops only when it needs one of those three.
+runs its work to its end, a merge-ready PR for most, and stops only when it needs one of those
+three.
 
 ## Which command
 
