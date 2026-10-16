@@ -22,11 +22,10 @@ public sealed record EditorRow(string Label, string Value, string? Detail, bool 
 /// somewhere else would make its recorded membership an answer to a different question, and
 /// <see cref="SyncSetStore.UpdatePolicy"/> refuses to carry that.
 /// <para>
-/// <b>Nothing here needs the on-screen keyboard except the name and a search term.</b> Caps and
-/// ordering step through fixed choices on Left and Right, which is what a d-pad is for; typing
-/// "8 GB" on a grid of letters is the interaction this whole stage exists to avoid. Accept
-/// opens a picker and never adjusts, which is Argosy's rule and the one most easily got wrong
-/// by writing the obvious thing first.
+/// <b>Nothing here needs the on-screen keyboard.</b> Every scope is something RomM has already
+/// named, so the set takes its name from what is picked. Accept opens a picker and never
+/// adjusts, which is Argosy's rule and the one most easily got wrong by writing the obvious
+/// thing first.
 /// </para>
 /// <para>
 /// <b>The refusal comes from Core and is shown verbatim.</b> This screen does not decide
@@ -43,25 +42,8 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
     private string? _platformValue;
     private string? _platformLabel;
     private string? _platformFolder;
-    private string? _searchTerm;
-
-    /// <summary>The facets and properties, which the library's view options pick with too.</summary>
-    /// <remarks>Internal so a test can seed the values a picker would otherwise fetch.</remarks>
-    internal FilterChoices Filters { get; }
-
     private string? _collectionValue;
     private string? _collectionLabel;
-
-    /// <summary>
-    /// True once a person has typed a name themselves.
-    /// </summary>
-    /// <remarks>
-    /// A platform and a collection both already have a name in RomM, so making somebody spell
-    /// one out on a d-pad to mirror it is work for nothing. The name follows what was chosen
-    /// until it is edited, and then it stops moving, because silently overwriting a name
-    /// somebody typed would be worse than asking for it in the first place.
-    /// </remarks>
-    private bool _namedByHand;
     private string? _folder;
     private readonly Func<Uri, RomMConnection>? _connect;
 
@@ -77,13 +59,6 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
         _name = existing?.Name ?? string.Empty;
         _scope = existing?.Scope ?? CatalogScopeKind.Platform;
         _folder = existing?.FolderOverride;
-
-        // Loaded from the stored set, so editing a filter set opens on its filter rather than on
-        // a blank one showing "anything", and a set defined from the couch can be changed from it.
-        var stored = existing?.Scope == CatalogScopeKind.Filter ? SyncSetService.FilterOf(existing) : null;
-
-        _searchTerm = stored?.SearchTerm;
-        Filters = new FilterChoices(session, stored, connect);
 
         if (existing?.Scope == CatalogScopeKind.Platform)
         {
@@ -102,14 +77,7 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
     /// <summary>The values as they were when the editor opened, which is what "unsaved" is against.</summary>
     private readonly string _opened;
 
-    /// <summary>
-    /// Everything the editor would save, and nothing it merely draws.
-    /// </summary>
-    /// <remarks>
-    /// Read from the values rather than the rows, because the rows change without anyone
-    /// editing: the facet values arrive from RomM while the editor is open, and a facet the
-    /// library has no values for leaves the list.
-    /// </remarks>
+    /// <summary>Everything the editor would save, and nothing it merely draws.</summary>
     private string Snapshot() =>
         string.Join(
             '|',
@@ -119,8 +87,6 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
                 _platformValue ?? string.Empty,
                 _collectionValue ?? string.Empty,
                 _folder ?? string.Empty,
-                _searchTerm ?? string.Empty,
-                Filters.Snapshot(),
             ]);
 
     /// <summary>True once anything differs from how the editor opened.</summary>
@@ -154,12 +120,6 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
 
     /// <summary>True when this is defining a set rather than changing one.</summary>
     public bool IsNew => _existing is null;
-
-    /// <summary>True when a filter would match everything, which is worth saying before it does.</summary>
-    private bool IsEmptyFilter =>
-        _scope == CatalogScopeKind.Filter
-        && string.IsNullOrWhiteSpace(_searchTerm)
-        && Filters.IsEmpty;
 
     /// <summary>
     /// True when this set has to be told which RetroBat folder it writes into.
@@ -198,9 +158,8 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
     /// <b>Decided here rather than in the renderer, because the renderer cannot be tested.</b>
     /// The windowing arithmetic lived in <c>ScreenView</c>, so a screen that simply never called
     /// it drew every row it had and everything past the height of the display went off it, with
-    /// the cursor moving somewhere invisible. That happened twice, to two screens, and the
-    /// second time was found from the couch on a twenty-two row filter editor. A property is
-    /// something a test can assert on; a call the renderer might not make is not.
+    /// the cursor moving somewhere invisible. A property is something a test can assert on; a
+    /// call the renderer might not make is not.
     /// </remarks>
     public ListView Window => ListWindow.Compute(Cursor, Rows.Count);
 
@@ -212,8 +171,8 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
     /// The rows, which are never none.
     /// </summary>
     /// <remarks>
-    /// <b>The floor is the fix for #106.</b> An existing set that is not filter-scoped and
-    /// needs no folder built nothing at all: <c>Hints</c> then indexed <c>Rows[Cursor]</c> on
+    /// <b>The floor is the fix for #106.</b> An existing set that needs no folder builds
+    /// nothing at all: <c>Hints</c> then indexed <c>Rows[Cursor]</c> on
     /// the first frame and <c>Handle</c> divided by <c>rows.Count</c> on the first press. The
     /// only thing stopping that was <c>SetsScreens.Detail</c> computing the same predicate
     /// before it would push the screen, which is a guard living three files from the thing it
@@ -248,46 +207,12 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
             {
                 rows.Add(new EditorRow("Platform", _platformLabel ?? "not chosen", null, false));
             }
-            else if (CatalogScopeService.CanList(_scope))
+            else
             {
                 rows.Add(new EditorRow(
                     "Collection",
                     _collectionLabel ?? "not chosen",
                     null,
-                    false));
-            }
-            else if (_scope == CatalogScopeKind.Filter)
-            {
-                // The only scope that needs a name typed, because it is the only one that
-                // is not a mirror of something RomM has already named.
-                rows.Add(new EditorRow(
-                    "Name",
-                    _name.Length == 0 ? "not set" : _name,
-                    null,
-                    false));
-            }
-        }
-
-        // Outside the block above, so a filter set can be changed and not merely made. Inside
-        // it, Edit on a filter set would show one row about folders and nothing about the
-        // filter itself.
-        if (_scope == CatalogScopeKind.Filter)
-        {
-            rows.Add(new EditorRow(
-                "Search for",
-                string.IsNullOrWhiteSpace(_searchTerm) ? "anything" : _searchTerm,
-                null,
-                false));
-
-            // The facets and properties, so a filter is a saved search rather than a name match.
-            rows.AddRange(Filters.Rows().Select(row => new EditorRow(row.Label, row.Value, row.Detail, false)));
-
-            if (IsEmptyFilter)
-            {
-                rows.Add(new EditorRow(
-                    "Matches",
-                    "the whole library",
-                    "A filter with nothing set matches every game RomM holds.",
                     false));
             }
         }
@@ -300,7 +225,7 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
         // It survives here only for the case that genuinely needs a per-set answer: an
         // arcade platform resolving to none of the seven possible folders. Offering it on
         // every set made a global setting look like a per-set one, and it is meaningless
-        // on a filter or a collection, which can span platforms.
+        // on a collection, which can span platforms.
         if (NeedsFolderChoice)
         {
             rows.Add(new EditorRow(
@@ -377,44 +302,13 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
     {
         _ when label == SaveLabel => Save(),
 
-        "Name" => ScreenCommand.Push(new OnScreenKeyboard(
-            "Name this set",
-            "What do you want to call it?",
-            _name,
-            typed =>
-            {
-                _name = typed.Trim();
-                _namedByHand = _name.Length > 0;
-                return new TypedResult(null);
-            },
-            _session.EmulationStationLanguage())),
-
         "What it holds" => ScreenCommand.Push(ScopePicker()),
 
         "Platform" => ScreenCommand.Push(PlatformPicker()),
 
         "Collection" => ScreenCommand.Push(CollectionPicker()),
 
-        "Search for" => ScreenCommand.Push(new OnScreenKeyboard(
-            "Search for",
-            "Only games whose name matches this.",
-            _searchTerm ?? string.Empty,
-            typed =>
-            {
-                _searchTerm = typed.Trim();
-                return new TypedResult(null);
-            },
-            _session.EmulationStationLanguage())
-        {
-            AllowEmpty = true,
-        }),
-
         "Folder" => ScreenCommand.Push(FolderPicker()),
-
-        _ when FilterChoices.Owns(label) => Filters.Open(label),
-
-        // Nothing to open. It is a sentence, and it goes away the moment anything is set.
-        "Matches" => ScreenCommand.Stay,
 
         _ => ScreenCommand.Stay,
     };
@@ -480,7 +374,7 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
                 _platformValue = platforms[index].PlatformId.ToString(CultureInfo.InvariantCulture);
                 _platformLabel = platforms[index].Label;
                 _platformFolder = platforms[index].Folder;
-                Suggest(platforms[index].Label);
+                _name = platforms[index].Label;
                 return ScreenCommand.Pop;
             },
             acceptLabel: "Use this")
@@ -536,7 +430,7 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
             {
                 _collectionValue = options[index].Value;
                 _collectionLabel = options[index].Label;
-                Suggest(options[index].Label);
+                _name = options[index].Label;
                 return ScreenCommand.Pop;
             },
             acceptLabel: "Use this")
@@ -596,17 +490,16 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
 
         if (!IsNew)
         {
-            // The folder, and a filter set's filter. Caps are not shown here, and an
-            // unset property on SetEdit means "leave it alone", so a set given a cap from the
-            // console keeps it. Sending the cleared values a hidden row would have produced
-            // would silently wipe somebody's limit for opening a screen.
+            // The folder alone. Caps are not shown here, and an unset property on SetEdit means
+            // "leave it alone", so a set given a cap from the console keeps it. Sending the
+            // cleared values a hidden row would have produced would silently wipe somebody's
+            // limit for opening a screen.
             var edited = service.Edit(
                 _existing!.Name,
                 new SetEdit
                 {
                     ClearFolderOverride = _folder is null,
                     FolderOverride = _folder,
-                    Filter = _scope == CatalogScopeKind.Filter ? Filters.Build(_searchTerm) : null,
                 },
                 now);
 
@@ -616,23 +509,7 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
                 return ScreenCommand.Stay;
             }
 
-            // A changed filter clears the resolution stamp, so the set now holds membership
-            // that answers the old question. Resolving straight away closes that window,
-            // which is the same reasoning that puts a new set into a resolve.
-            if (edited.Set is { LastResolvedAt: null } stale && _scope == CatalogScopeKind.Filter)
-            {
-                return ScreenCommand.ReplaceThenOpen(
-                    SetsScreens.Detail(_session, stale.Name, _connect),
-                    SetsScreens.Resolve(_session, [stale], _connect));
-            }
-
             return ScreenCommand.Pop;
-        }
-
-        if (_name.Length == 0)
-        {
-            Problem = "Give the set a name first.";
-            return ScreenCommand.Stay;
         }
 
         var added = service.Add(
@@ -640,13 +517,9 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
             {
                 Name = _name,
                 Scope = _scope,
-                ScopeValue = _scope switch
-                {
-                    CatalogScopeKind.Platform => _platformValue,
-                    CatalogScopeKind.Filter => null,
-                    _ => _collectionValue,
-                },
-                Filter = _scope == CatalogScopeKind.Filter ? Filters.Build(_searchTerm) : null,
+                // Nothing picked is Core's refusal for a missing value, which names what to pick,
+                // rather than a complaint about a name this screen never offers to type.
+                ScopeValue = _scope == CatalogScopeKind.Platform ? _platformValue : _collectionValue,
                 // No caps from here. The disk budget is the bound a person sets, and it is
                 // install-wide; a per-set cap made an optional refinement look like a decision
                 // every set needs, and no ordering makes "which 10 of 9,196" a good guess.
@@ -675,14 +548,4 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
             SetsScreens.Detail(_session, added.Set!.Name, _connect),
             SetsScreens.Resolve(_session, [added.Set], _connect));
     }
-
-    /// <summary>Names the set after what it points at, unless somebody named it themselves.</summary>
-    private void Suggest(string label)
-    {
-        if (!_namedByHand)
-        {
-            _name = label;
-        }
-    }
-
 }

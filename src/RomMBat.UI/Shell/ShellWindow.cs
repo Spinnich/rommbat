@@ -137,11 +137,6 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>How wide the menu panel is: the widest list with a margin either side.</summary>
-    /// <remarks>
-    /// Wider by <see cref="ScreenView.CoverSpan"/> on a screen with box art beside its list,
-    /// as ES's detailed view spreads wider than its menus. Fixed for as long as that screen is
-    /// up, so covers arriving never resize it.
-    /// </remarks>
     private const double PanelWidth = 1100;
 
     private readonly Border _panel = new();
@@ -509,7 +504,6 @@ internal sealed class ShellWindow : Window
 
         // In capitals, as ES titles every menu (RB-423).
         _title.Text = screen.Title.ToUpperInvariant();
-        _panel.Width = PanelWidth + (ScreenView.HasCover(screen) ? ScreenView.CoverSpan : 0);
         _body.Content = ScreenView.Build(screen);
         _overlay.Content = ScreenView.Overlay(screen);
         _scrim.IsVisible = _overlay.Content is not null;

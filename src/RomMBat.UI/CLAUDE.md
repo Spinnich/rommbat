@@ -43,8 +43,8 @@ and the outbox are Core's.
   Accept instead of offering a stop. `ListScreen` moves Done to Accept whenever its back label
   reads `ListScreen.DoneLabel`.
 - **A row or field never shows a raw slot or scope kind.** Show `SaveSlotLabel.Describe` and
-  `SyncSetStore.ScopeLabel`; the screens say Check for changes, What it holds, Waiting to upload,
-  Pending settings and Browse library, and the glossary pairs each with its term. Core's
+  `SyncSetStore.ScopeLabel`; the screens say Check for changes, What it holds, Waiting to upload
+  and Pending settings, and the glossary pairs each with its term. Core's
   sentences from a flush or a conflict resolution already use the label.
 - **Every color is a `Shell/Theme` token** copied from the carbon theme (RB-425); a screen never
   names a brush. Inside a `Window`, `Theme` is the window's own property, so `ShellWindow` aliases
@@ -53,8 +53,5 @@ and the outbox are Core's.
   file is named `fonts:RomMBatInstall#<family>`; the constructor taking the key as a URI builds a
   family that silently resolves to Segoe UI. `EsIcon` refuses an SVG it cannot draw faithfully,
   and the hint falls back to a drawn glyph.
-- **Box art is held in memory, never written.** `CoverSlot` reads this device's copy first and
-  otherwise RomM's small cover after the cursor rests; `CoverCache` keeps it for the session. The
-  art box is one size in every state, so the list beside it never moves.
 - The publish is five files and must stay out of self-extraction, which unpacks natives outside
   the tree (`docs/architecture/projects.md`, "src/RomMBat.UI").

@@ -66,8 +66,6 @@ public class CatalogPagingTests
     [InlineData(CatalogScopeKind.Platform)]
     [InlineData(CatalogScopeKind.Collection)]
     [InlineData(CatalogScopeKind.SmartCollection)]
-    [InlineData(CatalogScopeKind.VirtualCollection)]
-    [InlineData(CatalogScopeKind.Filter)]
     public void The_rom_id_index_is_off_under_every_scope(CatalogScopeKind scope)
     {
         var built = new CatalogQuery { Scope = scope, ScopeId = "6" }.ToQueryString(limit: 250, offset: 0);
@@ -81,24 +79,14 @@ public class CatalogPagingTests
     [Fact]
     public void With_total_stays_on_because_it_costs_nothing_and_bounds_the_walk()
     {
-        var built = new CatalogQuery { Scope = CatalogScopeKind.Filter }.ToQueryString(limit: 250, offset: 0);
+        var built = new CatalogQuery { Scope = CatalogScopeKind.Platform, ScopeId = "6" }.ToQueryString(limit: 250, offset: 0);
 
         Assert.Contains("with_total=true", built, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void The_filter_value_sidecar_is_opt_in_and_separate()
-    {
-        var query = new CatalogQuery { Scope = CatalogScopeKind.Filter };
-
-        Assert.Contains("with_filter_values=false", query.ToQueryString(250, 0), StringComparison.Ordinal);
-        Assert.Contains("with_filter_values=true", query.ToQueryString(1, 0, withFilterValues: true), StringComparison.Ordinal);
     }
 
     [Theory]
     [InlineData(CatalogScopeKind.Collection, "collection_id=12")]
     [InlineData(CatalogScopeKind.SmartCollection, "smart_collection_id=12")]
-    [InlineData(CatalogScopeKind.VirtualCollection, "virtual_collection_id=12")]
     [InlineData(CatalogScopeKind.Platform, "platform_ids=12")]
     public void Each_scope_becomes_its_own_query_parameter(CatalogScopeKind scope, string expected)
     {
@@ -107,26 +95,25 @@ public class CatalogPagingTests
         Assert.Contains(expected, built, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A scope with no query parameter is refused rather than paged.
+    /// </summary>
+    /// <remarks>
+    /// Every scoping parameter would be left off, and an unscoped <c>GET /api/roms</c> walks the
+    /// entire library while reading as a set that resolved.
+    /// </remarks>
     [Fact]
-    public void Multi_valued_filters_repeat_the_parameter_rather_than_joining_with_commas()
+    public void A_scope_with_no_query_parameter_is_refused_rather_than_walking_the_library()
     {
-        var query = new CatalogQuery
-        {
-            Scope = CatalogScopeKind.Filter,
-            Filter = new CatalogFilter { Genres = ["Shooter", "Platform"] },
-        };
+        var query = new CatalogQuery { Scope = (CatalogScopeKind)99, ScopeId = "12" };
 
-        var built = query.ToQueryString(250, 0);
-
-        Assert.Contains("genres=Shooter", built, StringComparison.Ordinal);
-        Assert.Contains("genres=Platform", built, StringComparison.Ordinal);
-        Assert.DoesNotContain("Shooter%2CPlatform", built, StringComparison.Ordinal);
+        Assert.Throws<InvalidOperationException>(() => query.ToQueryString(250, 0));
     }
 
     [Fact]
     public void The_walk_is_ordered_by_ascending_id_so_inserts_land_past_the_cursor()
     {
-        var built = new CatalogQuery { Scope = CatalogScopeKind.Filter }.ToQueryString(250, 0);
+        var built = new CatalogQuery { Scope = CatalogScopeKind.Platform, ScopeId = "6" }.ToQueryString(250, 0);
 
         Assert.Contains("order_by=id", built, StringComparison.Ordinal);
         Assert.Contains("order_dir=asc", built, StringComparison.Ordinal);
@@ -137,7 +124,8 @@ public class CatalogPagingTests
     {
         var query = new CatalogQuery
         {
-            Scope = CatalogScopeKind.Filter,
+            Scope = CatalogScopeKind.Platform,
+            ScopeId = "6",
             UpdatedAfter = new DateTimeOffset(2026, 3, 4, 5, 6, 7, TimeSpan.FromHours(2)),
         };
 

@@ -85,11 +85,9 @@ columns for that reason.
 ## Traps
 
 - **Always** pass `with_char_index=false&with_filter_values=false` on a page of `/api/roms`; the
-  filter values alone are a flat 379 KB per request (RB-354). Each is read in one `limit=1`
-  request of its own where it is the point. The letter index keys a lowercased first character,
-  digits folded into `0`, to the offset of its first row in that query's own order, so it follows
-  scope, filter, search and direction, and it is **empty under any order but name** (RB-427). Page size 250, `order_by=id&order_dir=asc` so a ROM added
-  mid-walk lands past the cursor instead of shifting every later page.
+  filter values alone are a flat 379 KB per request (RB-354), and nothing RomMBat does reads
+  either. Page size 250, `order_by=id&order_dir=asc` so a ROM added mid-walk lands past the
+  cursor instead of shifting every later page.
 - **`with_rom_id_index=false` under every scope, from `5.3.0`.** Under a
   scoping parameter (`platform_ids`, `collection_id`, `smart_collection_id`,
   `virtual_collection_id`) the index spans that scope, not the library, and is resent in full on
@@ -199,31 +197,12 @@ columns for that reason.
   `DetailedRomSchema` adds only eight per-user arrays (RB-93). And **`/api/roms` has no id-list
   parameter**, so a set of known ROM ids cannot be asked for: read metadata during the walk.
 
-  **Re-verified against the `romm-5.3.0-beta.1.json` pin, identical in contract to today's `5.3.0`, because a whole scope kind turns
-  on it.** The scoping parameters are `platform_ids`, `collection_id`, `virtual_collection_id`
-  and `smart_collection_id`, and there is nothing else. 5.3.0 takes the query from 51
-  parameters to 58 without adding one: the new ones are filters (`physical`, `playable`,
-  `developers`, `publishers` and their `_logic` partners), not a way to name ids. So a hand-picked set **cannot be resolved by
-  a page walk at all**, and that is a property of the scope rather than a defect to work around:
-  `CatalogQuery.ToQueryString` throws for it rather than falling through, because every scoping
-  parameter would be omitted and the query would match the entire library, which reads as a
-  picked set resolving to everything.
-
-  The way round it is per-id fetches, measured at ~0.15 s each, and only on a device the
-  set roamed to: the device that did the picking already has every field the membership needs on
-  the browse row it was looking at. Fetch one at a time, drop a 404 as ordinary drift, and stop
-  on a 401 because every remaining fetch would send the same refused token. **Drop the 404 and
-  nothing else.** A 500, a reverse proxy's 502 and a 403 answer every remaining id the same way,
-  so counting them as deletions departs the whole set on one bad minute, and the resolution comes
-  out complete while it does it.
-
-  **`GetAuthenticatedAsync` answers a 404 as `RomMResponseStatus.NotFound`**, never as
-  `ServerError`, so any read going through it can tell drift from failure. A caller that
-  classifies its own responses has to keep that arm too.
-
-  **Read one ROM as a `RomRow`, not through the generated detail schema.** Same trap as the
-  paged read: the pinned schema declares `fs_size_bytes` a bare `integer`, so a generated DTO
-  fails outright on any ROM at or above 2 GiB, which is most disc images.
+  The scoping parameters are `platform_ids`, `collection_id`, `virtual_collection_id` and
+  `smart_collection_id`, and there is nothing else: 5.3.0 took the query from 51 parameters to 58
+  without adding a way to name ids. So a set is always one scope, never a list of games, and
+  `CatalogQuery.ToQueryString` throws for a scope it has no parameter for rather than falling
+  through, because every scoping parameter would be omitted and the query would match the whole
+  library.
 
 - **`metadatum` units and scales agree with nothing.** `first_release_date` is **milliseconds**
   (read as seconds, every value lands in year 0); `average_rating` is **0-100**;

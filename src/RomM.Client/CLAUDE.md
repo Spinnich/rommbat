@@ -25,7 +25,6 @@ costs the most when skipped.
 - **A 401 or 403 is a value, not an exception.** Authenticated calls return `RomMResponse<T>`;
   only transport failures throw.
 - **Every page of `GET /api/roms` passes `with_char_index=false`, `with_filter_values=false` and
-  `with_rom_id_index=false`.** Each sidecar scans the library. `GetFilterValuesAsync` and
-  `GetCharIndexAsync` turn one back on, at `limit=1`, and read nothing else off the page. Nothing calls
-  `/api/roms/identifiers`, and nothing reads `rom_ids` off a collection.
+  `with_rom_id_index=false`.** Each sidecar scans the library, and nothing turns one back on.
+  Nothing calls `/api/roms/identifiers`, and nothing reads `rom_ids` off a collection.
 - Every call takes a `CancellationToken`.

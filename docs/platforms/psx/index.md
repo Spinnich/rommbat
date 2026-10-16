@@ -91,8 +91,7 @@ record: the media pass deleted every disc after it landed (RB-316).
 
 **Driven on 2026-09-25 and 2026-09-26**, at RomM `5.3.1` and RetroBat 8.2.1, on a deploy of the
 `psx-certification` branch. The test game is **Castlevania: Symphony of the Night (USA)**, rom
-280632, one `.chd`, pulled through a filter set named `psx certification` (search "Symphony of
-the Night", region USA) rather than the whole library. Its gamelist entry pins no emulator, and
+280632, one `.chd`, synced alone rather than with the whole library. Its gamelist entry pins no emulator, and
 `es_settings.cfg` sets no `psx.emulator`, so ES runs the stock row. **Creating the name writes
 nothing to the card**: SotN first saves at the first save room in the castle, which takes a while
 to reach, so later rows are seeded with this row's card rather than replayed.

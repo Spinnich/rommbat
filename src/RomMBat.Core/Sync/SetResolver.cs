@@ -174,7 +174,7 @@ public sealed class SetResolver
     /// </summary>
     /// <remarks>
     /// A set with no <c>max_games</c> and no <c>max_bytes</c> holds one row per matching ROM,
-    /// so a filter scope that matches everything would hold the whole library after all. The
+    /// so a platform or smart collection that matches everything would hold the whole library. The
     /// answer is a cap or a narrower scope, and saying so beats quietly using a gigabyte.
     /// </remarks>
     public const int UncappedScopeLimit = 50_000;
@@ -214,9 +214,7 @@ public sealed class SetResolver
     {
         ArgumentNullException.ThrowIfNull(set);
 
-        return set.Scope == CatalogScopeKind.Filter
-            ? new CatalogQuery { Scope = set.Scope, Filter = Sets.SyncSetService.FilterOf(set) }
-            : new CatalogQuery { Scope = set.Scope, ScopeId = set.ScopeValue };
+        return new CatalogQuery { Scope = set.Scope, ScopeId = set.ScopeValue };
     }
 
     /// <summary>
@@ -553,167 +551,11 @@ public sealed class SetResolver
     }
 
     /// <summary>
-    /// Resolves a picked set by fetching each of its ids, because it cannot be paged.
-    /// </summary>
-    /// <remarks>
-    /// <b>The only scope that resolves this way, and only on a device it roamed to.</b>
-    /// <c>GET /api/roms</c> takes no id-list parameter, so there is no query that selects
-    /// exactly these games. On the device that did the picking there is nothing to resolve at
-    /// all: the browse row carried every field the membership wants and
-    /// <c>PickedSetService</c> wrote it at the moment of the pick. This path exists for the
-    /// second device, where the ids arrive through <c>Device.sync_config</c> with no rows
-    /// behind them.
-    /// <para>
-    /// <b>About 0.15 s per ROM, measured</b>, which is seconds at the tens of games this
-    /// scope is for and minutes at a thousand. That cost is the reason the picked scope is not
-    /// offered as a way to build a large set, and it is why the caps are still applied: an id
-    /// list that grew past them is still bounded by them.
-    /// </para>
-    /// <para>
-    /// <b>A 404 is dropped rather than failing the resolve, and nothing else is.</b> An id
-    /// picked on another device and since deleted in RomM is exactly the drift a re-resolve
-    /// exists to notice, and one missing game must not cost the other forty. Every other
-    /// refusal stops the walk: a 500 or a 502 from a reverse proxy answers every id in the
-    /// list the same way, so reading them as deletions departs the whole set on one bad
-    /// minute, and a 401 would send the same refused token on every remaining fetch.
-    /// </para>
-    /// </remarks>
-    public async Task<SetResolution> HydrateAsync(
-        SyncSetDefinition set,
-        RomMConnection connection,
-        IReadOnlyList<int> romIds,
-        DateTimeOffset resolvedAt,
-        IProgress<SetResolveProgress>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(set);
-        ArgumentNullException.ThrowIfNull(connection);
-        ArgumentNullException.ThrowIfNull(romIds);
-
-        var selector = new BoundedSelection(set);
-        var tally = new Tally();
-        var scanned = 0;
-        var missing = 0;
-        RomMResponse<RomRow>? failure = null;
-        var cause = FailureCause.None;
-
-        foreach (var romId in romIds)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
-
-            RomMResponse<RomRow> response;
-
-            try
-            {
-                response = await connection.GetRomAsync(romId, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (RomMUnreachableException unreachable)
-            {
-                // Stopped rather than thrown, the same rule the page walk follows: everything
-                // already hydrated is real and is recorded.
-                failure = RomMResponse.Failure<RomRow>(RomMResponseStatus.ServerError, unreachable.Message);
-                cause = FailureCause.Unreachable;
-                break;
-            }
-
-            if (response.Status == RomMResponseStatus.NotFound)
-            {
-                // Gone from the library, which is drift rather than failure. Only a 404 says
-                // that: every other refusal is about the request or the server, and counting
-                // one as a deletion departs a member on the strength of a bad gateway.
-                missing++;
-                continue;
-            }
-
-            if (!response.IsSuccess || response.Value is null)
-            {
-                failure = response;
-                cause = FailureCauses.Worst(FailureCause.Failed, FailureCauses.Of(response.Status));
-                break;
-            }
-
-            scanned++;
-
-            if (Consider(set, response.Value, resolvedAt, selector, tally) is { } stop)
-            {
-                return stop;
-            }
-
-            // Per ROM here rather than per page, because a fetch is the unit and there are no
-            // pages. At 0.15 s each this is a line that visibly moves.
-            progress?.Report(new SetResolveProgress(set.Name, scanned, romIds.Count, scanned));
-        }
-
-        var selected = selector.Drain();
-        var members = new List<SyncSetMember>(selected.Count);
-
-        for (var index = 0; index < selected.Count; index++)
-        {
-            members.Add(selected[index] with { Position = index + 1, ResolvedAt = resolvedAt });
-        }
-
-        var complete = failure is null && !cancellationToken.IsCancellationRequested;
-        var unlisted = UnlistedFormatsOf(_install, members);
-
-        return new SetResolution
-        {
-            Set = set,
-            Outcome = complete ? ResolutionOutcome.Resolved : ResolutionOutcome.Interrupted,
-            Rejected = failure?.Status == RomMResponseStatus.Unauthorized,
-            Cause = cause,
-            Members = members,
-            Excluded = tally.Excluded,
-            ScopeTotal = romIds.Count,
-            Scanned = scanned,
-            Bytes = members.Sum(member => member.SizeBytes),
-            OverCount = selector.OverCount,
-            OverBytes = selector.OverBytes,
-            UnlistedFormats = unlisted,
-            UnmappedPlatforms = tally.UnmappedPlatforms,
-            MultiFile = tally.MultiFile,
-            Folder = tally.Folder,
-            NoFileOnDisk = tally.NoFileOnDisk,
-            TooLargeForFilesystem = tally.TooLarge,
-            Folders = [.. members.Select(member => member.Folder!).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)],
-            Metadata = selector.MetadataFor(members),
-            Problem = failure?.Message,
-            Summary = Describe(members.Count, missing, unlisted),
-        };
-    }
-
-    /// <summary>The one line a hydrated picked set reports.</summary>
-    private static string Describe(int members, int missing, IReadOnlyDictionary<string, int> unlisted)
-    {
-        var parts = new List<string> { $"{members} picked {(members == 1 ? "game" : "games")}" };
-
-        if (missing > 0)
-        {
-            parts.Add($"{missing} no longer in RomM");
-        }
-
-        if (DescribeUnlisted(unlisted) is { } note)
-        {
-            parts.Add(note);
-        }
-
-        return string.Join("; ", parts);
-    }
-
-    /// <summary>
     /// What a walk has accumulated besides the members it selected.
     /// </summary>
     /// <remarks>
-    /// One value rather than five parameters, because two paths now fold rows in: the page walk
-    /// and the hydrate below it. Passed separately they were already five arguments threaded
-    /// through <see cref="Carry"/>, and a second caller would have made two places to keep in
-    /// step.
+    /// One value rather than five parameters threaded through <see cref="Carry"/> and
+    /// <see cref="Consider"/>.
     /// </remarks>
     private sealed class Tally
     {
@@ -759,10 +601,8 @@ public sealed class SetResolver
     /// Folds one server row into the walk, or returns the resolution that ends it.
     /// </summary>
     /// <remarks>
-    /// Extracted so the hydrate path applies exactly these rules rather than a second copy of
-    /// them. Two of the outcomes end the whole resolve rather than excluding one game: a
-    /// platform that cannot pick its own folder, and, for the page walk, a scope too large to
-    /// resolve uncapped.
+    /// Two of the outcomes end the whole resolve rather than excluding one game: a platform that
+    /// cannot pick its own folder, and a scope too large to resolve uncapped.
     /// </remarks>
     private SetResolution? Consider(
         SyncSetDefinition set,

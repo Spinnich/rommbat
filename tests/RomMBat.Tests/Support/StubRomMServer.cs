@@ -232,8 +232,8 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// The ROMs <c>GET /api/roms</c> serves, in id order.
     /// </summary>
     /// <remarks>
-    /// Paged with <c>limit</c> and <c>offset</c> and filtered by <c>platform_ids</c> and
-    /// <c>search_term</c>, which is enough to exercise resumption and scope selection. The
+    /// Paged with <c>limit</c> and <c>offset</c> and filtered by <c>platform_ids</c>, which is
+    /// enough to exercise resumption and scope selection. The
     /// sidecars are never included, which is also what a test asserts about the client.
     /// </remarks>
     public IList<StubRom> Library { get; } = [];
@@ -297,35 +297,8 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// </remarks>
     public int? TotalOverride { get; set; }
 
-    /// <summary>
-    /// Serves this many single-ROM fetches and then answers every later one with this status.
-    /// </summary>
-    /// <remarks>
-    /// Not once, unlike the paged knobs: a hydrate that meets a 500 must stop on it, and a
-    /// stub that recovered on the next id would pass whether it stopped or not.
-    /// </remarks>
-    public (int After, HttpStatusCode Status)? FailRomByIdAfter { get; set; }
-
-    /// <summary>How many single-ROM fetches were served, which is a picked set's only route.</summary>
-    public int RomsById { get; private set; }
-
     /// <summary>How many pages of <c>/api/roms</c> were served.</summary>
     public int RomPagesServed { get; private set; }
-
-    /// <summary>How many of those asked for the letter index.</summary>
-    public int CharIndexRequests { get; private set; }
-
-    /// <summary>
-    /// Holds every <c>/api/roms</c> page open until it is completed.
-    /// </summary>
-    /// <remarks>
-    /// <b>For a test about two requests racing, which otherwise cannot be written.</b> This stub
-    /// answers in microseconds, so a fetch started and a second press issued on the same thread
-    /// are never actually in flight together and an assertion about the guard between them
-    /// passes with the guard deleted. Setting this makes the first page wait, so the second
-    /// caller is genuinely racing it.
-    /// </remarks>
-    public TaskCompletionSource? HoldRomPages { get; set; }
 
     /// <summary>
     /// How many <c>/api/roms</c> requests have arrived, counted before the hold rather than
@@ -559,16 +532,10 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
         {
             Interlocked.Increment(ref _romPagesRequested);
 
-            if (HoldRomPages is { } held)
-            {
-                await held.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-            }
-
             return Roms(request.RequestUri);
         }
 
-        // One ROM by id, which is the only way a picked set resolves: the paged route takes no
-        // id-list parameter, so a set that is a list of ids has no query behind it.
+        // One ROM by id, which is how a multi-file game's member list is read.
         if (RomById(path) is { } byId)
         {
             return byId;
@@ -855,14 +822,9 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
         var limit = int.TryParse(query["limit"], out var parsedLimit) ? parsedLimit : 50;
         var offset = int.TryParse(query["offset"], out var parsedOffset) ? parsedOffset : 0;
         var platform = query["platform_ids"];
-        var search = query["search_term"];
-
-        var genres = query.GetValues("genres") ?? [];
 
         var filtered = Library
-            .Where(rom => platform is null || rom.PlatformId.ToString(CultureInfo.InvariantCulture) == platform)
-            .Where(rom => search is null || rom.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
-            .Where(rom => genres.Length == 0 || (rom.Metadata?.Genres ?? []).Any(genres.Contains));
+            .Where(rom => platform is null || rom.PlatformId.ToString(CultureInfo.InvariantCulture) == platform);
 
         // Name and id, the two orders a test asks for. Anything else is id order, which is how
         // the real server's answer to an order it does not know is told apart in an assertion.
@@ -878,28 +840,12 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
 
         var items = matching.Skip(offset).Take(limit).Select(Project).ToArray();
 
-        // As the measured server keys it: the lowercased first character, digits folded into
-        // 0, each at the first row under it, and empty outside name order (RB-427).
-        var charIndex = new Dictionary<string, int>(StringComparer.Ordinal);
-
-        if (query["with_char_index"] == "true" && byName)
-        {
-            CharIndexRequests++;
-
-            for (var index = 0; index < matching.Count; index++)
-            {
-                var first = matching[index].Name[..1].ToLowerInvariant();
-                charIndex.TryAdd(char.IsDigit(first[0]) ? "0" : first, index);
-            }
-        }
-
         return Json(HttpStatusCode.OK, new
         {
             items,
             total = TotalOverride ?? matching.Count,
             limit,
             offset,
-            char_index = charIndex,
         });
     }
 
@@ -923,13 +869,6 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
         {
             return null;
         }
-
-        if (FailRomByIdAfter is { } refusal && RomsById >= refusal.After)
-        {
-            return Detail(refusal.Status, "rom refused");
-        }
-
-        RomsById++;
 
         return Library.FirstOrDefault(rom => rom.Id == romId) is { } found
             ? Json(HttpStatusCode.OK, Project(found))

@@ -45,10 +45,11 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var session = fixture.Session;
-        var query = new CatalogQuery { Scope = CatalogScopeKind.Filter };
+        var query = await session.LargestPlatformAsync(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.SkipWhen(query is null, "No platform on this instance can be read, or none has games.");
 
         var response = await session.Connection.GetRomPageAsync(
-            query,
+            query!,
             limit: 5,
             offset: 0,
             cancellationToken: TestContext.Current.CancellationToken);
@@ -59,7 +60,7 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         // The three costly sidecars are absent from the body, not merely unread. Checked on
         // the raw JSON because the slim row would drop them silently either way.
         using var raw = await session.RawAsync(
-            "api/roms?" + query.ToQueryString(limit: 5, offset: 0),
+            "api/roms?" + query!.ToQueryString(limit: 5, offset: 0),
             cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(raw.RootElement.TryGetProperty("rom_id_index", out var index) && index.GetArrayLength() > 0);
@@ -68,113 +69,15 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
     }
 
     [Fact]
-    public async Task The_filter_picker_gets_values_from_a_real_library()
-    {
-        Assert.SkipUnless(IsConfigured, NotConfigured);
-
-        var session = fixture.Session;
-
-        // The raw body first, so a failure here separates "the server sent nothing" from "we
-        // could not read what it sent". The filter editor showed every facet empty against a
-        // library whose JSON carries thousands of values, and only one of those two was true.
-        using var raw = await session.RawAsync(
-            "api/roms?" + new CatalogQuery { Scope = CatalogScopeKind.Filter }
-                .ToQueryString(limit: 1, offset: 0, withFilterValues: true),
-            cancellationToken: TestContext.Current.CancellationToken);
-
-        Assert.True(
-            raw.RootElement.TryGetProperty("filter_values", out var sidecar),
-            "with_filter_values did not produce the sidecar.");
-
-        Assert.SkipWhen(
-            sidecar.ValueKind != JsonValueKind.Object || !sidecar.EnumerateObject().Any(),
-            "This library reports no filter values at all.");
-
-        var response = await session.Connection.GetFilterValuesAsync(
-            new CatalogQuery { Scope = CatalogScopeKind.Filter },
-            TestContext.Current.CancellationToken);
-
-        Assert.SkipWhen(response.Status == RomMResponseStatus.Forbidden, "This account cannot read the library.");
-        Assert.True(response.IsSuccess, response.Message);
-
-        // Every facet the sidecar carried has to survive into the typed value. A count of zero
-        // where the JSON had entries is the shape of the defect this test exists for. Every
-        // facet is checked before anything is reported, because a skip ends the test and one
-        // unknown name would otherwise hide every known facet enumerated after it.
-        var unknown = new List<string>();
-        var mismatched = new List<string>();
-
-        foreach (var facet in sidecar.EnumerateObject())
-        {
-            if (facet.Value.ValueKind != JsonValueKind.Array || facet.Value.GetArrayLength() == 0)
-            {
-                continue;
-            }
-
-            var read = facet.Name switch
-            {
-                "genres" => response.Value!.Genres.Count,
-                "franchises" => response.Value!.Franchises.Count,
-                "collections" => response.Value!.Collections.Count,
-                "companies" => response.Value!.Companies.Count,
-                "developers" => response.Value!.Developers.Count,
-                "publishers" => response.Value!.Publishers.Count,
-                "game_modes" => response.Value!.GameModes.Count,
-                "age_ratings" => response.Value!.AgeRatings.Count,
-                "player_counts" => response.Value!.PlayerCounts.Count,
-                "regions" => response.Value!.Regions.Count,
-                "languages" => response.Value!.Languages.Count,
-                "tags" => response.Value!.Tags.Count,
-                "platforms" => response.Value!.Platforms.Count,
-                _ => -1,
-            };
-
-            if (read < 0)
-            {
-                unknown.Add(facet.Name);
-            }
-            else if (read != facet.Value.GetArrayLength())
-            {
-                mismatched.Add($"'{facet.Name}': the body carried {facet.Value.GetArrayLength()} and we read {read}");
-            }
-        }
-
-        Assert.True(mismatched.Count == 0, string.Join("; ", mismatched));
-
-        // A facet with no property is a server newer than the pinned schema, not a read that lost
-        // values, so it skips rather than fails, and only once the known facets have passed.
-        Assert.SkipWhen(
-            unknown.Count > 0,
-            $"The schema has no property for {string.Join(", ", unknown.Select(name => $"'{name}'"))}.");
-    }
-
-    [Fact]
-    public async Task The_facets_a_set_can_persist_reach_the_picker()
-    {
-        Assert.SkipUnless(IsConfigured, NotConfigured);
-
-        var session = fixture.Session;
-
-        var facets = await new CatalogScopeService(session.Connection)
-            .ListFilterValuesAsync(TestContext.Current.CancellationToken);
-
-        // One level up from the client, because this is what the editor actually calls and the
-        // screen said "This library reports no genres to filter by" on a library with 343.
-        Assert.NotEmpty(facets);
-        Assert.Contains(facets, facet => facet.Value.Count > 0);
-    }
-
-    [Fact]
     public async Task Order_by_id_is_accepted_and_pages_do_not_overlap()
     {
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var session = fixture.Session;
+        var query = await session.LargestPlatformAsync(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.SkipWhen(query is null, "No platform on this instance can be read, or none has games.");
 
-        var pager = new RomPager(
-            session.Connection,
-            new CatalogQuery { Scope = CatalogScopeKind.Filter },
-            pageSize: 25);
+        var pager = new RomPager(session.Connection, query!, pageSize: 25);
 
         var first = await pager.NextAsync(TestContext.Current.CancellationToken);
         Assert.SkipWhen(first.Status == RomMResponseStatus.Forbidden, "This account cannot read the library.");

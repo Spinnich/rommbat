@@ -228,10 +228,10 @@ public sealed class SaveConverter
                     + "the shared card carries through." + alsoHere);
         }
 
-        // Unreachable from a sync today, because the resolver and a pick both refuse an
-        // extensionless row and this reads the name recorded at download. Refused here anyway
-        // rather than left to PerGameKey's throw, since a folder-shaped row is how RomM holds a
-        // foldered multi-disc set, and that is the shape a tidied library moves towards. #183.
+        // Unreachable from a sync today, because the resolver refuses an extensionless row and
+        // this reads the name recorded at download. Refused here anyway rather than left to
+        // PerGameKey's throw, since a folder-shaped row is how RomM holds a foldered multi-disc
+        // set, and that is the shape a tidied library moves towards. #183.
         if (string.IsNullOrEmpty(Path.GetExtension(rom.FsName)))
         {
             return Refuse(

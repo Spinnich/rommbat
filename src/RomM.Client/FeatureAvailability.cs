@@ -5,10 +5,10 @@ namespace RomM.Client;
 /// <summary>A capability RomMBat offers, and the scopes it needs to offer it.</summary>
 public enum RomMFeature
 {
-    /// <summary>Browsing and downloading ROMs. Without it nothing works.</summary>
+    /// <summary>Reading and downloading ROMs. Without it nothing works.</summary>
     Library,
 
-    /// <summary>Collection, smart-collection and virtual-collection sync sets.</summary>
+    /// <summary>Collection and smart-collection sync sets.</summary>
     CollectionSets,
 
     /// <summary>BIOS and firmware sync.</summary>
@@ -71,14 +71,14 @@ public sealed class GrantedScopes
     [
         new(
             RomMFeature.Library,
-            "Browse and download ROMs",
+            "Read and download ROMs",
             [RomMScopes.RomsRead, RomMScopes.PlatformsRead],
-            "Nothing works: no browsing, no platform mapping, no content sync"),
+            "Nothing works: no sync sets, no platform mapping, no content sync"),
         new(
             RomMFeature.CollectionSets,
             "Collection sync sets",
             [RomMScopes.CollectionsRead],
-            "Sync sets can only be scoped by platform or by a saved filter"),
+            "Sync sets can only be scoped by platform"),
         new(
             RomMFeature.Firmware,
             "BIOS sync",

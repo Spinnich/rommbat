@@ -71,9 +71,9 @@ public static class ConflictScreens
 
     /// <summary>One conflict as the list shows it.</summary>
     /// <remarks>
-    /// <b>The game's name is the label, and the file name goes under it.</b> Both, for the
-    /// reason browse measured: a title alone cannot be matched against what is on disk and a
-    /// file name alone is a romset code on some platforms. With neither, a row reads
+    /// <b>The game's name is the label, and the file name goes under it.</b> Both, because a
+    /// title alone cannot be matched against what is on disk and a file name alone is a romset
+    /// code on some platforms. With neither, a row reads
     /// "Game 295079".
     /// <para>
     /// The slot is on the row too, as <see cref="SaveSlotLabel"/> words it, because a game with

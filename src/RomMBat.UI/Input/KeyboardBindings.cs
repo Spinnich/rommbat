@@ -88,9 +88,6 @@ public sealed class KeyboardBindings
         NavAction.Start => "start",
         NavAction.PageUp => "pageup",
         NavAction.PageDown => "pagedown",
-        NavAction.Options => "select",
-        NavAction.PreviousGroup => "l2",
-        NavAction.NextGroup => "r2",
         _ => null,
     };
 

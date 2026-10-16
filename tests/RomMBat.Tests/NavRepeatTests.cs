@@ -84,14 +84,14 @@ public class NavRepeatTests
     }
 
     [Fact]
-    public void One_button_bound_to_two_names_does_not_fire_two_different_actions()
+    public void Select_and_hotkey_are_bound_to_nothing()
     {
         var nav = new NavRepeat();
 
         // Measured: select and hotkey are the same physical button on both the 8BitDo and the
-        // Xbox pad, so the reader reports both names for one press. Only select is bound, to
-        // the view options, so the press is one action and hotkey adds nothing to it.
-        Assert.Equal([NavAction.Options], nav.Advance(Held("select", "hotkey"), T0));
+        // Xbox pad, so the reader reports both names for one press. Neither is bound, because
+        // hotkey is RetroBat's own chord button and nothing here needs Select.
+        Assert.Empty(nav.Advance(Held("select", "hotkey"), T0));
     }
 
     [Fact]

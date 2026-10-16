@@ -253,14 +253,8 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     private readonly List<string> _problems = [];
     private readonly Func<IScreen>? _pair;
 
-    /// <summary>The one game, when this screen is installing rather than syncing a set.</summary>
-    private readonly SyncSetMember? _installing;
-
     /// <summary>Why the set that stopped the run was refused, in the resolver's words.</summary>
     private string? _refusal;
-
-    /// <summary>How an install mirrors the pick that started it, or null for a set's sync.</summary>
-    private readonly Func<CancellationToken, Task<RoamingPush>>? _roam;
 
     /// <summary>
     /// Orders the writers of <see cref="_state"/> and of <see cref="_problems"/>.
@@ -276,7 +270,6 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         new(SyncStage.Working, "Working out what this device should hold...");
 
     private Task? _work;
-    private Task? _roaming;
     private bool _disposed;
     private bool _stopping;
 
@@ -327,46 +320,6 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         ArgumentNullException.ThrowIfNull(set);
     }
 
-    /// <summary>
-    /// Installing one game, which is what a pick from browse asks for.
-    /// </summary>
-    /// <remarks>
-    /// <b>A second construction shape rather than a mode.</b> Everything this screen draws and
-    /// every rule it follows is the same: what it is doing now, how far through, what it spent,
-    /// what went wrong, Back stops and stays, a second Back leaves. A flag would have meant
-    /// every one of those reading "unless this is an install", where the only thing that
-    /// actually differs is which Core method the run calls.
-    /// <para>
-    /// <b>No flush.</b> A whole-library run puts it first for eviction's benefit, and nothing
-    /// here evicts. <see cref="LibrarySyncService.InstallAsync"/> owns which passes run
-    /// and says why for each of the six it leaves out.
-    /// </para>
-    /// </remarks>
-    /// <param name="roam">
-    /// How the pick is mirrored into <c>Device.sync_config</c>. Taken so a test can stand in
-    /// for <see cref="RoamingConfigService"/>, as <see cref="ResolveViewModel"/> does.
-    /// </param>
-    public SyncViewModel(
-        InstallSession session,
-        SyncSetDefinition set,
-        SyncSetMember member,
-        Func<Uri, RomMConnection>? connect = null,
-        Func<IScreen>? pair = null,
-        Func<CancellationToken, Task<RoamingPush>>? roam = null)
-    {
-        ArgumentNullException.ThrowIfNull(session);
-        ArgumentNullException.ThrowIfNull(set);
-        ArgumentNullException.ThrowIfNull(member);
-
-        _session = session;
-        _sets = [set];
-        _pair = pair;
-        _installing = member;
-        _roam = roam ?? (token => new RoamingConfigService(session, connect).PushAsync(cancellationToken: token));
-
-        Start(connect);
-    }
-
     public event EventHandler? Invalidated;
 
     /// <summary>
@@ -382,20 +335,16 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
     {
         get
         {
-            var subject = _installing is { } game
-                ? $"'{game.DisplayName}'"
-                : _sets.Count == 1 ? $"'{_sets[0].Name}'" : $"{_sets.Count} sync sets";
+            var subject = _sets.Count == 1 ? $"'{_sets[0].Name}'" : $"{_sets.Count} sync sets";
 
             // Past tense only for a run that finished. "Synced 'gg'" over STOPPED at 397 of 755
             // claimed a sync that had not happened; ruled with Spinnich.
-            var installing = _installing is not null;
             return _state.Stage switch
             {
-                SyncStage.Working => installing ? $"Installing {subject}" : $"Syncing {subject}",
-                SyncStage.Done => installing ? $"Installed {subject}" : $"Synced {subject}",
-                SyncStage.Stopped or SyncStage.Blocked =>
-                    installing ? $"Install of {subject} stopped" : $"Sync of {subject} stopped",
-                _ => installing ? $"Install of {subject} did not finish" : $"Sync of {subject} did not finish",
+                SyncStage.Working => $"Syncing {subject}",
+                SyncStage.Done => $"Synced {subject}",
+                SyncStage.Stopped or SyncStage.Blocked => $"Sync of {subject} stopped",
+                _ => $"Sync of {subject} did not finish",
             };
         }
     }
@@ -595,30 +544,6 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         }
 
         _work = Task.Run(() => RunAsync(connection), CancellationToken.None);
-
-        // A pick roams as a resolve does (#444): the picked set's ids are its definition, and
-        // a game picked from the couch otherwise reached another device only when something
-        // else happened to push. Beside the install, so the fetch does not wait on it.
-        if (_roam is not null)
-        {
-            _roaming = Task.Run(RoamAsync, CancellationToken.None);
-        }
-    }
-
-    /// <summary>Mirrors the pick, and says so only when it could not.</summary>
-    /// <remarks>
-    /// <b>Not on this screen's token, and not waited on by <see cref="Dispose"/></b>, for the
-    /// reasons <see cref="ResolveViewModel"/> gives. The note goes with the problems rather
-    /// than into the detail line, which <see cref="Settle"/> replaces whichever finishes first.
-    /// </remarks>
-    private async Task RoamAsync()
-    {
-        var push = await _roam!(CancellationToken.None).ConfigureAwait(false);
-
-        if (push.Note is { } note)
-        {
-            Note(note);
-        }
     }
 
     private async Task RunAsync(RomMConnection connection)
@@ -627,19 +552,15 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
         {
             var service = new LibrarySyncService(_session);
 
-            var report = _installing is { } game
-                ? await service
-                    .InstallAsync(_sets[0], game, connection, new Immediate<SyncEvent>(Observe), _run.Token)
-                    .ConfigureAwait(false)
-                : await service
-                    .RunAsync(
-                        _sets,
-                        new SyncOptions(),
-                        connection,
-                        new Immediate<SyncEvent>(Observe),
-                        token => FlushAsync(connection, token),
-                        _run.Token)
-                    .ConfigureAwait(false);
+            var report = await service
+                .RunAsync(
+                    _sets,
+                    new SyncOptions(),
+                    connection,
+                    new Immediate<SyncEvent>(Observe),
+                    token => FlushAsync(connection, token),
+                    _run.Token)
+                .ConfigureAwait(false);
 
             Settle(report);
         }
@@ -882,11 +803,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IActionScreen, IDispos
 
             Core.Sets.SyncState.Done => (
                 SyncStage.Done,
-                _installing is { } game
-                    ? $"'{game.DisplayName}' is on this device and EmulationStation has been told."
-                    : _sets.Count == 1
-                        ? "Everything in this sync set is on this device."
-                        : "Everything in these sync sets is on this device."),
+                _sets.Count == 1
+                    ? "Everything in this sync set is on this device."
+                    : "Everything in these sync sets is on this device."),
 
             Core.Sets.SyncState.Stopped => (
                 SyncStage.Stopped,

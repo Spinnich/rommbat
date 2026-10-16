@@ -15,8 +15,6 @@ Subcommands
   status      Report local state, and probe the server unless --offline
   sets        list | add | show | remove | resolve sync sets
   platforms   list | map | unmap the RomM to RetroBat folder mapping
-  browse      Print one page of the catalog
-  game        show | install | remove <rom-id>: one game, by the id browse prints
   sync        Resolve a set and pull its ROMs into the tree
   budget      Show or set how much of this drive RomMBat may use
   evict       Show what would be removed to get back inside the budget
@@ -42,9 +40,9 @@ Options
   --name <label>    How this device appears in the RomM device list
   --protect         Encrypt the stored token with a passphrase you type
   --passphrase <s>  Unlock a token stored with --protect, for any command that calls out
-  --offline         status, sync, bios, saves, platforms list, game show: work from local state without the server
+  --offline         status, sync, bios, saves, platforms list: work from local state without the server
   --dry-run         sync: say what would happen and write nothing
-  --apply           evict, uninstall, game remove: actually remove. bios: actually fetch. saves
+  --apply           evict, uninstall: actually remove. bios: actually fetch. saves
                     restore, saves convert: actually write. outbox drop: actually delete. Without it,
                     none of these writes
   --all-failed      outbox drop: every entry the server refused, instead of one id

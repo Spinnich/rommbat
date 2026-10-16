@@ -137,7 +137,7 @@ places at once. Note also that RetroBat calls the Mega CD `megacd` while upstrea
    **The screen is reached from a row on the root menu** carrying the
    unmapped count, so an unmapped platform is found before a sync is attempted rather than by a
    resolve stopping partway through a collection that happened to hold one of its games. It
-   takes no connection: `platform_map` is written by every resolve and every browse, so every
+   takes no connection: `platform_map` is written by every resolve, so every
    row it shows and the override that fixes one are already local. Unmapped rows sort first,
    because alphabetical order buries the three a person came to fix among a hundred and twenty.
    Writing an override records `MappingSource.User`, which is what stops a later re-resolve
@@ -210,5 +210,4 @@ platform between two syncs reaches the same state with no override at all.
   second set's gamelist naming a file outside its own folder, which ES cannot follow, so it
   breaks that set to tidy the inventory.
 - **The bytes genuinely double and the budget is right to count them twice.** What was wrong was
-  that nobody could see why. A browse row names every folder a game is in, and the game's detail
-  screen says the room is taken twice and that both sets are correct.
+  that nobody could see why, which the sync's own report is for.

@@ -16,8 +16,7 @@ namespace RomMBat.UI.Screens;
 /// hold one of its games, and the only repair reachable from the couch is a per-set folder
 /// override. That is the wrong shape: <c>platform_map</c> holds the mapping install-wide, and a
 /// per-set override fixes one set while leaving every other set and every future set with the
-/// same hole. Browse shows an unmapped platform too, on a row saying the games cannot be
-/// installed, and this is where that row's repair is.
+/// same hole.
 /// <para>
 /// <b>Reached from the root before a sync is attempted, not discovered after one fails.</b> The
 /// root menu carries the unmapped count on its own row for that reason.
@@ -39,7 +38,7 @@ public static class PlatformScreens
     /// reachable in one press rather than in thirty of scrolling.
     /// <para>
     /// <b>No connection, and it is not a degradation.</b> <c>platform_map</c> is written by every
-    /// resolve and every browse, so the whole screen including the repair answers from the store
+    /// resolve, so the whole screen including the repair answers from the store
     /// with the server switched off. The agent's <c>platforms list</c> refreshes first because it
     /// can; here the rows a person came to fix are already local, and a screen that waited on an
     /// unreachable LAN host to show them would be trading the working state for nothing.
@@ -72,8 +71,7 @@ public static class PlatformScreens
             acceptLabel: "Change where these land",
             backLabel: "Back")
         {
-            EmptyMessage = "No platforms known yet. Sync a set or check one for changes, or open a game in "
-                + "browse, and they appear.",
+            EmptyMessage = "No platforms known yet. Sync a set or check one for changes, and they appear.",
             Note = () => Note(platforms),
         };
     }

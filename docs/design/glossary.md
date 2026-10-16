@@ -37,8 +37,7 @@ startup, newer warns. See `CLAUDE.md`, "Version floor".
 ## Content
 
 **Sync set, or set.** A named, saved selection of games to mirror onto the device. Its
-**scope** is one platform, collection, smart collection, virtual collection or saved filter
-(`CatalogScopeKind`). A set is re-resolved on demand, so its membership moves with the library.
+**scope** is one platform, collection or smart collection (`CatalogScopeKind`). A set is re-resolved on demand, so its membership moves with the library.
 The gamepad UI calls the scope **What it holds**.
 
 **Resolve.** Asking the server which games a set holds now. Reaches the network; a sync is a

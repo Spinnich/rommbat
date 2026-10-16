@@ -46,7 +46,6 @@ public class RootMenuTests
             {
                 StartPairing = Stub,
                 OpenSets = Stub,
-                OpenBrowse = Stub,
                 OpenBudget = Stub,
                 OpenConflicts = Stub,
                 OpenPlatforms = Stub,
@@ -78,6 +77,19 @@ public class RootMenuTests
         // The last row is the status pane, which the menu builds itself rather than taking as a
         // route, so it is one fewer than the rows walked.
         Assert.Equal(rows - 1, opened);
+    }
+
+    [Fact]
+    public void The_root_offers_no_library_browser()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+
+        var menu = Assert.IsType<ListScreen>(
+            RootScreens.Menu(session, () => NoPad, new RootScreens.RootRoutes()));
+
+        // RomMBat syncs sets; it is not a place to look through the library.
+        Assert.DoesNotContain(menu.Rows, row => row.Label.Contains("Browse", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

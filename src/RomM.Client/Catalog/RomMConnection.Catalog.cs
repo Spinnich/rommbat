@@ -46,29 +46,6 @@ public sealed partial class RomMConnection
         CancellationToken cancellationToken = default) =>
         GetAuthenticatedAsync<ICollection<SmartCollectionSchema>>("api/collections/smart", cancellationToken);
 
-    /// <summary>
-    /// Lists virtual collections of one type.
-    /// </summary>
-    /// <remarks>
-    /// <paramref name="type"/> is required by the server: this route answers 422 without it,
-    /// which the other two collection routes do not, so the three are not interchangeable.
-    /// </remarks>
-    public Task<RomMResponse<ICollection<VirtualCollectionSchema>>> ListVirtualCollectionsAsync(
-        string type,
-        int? limit = null,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(type);
-
-        var path = "api/collections/virtual?type=" + Uri.EscapeDataString(type);
-        if (limit is { } cap)
-        {
-            path += "&limit=" + cap.ToString(CultureInfo.InvariantCulture);
-        }
-
-        return GetAuthenticatedAsync<ICollection<VirtualCollectionSchema>>(path, cancellationToken);
-    }
-
     /// <summary>Fetches one page of ROMs, with every costly sidecar off.</summary>
     public Task<RomMResponse<RomPage>> GetRomPageAsync(
         CatalogQuery query,
@@ -78,100 +55,6 @@ public sealed partial class RomMConnection
     {
         ArgumentNullException.ThrowIfNull(query);
         return GetAuthenticatedAsync<RomPage>("api/roms?" + query.ToQueryString(limit, offset), cancellationToken);
-    }
-
-    /// <summary>
-    /// Fetches one ROM by id.
-    /// </summary>
-    /// <remarks>
-    /// <b>The one read that exists because a scope cannot be paged.</b>
-    /// <c>GET /api/roms</c> takes no id-list parameter, so a picked set arriving on a second
-    /// device has ids and no rows behind them, and this is the only way to turn one into the
-    /// other. It costs about 0.15 s per ROM, which is why <c>RomRow</c>'s own remarks
-    /// rule it out for metadata on a resolved set and why the picked scope is meant for tens of
-    /// games rather than thousands.
-    /// <para>
-    /// Read as a <see cref="RomRow"/> rather than through the generated detail schema, for the
-    /// reason that type exists: the pinned schema declares <c>fs_size_bytes</c> a bare
-    /// <c>integer</c>, so a generated DTO fails outright on any ROM at or above 2 GiB, which is
-    /// most disc images. The extra fields the detail route carries are user arrays this client
-    /// never reads.
-    /// </para>
-    /// </remarks>
-    public Task<RomMResponse<RomRow>> GetRomAsync(int romId, CancellationToken cancellationToken = default) =>
-        GetAuthenticatedAsync<RomRow>(
-            "api/roms/" + romId.ToString(CultureInfo.InvariantCulture),
-            cancellationToken);
-
-    /// <summary>
-    /// Fetches the filter-value sidecar once, for a filter picker.
-    /// </summary>
-    /// <remarks>
-    /// The one call that deliberately turns a sidecar on. It costs 280 KB and describes the
-    /// whole library rather than a page, so it is fetched with <c>limit=1</c> and cached for
-    /// the session. Nothing that pages ever asks for it.
-    /// <para>
-    /// <b>Read through <see cref="RomFilterValuesPage"/>, which ignores the row.</b> The
-    /// generated page type carries an <c>int32</c> <c>fs_size_bytes</c>, so through it one ROM
-    /// at or above 2 GiB leaves every facet empty on a library that has thousands of values.
-    /// </para>
-    /// </remarks>
-    public async Task<RomMResponse<RomFilterValues>> GetFilterValuesAsync(
-        CatalogQuery query,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-
-        var response = await GetAuthenticatedAsync<RomFilterValuesPage>(
-            "api/roms?" + query.ToQueryString(limit: 1, offset: 0, withFilterValues: true),
-            cancellationToken).ConfigureAwait(false);
-
-        if (!response.IsSuccess)
-        {
-            return RomMResponse.Failure<RomFilterValues>(
-                response.Status,
-                response.Message ?? "The filter values were not returned.");
-        }
-
-        // Absent rather than empty is a server that answered without the sidecar, which is a
-        // different thing from a library with nothing to filter by and reads differently.
-        return response.Value!.FilterValues is { } values
-            ? RomMResponse.Success(values)
-            : RomMResponse.Failure<RomFilterValues>(
-                response.Status,
-                "The server answered without the filter values it was asked for.");
-    }
-
-    /// <summary>
-    /// Fetches the letter index of one query: where in its order each first character begins.
-    /// </summary>
-    /// <remarks>
-    /// <b>The second call that turns a sidecar on, for a letter jump.</b> Keys are lowercased
-    /// first characters, digits folded into <c>0</c>, and each value is the offset of the first
-    /// row under it in <paramref name="query"/>'s own order, so it follows the scope, the filter,
-    /// the search and the direction. Under an order other than name it comes back empty (RB-427).
-    /// Fetched with <c>limit=1</c> and read through <see cref="RomCharIndexPage"/>, which
-    /// ignores the row for the reason <see cref="RomFilterValuesPage"/> does.
-    /// </remarks>
-    public async Task<RomMResponse<IReadOnlyDictionary<string, int>>> GetCharIndexAsync(
-        CatalogQuery query,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-
-        var response = await GetAuthenticatedAsync<RomCharIndexPage>(
-            "api/roms?" + query.ToQueryString(limit: 1, offset: 0, withCharIndex: true),
-            cancellationToken).ConfigureAwait(false);
-
-        if (!response.IsSuccess)
-        {
-            return RomMResponse.Failure<IReadOnlyDictionary<string, int>>(
-                response.Status,
-                response.Message ?? "The letter index was not returned.");
-        }
-
-        return RomMResponse.Success<IReadOnlyDictionary<string, int>>(
-            response.Value!.CharIndex ?? new Dictionary<string, int>(StringComparer.Ordinal));
     }
 
     /// <summary>

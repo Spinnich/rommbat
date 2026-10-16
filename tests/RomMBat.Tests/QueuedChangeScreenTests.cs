@@ -129,79 +129,6 @@ public class QueuedChangeScreenTests : IDisposable
     }
 
     [Fact]
-    public void A_game_that_cannot_be_converted_is_not_offered_the_verb()
-    {
-        // Nothing is on this device, so SaveConverter refuses for want of a ROM. The screen
-        // asks it rather than working the rule out, which is what stops the gate drifting from
-        // the refusals the converter actually applies.
-        Assert.False(QueuedChangeScreens.CanConvert(_session, 4242));
-    }
-
-    [Fact]
-    public void A_game_already_queued_is_not_offered_the_verb_again()
-    {
-        _session.Store.PendingConfig.Queue(Request());
-
-        // Queue() would replace the outstanding row, which is right for a person changing their
-        // mind and reads as nothing happening for a person pressing the same thing twice.
-        Assert.False(QueuedChangeScreens.CanConvert(_session, 4242));
-        Assert.Single(_session.Store.PendingConfig.ListOutstanding());
-    }
-
-    [Fact]
-    public void The_convert_screen_never_offers_to_write_the_setting_now()
-    {
-        var screen = Assert.IsType<ConfirmScreen>(
-            QueuedChangeScreens.Convert(_session, 4242, "Armored Core 3"));
-
-        var strings = Text(screen).ToList();
-
-        // There is no apply path from this interface and there cannot be one, so nothing here
-        // may offer to write it now. The console has --apply because it can be run with ES
-        // closed; this always runs under a live one.
-        Assert.DoesNotContain(strings, text => text!.Contains("now", StringComparison.OrdinalIgnoreCase)
-            && text.Contains("write", StringComparison.OrdinalIgnoreCase)
-            && !text.Contains("Nothing is written now", StringComparison.Ordinal));
-
-        Assert.All(screen.Hints, hint => Assert.Contains(hint.Action, NavRepeat.Bound));
-    }
-
-    [Fact]
-    public void Queueing_a_card_says_it_is_done_in_the_gamepad_own_words()
-    {
-        // #448: once queued, the title stayed an offer over "Queued", the row's detail was the
-        // console's line with the raw es_settings.cfg key, and the warning ended on a flag.
-        AddRom(4242, "ps2", "Armored Core 3 (USA).chd");
-
-        var convert = Assert.IsType<ConfirmScreen>(
-            QueuedChangeScreens.Convert(_session, 4242, "Armored Core 3"));
-
-        Assert.EndsWith("?", convert.Question, StringComparison.Ordinal);
-        Assert.Contains(convert.Rows, row => row.Label == "Worth knowing");
-        Assert.All(Text(convert), text =>
-        {
-            Assert.DoesNotContain("--", text, StringComparison.Ordinal);
-            Assert.DoesNotContain("pcsx2_slot1_memory", text, StringComparison.Ordinal);
-        });
-
-        var navigator = new Navigator(convert);
-        navigator.Handle(NavAction.Left);
-        navigator.Handle(NavAction.Accept);
-
-        Assert.Single(_session.Store.PendingConfig.ListOutstanding());
-        Assert.StartsWith("Memory card change queued for 'Armored Core 3'.", convert.Question, StringComparison.Ordinal);
-        Assert.Empty(convert.Rows);
-        Assert.Equal(ListScreen.DoneLabel, Assert.Single(convert.Hints, hint => hint.Action == NavAction.Accept).Label);
-
-        Assert.All(Text(convert), text =>
-        {
-            Assert.DoesNotContain("--", text, StringComparison.Ordinal);
-            Assert.DoesNotContain("queued:", text, StringComparison.Ordinal);
-            Assert.DoesNotContain("pcsx2_slot1_memory", text, StringComparison.Ordinal);
-        });
-    }
-
-    [Fact]
     public void The_queued_screens_name_no_face_button()
     {
         _session.Store.PendingConfig.Queue(Request());
@@ -211,10 +138,8 @@ public class QueuedChangeScreenTests : IDisposable
         navigator.Handle(NavAction.Accept);
 
         var confirm = Assert.IsType<ConfirmScreen>(navigator.Current);
-        var convert = Assert.IsType<ConfirmScreen>(
-            QueuedChangeScreens.Convert(_session, 4242, "Armored Core 3"));
 
-        foreach (var screen in new IScreen[] { list, confirm, convert })
+        foreach (var screen in new IScreen[] { list, confirm })
         {
             var strings = Text(screen)
                 .Append((screen as ListScreen)?.EmptyMessage)
@@ -240,25 +165,6 @@ public class QueuedChangeScreenTests : IDisposable
             .Append((screen as ConfirmScreen)?.Question)
             .Concat((screen as ConfirmScreen)?.Buttons.Select(button => button.Label) ?? [])
             .OfType<string>();
-
-    private void AddRom(int romId, string folder, string fileName)
-    {
-        var path = RelativePath.Create($"roms/{folder}/{fileName}");
-        var absolute = _session.Install.Resolve(path);
-
-        Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
-        File.WriteAllText(absolute, "rom bytes");
-
-        _session.Store.Files.Record(new LocalFile
-        {
-            Path = path,
-            Folder = folder,
-            RomId = romId,
-            Kind = LocalFileKind.Rom,
-            FileName = fileName,
-            SizeBytes = 9,
-        });
-    }
 
     private static PendingConfigRequest Request() => new()
     {

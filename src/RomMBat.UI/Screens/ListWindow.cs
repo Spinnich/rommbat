@@ -54,16 +54,6 @@ public static class ListWindow
     public const int NoteLines = 2;
 
     /// <summary>
-    /// How tall a pager's rows are drawn, full page or not.
-    /// </summary>
-    /// <remarks>
-    /// A full window of ordinary rows between its two markers. Held while a page loads, so
-    /// turning one does not collapse the block to a single line and back.
-    /// </remarks>
-    public static double PagerHeight =>
-        (2 * MoreHeight) + (2 * RowSpacing) + BlockHeight(Capacity, RowHeight);
-
-    /// <summary>
     /// A row on a list that is read rather than chosen from, whose detail is a whole sentence.
     /// </summary>
     /// <remarks>

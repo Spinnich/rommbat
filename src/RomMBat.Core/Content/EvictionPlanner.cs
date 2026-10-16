@@ -452,8 +452,7 @@ public sealed class EvictionPlanner
     /// fix.</b> It is the tidier-looking answer and it breaks a set: the second set's gamelist
     /// would name a file outside its own folder, which EmulationStation cannot follow. The
     /// bytes genuinely double and the budget is right to count them twice. What was wrong is
-    /// that nobody could see why, which is what browse's folder column and the sync's own
-    /// report are for.
+    /// that nobody could see why, which is what the sync's own report is for.
     /// </para>
     /// </remarks>
     /// <param name="releasing">Sets whose claim does not count, because they are being removed from.</param>

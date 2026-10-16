@@ -43,16 +43,16 @@ here**; see [Identity](identity.md).
 Local state, plus everything that knows RetroBat's disk layout. The largest project and
 the one with all the interesting invariants.
 
-| Area             | Responsibility                                                                                                                                                                                                                                                                                    |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Root discovery   | Walk up from `AppContext.BaseDirectory` to a marker (`retrobat.ini`, `emulationstation/`, `roms/`). Registry and fixed-path lookups are a last-resort fallback, never primary                                                                                                                     |
-| Path resolution  | The single place a relative stored path becomes an absolute one. Nothing else concatenates a root                                                                                                                                                                                                 |
-| Local store      | SQLite: file index, sync sets, outbox, cursors, learned bindings                                                                                                                                                                                                                                  |
-| RetroBat readers | `es_systems.cfg` (folders and `<extension>`), `es_savestates.cfg` (state schema, with a bundled supplement beneath it), `es_features.cfg` (per-game options), `system/version.info` (version)                                                                                                     |
-| RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic. The second also refuses to run while ES is up, because ES discards writes made underneath it                                                                                                                             |
-| Mapping          | Platform resolution chain, save-directory map, save-shape classification                                                                                                                                                                                                                          |
-| Sync             | Set resolution, disk budget and eviction, negotiation state machine, outbox flush                                                                                                                                                                                                                 |
-| Orchestration    | `Sets/`: the console-free services that compose the above. `SyncSetService`, `SetResolveService`, `LibrarySyncService`, `GameSync`, `GameService`, `PickedSetService`, `EvictionService`, `RemovalService`, `RoamingConfigService`. `Sync/SaveFlushService` is the same shape for the saves flush |
+| Area             | Responsibility                                                                                                                                                                                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Root discovery   | Walk up from `AppContext.BaseDirectory` to a marker (`retrobat.ini`, `emulationstation/`, `roms/`). Registry and fixed-path lookups are a last-resort fallback, never primary                                                                                  |
+| Path resolution  | The single place a relative stored path becomes an absolute one. Nothing else concatenates a root                                                                                                                                                              |
+| Local store      | SQLite: file index, sync sets, outbox, cursors, learned bindings                                                                                                                                                                                               |
+| RetroBat readers | `es_systems.cfg` (folders and `<extension>`), `es_savestates.cfg` (state schema, with a bundled supplement beneath it), `es_features.cfg` (per-game options), `system/version.info` (version)                                                                  |
+| RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic. The second also refuses to run while ES is up, because ES discards writes made underneath it                                                                                          |
+| Mapping          | Platform resolution chain, save-directory map, save-shape classification                                                                                                                                                                                       |
+| Sync             | Set resolution, disk budget and eviction, negotiation state machine, outbox flush                                                                                                                                                                              |
+| Orchestration    | `Sets/`: the console-free services that compose the above. `SyncSetService`, `SetResolveService`, `LibrarySyncService`, `GameSync`, `EvictionService`, `RemovalService`, `RoamingConfigService`. `Sync/SaveFlushService` is the same shape for the saves flush |
 
 ## `src/RomMBat.Agent`
 
@@ -65,8 +65,6 @@ task.
 | `pair`       | yes           | Device pairing from a terminal. The UI pairs through the same Core service                             |
 | `sets`       | yes           | `list`, `show` and `remove` are local; `add` pushes the definitions to RomM, `resolve` walks a scope   |
 | `platforms`  | yes           | `list` the RomM to RetroBat folder mapping, `map` or `unmap` an override. `--offline` lists local rows |
-| `browse`     | yes           | One page of the catalog, with the RomM ids the other commands take                                     |
-| `game`       | yes           | One game by id: `show`, `install` into the hand-picked set now, `remove` (local) with `--apply`        |
 | `sync`       | yes           | Flush first, then resolve sets, BIOS, then each game's ROMs and its artwork, gamelists, and scan saves |
 | `budget`     | **never**     | Show or set the disk cap and the free-space floor                                                      |
 | `evict`      | **never**     | What would go to get back inside the budget, and dead transfers; removes with `--apply`                |
@@ -192,8 +190,9 @@ EmulationStation through `system/es_menu/*.menu`.
 What it covers: pairing behind an on-screen keyboard, and status; the sets surface (listing,
 defining, editing and deleting a set, the scope, platform and folder pickers, resolving one with
 progress, and the disk budget); the sync run (every set or one, with live progress, a stop that
-leaves the tree correct, and the budget as it is spent); browse, per-game install and removal;
-conflicts; the platform mapping; and the configuration queue.
+leaves the tree correct, and the budget as it is spent); conflicts; the platform mapping; and the
+configuration queue. There is no library browser: what is on the device is what EmulationStation
+shows.
 
 **The root is a list of verbs because a screen has only three action buttons**, Accept,
 Alternate and Extra, with Start reserved for the menu, and the root needs more entry points than
@@ -208,16 +207,6 @@ class C restore a flush does, and two at once leave a shared container half swap
 done, and words every outcome; `saves resolve` is a shell over it. It takes a connection factory
 rather than a connection, so the lock is still taken before anything is asked of the server.
 
-**Browse holds one page and moves by page**, 50 rows, and it is the only screen that is not a
-`ListScreen`: everything else has all its rows the moment it opens. It starts on the platform
-list rather than the library, asks for name order unless VIEW OPTIONS picks another, degrades to what this device holds when there
-is no server and says which of the two it is showing, and its cursor **stops** at the end of the
-last page where every other list wraps, because a paged list that wraps to page one silently
-undoes the paging. L1 and R1 move a screen and fetch the neighboring page when they leave this
-one; a letter jump fetches the page that starts at the letter's offset, from RomM's letter index
-read once per view (RB-427). Both draw through one body in `ScreenView`, so the windowing and the edge
-markers cannot be right in one and wrong in the other.
-
 **A list of choices and a pane of facts are drawn differently, and `ListScreen.Reading` is which
 one a screen is.** A list of choices has a cursor, wraps, and draws each row at a menu row's
 height with ES's selection bar on the one under the cursor. A pane of facts has **no cursor at all**, scrolls by an offset
@@ -231,22 +220,21 @@ height.** A pane of facts is drawn by the body that draws a status row and its b
 `ListWindow.ContentBudget`, so there is no second number to disagree with the first.
 
 **A person can free space on the interface, but RomMBat never chooses which games matter
-least.** What a person can do is name one: delete a
-set and take its games, or take one game off from its detail screen. Both go through
-`EvictionService.PreviewRemoval`, behind a preview, and neither can reach a save: `local_file`
+least.** What a person can do is name one: delete a set and take its games. That goes through
+`EvictionService.PreviewRemoval`, behind a preview, and cannot reach a save: `local_file`
 has no save kind, enforced by a `CHECK`, so anything that removes content walks a table that
 holds no saves. `rommbat-agent evict` is unchanged.
 
 **Start opens a menu and never commits, Accept confirms or moves on, and Back never commits.**
 That is EmulationStation's own grammar (RB-421 to RB-424). A screen lists its verbs as
-`ScreenAction`s; the navigator opens `ActionMenuScreen` on Start and runs the Alternate, Extra and
-Options shortcuts from the same list, so the footer, the menu and the shortcuts cannot disagree. A verb
+`ScreenAction`s; the navigator opens `ActionMenuScreen` on Start and runs the Alternate and Extra
+shortcuts from the same list, so the footer, the menu and the shortcuts cannot disagree. A verb
 keeps one shortcut everywhere (Sync on Alternate, Check for changes on Extra), and a destructive one has
 none. An editor saves from its last row, and Back with unsaved changes asks.
 
 **Every confirmation is one `ConfirmScreen`**, ES's message box with the safe answer selected
 first, where ES selects YES, drawn in the shell's overlay over the screen it is about. A
-confirmation that needs a preview (a set's or a game's removal) carries it as details inside the
+confirmation that needs a preview (a set's removal) carries it as details inside the
 box, filled by the box's own loader, and an answer that needs the preview stays disabled until it
 lands. One that acts in place (dropping an outbox entry, canceling a queued change, a platform's
 automatic choice) turns into its outcome with a single Done, as ES's own boxes report with OK.
@@ -270,8 +258,8 @@ changes** rather than Check alone, beside Sync, because the full phrase says it 
 so which of the two reaches the network.
 
 **A player reads plain words, and the code and the command line keep the design's.** The screens
-say Check for changes for a resolve, What it holds for a scope, Waiting to upload for the outbox,
-Pending settings for queued `es_settings.cfg` changes and Browse library for browse; the glossary
+say Check for changes for a resolve, What it holds for a scope, Waiting to upload for the outbox
+and Pending settings for queued `es_settings.cfg` changes; the glossary
 pairs each with its term. A conflict shows its slot through `SaveSlotLabel.Describe` ("Battery
 save", "Save state 3", "Memory card"), a refused play session shows none, and a set shows its scope
 kind through `SyncSetStore.ScopeLabel`, while the agent's listings of conflicts and restores print
@@ -287,8 +275,8 @@ at its reserved height in every state: an empty slot is blank, an unknown bar is
 and the sentence and the problems box are cut at their line budgets. The problems box keeps the
 newest that fit, and the sync screen offers every problem on the top button exactly when
 `ProgressLayout.Fit` left one out, listed once each and drawn as full-width paragraphs
-(`ListRow.IsParagraph`). A list's note is reserved whenever the screen has one, a counting loader draws its track
-from the start, and browse holds its rows at a full page's height while the next one loads.
+(`ListRow.IsParagraph`). A list's note is reserved whenever the screen has one, and a counting loader draws its track
+from the start.
 
 **It looks like one more EmulationStation menu, in RetroBat's default carbon theme** (RB-425):
 a centered panel, the title in capitals, a gradient bar on the selection, and ES's help bar along

@@ -7,10 +7,10 @@ namespace RomMBat.UI.Screens;
 /// Getting a connection the way every screen that talks to RomM needs one.
 /// </summary>
 /// <remarks>
-/// <b>One body, because three screens had grown their own and one of them was wrong.</b> Browse
-/// kept a cached connection written on a loader thread and read on the thread that draws
-/// (#118); the removal flush built one inline and disposed the wrong half on one branch. The
-/// dance is the same in all of them: authenticate through <see cref="InstallSession"/>, and when
+/// <b>One body, because screens that grew their own got it wrong.</b> One kept a cached
+/// connection written on a loader thread and read on the thread that draws (#118); the removal
+/// flush built one inline and disposed the wrong half on one branch. The dance is the same in
+/// all of them: authenticate through <see cref="InstallSession"/>, and when
 /// a test has handed in a factory, drop what authenticating produced and use the factory's
 /// instead so a stub can stand in its place.
 /// <para>

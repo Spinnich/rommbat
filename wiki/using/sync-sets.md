@@ -6,14 +6,14 @@ that part in step as the library changes.
 
 ## What a set can hold
 
-| Kind               | Holds                                                                                |
-| ------------------ | ------------------------------------------------------------------------------------ |
-| Platform           | Every game on one RomM platform, such as all your SNES games                         |
-| Collection         | One of your RomM collections                                                         |
-| Smart collection   | One of your RomM smart collections, which RomM keeps up to date by its own rules     |
-| Virtual collection | One RomM builds for you, such as by genre. Made from a terminal only (`sets add`)    |
-| Saved filter       | A search: part of a name, and any of RomM's filters, such as genre, region or rating |
-| Picked games       | Single games you installed from [Browse library](browse-and-install.md)              |
+| Kind             | Holds                                                                            |
+| ---------------- | -------------------------------------------------------------------------------- |
+| Platform         | Every game on one RomM platform, such as all your SNES games                     |
+| Collection       | One of your RomM collections                                                     |
+| Smart collection | One of your RomM smart collections, which RomM keeps up to date by its own rules |
+
+To keep a search, such as your favorites or one genre, save it in RomM as a smart collection and
+make a set from that.
 
 Collections need the `collections.read` permission from [pairing](../getting-started/pairing.md).
 A set asks RomM what it holds each time it syncs, so a game added to a collection in RomM comes
@@ -64,7 +64,7 @@ show them.
 
 ## When a game leaves a set
 
-A game that leaves a set, because it left the collection or no longer matches the filter, stays
+A game that leaves a set, because it left the collection or no longer matches its rules, stays
 on this device. The set's screen lists it under Left the set. Nothing is removed until you
 choose to remove it; see [Disk space](disk-budget.md#making-room).
 

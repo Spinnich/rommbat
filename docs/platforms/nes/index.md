@@ -165,7 +165,7 @@ firmware.
 
 ## The set
 
-Not a hand-picked set. A smart collection, which is an ordinary scope:
+A smart collection:
 
 |          |                                                    |
 | -------- | -------------------------------------------------- |

@@ -33,25 +33,24 @@ dotnet publish src/RomMBat.Agent -c Release -r win-x64 --self-contained
 
 ## Walking screens without a window
 
-Every screen is driven with the gamepad map alone. `BrowseScreenTests` does it end to end
+Every screen is driven with the gamepad map alone. `SetsScreenTests` does it end to end
 against `StubRomMServer`:
 
 ```csharp
-// BrowseViewModel.Start(session) opens the platform list; this is the list itself.
-using var browse = new BrowseViewModel(session, connect);   // connect stands a stub in
-await Settled(browse);                                      // poll IsLoading
+// The root's Sync sets row; connect stands a stub in for the server.
+var navigator = new Navigator(SetsScreens.List(session, connect));
+navigator.Handle(NavAction.Accept);                                      // open the set
 
-var navigator = new Navigator(browse);
-navigator.Handle(NavAction.Accept);                         // open the game
-navigator.Handle(NavAction.Accept);                         // install it
+using var sync = Assert.IsType<SyncViewModel>(
+    Navigator.Press(navigator.Current, NavAction.Alternate).Screen);     // Sync, on its shortcut
 ```
 
 A confirm screen answers `Accept`, not `Start`, and Start only ever opens a screen's actions
 menu: drive an action with `Navigator.Press` or `Navigator.Run`, since a screen's own `Handle`
 never sees Start or a shortcut. A screen of facts has no cursor and scrolls by an
-offset, so assert on `Window.Start`, since `Cursor` is always `-1` there. With no `connect`
-factory and no pairing, browse lists what the tree holds, so the offline half needs only seeded
-`local_file` rows; `BrowseViewModel.Note` says which of the two it is showing.
+offset, so assert on `Window.Start`, since `Cursor` is always `-1` there. Everything on the sets
+surface but resolving and syncing is local, so most screens need only seeded store rows and no
+stub at all.
 
 ## The live suite
 

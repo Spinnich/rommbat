@@ -17,5 +17,5 @@ was previously only inferable from the absence of a warning.
 among a hundred and twenty. Choosing a folder writes a user override, which is what stops a later
 re-resolve overwriting it, and dropping one is offered only where there is one to drop. **No
 connection anywhere in it, and that is not a degradation**: `platform_map` is written by every
-resolve and every browse, so the rows are already local, and waiting on an unreachable LAN host
+resolve, so the rows are already local, and waiting on an unreachable LAN host
 to show them would trade the working state for nothing.

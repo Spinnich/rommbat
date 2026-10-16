@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace RomM.Client.Catalog;
 
 /// <summary>
-/// One ROM, cut down to what browsing, sync-set resolution and the gamelist need.
+/// One ROM, cut down to what sync-set resolution and the gamelist need.
 /// </summary>
 /// <remarks>
 /// Deliberately not <c>SimpleRomSchema</c>, for two reasons that both bite at scale.
@@ -327,88 +327,6 @@ public sealed record RomScreenScraperMetadata
     /// <summary>Relative to the asset prefix. This is EmulationStation's marquee.</summary>
     [JsonPropertyName("logo_path")]
     public string? LogoPath { get; init; }
-}
-
-/// <summary>
-/// The filter-value sidecar, and deliberately nothing else off the page it arrives on.
-/// </summary>
-/// <remarks>
-/// <b>The sidecar rides on <c>/api/roms</c>, so asking for it means being sent a row.</b>
-/// Reading that row is what broke: the generated page type carries
-/// <c>SimpleRomSchema</c>, whose <c>fs_size_bytes</c> is an <see cref="int"/> because the
-/// pinned schema declares a bare <c>integer</c>, and a single ROM at or above 2 GiB fails the
-/// whole body. <see cref="RomRow"/> exists for exactly that reason and says so; this call
-/// reached past it for the generated type and inherited the bug, so a library holding one
-/// large game had no filter values at all.
-/// <para>
-/// Ignoring <c>items</c> outright is better than widening one field: this call wants the
-/// sidecar, the row is an artifact of where the sidecar lives, and a shape that reads nothing
-/// cannot be broken by the next field the schema gets wrong.
-/// </para>
-/// </remarks>
-public sealed record RomFilterValuesPage
-{
-    [JsonPropertyName("filter_values")]
-    public RomFilterValues? FilterValues { get; init; }
-}
-
-/// <summary>The letter-index sidecar, and nothing else off the page it arrives on.</summary>
-/// <remarks>Ignores <c>items</c> for the reason <see cref="RomFilterValuesPage"/> does.</remarks>
-public sealed record RomCharIndexPage
-{
-    [JsonPropertyName("char_index")]
-    public IReadOnlyDictionary<string, int>? CharIndex { get; init; }
-}
-
-/// <summary>
-/// What each filter facet can be, across the whole library rather than a page.
-/// </summary>
-/// <remarks>
-/// Every facet RomM reports, not only the ones a sync set can persist: which of these a
-/// picker offers is <c>RomMBat.Core</c>'s decision, and a client that dropped the rest would
-/// make that decision here instead. <c>platforms</c> is a list of ids where the others are
-/// names.
-/// </remarks>
-public sealed record RomFilterValues
-{
-    [JsonPropertyName("genres")]
-    public IReadOnlyList<string> Genres { get; init; } = [];
-
-    [JsonPropertyName("franchises")]
-    public IReadOnlyList<string> Franchises { get; init; } = [];
-
-    [JsonPropertyName("collections")]
-    public IReadOnlyList<string> Collections { get; init; } = [];
-
-    [JsonPropertyName("companies")]
-    public IReadOnlyList<string> Companies { get; init; } = [];
-
-    [JsonPropertyName("developers")]
-    public IReadOnlyList<string> Developers { get; init; } = [];
-
-    [JsonPropertyName("publishers")]
-    public IReadOnlyList<string> Publishers { get; init; } = [];
-
-    [JsonPropertyName("game_modes")]
-    public IReadOnlyList<string> GameModes { get; init; } = [];
-
-    [JsonPropertyName("age_ratings")]
-    public IReadOnlyList<string> AgeRatings { get; init; } = [];
-
-    [JsonPropertyName("player_counts")]
-    public IReadOnlyList<string> PlayerCounts { get; init; } = [];
-
-    [JsonPropertyName("regions")]
-    public IReadOnlyList<string> Regions { get; init; } = [];
-
-    [JsonPropertyName("languages")]
-    public IReadOnlyList<string> Languages { get; init; } = [];
-
-    [JsonPropertyName("tags")]
-    public IReadOnlyList<string> Tags { get; init; } = [];
-
-    [JsonPropertyName("platforms")]
-    public IReadOnlyList<int> Platforms { get; init; } = [];
 }
 
 /// <summary>One page of <see cref="RomRow"/>, with the sidecars deliberately absent.</summary>

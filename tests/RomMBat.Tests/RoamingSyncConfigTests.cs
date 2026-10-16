@@ -142,35 +142,8 @@ public class RoamingSyncConfigTests : IDisposable
         Assert.False(narrowed.Allows(RomMFeature.CollectionSets));
         Assert.Contains(RomMScopes.CollectionsRead, narrowed.MissingFor(RomMFeature.CollectionSets));
 
-        // Platform and filter scopes need nothing beyond the library feature, which is what
-        // makes them the two that survive a narrowed grant.
+        // A platform scope needs nothing beyond the library feature, which is what makes it the
+        // one that survives a narrowed grant.
         Assert.True(narrowed.Allows(RomMFeature.Library));
-    }
-
-    [Fact]
-    public void A_saved_filter_round_trips_through_its_stored_json()
-    {
-        var filter = new CatalogFilter
-        {
-            SearchTerm = "mario",
-            Genres = ["Platform"],
-            Regions = ["USA", "Europe"],
-            Favorite = true,
-        };
-
-        var recovered = CatalogFilterJson.Parse(CatalogFilterJson.Write(filter));
-
-        Assert.Equal("mario", recovered.SearchTerm);
-        Assert.Equal(["Platform"], recovered.Genres);
-        Assert.Equal(["USA", "Europe"], recovered.Regions);
-        Assert.True(recovered.Favorite);
-        Assert.False(recovered.IsEmpty);
-    }
-
-    [Fact]
-    public void An_unreadable_stored_filter_becomes_an_empty_one_rather_than_stopping_the_listing()
-    {
-        Assert.True(CatalogFilterJson.Parse("{not json").IsEmpty);
-        Assert.True(CatalogFilterJson.Parse(null).IsEmpty);
     }
 }

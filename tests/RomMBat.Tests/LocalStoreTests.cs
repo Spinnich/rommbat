@@ -715,6 +715,82 @@ public class LocalStoreTests
     }
 
     [Fact]
+    public void The_022_rebuild_drops_every_set_of_a_removed_kind_and_leaves_its_files()
+    {
+        // 022 narrows scope_kind to the three a set can still be. A set of any other kind goes
+        // with its membership and its walk cursor, and the runner turns foreign keys off, so a
+        // member left behind would be an orphan the reference check refuses. What the set
+        // downloaded stays on disk and in local_file, where eviction treats it as unclaimed.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+        var path = install.DatabasePath;
+
+        var rom = Path.Combine(tree.Root, "roms", "snes", "Picked (USA).sfc");
+        Directory.CreateDirectory(Path.GetDirectoryName(rom)!);
+        File.WriteAllText(rom, "rom bytes");
+
+        using (var seed = new SqliteConnection($"Data Source={path};Pooling=False"))
+        {
+            seed.Open();
+
+            foreach (var migration in MigrationsUpTo(21))
+            {
+                Execute(seed, ReadMigration(migration));
+            }
+
+            Execute(
+                seed,
+                """
+                INSERT INTO sync_set (id, name, scope_kind, scope_value, created_at, updated_at)
+                VALUES
+                  (1, 'snes', 'platform', '1', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                  (2, 'mario', 'filter', '{"search_term":"mario"}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                  (3, 'picked', 'picked', '[42]', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+                  (4, 'rpg', 'virtual_collection', 'genre-rpg', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+
+                INSERT INTO sync_set_member (
+                  sync_set_id, rom_id, state, folder, platform_slug, fs_name, fs_extension,
+                  size_bytes, display_name, sort_key, resolved_at
+                )
+                VALUES
+                  (1, 41, 'member', 'snes', 'snes', 'Kept (USA).sfc', 'sfc', 9, 'Kept', 'Kept', '2026-01-01T00:00:00Z'),
+                  (2, 42, 'member', 'snes', 'snes', 'Picked (USA).sfc', 'sfc', 9, 'Picked', 'Picked', '2026-01-01T00:00:00Z'),
+                  (3, 42, 'member', 'snes', 'snes', 'Picked (USA).sfc', 'sfc', 9, 'Picked', 'Picked', '2026-01-01T00:00:00Z'),
+                  (4, 43, 'member', 'snes', 'snes', 'Rpg (USA).sfc', 'sfc', 9, 'Rpg', 'Rpg', '2026-01-01T00:00:00Z');
+
+                INSERT INTO sync_cursor (endpoint) VALUES ('roms:set:1'), ('roms:set:2'), ('roms:set:3'), ('roms:set:4');
+
+                INSERT INTO local_file (relative_path, folder, rom_id, kind, file_name, size_bytes)
+                VALUES ('roms/snes/Picked (USA).sfc', 'snes', 42, 'rom', 'Picked (USA).sfc', 9);
+
+                PRAGMA user_version = 21;
+                """);
+        }
+
+        using var store = LocalStore.OpenAt(path);
+
+        Assert.Equal(LocalStore.ExpectedSchemaVersion, store.SchemaVersion);
+
+        var set = Assert.Single(store.SyncSets.List());
+        Assert.Equal("snes", set.Name);
+        Assert.Equal(41, Assert.Single(store.SyncSets.Members(1, state: null)).RomId);
+        Assert.Equal(["roms:set:1"], QueryStrings(store, "SELECT endpoint FROM sync_cursor ORDER BY endpoint;"));
+        Assert.Equal(["0"], QueryStrings(store, "SELECT CAST(COUNT(*) AS TEXT) FROM sync_set_member WHERE sync_set_id <> 1;"));
+
+        // The files the removed sets downloaded are still there, on disk and in the index.
+        Assert.True(File.Exists(rom));
+        Assert.Equal(42, Assert.Single(store.Files.List()).RomId);
+
+        // And the narrowed CHECK refuses a removed kind from now on.
+        using var command = store.Connection.CreateCommand();
+        command.CommandText =
+            "INSERT INTO sync_set (name, scope_kind, scope_value, created_at, updated_at) "
+            + "VALUES ('again', 'filter', '{}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');";
+        Assert.Throws<SqliteException>(() => command.ExecuteNonQuery());
+    }
+
+    [Fact]
     public void The_017_rebuild_renames_folder_exclusions_and_drops_format_exclusions()
     {
         // 017 retires excluded_extension. A row with no extension was a folder-held rom all

@@ -1028,8 +1028,8 @@ public sealed class SyncScreenTests : IDisposable
     /// <b>The test the previous one could not be.</b> That one proves five reading rows fit and
     /// eight do not, which is a fact about two constants; it cannot see a screen that computes a
     /// window of eight and is drawn at the reading height, because the count lived in a view
-    /// model and the height in the renderer. Browse did exactly that, one stage after the same
-    /// defect was found from the couch on the problems list and fixed at that one instance.
+    /// model and the height in the renderer, which is the defect found from the couch on the
+    /// problems list.
     /// <para>
     /// <b>The sweep below cannot fail while the pairing holds, and that is deliberate rather
     /// than an oversight.</b> Both numbers now come from one answer per screen, so the mismatch
@@ -1059,11 +1059,9 @@ public sealed class SyncScreenTests : IDisposable
             [.. Enumerable.Range(1, 30).Select(n => new ListRow(n.ToString(CultureInfo.CurrentCulture)))],
             _ => ScreenCommand.Stay);
 
-        using var browse = new BrowseViewModel(_session);
-
-        // Walked as IWindowedScreen, which is the type that pairs the two, so a screen added
-        // later is covered by implementing it rather than by being remembered here.
-        foreach (IWindowedScreen screen in new IWindowedScreen[] { reading, ordinary, browse })
+        // Walked as IWindowedScreen, so a screen added later is covered by implementing it
+        // rather than by being remembered here.
+        foreach (IWindowedScreen screen in new IWindowedScreen[] { reading, ordinary })
         {
             var window = screen.Window;
 

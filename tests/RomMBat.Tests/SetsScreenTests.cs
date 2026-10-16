@@ -366,13 +366,6 @@ public sealed class SetsScreenTests : IDisposable
             }
         }
 
-        // Browse is deliberately not a ListScreen, so it escaped the loop above and its message
-        // sat in the renderer as a literal with no ellipsis on it. Asserted here rather than
-        // widened into the loop, because it is the only screen on this surface with a loader and
-        // no ListScreen under it.
-        using var browse = new BrowseViewModel(_session, null);
-
-        Assert.EndsWith("...", browse.LoadingMessage, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -607,28 +600,6 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     [Fact]
-    public void Loading_what_a_filter_can_match_is_not_a_change()
-    {
-        // The facet values arrive from RomM while the editor is open, and a facet the library
-        // has no values for leaves the rows. Nothing about the set changed, so leaving must not
-        // ask whether to discard anything (R4.3 on #495).
-        var made = new SyncSetService(_session).Add(
-            new SetDraft { Name = "filtered", Scope = CatalogScopeKind.Filter, Filter = new CatalogFilter() },
-            Now);
-
-        var editor = SetEditorViewModel.ForExisting(_session, made.Set!);
-        var before = editor.Rows.Count;
-
-        var library = Library();
-        library[FilterFacet.Genres] = [];
-        editor.Filters.Values = library;
-
-        Assert.NotEqual(before, editor.Rows.Count);
-        Assert.False(editor.IsDirty);
-        Assert.Equal(ScreenCommandKind.Pop, editor.Handle(NavAction.Back).Kind);
-    }
-
-    [Fact]
     public void A_disk_limit_stepped_away_and_back_is_not_a_change()
     {
         // Right then Left lands where it started, so there is nothing to discard and leaving
@@ -820,25 +791,33 @@ public sealed class SetsScreenTests : IDisposable
         Assert.All(editor.Rows, row => Assert.False(row.Steps));
 
         // No Name row either. A platform and a collection are named by RomM already, and the
-        // set takes that name, so only a filter needs one typed. The last row creates the set.
+        // set takes that name. The last row creates the set.
         Assert.Equal(["What it holds", "Platform", "Create set"], editor.Rows.Select(row => row.Label));
     }
 
     [Fact]
-    public void Only_a_filter_set_asks_for_a_name()
+    public void A_new_set_offers_three_scopes_and_none_asks_for_a_name()
     {
         SeedPlatform(4, "snes");
+        Pair([.. RomMScopes.Requested]);
 
         var editor = SetEditorViewModel.ForNew(_session);
-        Assert.DoesNotContain(editor.Rows, row => row.Label == "Name");
-
-        // A filter is the one scope that is not a mirror of something RomM has already named.
         var scopes = Assert.IsType<ListScreen>(OpenRow(editor, "What it holds"));
-        MoveTo(scopes, SyncSetStore.ScopeLabel(CatalogScopeKind.Filter));
-        scopes.Handle(NavAction.Accept);
 
-        Assert.Contains(editor.Rows, row => row.Label == "Name");
-        Assert.Contains(editor.Rows, row => row.Label == "Search for");
+        Assert.Equal(
+            ["Collection", "Smart collection", "Platform"],
+            scopes.Rows.Select(row => row.Label));
+
+        // Each is something RomM has already named, so the set takes that name and nothing is
+        // typed on a d-pad.
+        foreach (var label in scopes.Rows.Select(row => row.Label).ToList())
+        {
+            var picker = Assert.IsType<ListScreen>(OpenRow(editor, "What it holds"));
+            MoveTo(picker, label);
+            picker.Handle(NavAction.Accept);
+
+            Assert.DoesNotContain(editor.Rows, row => row.Label == "Name");
+        }
     }
 
     [Fact]
@@ -949,41 +928,6 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     [Fact]
-    public void A_name_somebody_typed_is_not_overwritten_by_a_later_choice()
-    {
-        SeedPlatform(4, "snes");
-
-        // Only a filter scope offers a name to type, so that is the path that can produce a
-        // hand-typed one. Switching back to a platform afterwards must not silently replace it:
-        // overwriting a name somebody entered is worse than never asking for one.
-        var editor = FilterEditor();
-        MoveTo(editor, "Name");
-
-        var keyboard = Assert.IsType<OnScreenKeyboard>(editor.Handle(NavAction.Accept).Screen);
-        keyboard.Handle(NavAction.Accept);
-        keyboard.Handle(NavAction.Start);
-
-        var typed = editor.Rows.Single(row => row.Label == "Name").Value;
-        Assert.NotEqual("not set", typed);
-
-        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, "What it holds"));
-        MoveTo(scopes, SyncSetStore.ScopeLabel(CatalogScopeKind.Platform));
-        scopes.Handle(NavAction.Accept);
-
-        var platforms = Assert.IsType<ListScreen>(OpenRow(editor, "Platform"));
-        platforms.Handle(NavAction.Accept);
-
-        // A platform set shows no Name row at all, so what it was named can only be read off
-        // the set once it exists. That is the assertion that matters anyway: the picker
-        // suggests a name for a set that has none, and this one has one.
-        Navigator.Run(editor, "Create set");
-
-        var made = new SyncSetService(_session).List();
-        Assert.Single(made);
-        Assert.Equal(typed, made[0].Set.Name);
-    }
-
-    [Fact]
     public void Resolving_from_the_detail_screen_updates_what_it_shows()
     {
         var set = Seed("stale");
@@ -1060,297 +1004,26 @@ public sealed class SetsScreenTests : IDisposable
     {
         // Windowing done in the renderer is invisible to the suite, which does not render, and a
         // screen that never calls it draws every row it has, past the height of the display.
-        // The set editor reaches that the moment a filter grows to twenty-two rows. The window
-        // is a property of the screen, and this walks it.
-        var editor = FilterEditor();
-        Assert.True(
-            editor.Rows.Count > ListWindow.Capacity,
-            "this test is vacuous unless the editor is longer than one screen");
-
-        for (var step = 0; step < editor.Rows.Count; step++)
+        // The window is a property of the screen, and this walks it.
+        for (var index = 0; index < ListWindow.Capacity + 3; index++)
         {
-            var window = editor.Window;
-
-            Assert.InRange(editor.Cursor, window.Start, window.Start + window.Count - 1);
-            Assert.Equal(editor.Rows.Count, window.Above + window.Count + window.Below);
-
-            editor.Handle(NavAction.Down);
+            Seed($"set {index:D2}");
         }
 
         var list = Assert.IsType<ListScreen>(SetsScreens.List(_session));
-        Assert.Equal(list.Rows.Count, list.Window.Above + list.Window.Count + list.Window.Below);
-    }
+        Assert.True(
+            list.Rows.Count > ListWindow.Capacity,
+            "this test is vacuous unless the list is longer than one screen");
 
-    [Fact]
-    public void A_filter_offers_every_facet_RomM_does()
-    {
-        var editor = FilterEditor();
-
-        // It offered five of eleven facets and two of ten properties, on the reasoning that
-        // those were the ones a set could store. They all store: this is one JSON column and
-        // one dictionary, so the subset was a subset of nothing.
-        var labels = editor.Rows.Select(row => row.Label).ToList();
-
-        Assert.Contains("Search for", labels);
-        Assert.All(FilterFacet.Multi, facet => Assert.Contains(facet, labels));
-        Assert.All(FilterFacet.Properties, property => Assert.Contains(property, labels));
-    }
-
-    [Fact]
-    public void Every_facet_and_property_offered_reaches_the_query_string()
-    {
-        // The screen and the wire are driven off the same two lists, and this is the assertion
-        // that says so: a facet added to FilterFacet with no home in CatalogFilter would show
-        // as a row that changes nothing.
-        Assert.Equal(CatalogFilter.Facets.Count, FilterFacet.Multi.Count);
-        Assert.Equal(CatalogFilter.Properties.Count, FilterFacet.Properties.Count);
-
-        foreach (var label in FilterFacet.Multi)
+        for (var step = 0; step < list.Rows.Count; step++)
         {
-            var key = FilterFacet.KeyOf(label);
-            Assert.Contains(key, CatalogFilter.Facets);
+            var window = list.Window;
 
-            var query = new CatalogQuery
-            {
-                Scope = CatalogScopeKind.Filter,
-                Filter = new CatalogFilter().WithValues(key, ["x"]),
-            }.ToQueryString(limit: 1, offset: 0);
+            Assert.InRange(list.Cursor, window.Start, window.Start + window.Count - 1);
+            Assert.Equal(list.Rows.Count, window.Above + window.Count + window.Below);
 
-            Assert.Contains($"{key}=x", query, StringComparison.Ordinal);
+            list.Handle(NavAction.Down);
         }
-
-        foreach (var label in FilterFacet.Properties)
-        {
-            var key = FilterFacet.KeyOf(label);
-            Assert.Contains(key, CatalogFilter.Properties);
-
-            var query = new CatalogQuery
-            {
-                Scope = CatalogScopeKind.Filter,
-                Filter = new CatalogFilter().WithProperty(key, true),
-            }.ToQueryString(limit: 1, offset: 0);
-
-            Assert.Contains($"{key}=true", query, StringComparison.Ordinal);
-        }
-    }
-
-    [Fact]
-    public void A_logic_operator_reaches_the_wire_only_when_it_is_not_the_default()
-    {
-        var chosen = new CatalogFilter().WithValues("genres", ["Platform", "Puzzle"]);
-
-        // Any is RomM's own default, so sending it would add a parameter to every filter query
-        // for no change in meaning and would pin the default where a later one could not reach.
-        var plain = new CatalogQuery { Scope = CatalogScopeKind.Filter, Filter = chosen }
-            .ToQueryString(limit: 1, offset: 0);
-
-        Assert.DoesNotContain("genres_logic", plain, StringComparison.Ordinal);
-
-        var all = new CatalogQuery
-        {
-            Scope = CatalogScopeKind.Filter,
-            Filter = chosen with
-            {
-                Logic = new Dictionary<string, FilterLogic>(StringComparer.Ordinal)
-                {
-                    ["genres"] = FilterLogic.All,
-                },
-            },
-        }.ToQueryString(limit: 1, offset: 0);
-
-        Assert.Contains("genres_logic=all", all, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void The_logic_operator_is_set_inside_the_facet_it_belongs_to()
-    {
-        var editor = FilterEditor();
-        editor.Filters.Values = Library();
-
-        var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
-
-        // The first row, because an operator belongs to its facet and means nothing without
-        // it, and eleven more editor rows would double a list that is already long. Name on
-        // the left and the one live setting on the right, like every other row: printing all
-        // three choices there read as three things being on at once.
-        Assert.Equal("Match", picker.Rows[0].Label);
-        Assert.Equal("any of", picker.Rows[0].Value);
-
-        Assert.Equal(ScreenCommandKind.Stay, picker.Handle(NavAction.Accept).Kind);
-        Assert.Equal("all of", picker.Rows[0].Value);
-
-        picker.Handle(NavAction.Accept);
-        Assert.Equal("none of", picker.Rows[0].Value);
-
-        picker.Handle(NavAction.Accept);
-        Assert.Equal("any of", picker.Rows[0].Value);
-    }
-
-    [Fact]
-    public void The_line_above_a_facet_picker_follows_the_operator_rather_than_asserting_one()
-    {
-        var editor = FilterEditor();
-        editor.Filters.Values = Library();
-
-        var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
-
-        // It was a fixed string reading "matching any of", so it went on saying that while the
-        // row under it said none. Two statements of the same fact, one of them stale.
-        Assert.Equal("Games matching any of the genres chosen here.", picker.Note?.Invoke());
-
-        picker.Handle(NavAction.Accept);
-        picker.Handle(NavAction.Accept);
-
-        Assert.Equal("Games matching none of the genres chosen here.", picker.Note?.Invoke());
-    }
-
-    [Fact]
-    public void The_operator_row_does_not_swallow_the_value_under_it()
-    {
-        var editor = FilterEditor();
-        editor.Filters.Values = Library();
-
-        var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
-
-        // An off-by-one here would tick the wrong genre, which is the kind of defect a person
-        // finds three screens later when the resolve returns the wrong games.
-        picker.Handle(NavAction.Down);
-        Assert.Equal("Platform", picker.Rows[1].Label);
-
-        picker.Handle(NavAction.Accept);
-        Assert.Equal("chosen", picker.Rows[1].Value);
-    }
-
-    [Fact]
-    public void A_facet_row_names_its_operator_only_when_it_is_not_the_default()
-    {
-        var editor = FilterEditor();
-        editor.Filters.Values = Library();
-
-        var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
-        picker.Handle(NavAction.Down);
-        picker.Handle(NavAction.Accept);
-
-        // Any is the default, so naming it on every row would be noise on ten rows to make one
-        // stand out. It is named as soon as it is something else.
-        var row = MoveTo(editor, FilterFacet.Genres);
-        Assert.Equal("Platform", editor.Rows[row].Value);
-
-        picker.Handle(NavAction.Up);
-        picker.Handle(NavAction.Accept);
-
-        row = MoveTo(editor, FilterFacet.Genres);
-        Assert.Equal("Platform, all of", editor.Rows[row].Value);
-    }
-
-    /// <summary>Facet values as a library would report them, so a picker has rows offline.</summary>
-    private static Dictionary<string, IReadOnlyList<string>> Library() =>
-        FilterFacet.Multi.ToDictionary(
-            facet => facet,
-            IReadOnlyList<string> (_) => ["Platform", "Puzzle", "Shooter"],
-            StringComparer.Ordinal);
-
-    [Fact]
-    public void An_operator_over_no_values_is_not_offered()
-    {
-        var editor = FilterEditor();
-
-        // Combining nothing is not a choice, and a picker holding one unusable row would never
-        // reach the empty message that explains why it is otherwise blank.
-        var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
-
-        Assert.Empty(picker.Rows);
-    }
-
-    [Fact]
-    public void A_filter_with_nothing_set_says_it_matches_everything()
-    {
-        var editor = FilterEditor();
-
-        // Worth saying before it happens rather than after a resolve walks the whole library.
-        Assert.Contains(
-            editor.Rows,
-            row => row.Detail is { } detail
-                && detail.Contains("matches every game", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void A_property_cycles_through_three_states_rather_than_two()
-    {
-        var editor = FilterEditor();
-        var row = MoveTo(editor, "Favorite");
-
-        // It was a yes-or-no toggle, so it could say "favorites only" and nothing else. RomM
-        // offers all three and "games I have not favorited" is a real thing to sync.
-        Assert.Equal("either", editor.Rows[row].Value);
-
-        Assert.Equal(ScreenCommandKind.Stay, editor.Handle(NavAction.Accept).Kind);
-        Assert.Equal("yes", editor.Rows[row].Value);
-
-        editor.Handle(NavAction.Accept);
-        Assert.Equal("no", editor.Rows[row].Value);
-
-        editor.Handle(NavAction.Accept);
-        Assert.Equal("either", editor.Rows[row].Value);
-    }
-
-    [Fact]
-    public void A_property_answered_from_RomMs_own_records_says_so_once_it_is_set()
-    {
-        var editor = FilterEditor();
-        var row = MoveTo(editor, "Has saves");
-
-        // Unset it says nothing, because a caveat on a row nobody has touched is noise.
-        Assert.Null(editor.Rows[row].Detail);
-
-        editor.Handle(NavAction.Accept);
-
-        Assert.Contains(
-            "another account",
-            editor.Rows[row].Detail ?? string.Empty,
-            StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Editing_a_filter_set_opens_on_the_filter_it_already_has()
-    {
-        var stored = new CatalogFilter()
-            .WithValues("genres", ["Platform"])
-            .WithProperty("favorite", true);
-
-        var set = _session.Store.SyncSets.Add(
-            new SyncSetDefinition
-            {
-                Name = "mine",
-                Scope = CatalogScopeKind.Filter,
-                ScopeValue = RomMBat.Core.Sync.CatalogFilterJson.Write(stored),
-            },
-            Now);
-
-        // It opened on a blank filter, so every row said "any" for a set that had one. Nothing
-        // was lost, because the edit could not write a filter either, but a set defined from
-        // the couch could never be looked at from it.
-        var editor = SetEditorViewModel.ForExisting(_session, set);
-        var labels = editor.Rows.Select(row => row.Label).ToList();
-
-        Assert.Equal("Platform", editor.Rows[labels.IndexOf(FilterFacet.Genres)].Value);
-        Assert.Equal("yes", editor.Rows[labels.IndexOf("Favorite")].Value);
-    }
-
-    [Fact]
-    public void A_facet_with_no_values_in_this_library_says_so_rather_than_opening_an_empty_list()
-    {
-        var editor = FilterEditor();
-        MoveTo(editor, FilterFacet.Genres);
-
-        using var picker = Assert.IsType<ListScreen>(editor.Handle(NavAction.Accept).Screen);
-
-        // A list rather than a message, because whether there are any values is not known until
-        // the server answers, and finding that out on the drawing thread is what froze the
-        // interface. The sentence is the empty message instead, shown once the load lands.
-        Assert.Empty(picker.Rows);
-        Assert.NotNull(picker.EmptyMessage);
-        Assert.Contains("genres", picker.EmptyMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -1421,7 +1094,7 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     /// <summary>Pairs this install, so a screen given a stub connection gets past authenticating.</summary>
-    private void Pair()
+    private void Pair(params string[] scopes)
     {
         _session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(_session.Install));
         _session.Store.Device.SavePairing(
@@ -1429,25 +1102,9 @@ public sealed class SetsScreenTests : IDisposable
                 Origin,
                 "device-1",
                 "Handheld",
-                new GrantedScopes(["roms.read", "assets.read"]),
+                new GrantedScopes(scopes.Length == 0 ? ["roms.read", "assets.read"] : scopes),
                 TokenProtector.Protect("rmm_token", null, Now.AddYears(1))),
             Now);
-    }
-
-    /// <summary>A new-set editor with the filter scope chosen, driven the way a person does it.</summary>
-    private SetEditorViewModel FilterEditor()
-    {
-        var editor = SetEditorViewModel.ForNew(_session);
-        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, "What it holds"));
-
-        // Walked by label rather than by counting presses. The cursor skips unavailable rows,
-        // so pressing down N times does not land on index N, and virtual collections are
-        // unavailable. Counting put the cursor on the wrong scope and the test that followed
-        // then searched for a row that did not exist.
-        MoveTo(scopes, SyncSetStore.ScopeLabel(CatalogScopeKind.Filter));
-        scopes.Handle(NavAction.Accept);
-
-        return editor;
     }
 
     /// <summary>
@@ -1491,55 +1148,6 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     // ---- nothing waits on the network while it is drawing ----
-
-    [Fact]
-    public async Task A_picker_that_asks_the_server_opens_at_once_and_says_it_is_loading()
-    {
-        Pair();
-
-        // Held open, or the loader is not running when the footer is read. Unpaired, it answered
-        // "not paired" in milliseconds, and on CI's runner that sometimes landed first and moved
-        // Done from Back to Accept before the assertion looked (#538).
-        using var stub = new StubRomMServer();
-        var held = new TaskCompletionSource();
-        stub.HoldRomPages = held;
-
-        var choices = new FilterChoices(
-            _session,
-            connect: _ => new RomMConnection(new RomMClientOptions { Origin = Origin, AccessToken = "rmm_test" }, stub));
-
-        // The filter values are worked out by RomM across every game in the library, which is
-        // minutes on a large one. Fetching that on the thread that draws froze the interface
-        // with nothing on screen saying why, which from the couch is a crash.
-        var clock = Stopwatch.StartNew();
-        using var picker = Assert.IsType<ListScreen>(choices.Open(FilterFacet.Genres).Screen);
-        clock.Stop();
-
-        Assert.True(
-            clock.ElapsedMilliseconds < 500,
-            $"opening the facet picker took {clock.ElapsedMilliseconds} ms, so it waited on something");
-
-        // Leavable while it loads, and the footer says so: Done, on Back, because the confirm
-        // button does not leave a screen whose loader is still running.
-        Assert.True(picker.IsLoading);
-        Assert.Contains(picker.Hints, hint => hint.Action == NavAction.Back && hint.Label == ListScreen.DoneLabel);
-
-        held.SetResult();
-        await picker.Loaded.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-    }
-
-    [Fact]
-    public void A_loading_picker_is_still_leavable()
-    {
-        var editor = FilterEditor();
-        MoveTo(editor, FilterFacet.Genres);
-
-        using var picker = Assert.IsType<ListScreen>(editor.Handle(NavAction.Accept).Screen);
-
-        // The whole point of not blocking. A screen that cannot be left while it waits is the
-        // same as a frozen one for anybody holding a controller.
-        Assert.Equal(ScreenCommandKind.Pop, picker.Handle(NavAction.Back).Kind);
-    }
 
     [Fact]
     public void The_platform_picker_shows_its_rows_before_any_counts_arrive()
@@ -1802,12 +1410,6 @@ public sealed class SetsScreenTests : IDisposable
         var existing = new SyncSetService(_session).List();
         var set = existing.Count > 0 ? existing[0].Set : Seed("sample");
 
-        // Built before the list, because constructing a screen in it is not side-effect free:
-        // ApplyRemoval starts its loader on construction and that loader deletes the set, so a
-        // row written for that set afterwards fails its foreign key. Worth knowing rather than
-        // worked around silently, since the same is true of every screen here that loads.
-        var browsed = Browsed(set);
-
         var screens = new List<IScreen>
         {
             SetsScreens.List(_session),
@@ -1831,25 +1433,11 @@ public sealed class SetsScreenTests : IDisposable
             SetEditorViewModel.ForExisting(_session, set),
             new BudgetViewModel(_session),
 
-            // The inventory and browse screens, listed here rather than left to their own file's
-            // tests, because the sweeps this list feeds are the whole-surface ones: no face button
-            // named, no unbound action promised, no verb offered that does nothing, and nothing
-            // slower than two seconds with the server off. A hands-on pass found three verb defects
-            // across these in one sitting, and every one of them was on a screen no sweep looked
-            // at.
+            // The inventory screen, listed here rather than left to its own file's tests, because
+            // the sweeps this list feeds are the whole-surface ones: no face button named, no
+            // unbound action promised, no verb offered that does nothing, and nothing slower than
+            // two seconds with the server off.
             InventoryScreens.Check(_session),
-            BrowseScreens.Detail(_session, browsed),
-
-            // Both reached only by driving a preview to completion, and both were the browse
-            // half of the pair the set side had already made internal for this. The footer
-            // defect a hands-on pass found was on the first of them.
-            BrowseScreens.ConfirmRemoval(_session, browsed, null, null),
-            BrowseScreens.ApplyRemoval(
-                _session,
-                browsed,
-                new EvictionReport(new PartialSweepPlan(), new EvictionPlan(), HasBudget: false),
-                null,
-                null),
         };
 
         // The pickers, which are reached from the editor rather than constructed directly.
@@ -1960,25 +1548,6 @@ public sealed class SetsScreenTests : IDisposable
                 MaxGames = 40,
             },
             Now);
-
-    /// <summary>A browse row for a game this device holds, so the detail screen has both verbs.</summary>
-    private BrowseGame Browsed(SyncSetDefinition set)
-    {
-        _session.Store.SyncSets.ReplaceMembers(set.Id, [Member(set)], "1 game", Now);
-
-        _session.Store.Files.Record(new LocalFile
-        {
-            Path = RomMBat.Core.Paths.RelativePath.Create("roms/snes/g.sfc"),
-            Folder = "snes",
-            RomId = 1,
-            Kind = LocalFileKind.Rom,
-            FileName = "g.sfc",
-            SizeBytes = 2048,
-            Origin = FileOrigin.Synced,
-        });
-
-        return new BrowseGame(1, "Game", "snes", 2048, ["snes"], 2048, [set.Name], Row: null);
-    }
 
     private IScreen Root() =>
         RootScreens.Menu(

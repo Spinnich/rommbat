@@ -84,6 +84,10 @@ the web (GameFAQs, wikis, No-Intro and Redump notes) rather than from memory. Pr
 coverage table, one row per edge case naming the game that covers it, or "none in library" with a
 suggested addition. Then ask one `AskUserQuestion` with the recommended set first.
 
+**The games reach the agent tree through a sync set, and a set is a platform, a collection or a
+smart collection.** RomMBat cannot pull one game on its own, so put the chosen games in a RomM
+collection and sync that, or sync the platform with a game cap.
+
 ## Checklist
 
 Record results in `docs/platforms/<system>/`: `index.md` holds the system's own steps and each

@@ -191,8 +191,8 @@ the rest from a save. RB-294.
 
 **No game in the set has a clock, so one was brought in.** Pokemon - Silver Version (USA, Europe)
 (SGB Enhanced) (GB Compatible), RomM rom 275002, header type `0x10` (MBC3 with timer, RAM and
-battery) and 32 KB of RAM, is filed under `gbc` in RomM. A filter set with `--folder gb`, `gb clock
-probe`, resolved to it alone and synced it into `roms/gb`, the `.gbc` inside a zip. It was booted
+battery) and 32 KB of RAM, is filed under `gbc` in RomM. It was synced alone into `roms/gb` with
+`--folder gb`, the `.gbc` inside a zip. It was booted
 once under every row with nothing saved, and every file it wrote was moved out of the tree:
 
 | Row                                                         | Where the clock went                                        |

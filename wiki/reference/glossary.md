@@ -50,8 +50,8 @@ save or a memory card.
 **Sync.** Bringing this device in step with your sync sets: sending saves and playtime, then
 downloading games, artwork and BIOS.
 
-**Sync set.** A saved choice of games to keep on this device: a platform, a collection, a search,
-or games you picked. See [Sync sets](../using/sync-sets.md).
+**Sync set.** A saved choice of games to keep on this device: a platform, a collection or a smart
+collection. See [Sync sets](../using/sync-sets.md).
 
 **System folder.** A folder under RetroBat's `roms` folder, such as `roms\snes`, where one
 system's games live.

@@ -40,11 +40,11 @@ same transaction that stores the new pairing (`PairingService.CompleteAsync`,
 rebuilt one restarts them. Files on disk, sync set definitions and `local_file` stay: that table
 records which files RomMBat downloaded, which eviction and the byte budget need and nothing can
 rebuild. Its rows are marked `stale` instead, so no reader that resolves a game by rom id sees
-them: `LocalFileStore.List`, `ForRom` and the browse and size queries skip them, which keeps a
+them: `LocalFileStore.List`, `ForRom` and the size queries skip them, which keeps a
 save from being attributed through an id the new server may have given to another game. The
 ownership readers (the budget, the budget path of eviction, the inventory sweep) pass
-`includeStale`; eviction gives a stale row no set's claim, so it is orphaned. Removing a game
-or a set never selects one, since its id may now be another game's, and `uninstall --content`
+`includeStale`; eviction gives a stale row no set's claim, so it is orphaned. Removing a set
+never selects one, since its id may now be another game's, and `uninstall --content`
 selects every one by its row. The slot and conversion lookups that read `local_file` directly skip them too.
 A sync that finds the file again writes the row afresh with the new id and clears the flag, and
 `ContentSync.Adopt` and `MediaSync.RecordAdopted` keep a `synced` origin. A multi-file game is
