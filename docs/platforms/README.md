@@ -318,11 +318,13 @@ procedure. That is not a certification and must
 not be filed as one, but "the tests pass" and "an emulator wrote this and RomMBat handled it"
 are different claims, and only the second is evidence.
 
-| Pass           | The one shape to exercise by hand                                   | Done                |
-| -------------- | ------------------------------------------------------------------- | ------------------- |
-| Save state     | A save state, across more than one emulator for one game            | **Yes**, see below  |
-| Directory unit | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient     | **Yes**, see below  |
-| Memory card    | A PCSX2 folder card save, synced up and restored onto a second tree | **Yes**, on `pcsx2` |
+| Pass           | The one shape to exercise by hand                                   | Done                   |
+| -------------- | ------------------------------------------------------------------- | ---------------------- |
+| Save state     | A save state, across more than one emulator for one game            | **Yes**, see below     |
+| Directory unit | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient     | **Yes**, see below     |
+| Memory card    | A PCSX2 folder card save, synced up and restored onto a second tree | **Partly**, on `pcsx2` |
+
+**The memory card, partly done on `ps2` / `pcsx2` / Burnout 3 (USA, Canada).** A save made under the folder card uploaded, restored md5-equal after the unit was deleted on the same tree, and PCSX2 booted it with the profile intact. Not driven: a restore onto a second tree that never held the unit, which `/certify ps2 --hands-on` owes.
 
 **The directory unit, done on `psp` / Bust-A-Move - Deluxe (USA), PPSSPP.** Not a certification: one game, one
 system, steps 4 and 9 only. Results are RB-154 to RB-156, RB-158 and RB-159.
