@@ -928,6 +928,49 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     [Fact]
+    public void A_set_whose_name_is_taken_is_still_made_from_the_pad()
+    {
+        SeedPlatform(4, "snes");
+        var label = new SyncSetService(_session).PlatformsKnownHere()[0].Label;
+
+        // A set from the console that happens to carry the platform's name, over something else.
+        new SyncSetService(_session).Add(
+            new SetDraft { Name = label, Scope = CatalogScopeKind.Platform, ScopeValue = "7" },
+            Now);
+
+        var editor = SetEditorViewModel.ForNew(_session);
+        Assert.IsType<ListScreen>(OpenRow(editor, "Platform")).Handle(NavAction.Accept);
+        Navigator.Run(editor, "Create set");
+
+        // There is no row to rename it on, so a refusal here would be a dead end.
+        Assert.Null(editor.Problem);
+        Assert.Contains(new SyncSetService(_session).List(), summary => summary.Set.Name == $"{label} (Platform)");
+    }
+
+    [Fact]
+    public void Creating_the_same_platform_twice_says_which_set_already_holds_it()
+    {
+        SeedPlatform(4, "snes");
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var editor = SetEditorViewModel.ForNew(_session);
+            Assert.IsType<ListScreen>(OpenRow(editor, "Platform")).Handle(NavAction.Accept);
+            Navigator.Run(editor, "Create set");
+
+            if (attempt == 1)
+            {
+                Assert.Contains(
+                    new SyncSetService(_session).List()[0].Set.Name,
+                    editor.Problem,
+                    StringComparison.Ordinal);
+            }
+        }
+
+        Assert.Single(new SyncSetService(_session).List());
+    }
+
+    [Fact]
     public void Resolving_from_the_detail_screen_updates_what_it_shows()
     {
         var set = Seed("stale");

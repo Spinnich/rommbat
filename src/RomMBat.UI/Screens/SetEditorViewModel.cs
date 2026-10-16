@@ -512,7 +512,9 @@ public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
             return ScreenCommand.Pop;
         }
 
-        var added = service.Add(
+        // Named after the pick, and given a free name when that one is taken, because there is
+        // no row here to rename it on.
+        var added = service.AddNamedAfterScope(
             new SetDraft
             {
                 Name = _name,
