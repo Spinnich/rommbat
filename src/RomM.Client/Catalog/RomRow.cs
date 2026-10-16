@@ -121,6 +121,9 @@ public sealed record RomRow
     /// only the flag states the fact. See RB-82.
     /// </para>
     /// </remarks>
+    [JsonPropertyName("has_multiple_files")]
+    public bool HasMultipleFiles { get; init; }
+
     /// <summary>
     /// Where RomM says this ROM's save lives, such as <c>BASLUS-21050</c>, or null.
     /// </summary>
@@ -132,9 +135,6 @@ public sealed record RomRow
     /// </remarks>
     [JsonPropertyName("save_target")]
     public string? SaveTarget { get; init; }
-
-    [JsonPropertyName("has_multiple_files")]
-    public bool HasMultipleFiles { get; init; }
 
     /// <summary>
     /// True when this row is a manually added physical copy that never had a file.

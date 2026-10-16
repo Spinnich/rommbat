@@ -993,6 +993,39 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_folder_card_save_never_overwrites_a_unit_already_on_disk_under_its_key()
+    {
+        // Two local ROMs can share a serial, so a unit under that key may be unattributed or
+        // bound to the other ROM. A save this device never held for this one must not land
+        // on it without a word (#205).
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(191929, "ps2", "Burnout 3 - Takedown (USA, Canada)", ".chd", ".unused", saveContents: null);
+        fixture.Write("saves/ps2/pcsx2/memcards/Mcdf01.ps2/_pcsx2_superblock", "superblock");
+        fixture.Write("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/BASLUS-21050", "played here");
+        fixture.Scan();
+
+        fixture.SeedServerSave(
+            191929,
+            "pcsx2:memcard",
+            "BASLUS-21050",
+            "zip",
+            string.Empty,
+            emulator: "pcsx2",
+            bytes: FolderCardArchive());
+        fixture.Stub.UnsolicitedDownloads.Add((191929, "pcsx2:memcard"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(
+            "played here",
+            File.ReadAllText(fixture.Resolve("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/BASLUS-21050")));
+        Assert.Empty(Directory.GetFiles(
+            fixture.Resolve("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050"),
+            "_pcsx2_index"));
+    }
+
+    [Fact]
     public async Task A_folder_card_save_is_offered_for_restore_and_restored_by_its_key()
     {
         using var fixture = SyncFixture.Create();

@@ -29,7 +29,11 @@ to, so a save syncs the first time, before you have played the game on this comp
 RomMBat makes the change when you next quit EmulationStation, because EmulationStation overwrites
 RetroBat's settings with its own copy when it closes. Until then the change is listed under
 Pending settings on the This device screen, and `rommbat-agent saves` shows it too. It only does this on
-a computer with a PlayStation 2 game synced, and it sets FOLDER over whatever was chosen before.
+a computer with a PlayStation 2 game synced, and it sets FOLDER over the choice for the whole
+system. A game you gave its own card with the old `rommbat-agent saves convert` keeps that choice,
+because a setting for one game outranks the one for the system. It keeps writing to its own card,
+which no longer syncs. To bring it back, remove that game's memory card setting in
+EmulationStation's game options.
 
 **Saves on the old card stay on the old card.** A game you played before the change starts from an
 empty card, because PCSX2 no longer reads the old one. RomMBat does not move them, and

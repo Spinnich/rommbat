@@ -2131,10 +2131,10 @@ public sealed class SaveSync
     /// is nowhere to put it yet.
     /// </summary>
     /// <remarks>
-    /// <b>Only into a container the emulator already made, and only one named in full.</b> The
-    /// key is read off the server's file name by the unit path's own rule, so
-    /// <c>BASLUS-21050.zip</c> lands as <c>Mcdf01.ps2/BASLUS-21050/</c>, beside whatever else the
-    /// card holds. A container with a <c>*</c> segment cannot be expanded without a unit already
+    /// <b>Only into a container the emulator already made, only one named in full, and never over
+    /// a unit already under the key.</b> The key is read off the server's file name by the unit
+    /// path's own rule, so <c>BASLUS-21050.zip</c> lands as <c>Mcdf01.ps2/BASLUS-21050/</c>,
+    /// beside whatever else the card holds. A container with a <c>*</c> segment cannot be expanded without a unit already
     /// in it, since the user id or region it stands for is only known from one; and a container
     /// not on disk is left to the emulator to create, because what else it writes there, such as
     /// PCSX2's superblock, is the emulator's.
@@ -2173,19 +2173,26 @@ public sealed class SaveSync
 
         var stem = ServerTag.Replace(Path.GetFileNameWithoutExtension(named), string.Empty);
 
-        return declared.KeyOf(stem) is { } key
-            ? new LocalSave
-            {
-                Path = container,
-                UnitKey = key,
-                System = folder,
-                Emulator = declared.Emulator,
-                ShapeClass = SaveShapeClass.C,
-                Slot = slot,
-                RomId = operation.RomId,
-                RomPath = roms[0].Path,
-            }
-            : null;
+        if (declared.KeyOf(stem) is not { } key)
+        {
+            return null;
+        }
+
+        // A unit already under the key belongs to another ROM that shares the serial, or to no
+        // ROM yet, and a restore into it would replace it without a conflict (#205).
+        var fresh = new LocalSave
+        {
+            Path = container,
+            UnitKey = key,
+            System = folder,
+            Emulator = declared.Emulator,
+            ShapeClass = SaveShapeClass.C,
+            Slot = slot,
+            RomId = operation.RomId,
+            RomPath = roms[0].Path,
+        };
+
+        return SaveUnitTransfer.Find(_units, fresh) is null ? fresh : null;
     }
 
     private static readonly System.Text.RegularExpressions.Regex ServerTag = new(
