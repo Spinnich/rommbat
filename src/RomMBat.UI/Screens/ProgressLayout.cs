@@ -139,7 +139,7 @@ public static class ProgressLayout
     /// <remarks>
     /// Either one was left out, or one kept is longer than its lines and is trimmed. A single
     /// long problem otherwise leaves the box at one of one with its remedy cut off and no press
-    /// that reaches the rest of it: the memory card advisory ends in the command to run.
+    /// that reaches the rest of it: a problem that ends in the command to run is the case.
     /// </remarks>
     public static bool Hides(IReadOnlyList<string> problems)
     {
