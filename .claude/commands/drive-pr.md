@@ -26,6 +26,9 @@ including pushes to this PR's branch and comments on it, you do without asking
   none on authority. Changing correct code to satisfy it is the failure this loop is most exposed
   to: the reviewer runs on a different model from this command, but neither side knows the
   other's blind spots.
+- **The PR body's "Why it is this way" is the author's record.** This session did not write the
+  change either, so a finding that re-proposes an approach listed there may be REJECTED citing
+  that line, unless the finding brings evidence the reason did not weigh.
 - **The maintainer's comments on the PR are decisions.** Do them. If you think one is wrong, say
   so once, with evidence, in the ledger.
 

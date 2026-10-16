@@ -6,8 +6,8 @@ read-when: Before starting, driving or reviewing a PR, or when deciding whether 
 # Workflow
 
 You have three jobs: **decide, play, merge.** Everything else runs without you. Each command
-runs its work to its end, a merge-ready PR for most, and stops only when it needs one of those
-three.
+runs its work to its end, an open PR or a merge-ready one for most, and stops early only when it
+needs one of those three.
 
 ## Which command
 
@@ -15,15 +15,23 @@ three.
 | ---------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------ |
 | Pick something to work on                      | `/next`                     | It shows the top four and asks which                                                 |
 | Plan a feature or investigate a bug            | `/plan-issue <idea>`        | A design question comes up, the plan needs approval, or an old issue needs your call |
-| Work on a known issue                          | `/start-issue <n>`          | The issue looks stale or wrong, a design question comes up, or a save needs playing  |
+| Work on a known issue                          | `/start-issue <n>`          | The issue looks stale or wrong, a design question comes up, or the PR is open        |
 | Move an open PR forward, from any state        | `/drive-pr <n>`             | It is ready to merge, or a design question is left                                   |
 | Get one review of a PR without fixing anything | `/review-pr <n>`            | Never                                                                                |
-| Certify a system                               | `/certify <system>`         | It is time to play                                                                   |
-| Scout or adopt a RomM or RetroBat release      | `/upstream <project> [tag]` | A re-run needs play, a design question comes up, or it is ready to merge             |
+| Certify a system                               | `/certify <system>`         | It is time to play, or the PR is open                                                |
+| Scout or adopt a RomM or RetroBat release      | `/upstream <project> [tag]` | A re-run needs play, a design question comes up, or the adoption PR is open          |
 
-`/start-issue`, `/certify` and an adopting `/upstream` end by running `/drive-pr`, so you rarely run it by hand. Run it
-again on a PR that stopped for you, once you have answered. `/plan-issue` ends at a filed issue
-instead, which you hand to `/start-issue` when it should move forward.
+`/start-issue`, `/certify` and an adopting `/upstream` end at an open PR: a push notification
+names the next command, `/drive-pr <n>`, and you run it in a fresh session. The authoring
+session holds the investigation, the change and the hands-on pass, screenshots included, and
+`/drive-pr` would pay for all of it on every review round and CI log, then re-read it uncached on
+its own model. It needs none of it, because it reads its state from the PR, and the body's "Why
+it is this way" carries what the author rejected. A save-logic PR names
+`/certify <system> --hands-on <n>` first, which ends the same way. Run `/drive-pr` again on a PR
+that stopped for you, once you have answered.
+
+`/next` runs the command it picks in the same session, since its context is one issue list.
+`/plan-issue` ends at a filed issue, which you hand to `/start-issue` when it should move forward.
 
 ## Which model each command runs on
 
@@ -48,11 +56,12 @@ family without a change here. To map an alias to something else on your own mach
 
 ## Where to look
 
-Nothing needs a terminal watched. When a command stops, you get a push notification and the PR
-gets a label, so the queue is a GitHub filter:
+Nothing needs a terminal watched. When a command stops, you get a push notification. A PR that
+`/drive-pr` stopped on also gets a label, so the queue is a GitHub filter:
 
 - `label:ready-to-merge`: review the PR and merge it.
 - `label:needs-decision`: the question is on the PR and in the terminal as a multiple-choice.
+- An open PR with neither label is waiting for `/drive-pr`.
 
 Each PR carries its own record. A **review comment** per round lists numbered findings (`R2.3`
 is round 2, finding 3). One **ledger comment**, edited in place, holds the ruling on every

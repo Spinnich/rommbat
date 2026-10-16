@@ -1,5 +1,5 @@
 ---
-description: Rule on an issue against main and, if it is real, fix it through to a merge-ready PR
+description: Rule on an issue against main and, if it is real, fix it through to an open PR handed to /drive-pr
 argument-hint: "<issue number>"
 model: opus
 effort: medium
@@ -9,9 +9,9 @@ effort: medium
 
 ISSUE = $1.
 
-This runs from an issue to a merge-ready PR. It stops for the maintainer only for a ruling on a
-verdict other than FIX, a design-of-record question, or a hands-on pass
-([workflow](../../docs/contributing/workflow.md)).
+This runs from an issue to an open PR, handed to `/drive-pr` in a fresh session.
+It stops for the maintainer only for a ruling on a verdict other than FIX, a design-of-record
+question, or a hands-on pass ([workflow](../../docs/contributing/workflow.md)).
 
 ## Step 0: is it still real?
 
@@ -63,9 +63,9 @@ without that script. Never work on main; the pre-push hook refuses it anyway.
    correct every sentence the change falsifies.
 6. **Drive it.** Work `pre-pr-verification`'s "Hands-on by change type" table: deploy this branch
    to the agent tree with `tools/handson/` and run what the rows the diff falls in owe, before the
-   PR opens. That needs no maintainer. Save logic is the exception: schedule
-   `/certify <system> --hands-on <PR>` once the PR is open, which stops for play. A pass that
-   cannot run goes in the PR body as unproven, with the reason.
+   PR opens. That needs no maintainer. Save logic is the exception, because it stops for play:
+   the handoff names `/certify <system> --hands-on <PR>` as the step before `/drive-pr`. A pass
+   that cannot run goes in the PR body as unproven, with the reason.
 7. `pwsh -File tools/pre-pr.ps1 -Quiet`. Every gate green, apart from trunk, which a worktree skips.
 
 ## PR
@@ -80,9 +80,18 @@ CONTRIBUTING's "Labels and release notes" table; the impact is picked by
 - `Fixes #$ISSUE` for a bug, `Closes #$ISSUE` for a feature;
 - the Step 0 verdict and its evidence, in two lines;
 - "Decisions for veto", listing every reversible choice you made alone;
+- "Why it is this way": each approach you considered and rejected, with its reason, so a fresh
+  `/drive-pr` can rule on a finding that re-proposes one. "None" when nothing was rejected;
 - which docs moved, and which you read and found already correct;
 - a **Hands-on** section: what was driven, on which deployed build, and what it showed, or
   why none was owed;
 - what was verified and what was not.
 
-Then run `/drive-pr` on the new PR.
+## Hand off
+
+Do not run `/drive-pr` here. It reads its state from the PR, so it starts in a fresh session
+without carrying this one's context ([workflow](../../docs/contributing/workflow.md#which-command)).
+Send a push notification that leads with the action, print the same line, and end:
+
+- `PR 251 open: run /drive-pr 251 in a fresh session`
+- for save logic, `PR 251 open: run /certify snes --hands-on 251, then /drive-pr 251, each in a fresh session`

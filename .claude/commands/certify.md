@@ -1,5 +1,5 @@
 ---
-description: Certify every (emulator, core) row of one RetroBat system, or run a save-logic hands-on pass, to a merge-ready PR
+description: Certify every (emulator, core) row of one RetroBat system, or run a save-logic hands-on pass, to an open PR handed to /drive-pr
 argument-hint: "<system> [--hands-on <PR>]"
 model: sonnet
 effort: medium
@@ -93,12 +93,14 @@ A row that cannot pass is recorded with its reason. That is a result, not a gap.
   lands on the PR's branch. The record goes in `docs/platforms/<SYSTEM>/`: `index.md` for the
   system's steps and each row's standing at the floor, and a file per emulator or group of rows,
   all nine steps, in `docs/platforms/nes/`'s shape. Then every doc `pre-pr-verification` names for a
-  platform changing state. Run `pwsh -File tools/pre-pr.ps1`, open the PR on the template, and
-  run `/drive-pr` on it. The PR says `Fixes #<n>` when every row has a result, certified or
-  driven and not certified with its reason; a partial pass says `Refs #<n>` and ticks the rows
-  it covered in the issue's task list.
+  platform changing state. Run `pwsh -File tools/pre-pr.ps1` and open the PR on the template.
+  The PR says `Fixes #<n>` when every row has a result, certified or driven and not certified
+  with its reason; a partial pass says `Refs #<n>` and ticks the rows it covered in the issue's
+  task list. Then hand off as `/start-issue` does, without running `/drive-pr`: a push
+  notification and the same line, `PR 251 open: run /drive-pr 251 in a fresh session`.
 - **`--hands-on <PR>`**: post the result on that PR as one comment: each row and option driven,
   what the emulator wrote, what RomMBat did with it, and anything not driven with the reason.
-  Add a line to that PR's ledger, then return to its `/drive-pr`.
+  Add a line to that PR's ledger, then end with a push notification and the same line,
+  `PR 251 hands-on recorded: re-run /drive-pr 251`.
 
 Leave the agent tree as the pass left it. The next hands-on pass resets what it needs.

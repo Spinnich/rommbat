@@ -11,8 +11,9 @@ PROJECT = the first word of $ARGUMENTS (`romm` or `retrobat`). TAG = the second,
 own tag (`5.4.0-alpha.1`, `beta_8.3.0`, `8.3.0`).
 
 Load `version-adoption` before anything else. `SKILL.md` holds both checklists and `delta.md`
-the traps in reading a delta. This stops for the maintainer only for a design-of-record question,
-a play session, or a merge ([workflow](../../docs/contributing/workflow.md)).
+the traps in reading a delta. This stops for the maintainer only for a design-of-record question
+or a play session, and an adoption ends at an open PR handed to `/drive-pr`
+([workflow](../../docs/contributing/workflow.md)).
 
 ## 1. The issue and the target
 
@@ -58,5 +59,6 @@ A behavior nobody has recorded is a new finding, filed the way `docs/upstream/RE
   committed.
 - **Adopt**: `pwsh -File tools/pre-pr.ps1 -Quiet`, then commit and open the PR the way
   `/start-issue` does. Label it `semver:minor` and the type `/start-issue` would give it. The body
-  has the nine-step mapping per record, the AI disclosure, and `Fixes #<tracking issue>`. Then run
-  `/drive-pr` on it.
+  has the nine-step mapping per record, the AI disclosure, and `Fixes #<tracking issue>`. Then
+  hand off as `/start-issue` does, without running `/drive-pr`: a push notification and the same
+  line, `PR 251 open: run /drive-pr 251 in a fresh session`.
