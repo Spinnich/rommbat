@@ -76,25 +76,24 @@ Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. Carried: RetroBat 8.3.0, 20
 absent one day and present at `en_US` the next, with nothing else changed, and over three
 launches ES added it again and changed nothing else, 56 settings to 57. Whether `en_US` is ES's
 default is not established, so neither presence nor absence says what the user chose.
-`SaveConverter` takes over a key only when it holds the value RomMBat wrote, and a conversion
-records whether the key was absent or present before it (migration `010`).
+So `ForcedSettings` compares the one value it forces against what the file holds each quit,
+and never reads a key's presence or absence as the user's choice.
 
 ## RB-185. The ES menu shows an absent feature key as "Auto", and hides a per-game override
 
 Verified: RetroBat 8.2.0, 2026-08-24. How: read `pcsx2_slot1_memory` and the other choices in `es_features.cfg`, and the menu after a conversion.
 `es_features.cfg` declares `standard`, `folder` and `game` for `pcsx2_slot1_memory` and no
 `auto`. Only 3 of 10,724 choice entries declare one, so ES shows AUTO for any unset feature, and
-`switchauto` and `sliderauto` do the same for switches and sliders. Reverting a conversion whose
-prior state was absent removes the key, which puts the menu back on Auto, where the user was.
-After a conversion the system-level menu still reads Auto while the per-game key outranks it.
+`switchauto` and `sliderauto` do the same for switches and sliders. With a per-game key set,
+the system-level menu still reads Auto while the per-game key outranks it.
 
-## RB-210. A change queued under a running ES is applied at the quit
+## RB-210. A setting written at the quit, once ES has exited, survives the next session
 
-Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, it measures RomMBat applying a queued write at the quit, after the exit write RB-200 orders, which is carried. How: queued `pcsx2_slot1_memory` for a PS2 game, ran a whole ES session, and read the file and `background quit`'s log.
-Ten seconds after the `start` hook the key was still absent. At the quit the log read
-"EmulationStation gone after 10 ms, applying 1 queued change(s)", then
-`ps2["Armored Core 3 (USA).chd"].pcsx2_slot1_memory = game`. The row was marked `applied` and the
-conversion recorded `prior_state=absent`, so it can be reverted.
+Verified: RetroBat 8.3.0, 2026-10-16. How: on the agent tree's 8.3.0 install with a PS2 ROM synced and `ps2.pcsx2_slot1_memory` absent, ran an ES session, read `es_settings.cfg` and `background quit`'s log, then ran a second session and read both again.
+At the first quit the log read `set ps2.pcsx2_slot1_memory = folder (was absent)` before the
+flush, and the file held the key afterwards. Through the whole second session ES kept it, and the
+second quit wrote nothing. So a key written after the exit write is the one ES loads next, and
+`ForcedSettings` finding the value already there is what makes the pass a no-op.
 
 ## RB-169. The file holds plaintext credentials
 

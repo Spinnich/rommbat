@@ -10,8 +10,8 @@ namespace RomMBat.Agent.Commands;
 /// <c>--apply</c>.
 /// </summary>
 /// <remarks>
-/// <b>Setup appends rather than replaces, so removal undoes exactly what it added.</b> The hooks,
-/// the menu entry and every per-game memory card conversion always go. <c>--content</c> adds
+/// <b>Setup appends rather than replaces, so removal undoes exactly what it added.</b> The hooks
+/// and the menu entry always go, and a forced setting stays and is named. <c>--content</c> adds
 /// the synced ROMs with their media and gamelist entries, and <c>--bios</c> the synced firmware.
 /// A file RomMBat adopted rather than downloaded, and every save, stays.
 /// <para>
@@ -86,21 +86,6 @@ internal static class UninstallCommand
 
         Section("EmulationStation hooks", [.. report.Hooks.Select(path => path.Value)]);
         Section("The EmulationStation menu entry", [.. report.Menu.Select(path => path.Value)]);
-        Section(
-            "Per-game memory card settings in es_settings.cfg, each put back as it was",
-            [.. report.Conversions.Select(conversion => $"{conversion.System}: {conversion.FsName}")]);
-        Section(
-            "Memory card changes queued for the next EmulationStation quit, called off",
-            [.. report.Queued.Select(queued => $"{queued.System}: {queued.FsName}")]);
-
-        if (report.Conversions.Count > 0)
-        {
-            Console.WriteLine(
-                "  Each of those games goes back to the shared memory card. What it saved while it had its");
-            Console.WriteLine(
-                "  own card stays in that card on disk, and the game will not read it from the shared one.");
-            Console.WriteLine();
-        }
 
         if (report.Content is { } content)
         {
@@ -182,21 +167,6 @@ internal static class UninstallCommand
 
             Console.WriteLine($"  {verb,-9}  {step.Path}   {step.What}");
             Problem(step.Problem);
-        }
-
-        if (applied.Canceled > 0)
-        {
-            Console.WriteLine($"  called off {applied.Canceled} queued memory card change(s). Nothing had been written.");
-        }
-
-        foreach (var result in applied.Reverted ?? [])
-        {
-            Console.WriteLine(result.Ok ? $"  {result.Detail}" : $"  FAILED     {result.Detail}");
-
-            if (result.Ok && result.Warning is { } warning)
-            {
-                Console.WriteLine($"             {warning}");
-            }
         }
 
         if (applied.Content is { } content)

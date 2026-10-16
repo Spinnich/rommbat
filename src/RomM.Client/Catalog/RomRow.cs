@@ -121,6 +121,18 @@ public sealed record RomRow
     /// only the flag states the fact. See RB-82.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Where RomM says this ROM's save lives, such as <c>BASLUS-21050</c>, or null.
+    /// </summary>
+    /// <remarks>
+    /// Its pair, <c>save_target_layout</c>, is not read: the save shapes already say how each
+    /// emulator's directory is keyed, and the key is derived from this by that same rule. Null
+    /// wherever RomM has not identified the ROM, which on the test instance is every one of
+    /// 81 translation patches and none of 4,426 PS2 games.
+    /// </remarks>
+    [JsonPropertyName("save_target")]
+    public string? SaveTarget { get; init; }
+
     [JsonPropertyName("has_multiple_files")]
     public bool HasMultipleFiles { get; init; }
 

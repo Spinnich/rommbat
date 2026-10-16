@@ -2,6 +2,7 @@ using System.Globalization;
 using RomM.Client;
 using RomMBat.Core;
 using RomMBat.Core.Content;
+using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
 
@@ -46,11 +47,6 @@ internal static class SavesCommand
             return Bind(context, command);
         }
 
-        if (command.Positional is ["convert", ..])
-        {
-            return Convert(context, command);
-        }
-
         if (!command.Has("no-scan"))
         {
             // Both passes get the schema, so a state is never listed as unsyncable by one while
@@ -84,7 +80,7 @@ internal static class SavesCommand
         ReportConflicts(context);
         ReportBindings(context);
         ReportUnsyncable(context);
-        ReportPendingConfig(context);
+        ReportForcedSettings(context);
         ReportQueue(context);
 
         return ExitCode.Ok;
@@ -398,58 +394,28 @@ internal static class SavesCommand
     }
 
     /// <summary>
-    /// Configuration changes waiting for EmulationStation to close, and how the last few went.
+    /// The settings RomMBat writes that the file does not hold yet.
     /// </summary>
     /// <remarks>
-    /// The finished half matters more than it looks. A queued change is applied by
-    /// <c>background quit</c>, with no interface running and nobody watching, so this is the
-    /// only account of it a person ever gets. A refusal in particular is invisible otherwise:
-    /// from the ES menu it looks exactly like nothing having happened.
+    /// Written by <c>background quit</c> once EmulationStation is gone, with nobody watching, so
+    /// this is where a person learns that a PS2 game is still saving to the shared card.
     /// </remarks>
-    private static void ReportPendingConfig(AgentContext context)
+    private static void ReportForcedSettings(AgentContext context)
     {
-        var outstanding = context.Store.PendingConfig.ListOutstanding();
+        var pending = new ForcedSettings(context.Install, context.Store).Pending();
 
-        // Only the ones that did not work, and filtered here rather than in the loop below. A
-        // success is visible in the game's own saves, and listing every one of those would bury
-        // the two that need reading; filtering late would print the section's blank line for a
-        // page of nothing but successes and then print nothing under it.
-        var finished = context.Store.PendingConfig
-            .ListFinished(limit: 5)
-            .Where(done => done.Result is not PendingConfigResult.Applied)
-            .ToList();
-
-        if (outstanding.Count == 0 && finished.Count == 0)
+        if (pending.Count == 0)
         {
             return;
         }
 
         Console.WriteLine();
+        Console.WriteLine($"{pending.Count} setting{(pending.Count == 1 ? string.Empty : "s")} "
+            + "will be written when EmulationStation next closes:");
 
-        if (outstanding.Count > 0)
+        foreach (var change in pending)
         {
-            Console.WriteLine($"{outstanding.Count} configuration "
-                + $"change{(outstanding.Count == 1 ? string.Empty : "s")} "
-                + "will be made when EmulationStation next closes:");
-
-            foreach (var queued in outstanding)
-            {
-                var wants = queued.DesiredState == DesiredSettingState.Set
-                    ? $"{queued.SettingKey} = {queued.DesiredValue}"
-                    : $"{queued.SettingKey} removed";
-
-                Console.WriteLine($"  {queued.System}/{queued.FsName}");
-                Console.WriteLine($"    {wants}  ({queued.Reason}, queued {queued.QueuedAtUtc:u})");
-            }
-        }
-
-        foreach (var done in finished)
-        {
-            Console.WriteLine();
-            Console.WriteLine($"  {done.System}/{done.FsName}: "
-                + $"{(done.Result == PendingConfigResult.Refused ? "refused" : "failed")} "
-                + $"at {done.AppliedAtUtc:u}");
-            Console.WriteLine($"    {done.Detail}");
+            Console.WriteLine($"  {change.Key} = {change.Value}  (now {change.Current ?? "absent"})");
         }
     }
 
@@ -569,140 +535,6 @@ internal static class SavesCommand
         return ExitCode.Ok;
     }
 
-
-    /// <summary>
-    /// <c>saves convert &lt;rom id&gt; [--apply|--at-quit|--revert]</c>.
-    /// </summary>
-    /// <remarks>
-    /// <b>Previews by default and writes on <c>--apply</c></b>, which is the convention
-    /// <c>bios</c> and <c>evict</c> already set, and it matters more here than for either of
-    /// them: this is the only command that changes the user's RetroBat configuration, and what
-    /// it changes decides where an emulator writes next time.
-    /// <para>
-    /// <b><c>--at-quit</c> records the change instead of writing it</b>, and
-    /// <c>background quit</c> makes it once EmulationStation is confirmed gone. That is the
-    /// form the UI uses and the only one available to it, because the UI is launched from
-    /// the ES menu and so always runs under a live ES.
-    /// </para>
-    /// <para>
-    /// <b><c>--revert</c> cancels a queued change before it undoes an applied one.</b> A user
-    /// who queued something and changed their mind means the thing that has not happened yet,
-    /// and reverting a conversion that was never applied would refuse for a reason that reads
-    /// like a bug.
-    /// </para>
-    /// <para>
-    /// The verb is a shell over <see cref="SaveConverter"/> and holds no rule of its own, so
-    /// the UI drives the same seam without a redesign.
-    /// </para>
-    /// </remarks>
-    private static int Convert(AgentContext context, CommandLine command)
-    {
-        var revert = command.Has("revert");
-        var atQuit = command.Has("at-quit");
-        var apply = command.Has("apply") || revert;
-
-        if (command.Positional.Count < 2)
-        {
-            Console.Error.WriteLine("Usage: rommbat-agent saves convert <rom id> [--apply|--at-quit]");
-            Console.Error.WriteLine("       rommbat-agent saves convert <rom id> --revert [--at-quit]");
-            Console.Error.WriteLine();
-            Console.Error.WriteLine(
-                "Opts one game into a per-game memory card, so its saves can be told apart from");
-            Console.Error.WriteLine(
-                "every other game sharing the console's card. Previews unless --apply is given.");
-            Console.Error.WriteLine();
-            Console.Error.WriteLine(
-                "--at-quit records the change and makes it when EmulationStation next closes,");
-            Console.Error.WriteLine(
-                "which is the only way to change this setting without closing it first.");
-            return ExitCode.Usage;
-        }
-
-        if (!int.TryParse(
-                command.Positional[1],
-                System.Globalization.NumberStyles.None,
-                System.Globalization.CultureInfo.InvariantCulture,
-                out var romId))
-        {
-            Console.Error.WriteLine($"'{command.Positional[1]}' is not a rom id.");
-            return ExitCode.Usage;
-        }
-
-        // Before anything else: a --revert while something is queued means the queued thing.
-        if (revert && CancelQueued(context, romId) is { } canceled)
-        {
-            Console.WriteLine(canceled);
-            return ExitCode.Ok;
-        }
-
-        var converter = new SaveConverter(context.Install, context.Store);
-
-        var result = atQuit
-            ? converter.Queue(romId, revert)
-            : revert ? converter.Revert(romId)
-            : apply ? converter.Convert(romId)
-            : converter.Preview(romId);
-
-        if (result.Status == ConversionStatus.Refused)
-        {
-            Console.Error.WriteLine(result.Detail);
-            return ExitCode.Usage;
-        }
-
-        if (result.Warning is { } warning)
-        {
-            // Core's warning names no way back, because the gamepad's is not a flag.
-            Console.WriteLine(revert ? warning : $"{warning} Undo with --revert.");
-            Console.WriteLine();
-        }
-
-        Console.WriteLine(result.Detail);
-
-        if (result.Status == ConversionStatus.Ready)
-        {
-            Console.WriteLine();
-            Console.WriteLine("Nothing was written. Re-run with --apply to make the change, or");
-            Console.WriteLine("with --at-quit to have it made when EmulationStation next closes.");
-        }
-
-        if (result.Status == ConversionStatus.Queued)
-        {
-            Console.WriteLine();
-            Console.WriteLine(
-                "Nothing has been written yet. Quit EmulationStation and the change is made then.");
-            Console.WriteLine($"Call it off with: rommbat-agent saves convert {romId} --revert");
-        }
-
-        return ExitCode.Ok;
-    }
-
-    /// <summary>
-    /// Calls off a change that was queued and has not happened, or returns null when there
-    /// isn't one.
-    /// </summary>
-    /// <remarks>
-    /// Canceling leaves no row, because nothing was written and there is nothing for the UI
-    /// to report later. An applied change is untouched by this and is undone the ordinary way.
-    /// </remarks>
-    private static string? CancelQueued(AgentContext context, int romId)
-    {
-        var outstanding = context.Store.PendingConfig.ListOutstandingForRom(romId);
-
-        if (outstanding.Count == 0)
-        {
-            return null;
-        }
-
-        foreach (var queued in outstanding)
-        {
-            context.Store.PendingConfig.Cancel(queued.System, queued.FsName, queued.SettingKey);
-        }
-
-        return outstanding.Count == 1
-            ? $"Called off the change queued for '{outstanding[0].FsName}': {outstanding[0].Reason}. "
-                + "Nothing had been written, so nothing had to be undone."
-            : $"Called off {outstanding.Count} changes queued for rom {romId}. Nothing had been written.";
-    }
 
     /// <summary>
     /// <c>saves resolve &lt;rom&gt; &lt;slot&gt; --keep-local|--keep-server</c>.

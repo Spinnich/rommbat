@@ -34,7 +34,7 @@ game. Three of the nine can be staged ahead of time, which is a different claim 
 4. Save shape classified (A/B/C/D) **for this emulator**, and the battery save round-trips.
 5. Save state round-trips including its screenshot, per this emulator's `es_savestates.cfg`
    entry, with the declared directory confirmed against where it really writes.
-6. Where class D applies, the per-game memory card option is verified.
+6. Where a save option sets the shape, the value RomMBat forces or relies on is verified on disk.
 7. A game launches from EmulationStation after sync, with art and metadata.
 8. Play session recorded and reaches RomM.
 9. Re-sync is a clean no-op.
@@ -318,43 +318,11 @@ procedure. That is not a certification and must
 not be filed as one, but "the tests pass" and "an emulator wrote this and RomMBat handled it"
 are different claims, and only the second is evidence.
 
-| Pass           | The one shape to exercise by hand                                     | Done               |
-| -------------- | --------------------------------------------------------------------- | ------------------ |
-| Save state     | A save state, across more than one emulator for one game              | **Yes**, see below |
-| Directory unit | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient       | **Yes**, see below |
-| Memory card    | A PS2 battery save after opting that game into a per-game memory card | **Yes**, see below |
-
-**The memory card, done on `ps2` / Armored Core 3 (USA), PCSX2.** Not a certification: one game, one
-system, steps 4, 6 and 9 only, on RetroBat 8.2.0. The facts it rests on are RB-182 to RB-188, which
-name the games they were last measured on.
-
-| Step                                       | Result                                                                                  |
-| ------------------------------------------ | --------------------------------------------------------------------------------------- |
-| The shared card, before anything           | `Mcd001.ps2` holding **11 distinct games**, Armored Core 3 among them as `BASLUS-20435` |
-| Converted                                  | `ps2["Armored Core 3 (USA).chd"].pcsx2_slot1_memory = game`, prior state `absent`       |
-| Refused while EmulationStation was running | **yes**, exit 2, nothing written to the file                                            |
-| PCSX2 wrote                                | `saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2`, **one game's saves**, 4 entries    |
-| The shared card afterwards                 | **untouched**, mtime and md5 both unchanged                                             |
-| Discovered and attributed                  | class D, slot `pcsx2:battery`, by the stem through the existing `RomIndex`              |
-| Uploaded                                   | save 179, server hash equal to the local one                                            |
-| **The game loaded the restored save**      | **yes**                                                                                 |
-| Eviction with an unsent card               | **refused**, and reported "still short" rather than claiming success                    |
-| Eviction after a flush                     | offered, so the guard does not block spuriously                                         |
-| Reverted                                   | key removed, 57 settings before and after, nothing else disturbed                       |
-| Re-sync and re-flush                       | clean no-op, 0 downloaded, 0 written, gamelists unchanged                               |
-
-**Three things this pass did not prove, and they are not small.**
-
-- **The download side of class D is untested anywhere.** The card went up and came back only as
-  far as "the server holds it". Nothing has ever written a class D save onto a device from the
-  server, and the bundled-slot refusal in `SaveSync.DownloadAsync` branches on class C, so what
-  a class D download does is unexercised rather than decided.
-- **Only `(ps2, pcsx2)` was driven.** `dreamcast` and `psx` are refused by declaration with
-  their measured reasons and neither refusal was exercised against a real emulator.
-  `folder`, PCSX2's third choice, is a shared card rather than a conversion (RB-406).
-- **The ROM was adopted, then re-downloaded, and neither is the ordinary case for a converted
-  game.** The first attempt failed verification against a stale server hash (RB-180),
-  which is fixed on the instance now but shaped how this pass ran.
+| Pass           | The one shape to exercise by hand                                   | Done                 |
+| -------------- | ------------------------------------------------------------------- | -------------------- |
+| Save state     | A save state, across more than one emulator for one game            | **Yes**, see below   |
+| Directory unit | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient     | **Yes**, see below   |
+| Memory card    | A PCSX2 folder card save, synced up and restored onto a second tree | **No**, #561 owes it |
 
 **The directory unit, done on `psp` / Bust-A-Move - Deluxe (USA), PPSSPP.** Not a certification: one game, one
 system, steps 4 and 9 only. Results are RB-154 to RB-156, RB-158 and RB-159.

@@ -58,16 +58,15 @@ Stop and asks first, with Keep going selected.
 
 Each row says what it is for, and the ones that need attention carry a count.
 
-| Row               | What it is for                                                                                                       |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Sync sets         | What this device keeps. See [Sync sets](sync-sets.md)                                                                |
-| Conflicts         | Saves that changed here and on another device. See [Conflicts](../saves/conflicts.md)                                |
-| Platforms         | Where each RomM platform's games land in RetroBat. See [Sync sets](sync-sets.md#when-games-land-in-the-wrong-folder) |
-| Pending settings  | Settings waiting for you to quit EmulationStation. See [Memory cards](../saves/memory-cards.md)                      |
-| Waiting to upload | Saves, states and play sessions not yet sent to RomM, and any the server refused. Drop them here                     |
-| Disk space        | How much room RomMBat may use. See [Disk space](disk-budget.md)                                                      |
-| Pair with RomM    | Sign in to your server, or sign in again. See [Pairing](../getting-started/pairing.md)                               |
-| This device       | Your RetroBat version, the server, what is waiting to be sent, and the controller                                    |
+| Row               | What it is for                                                                                                        |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Sync sets         | What this device keeps. See [Sync sets](sync-sets.md)                                                                 |
+| Conflicts         | Saves that changed here and on another device. See [Conflicts](../saves/conflicts.md)                                 |
+| Platforms         | Where each RomM platform's games land in RetroBat. See [Sync sets](sync-sets.md#when-games-land-in-the-wrong-folder)  |
+| Waiting to upload | Saves, states and play sessions not yet sent to RomM, and any the server refused. Drop them here                      |
+| Disk space        | How much room RomMBat may use. See [Disk space](disk-budget.md)                                                       |
+| Pair with RomM    | Sign in to your server, or sign in again. See [Pairing](../getting-started/pairing.md)                                |
+| This device       | Your RetroBat version, the server, what is waiting to be sent or for you to quit EmulationStation, and the controller |
 
 Every row works without the server except the ones that have to ask RomM something. Those say
 so when it cannot be reached.

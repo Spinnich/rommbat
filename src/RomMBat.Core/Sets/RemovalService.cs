@@ -20,8 +20,6 @@ public sealed record RemovalScope(bool Content = false, bool Firmware = false);
 /// </param>
 /// <param name="Hooks">The hook files present, which is what would be removed.</param>
 /// <param name="Menu">The parts of the menu registration present.</param>
-/// <param name="Conversions">Per-game settings RomMBat wrote into <c>es_settings.cfg</c>.</param>
-/// <param name="Queued">Conversions queued for the next EmulationStation quit.</param>
 /// <param name="Content">The content removal, or null when the scope leaves content alone.</param>
 /// <param name="Firmware">Synced firmware rows, empty when the scope leaves <c>bios/</c> alone.</param>
 /// <param name="Unvouchable">
@@ -36,8 +34,6 @@ public sealed record RemovalReport(
     IReadOnlyList<string> Blockers,
     IReadOnlyList<RelativePath> Hooks,
     IReadOnlyList<RelativePath> Menu,
-    IReadOnlyList<SaveConversion> Conversions,
-    IReadOnlyList<PendingConfig> Queued,
     EvictionReport? Content,
     IReadOnlyList<LocalFile> Firmware,
     IReadOnlyList<string> Unvouchable,
@@ -58,8 +54,6 @@ public sealed record RemovalApplied(
     string? Refusal,
     EsHookOutcome? Hooks = null,
     EsMenuOutcome? Menu = null,
-    int Canceled = 0,
-    IReadOnlyList<ConversionResult>? Reverted = null,
     EvictionApplied? Content = null,
     int FirmwareRemoved = 0,
     IReadOnlyList<string>? Kept = null,
@@ -70,7 +64,6 @@ public sealed record RemovalApplied(
     public bool Ok => Refusal is null
         && (Hooks?.Failed ?? 0) == 0
         && (Menu?.Failed ?? 0) == 0
-        && (Reverted ?? []).All(result => result.Ok)
         && (Content?.Evicted?.Problems.Count ?? 0) == 0
         && (Content?.Gamelists?.Folders.All(folder => folder.Problem is null) ?? true)
         && (Problems ?? []).Count == 0
@@ -81,8 +74,10 @@ public sealed record RemovalApplied(
 /// Takes the RetroBat tree back to its state before RomMBat, as far as a scope asks.
 /// </summary>
 /// <remarks>
-/// <b>Always reversed: the hooks, the menu entry and the per-game memory card conversions.</b>
-/// Those are the three things RomMBat wrote into files RetroBat owns. Downloaded content is the
+/// <b>Always reversed: the hooks and the menu entry.</b> A forced setting such as
+/// <c>ps2.pcsx2_slot1_memory = folder</c> is the third thing RomMBat writes into a file RetroBat
+/// owns, and it is left and named: the saves it produced are on the folder card, and putting the
+/// stock card back would hide every one of them from the emulator. Downloaded content is the
 /// user's library and goes only when asked, and adopted files and saves never go.
 /// <para>
 /// <b>Any unsent work refuses the whole removal</b>, not just the game it belongs to. After
@@ -91,8 +86,9 @@ public sealed record RemovalApplied(
 /// is also worse than none, because the hooks going first would stop the very pass that sends it.
 /// </para>
 /// <para>
-/// <b>Applying refuses while EmulationStation runs.</b> It rewrites <c>es_settings.cfg</c> from
-/// the copy it loaded at startup, so a reverted conversion would be put back without a word.
+/// <b>Applying refuses while EmulationStation runs.</b> It rewrites a system's
+/// <c>gamelist.xml</c> from the copy it loaded whenever it has a reason to, so an entry removal
+/// takes out could be put back without a word.
 /// </para>
 /// <para>
 /// <b>RomMBat's own folder and the device on the server are left.</b> A running executable
@@ -171,15 +167,44 @@ public sealed class RemovalService
             Blockers(),
             [.. EsHooks.Events.Select(EsHooks.PathFor).Where(path => File.Exists(install.Resolve(path)))],
             menu,
-            store.SaveConversions.List(),
-            store.PendingConfig.ListOutstanding(),
             content,
             scope.Firmware
                 ? [.. store.Files.List(kind: LocalFileKind.Firmware).Where(file => file.Origin == FileOrigin.Synced)]
                 : [],
             unvouchable,
             _emulationStation() is { IsRunning: true } running ? running.Detail : null,
-            FailedOutboxWarning());
+            [.. FailedOutboxWarning(), .. ForcedSettingsLeft()]);
+    }
+
+    /// <summary>The forced settings the file holds, which removal leaves in place.</summary>
+    private List<string> ForcedSettingsLeft()
+    {
+        var path = _session.Install.Resolve(EsSettingsFile.Location);
+        EsSettingsFile settings;
+
+        try
+        {
+            if (!File.Exists(path))
+            {
+                return [];
+            }
+
+            settings = EsSettingsFile.Load(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException)
+        {
+            return [];
+        }
+
+        return
+        [
+            .. SaveShapes.Bundled.WithForcedSettings
+                .Select(shape => (shape, Key: EsSettingsFile.SystemKey(shape.System, shape.Forced!.Option)))
+                .Where(pair => settings.Value(pair.Key) == pair.shape.Forced!.Value)
+                .Select(pair =>
+                    $"{pair.Key} stays {pair.shape.Forced!.Value}. Your {pair.shape.System} saves are in the "
+                        + "shape that setting makes, and changing it back would hide them from the emulator."),
+        ];
     }
 
     private List<string> FailedOutboxWarning() =>
@@ -190,11 +215,6 @@ public sealed class RemovalService
             : [];
 
     /// <summary>Carries out a report, after asking every question again.</summary>
-    /// <remarks>
-    /// <b>Conversions are reverted before content goes</b>, so a key never outlives the reason
-    /// it was reverted in the same pass. <see cref="SaveConverter.RevertRecorded"/> does not need
-    /// the ROM, so the order is for the report's sake rather than correctness.
-    /// </remarks>
     public async Task<RemovalApplied> ApplyAsync(RemovalReport report, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(report);
@@ -203,7 +223,7 @@ public sealed class RemovalService
         {
             return new RemovalApplied(
                 $"{running.Detail} Quit EmulationStation and run this again: it rewrites "
-                    + "es_settings.cfg on exit, which would put the reverted settings straight back.");
+                    + "a system's gamelist.xml from the copy it loaded, which could put removed entries back.");
         }
 
         using var held = TreeLock.TryAcquire(_session.Install);
@@ -227,26 +247,6 @@ public sealed class RemovalService
         var hooks = new EsHooks(_session.Install).Uninstall();
         var menu = new EsMenuEntry(_session.Install).Uninstall();
 
-        var canceled = 0;
-        foreach (var queued in fresh.Queued)
-        {
-            if (_session.Store.PendingConfig.Cancel(queued.System, queued.FsName, queued.SettingKey))
-            {
-                canceled++;
-            }
-        }
-
-        var converter = new SaveConverter(_session.Install, _session.Store, emulationStation: _emulationStation);
-        // The converter's warning says RomMBat keeps syncing the game's own card, which is true
-        // for `saves convert --revert` and false here, where the syncing is what is going.
-        var reverted = new List<ConversionResult>();
-
-        foreach (var conversion in fresh.Conversions)
-        {
-            var result = converter.RevertRecorded(conversion);
-            reverted.Add(result.Ok ? result with { Warning = StrandedWarning(conversion) } : result);
-        }
-
         EvictionApplied? content = null;
 
         if (fresh.Content is { } plan)
@@ -261,14 +261,8 @@ public sealed class RemovalService
         var firmware = RemoveFirmware(fresh.Firmware, kept, problems);
 
         return new RemovalApplied(
-            null, hooks, menu, canceled, reverted, content, firmware, kept, problems, fresh.Content?.Plan.Refused ?? []);
+            null, hooks, menu, content, firmware, kept, problems, fresh.Content?.Plan.Refused ?? []);
     }
-
-    /// <summary>What a reverted game leaves in its own card, once RomMBat is gone.</summary>
-    private static string StrandedWarning(SaveConversion conversion) =>
-        $"'{conversion.FsName}' goes back to the shared memory card. Anything it saved while converted "
-            + "stays in its own card on disk, which the game will no longer read and which is no longer "
-            + "synced once RomMBat is removed.";
 
     /// <summary>States then saves, so the unsent-work queries read the tree as it is now.</summary>
     private void Scan()

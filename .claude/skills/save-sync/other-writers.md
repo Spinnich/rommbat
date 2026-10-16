@@ -64,14 +64,14 @@ Five things about it that are decisions rather than detail:
   sync, and a class A save is one file beside its own rom. But a container the shape file
   declares as shared is held by whichever game is running, so a `gamecube` launch defers another
   GameCube game's `.gci` in the same region folder. A file-shaped declaration matches only
-  itself: a converted per-game `.ps2` card beside `Mcd001.ps2` is a different file.
+  itself: `Mcd002.ps2` beside `Mcd001.ps2` is a different file.
 - **A launch nobody can name is bounded by EmulationStation, because the spool has no sequence.**
   A record written by a newer hook is left on disk rather than deleted, so a newer agent recovers
   the play session it describes (#31), which also means the same file is read again on every
   pass. Nothing the front end launched outlives the front end, so `EmulationStationProcess` ends
   it: the install defers while ES is up and syncs on the pass the `quit` hook spawns. Without
   that, one unparseable file would stop every save the install ever downloads, permanently, which
-  is the failure #31 exists to prevent. The check is injectable for the reason `SaveConverter`'s
+  is the failure #31 exists to prevent. The check is injectable for the reason `ForcedSettings`'s
   is: nothing is ever running on a build agent, so the branch is otherwise untestable.
 - **A `game-end` pops the newest launch, whoever owns it, and that is safe only because of
   EmulationStation.** `game-end` carries no arguments, so `ApplySpool` removes the last entry
@@ -90,7 +90,7 @@ sits idle for hours is picked up at the next ES start and not before, and nothin
 on the check having finished. The guard turns the data-loss ordering into a deferral; it does not
 make the launch see a newer save.
 
-**Never convert a multi-disc set, and never convert DuckStation at all.** A two-disc set
+**Never convert DuckStation.** A two-disc set
 driven under stock `PerGameTitle` produced **one card for the set**:
 `memcards/Metal Gear Solid (USA)_1.mcd` and `_2.mcd`, where the suffix is the console **slot**
 and `_2` is an empty formatted card. The stem is `gamedb.yaml`'s `saveName` with the disc
@@ -116,48 +116,24 @@ The price of leaving it stock is that PS1 cards need Game-ID attribution rather 
 attribution. RetroBat pays part of it already: a `.txt` beside the DuckStation save state holds
 the bare serial (`SLUS-00594`, `SCUS-94163`).
 
-PS2 has the same failure with no escape, because PCSX2 cannot bind discs at all. So conversion
-is **per game**, which is what the `<system>["<rom>"]` form is for: convert single-disc titles,
-leave sets alone, and say why.
+PS2 has the same failure with no escape, because PCSX2 cannot bind discs at all: its `game` card
+is named after the ROM file (RB-182), so each disc of a set gets its own card and a save is lost at the
+disc change. So PS2 is not converted per game. **RomMBat forces the folder card for the whole
+system** (`ps2.pcsx2_slot1_memory = folder`, from `background quit`), which splits the one card
+into a directory per save keyed by serial (RB-406), and syncs those directories as class C units.
+What that does for a disc set is not measured yet, and is #565's to settle.
 
-**Driven end to end (RB-182 to RB-188), and the details are what make it work.** The card PCSX2
-writes is `<rom stem>.ps2`: **the extension is replaced, not appended**, so the name is exactly
-the `(folder, stem)` key class A attribution already uses and no new route is needed. Note the
-asymmetry with the setting that causes it, because it is the trap: the `es_settings.cfg` key
-must carry `.chd` or it is ignored silently, while the card it produces drops it. Both rules
-are right and they point opposite ways.
-
-It lands **three levels down**, `saves/ps2/pcsx2/memcards/`, where class A discovery only reads
-files loose directly under `saves/<system>/`, so the container is **declared in
-`save_shapes.json` and never discovered**. That declaration is also what the download side
-needs: a converted card arriving for a device that has never run the game must go into the
-container, and the class A rule would put it loose where PCSX2 never looks, quietly.
-
-**Record it as class D, not class A.** One file per game is its shape; what it _is_ is a class D
-system whose container was made per-game, and the row is the only place that stays true once
-the setting is out of sight. Class D rows are forgettable like class A, keyed on the path: a row
-left behind for a deleted card blocks eviction for that ROM forever.
-
-**Discovery must not consult the conversion record.** A card named after a ROM in the declared
-container is that ROM's save whether RomMBat set the option or the user did.
-
-**What converting really costs, measured on a real card.** The shared `Mcd001.ps2` held saves
-for **11 distinct games**, and after the conversion it was **untouched**: same mtime, same md5.
-So the redirect is total and the stranded save really is stranded. Console **slot 2 stays
-shared** (`slot1_memory` converts slot 1 only) and `Mcd002.ps2` moved its mtime without changing
-a byte, which is one more reason nothing may trust mtime.
-
-Caveats, all user-visible: it mutates their config so it is opt-in and reversible;
-switching strands existing saves inside the old container unless migrated; and per-game
-cards break games that legitimately read a prequel's save.
+**Forcing it costs what is on the stock card.** The shared `Mcd001.ps2` held saves for **11
+distinct games** on a real card, and the redirect leaves that card completely alone (RB-406), so a
+save made there before the setting moved stays there, where PCSX2 no longer reads it. `saves`
+names the card as shared. Console **slot 2 stays a file** (`slot1_memory` moves slot 1 only), and
+`Mcd002.ps2` moves its mtime on every launch without changing a byte (RB-376), which is one more
+reason nothing may trust mtime.
 
 **"Auto" in the ES menu means the key is absent**, not that a value is set: `es_features.cfg`
 declares three choices for `pcsx2_slot1_memory` and no `auto`, and ES synthesizes AUTO for any
-unset feature. Two things follow. Reverting has to restore **absence** rather than a plausible
-stock value, or the user lands somewhere they never were, which is why the conversion record
-stores absent and present-with-a-value as different states. And after a conversion the
-system-scoped menu still reads Auto while the per-game key silently outranks it, so **the ES
-menu shows no sign that a game has been converted**.
+unset feature. Once RomMBat has written the system key the menu reads FOLDER, and a per-game key
+the player sets still outranks it for that game.
 
 **Never write `es_settings.cfg` while EmulationStation is running.** It loads the file at
 startup and serializes that model on every write, so a key that appears afterwards is

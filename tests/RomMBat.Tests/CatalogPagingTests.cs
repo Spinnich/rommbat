@@ -44,6 +44,26 @@ public class CatalogPagingTests
     }
 
     [Fact]
+    public void A_save_target_is_read_off_the_page()
+    {
+        // Measured on the test instance, GET /api/roms?platform_ids=130: Burnout 3 carries
+        // "save_target": "BASLUS-21050" with layout folder-prefix, the directory PCSX2's folder
+        // card names after the serial.
+        var row = JsonSerializer.Deserialize<RomRow>(
+            """
+            {
+              "id": 191929,
+              "title_id": "SLUS-21050",
+              "save_target": "BASLUS-21050",
+              "save_target_layout": "folder-prefix"
+            }
+            """);
+
+        Assert.NotNull(row);
+        Assert.Equal("BASLUS-21050", row.SaveTarget);
+    }
+
+    [Fact]
     public void Every_page_request_turns_the_costly_sidecars_off()
     {
         var query = new CatalogQuery { Scope = CatalogScopeKind.Platform, ScopeId = "6" };

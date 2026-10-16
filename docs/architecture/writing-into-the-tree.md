@@ -13,7 +13,7 @@ clobber.**
 | File                          | Who else writes it                                      | Rule                                                                                                                      |
 | ----------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `roms/<system>/gamelist.xml`  | ES writes back favorite, playcount, lastplayed, hidden  | Merge. Only locally present ROMs. Keyed by **resolved folder**, not by platform                                           |
-| `es_settings.cfg`             | ES discards anything written while it runs              | Refuse while ES is up, or queue with `--at-quit` and apply from `background quit`. Merge. Opt-in and reversible           |
+| `es_settings.cfg`             | ES discards anything written while it runs              | Write only from `background quit`, after ES exits. Merge. Only the system keys a `forced_setting` declares                |
 | `system/es_menu/gamelist.xml` | RetroBat ships it; ES reads it and never writes it back | Merge one `<game>`. Keep the BOM, the CRLF and the commented-out entries: RomMBat is the only writer that could damage it |
 | `scripts/<event>/*.bat`       | RetroBat ships its own                                  | Append idempotently, never replace. Uninstall cleanly                                                                     |
 | Emulator INIs                 | `emulatorlauncher` regenerates them every launch        | **Never write these.** Write the RetroBat option instead                                                                  |

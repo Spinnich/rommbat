@@ -696,6 +696,7 @@ public sealed class SetResolver
             // the server switched off. Both describe the uncompressed content.
             Md5Hash = row.Md5Hash,
             Sha1Hash = row.Sha1Hash,
+            SaveTarget = row.SaveTarget,
             DisplayName = row.DisplayName,
             SortKey = row.SortKey,
             RomUpdatedAt = row.UpdatedAtUtc,

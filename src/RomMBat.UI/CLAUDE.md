@@ -13,7 +13,8 @@ and the outbox are Core's.
 ## Traps
 
 - **Never reference `EsSettingsFile` or `TreeLock`.** The UI always runs under a live ES, which
-  discards a write to `es_settings.cfg`; queue it in `pending_config` for `background quit`.
+  discards a write to `es_settings.cfg`; `background quit` writes the forced settings, and the
+  UI reads them through `PendingSettings`, never `ForcedSettings`.
   Taking the lock even briefly makes a concurrent flush skip its work. Both are asserted
   against the built assembly.
 - **If it cannot be tested without a window, it is in the wrong project.**

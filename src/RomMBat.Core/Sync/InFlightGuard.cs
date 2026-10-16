@@ -74,7 +74,7 @@ public sealed class InFlightGuard
     private readonly Func<EsRunningVerdict> _emulationStation;
 
     /// <param name="emulationStation">
-    /// Whether EmulationStation is up. Injectable for the reason <see cref="SaveConverter"/>
+    /// Whether EmulationStation is up. Injectable for the reason <see cref="ForcedSettings"/>
     /// takes it: the real one reads the machine's process list, so a branch that depends on it
     /// cannot be tested either way on a build agent, where nothing is ever running.
     /// </param>

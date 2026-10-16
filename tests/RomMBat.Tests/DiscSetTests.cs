@@ -4,12 +4,11 @@ using Xunit;
 namespace RomMBat.Tests;
 
 /// <summary>
-/// The rule that decides whether a game may be converted to a per-game memory card.
+/// The rule that reads a disc marker, which is what binds two rows into one multi-disc game.
 /// </summary>
 /// <remarks>
-/// Every name here is a real one from a measured library. PCSX2 cannot bind discs, so getting
-/// this wrong converts a set and loses the save at the disc change, which is the one failure
-/// the stock shared card does not have.
+/// Every name here is a real one from a measured library. Getting it wrong splits one game's
+/// discs into two games for a sync's rollback, or joins two games into one.
 /// </remarks>
 public class DiscSetTests
 {
@@ -44,10 +43,8 @@ public class DiscSetTests
     public void A_single_disc_title_carries_no_marker_even_when_its_name_starts_with_disc(string fsName)
     {
         // The word has to be inside parentheses with a number after it. 'Disco' and 'Discworld'
-        // are the cheap way to get this wrong, and the cost would be refusing a conversion the
-        // user asked for with a reason that makes no sense to them.
+        // are the cheap way to get this wrong.
         Assert.Null(DiscSet.Parse(fsName));
-        Assert.False(DiscSet.IsOneDiscOfASet(fsName));
     }
 
     [Theory]
@@ -57,47 +54,9 @@ public class DiscSetTests
     [InlineData("Game (USA) (Disc1).chd")]
     public void Marker_spellings_the_measured_library_does_not_use_are_matched_anyway(string fsName)
     {
-        // Only (Disc N) appears across 202 real files. The others are matched because the two
-        // directions are not symmetric: recognizing a marker nobody writes costs a conversion
-        // that was never offered, and missing one costs a save.
-        Assert.True(DiscSet.IsOneDiscOfASet(fsName));
-    }
-
-    [Fact]
-    public void A_marked_disc_is_refused_even_when_no_sibling_is_on_disk()
-    {
-        // The refusal must not depend on what has been synced. A rule keyed on siblings would
-        // convert disc 1 today and spring the trap when disc 2 arrives, making the safety of a
-        // conversion a property of the order the library was pulled in.
-        var alone = "Xenosaga Episode II - Jenseits von Gut und Boese (USA) (Disc 1).chd";
-
-        Assert.True(DiscSet.IsOneDiscOfASet(alone));
-        Assert.Empty(DiscSet.SiblingsOf(alone, [alone, "Ape Escape 2 (USA).chd"]));
-    }
-
-    [Fact]
-    public void Siblings_are_the_files_sharing_a_base_title_and_nothing_else()
-    {
-        string[] folder =
-        [
-            "Armored Core - Nexus (USA) (Disc 1) (Evolution).chd",
-            "Armored Core - Nexus (USA) (Disc 2) (Revolution).chd",
-            "Armored Core 3 (USA).chd",
-            "Star Ocean - Till the End of Time (USA) (Disc 1).chd",
-            "Star Ocean - Till the End of Time (USA) (Disc 2).chd",
-        ];
-
-        // The differing tails must not separate the two Armored Core discs.
-        Assert.Equal(
-            ["Armored Core - Nexus (USA) (Disc 2) (Revolution).chd"],
-            DiscSet.SiblingsOf(folder[0], folder));
-
-        // And a set must not pull in an unrelated title that merely starts the same way.
-        Assert.Equal(
-            ["Star Ocean - Till the End of Time (USA) (Disc 1).chd"],
-            DiscSet.SiblingsOf(folder[4], folder));
-
-        Assert.Empty(DiscSet.SiblingsOf("Armored Core 3 (USA).chd", folder));
+        // Only (Disc N) appears across 202 real files. The others are matched anyway, because
+        // recognizing a marker nobody writes costs nothing.
+        Assert.NotNull(DiscSet.Parse(fsName));
     }
 
     [Fact]

@@ -200,15 +200,6 @@ internal static class FlushCommand
             Console.Error.WriteLine($"  {line}");
         }
 
-        // A standing advisory, so a quiet pass leaves it to the one somebody reads.
-        if (!quiet)
-        {
-            foreach (var line in saves.Advisories)
-            {
-                Console.WriteLine($"  {line}");
-            }
-        }
-
         var sentStates = report.StatesSent!;
 
         if (!quiet || sentStates.Failed > 0)

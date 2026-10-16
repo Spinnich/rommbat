@@ -55,7 +55,7 @@ Keys read from the live `es_features.cfg`, with the value RomMBat should set:
 | Key                       | Choices                                                 | Set to          | Why                                    |
 | ------------------------- | ------------------------------------------------------- | --------------- | -------------------------------------- |
 | `duckstation_memcardtype` | `PerGameTitle`, `Shared`, `PerGameFileTitle`, `PerGame` | **leave unset** | stock already binds a disc set         |
-| `pcsx2_slot1_memory`      | `standard`, `folder`, `game`                            | **`game`**      | names the card after the rom basename  |
+| `pcsx2_slot1_memory`      | `standard`, `folder`, `game`                            | **`folder`**    | a directory per save, keyed by serial  |
 | `dolphin_slotA`           | `8` (GCI folder), `1` (memory card)                     | **`8`**         | already the stock default              |
 | `flycast_vmupergame`      | switch, unset by default                                | **on**          | per-game VMU, port 1, **serial-keyed** |
 
@@ -97,16 +97,15 @@ confirm the key is there rather than trusting the rename.
 **ES prunes any setting equal to its own default** on that rewrite, so an entry written at
 the stock value disappears. Never read a missing entry as the user having reverted something.
 
-So a change RomMBat can revert (`saves convert`) records which of two prior states the key
-was in, absent or holding the stock value, and `--revert` restores absence by removing the key.
-Check a revert by comparing the setting set, never the file's bytes: ES rewrites `LastSystem` to
+So RomMBat writes only what it forces (`ForcedSettings`, from a `forced_setting` in
+`save_shapes.json`), at system level and over any other value, and reads it back to decide
+whether it still has to. Compare a setting, never the file's bytes: ES rewrites `LastSystem` to
 record where the user was in the menus. Match the running ES on its process path, so an ES
 belonging to another install on the same machine does not refuse a write this one can make.
 
 `GET http://127.0.0.1:1234/quit` closes ES cleanly **only when no game is running**. With an
 emulator up, `/quit` and `/emukill` both return 200 and do nothing. Poll for the process to
-exit rather than trusting the response. Changing a user's emulator config is opt-in and
-reversible.
+exit rather than trusting the response.
 
 ## The window in which `es_settings.cfg` can be written
 
@@ -129,5 +128,5 @@ not for the hook.** It is cheap: 10 ms, one poll, on a real session.
 its model and already written the file once. Never write config there.
 
 **So a UI launched from the ES menu can never write this file at all**, because it runs under a
-live ES by construction. It queues the change instead (`pending_config`, migration `012`) and
-`background quit` applies it once the process is confirmed gone.
+live ES by construction. `background quit` writes the forced settings once the process is
+confirmed gone, and the UI only reads what that pass will write, through `PendingSettings`.

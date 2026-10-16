@@ -118,22 +118,20 @@ public class StatusScreenTests
     }
 
     [Fact]
-    public void A_queued_configuration_change_is_visible_with_its_reason_and_why_it_waits()
+    public void A_setting_the_next_quit_will_write_is_visible_with_why_it_waits()
     {
         using var tree = TempRetroBatTree.Create();
         var model = Open(tree, out var session);
         using var _ = session;
 
-        session.Store.PendingConfig.Queue(new PendingConfigRequest
+        session.Store.Files.Record(new LocalFile
         {
+            Path = RomMBat.Core.Paths.RelativePath.Create("roms/ps2/Armored Core 3 (USA).chd"),
+            Folder = "ps2",
             RomId = 191723,
-            System = "ps2",
-            FsName = "Armored Core 3 (USA).chd",
-            SettingKey = "pcsx2_slot1_memory",
-            DesiredState = DesiredSettingState.Set,
-            DesiredValue = "game",
-            Reason = "So this game's memory card is its own rather than shared.",
-            QueuedAtUtc = DateTimeOffset.UtcNow,
+            Kind = LocalFileKind.Rom,
+            FileName = "Armored Core 3 (USA).chd",
+            SizeBytes = 9,
         });
 
         var waiting = model.Sections().Single(section => section.Title == "Waiting");
@@ -142,13 +140,13 @@ public class StatusScreenTests
         Assert.Equal("1 change", summary.Value);
 
         // The honest answer, and a permanent one rather than a transient one: this UI only ever
-        // runs under a live EmulationStation, so the queue can never drain while it is open.
+        // runs under a live EmulationStation, so the setting can never be written while it is open.
         Assert.Contains("quit EmulationStation", summary.Detail, StringComparison.Ordinal);
 
-        var detail = waiting.Rows.Single(row => row.Value.Contains("Armored Core 3", StringComparison.Ordinal));
+        var detail = waiting.Rows.Single(row => row.Value.Contains("pcsx2_slot1_memory", StringComparison.Ordinal));
 
-        Assert.Contains("ps2", detail.Value, StringComparison.Ordinal);
-        Assert.Contains("memory card", detail.Detail, StringComparison.Ordinal);
+        Assert.Equal("ps2.pcsx2_slot1_memory = folder", detail.Value);
+        Assert.Contains("Now absent", detail.Detail, StringComparison.Ordinal);
     }
 
     [Fact]

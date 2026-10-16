@@ -22,11 +22,10 @@ Subcommands
   gamelist    Rewrite gamelist.xml from local state, and tell EmulationStation
   hooks       status | install | uninstall the EmulationStation event hooks
   menu        status | install | uninstall RomMBat's EmulationStation menu entry
-  uninstall   Take the hooks, menu entry and memory card settings back out
+  uninstall   Take the hooks and menu entry back out
   saves       What is on disk, what went up, and what is waiting on you
               saves resolve <rom> <slot> --keep-local | --keep-server
               saves restore [<rom> [<slot>]]: put back a save or state the server has
-              saves convert <rom> [--revert]: give a game its own memory card, or take it back
   game-start  Record a launch. Journal only, no network
   game-end    Close a launch. Journal only, no network
   flush       One pass over everything waiting, then exit
@@ -43,12 +42,10 @@ Options
   --offline         status, sync, bios, saves, platforms list: work from local state without the server
   --dry-run         sync: say what would happen and write nothing
   --apply           evict, uninstall: actually remove. bios: actually fetch. saves
-                    restore, saves convert: actually write. outbox drop: actually delete. Without it,
+                    restore: actually write. outbox drop: actually delete. Without it,
                     none of these writes
   --all-failed      outbox drop: every entry the server refused, instead of one id
   --all-pending     outbox drop: every unsent entry, when the server it names is gone
-  --at-quit         saves convert: make the change when EmulationStation next closes
-  --revert          saves convert: take a game's own memory card back to the shared one
   --all             bios: every system RetroBat knows, not just the ones with games
   --region-order <r> bios: the regions to prefer where files compete, e.g. usa,europe,japan,world, or default
   --max <size>      budget: the cap, as 64GB, 500MB or none

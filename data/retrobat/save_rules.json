@@ -452,9 +452,8 @@
       "flycast/vmu/vmu_save_D1.bin": "port-keyed VMU, shared by every game (probe 2)"
     },
     "ps2": {
-      "pcsx2/memcards/Mcd001.ps2": "the default shared memory card (probe 2)",
-      "pcsx2/memcards/Mcd002.ps2": "the default shared memory card (probe 2)",
-      "pcsx2/memcards/Mcdf01.ps2": "PCSX2's folder memory card, one directory every PS2 game writes to when SLOT 1 MEMORY CARD (pcsx2_slot1_memory) is FOLDER, with a directory per save keyed by the PS2 serial rather than the ROM (RB-406)"
+      "pcsx2/memcards/Mcd001.ps2": "the stock slot 1 memory card, one file every PS2 game writes to; RomMBat sets pcsx2_slot1_memory to folder, so a save here predates that or was made with the setting changed back (probe 2, RB-406)",
+      "pcsx2/memcards/Mcd002.ps2": "the slot 2 memory card, one file every PS2 game writes to; pcsx2_slot1_memory moves only slot 1 (probe 2, RB-406)"
     },
     "gamecube": {
       "dolphin-emu/User/GC/SRAM.EUR.raw": "Dolphin's slot A memory card, one raw card every GameCube game writes to when SAVE FORMAT (dolphin_slotA) is MEMORY CARD (RB-193)",
@@ -481,6 +480,9 @@
     }
   },
   "not_a_save_paths": {
+    "ps2": {
+      "pcsx2/memcards/Mcdf01.ps2/_pcsx2_superblock": "PCSX2's folder card superblock, 0 B until a game formats the card and 8,192 B after, which describes the card and holds no game's save (RB-406)"
+    },
     "gamecube": {
       "dolphin-emu/User/Cache": "Dolphin's shader and game-list caches (RB-405)",
       "dolphin-emu/User/Config": "Dolphin's own configuration, which emulatorlauncher regenerates (RB-405)",

@@ -1,6 +1,5 @@
 using System.Security.AccessControl;
 using System.Text;
-using RomMBat.Core.Content;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
@@ -66,14 +65,14 @@ internal static class BackgroundCommand
             {
                 try
                 {
-                    ApplyQueuedConfig(context, log);
+                    ApplyForcedSettings(context, log);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    // The guarantee below is unconditional, so this guard is too. Reading the
-                    // queue or recording a result can fail for the same reasons applying one
-                    // can, and none of them are a reason to drop the user's saves on the floor.
-                    log.Write($"queued changes could not be applied: {ex.Message}");
+                    // The guarantee below is unconditional, so this guard is too. A full drive or
+                    // an es_settings.cfg something else holds open throws out of the writer, and
+                    // neither is a reason to drop the user's saves on the floor.
+                    log.Write($"settings could not be written: {ex.Message}");
                 }
             }
 
@@ -94,31 +93,23 @@ internal static class BackgroundCommand
     }
 
     /// <summary>
-    /// Waits for EmulationStation to be gone, then makes the changes queued for exactly this
-    /// moment.
+    /// Waits for EmulationStation to be gone, then writes the settings the save shapes force.
     /// </summary>
     /// <remarks>
-    /// <b>If ES never exits, the queue stays queued and the flush runs anyway.</b> Those are
-    /// two different risks and only one of them is real. The flush writes nothing ES owns, so a
-    /// live ES has no bearing on it, and holding the user's saves hostage to a shutdown that
-    /// stalled would lose the thing this whole stage exists to deliver. A config change written
-    /// under a live ES, by contrast, is discarded without saying so, so that one waits for the
-    /// next quit.
-    /// <para>
-    /// <b>A change that throws is finished as <c>Failed</c> rather than left outstanding.</b>
-    /// The same guarantee, one layer down: an unrecorded throw would be re-entered by every
-    /// later quit before it reached the flush, so one row that cannot be written would stop
-    /// this machine flushing at all.
-    /// </para>
+    /// <b>If ES never exits, the settings wait for the next quit and the flush runs anyway.</b>
+    /// The flush writes nothing ES owns, so a live ES has no bearing on it, and holding the
+    /// user's saves hostage to a shutdown that stalled would lose the thing this pass exists
+    /// for. A setting written under a live ES, by contrast, is discarded without saying so.
     /// </remarks>
-    private static void ApplyQueuedConfig(AgentContext context, BackgroundLog log)
+    private static void ApplyForcedSettings(AgentContext context, BackgroundLog log)
     {
-        var queued = context.Store.PendingConfig.ListOutstanding();
+        var forced = new ForcedSettings(context.Install, context.Store);
+        var pending = forced.Pending();
 
-        if (queued.Count == 0)
+        if (pending.Count == 0)
         {
-            // Nothing to do, so nothing to wait for. The ordinary case, and it keeps the
-            // quit pass off the process list entirely on a machine that never queues one.
+            // The ordinary case once the setting is in, and it keeps the quit pass from waiting
+            // on ES at all.
             return;
         }
 
@@ -126,64 +117,22 @@ internal static class BackgroundCommand
 
         if (!wait.Gone)
         {
-            log.Write($"{queued.Count} queued change(s) left queued after waiting "
+            log.Write($"{pending.Count} setting(s) left for the next quit after waiting "
                 + $"{wait.Waited.TotalSeconds:F1}s: {wait.Detail}");
             return;
         }
 
-        log.Write($"EmulationStation gone after {wait.Waited.TotalMilliseconds:F0} ms, "
-            + $"applying {queued.Count} queued change(s)");
+        var result = forced.Apply();
 
-        var converter = new SaveConverter(context.Install, context.Store);
-
-        foreach (var change in queued)
+        foreach (var change in result.Written)
         {
-            try
-            {
-                Apply(converter, context, change, log);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                // A full drive, an es_settings.cfg something else has open, or a file left
-                // half-written by either: all three throw out of the writer rather than
-                // refusing. Left unrecorded the row would still be outstanding at the next
-                // quit, which would throw in the same place before reaching the flush, so one
-                // poisoned row would stop this machine flushing forever. It is finished with
-                // the reason instead, and the pass carries on to the next change.
-                log.Write($"  {change.System}/{change.FsName}: Failed - {ex.Message}");
-
-                context.Store.PendingConfig.RecordResult(
-                    change.Id,
-                    PendingConfigResult.Failed,
-                    ex.Message,
-                    DateTimeOffset.UtcNow);
-            }
+            log.Write($"  set {change.Key} = {change.Value} (was {change.Current ?? "absent"})");
         }
-    }
 
-    private static void Apply(
-        SaveConverter converter,
-        AgentContext context,
-        PendingConfig change,
-        BackgroundLog log)
-    {
-        var result = converter.ApplyQueued(change);
-
-        var outcome = result.Status switch
+        if (result.Problem is { } problem)
         {
-            ConversionStatus.Converted or ConversionStatus.Reverted or ConversionStatus.NoChange =>
-                PendingConfigResult.Applied,
-            ConversionStatus.Refused => PendingConfigResult.Refused,
-            _ => PendingConfigResult.Failed,
-        };
-
-        context.Store.PendingConfig.RecordResult(
-            change.Id,
-            outcome,
-            result.Detail,
-            DateTimeOffset.UtcNow);
-
-        log.Write($"  {change.System}/{change.FsName}: {outcome} - {result.Detail}");
+            log.Write($"settings not written: {problem}");
+        }
     }
 }
 

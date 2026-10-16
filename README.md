@@ -26,8 +26,8 @@ The name is a portmanteau of RomM and RetroBat that lands close to "wombat".
   100,000 games is no burden.
 - Lands where RetroBat expects it. Games go into `roms\<system>\`, with `gamelist.xml`
   entries, artwork, video and manuals, and BIOS goes into `bios\`, matched by checksum.
-- Saves, save states and playtime go back to RomM, including folder saves such as PPSSPP's,
-  and a PS2 game you give its own memory card. A conflict between two devices waits for you to
+- Saves, save states and playtime go back to RomM, including folder saves such as PPSSPP's
+  and PS2 saves, which RomMBat moves onto PCSX2's folder memory card. A conflict between two devices waits for you to
   choose a side.
 - A disk budget. RomMBat stays inside the space you give it, and never removes a game whose
   saves have not reached RomM.

@@ -22,7 +22,7 @@ public sealed record StatusSection(string Title, IReadOnlyList<StatusRow> Rows);
 /// are rows on <see cref="RootScreens"/> and the facts are here, one press behind the row that
 /// names them. Nothing here answers Accept, Start,
 /// Alternate or Extra, and the counts a person has to act on (conflicts, unmapped
-/// platforms, queued changes) are on the menu's own rows rather than only in here.
+/// platforms, the outbox) are on the menu's own rows rather than only in here.
 /// <para>
 /// <b>Read-only, and it computes nothing.</b> Every value here already exists behind a Core
 /// API that the <c>status</c> and <c>saves</c> subcommands read: this arranges them for a
@@ -88,7 +88,7 @@ public sealed class StatusViewModel : IScreen
     /// <remarks>
     /// <b>Windowed, because drawing every row overflows, which is the reason
     /// <see cref="ListWindow"/> exists.</b> The shortest form is four sections and fits; a paired
-    /// install with two degraded features, a suspicious clock and three queued changes is nine
+    /// install with two degraded features, a suspicious clock and three pending settings is nine
     /// rows longer, and unwindowed every one of those is drawn off the bottom of a 720p display.
     /// <para>
     /// A pane of facts scrolls by an offset rather than by a cursor, so <see cref="Offset"/> is
@@ -232,19 +232,17 @@ public sealed class StatusViewModel : IScreen
     /// What has happened that has not reached the server, or the disk, yet.
     /// </summary>
     /// <remarks>
-    /// <b>The queued-configuration rows are the reason migration <c>012</c> exists.</b> Until
-    /// this screen there was no reader for them outside the agent, so a user who queued a
-    /// change had no way to see that it was waiting or why. A queued row cannot be applied
-    /// while EmulationStation is running, and this UI only ever runs while it is, so "waiting
-    /// for you to quit EmulationStation" is the honest and permanent answer rather than a
-    /// transient one.
+    /// <b>A pending setting is one RomMBat writes at the next EmulationStation quit</b>, and this
+    /// UI only ever runs under a live ES, so "when you next quit EmulationStation" is the honest
+    /// and permanent answer rather than a transient one. Until then the system saves where the
+    /// setting it has now puts them.
     /// </remarks>
     private StatusSection Waiting()
     {
         var store = _session.Store;
         var outbox = store.Outbox.PendingCount();
         var conflicts = store.SaveConflicts.ListOpen().Count;
-        var queued = store.PendingConfig.ListOutstanding();
+        var pending = PendingSettings.Of(_session.Install, store);
 
         var rows = new List<StatusRow>
         {
@@ -258,16 +256,16 @@ public sealed class StatusViewModel : IScreen
                 conflicts == 0 ? null : "Both sides were kept. Nothing was overwritten."),
             new(
                 "Pending settings",
-                queued.Count == 0 ? "none" : Plural(queued.Count, "change"),
-                queued.Count == 0
+                pending.Count == 0 ? "none" : Plural(pending.Count, "change"),
+                pending.Count == 0
                     ? null
                     : "Applied when you next quit EmulationStation, which cannot happen while it is running."),
         };
 
-        rows.AddRange(queued.Select(change => new StatusRow(
+        rows.AddRange(pending.Select(change => new StatusRow(
             "  waiting",
-            $"{change.System} / {change.FsName}",
-            change.Reason)));
+            $"{change.Key} = {change.Value}",
+            $"Now {change.Current ?? "absent"}.")));
 
         return new StatusSection("Waiting", rows);
     }

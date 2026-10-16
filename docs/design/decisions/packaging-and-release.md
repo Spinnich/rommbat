@@ -30,9 +30,10 @@ archive extracts to a tree whose ES menu entry cannot resolve its executable.
   convenience wrapper over the same layout, never the only route.
 - Setup writes the ES menu entry and the script hooks with relative paths, appends rather
   than replaces existing hooks, and removal takes the tree back to its prior state.
-- **`uninstall` always reverses what RomMBat wrote into RetroBat's own files**: the hooks, the
-  menu entry, and every per-game memory card conversion, put back from its record and with the
-  stranded-save warning. The library is the user's, so synced ROMs with their media and
+- **`uninstall` always reverses the hooks and the menu entry**, the two things RomMBat wrote into
+  RetroBat's own files that hold nothing of the player's. A forced setting such as
+  `ps2.pcsx2_slot1_memory = folder` is left and named, because the player's saves are in the
+  shape it makes. The library is the user's, so synced ROMs with their media and
   gamelist entries go only with `--content`, and synced firmware only with `--bios`. Adopted
   files and saves never go. **Any unsent work refuses the whole removal**, because the outbox
   lives in the folder the user deletes next. An entry the server refused is not waiting to be

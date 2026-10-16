@@ -188,9 +188,19 @@ GameCube and Wii and nothing else, measured across five systems on a real librar
 supplements the other two rather than backing them up.
 
 **RomM is a fourth route**: it carries `title_id`, `save_target` and `save_target_layout` per
-ROM, measured answering for the systems the header route reaches none of. It joins the three
-rather than replacing any of them; `save-sync` holds the rules, including that `save_target` is computed from `title_id`,
-that neither is unique per ROM, and that GameCube's has two shapes from 5.3.1.
+ROM, measured answering for the systems the header route reaches none of. `GameIdAttributor`
+reads `save_target`, carried on `sync_set_member` from the walk, through the unit path's own key
+rule, so PS2's folder card (`BASLUS-21050`) attributes with no play first. It joins the three
+rather than replacing any of them: another route naming a different game contests it, a target
+two ROMs here share answers nothing, and a binding it makes is not cached, since the store
+re-reads it each pass. `save-sync` holds the rules, including that `save_target` is computed from
+`title_id`, that neither is unique per ROM, and that GameCube's has two shapes from 5.3.1.
+
+**A directory save this device has never held is placed when its container is fixed and on
+disk.** The key comes from the server's file name by the same rule, so `BASLUS-21050.zip` lands as
+`Mcdf01.ps2/BASLUS-21050/` beside the card's other saves. A container with a `*` segment, or one
+the emulator has not made yet, is refused with "run the game once", because only a local unit or
+the emulator can say where it goes.
 
 **Disagreement fails closed, and an absence is not a disagreement.** Two routes naming different
 games bind nothing and record the refusal, because picking a side uploads one game's save under

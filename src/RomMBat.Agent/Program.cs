@@ -157,11 +157,10 @@ internal static class Program
         Console.Error.WriteLine("  gamelist    Rewrite gamelist.xml from local state, and tell EmulationStation");
         Console.Error.WriteLine("  hooks       status | install | uninstall the EmulationStation event hooks");
         Console.Error.WriteLine("  menu        status | install | uninstall RomMBat's EmulationStation menu entry");
-        Console.Error.WriteLine("  uninstall   Take the hooks, menu entry and memory card settings back out");
+        Console.Error.WriteLine("  uninstall   Take the hooks and menu entry back out");
         Console.Error.WriteLine("  saves       What is on disk, what went up, and what is waiting on you");
         Console.Error.WriteLine("              saves resolve <rom> <slot> --keep-local | --keep-server");
         Console.Error.WriteLine("              saves restore [<rom> [<slot>]]: put back a save or state the server has");
-        Console.Error.WriteLine("              saves convert <rom> [--revert]: give a game its own memory card, or take it back");
         Console.Error.WriteLine("  game-start  Record a launch. Journal only, no network");
         Console.Error.WriteLine("  game-end    Close a launch. Journal only, no network");
         Console.Error.WriteLine("  flush       One pass over everything waiting, then exit");
@@ -178,12 +177,10 @@ internal static class Program
         Console.Error.WriteLine("  --offline         status, sync, bios, saves, platforms list: work from local state without the server");
         Console.Error.WriteLine("  --dry-run         sync: say what would happen and write nothing");
         Console.Error.WriteLine("  --apply           evict, uninstall: actually remove. bios: actually fetch. saves");
-        Console.Error.WriteLine("                    restore, saves convert: actually write. outbox drop: actually delete. Without it,");
+        Console.Error.WriteLine("                    restore: actually write. outbox drop: actually delete. Without it,");
         Console.Error.WriteLine("                    none of these writes");
         Console.Error.WriteLine("  --all-failed      outbox drop: every entry the server refused, instead of one id");
         Console.Error.WriteLine("  --all-pending     outbox drop: every unsent entry, when the server it names is gone");
-        Console.Error.WriteLine("  --at-quit         saves convert: make the change when EmulationStation next closes");
-        Console.Error.WriteLine("  --revert          saves convert: take a game's own memory card back to the shared one");
         Console.Error.WriteLine("  --all             bios: every system RetroBat knows, not just the ones with games");
         Console.Error.WriteLine("  --region-order <r> bios: the regions to prefer where files compete, e.g. usa,europe,japan,world, or default");
         Console.Error.WriteLine("  --max <size>      budget: the cap, as 64GB, 500MB or none");

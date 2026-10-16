@@ -259,7 +259,7 @@ so which of the two reaches the network.
 
 **A player reads plain words, and the code and the command line keep the design's.** The screens
 say Check for changes for a resolve, What it holds for a scope, Waiting to upload for the outbox
-and Pending settings for queued `es_settings.cfg` changes; the glossary
+and Pending settings for the forced `es_settings.cfg` settings the next quit writes; the glossary
 pairs each with its term. A conflict shows its slot through `SaveSlotLabel.Describe` ("Battery
 save", "Save state 3", "Memory card"), a refused play session shows none, and a set shows its scope
 kind through `SyncSetStore.ScopeLabel`, while the agent's listings of conflicts and restores print
@@ -374,8 +374,8 @@ See `EsInputMap` and `GamepadReader`, and RB-218, RB-225, RB-226 and RB-227.
 
 **The UI can never write `es_settings.cfg`.** It is launched from the ES menu, so it runs
 under a live EmulationStation every time, and ES discards a key written underneath it.
-Anything it wants to change there goes into `pending_config` and is applied by
-`background quit`.
+The settings RomMBat forces are written by `background quit` through `ForcedSettings`, and
+the UI reads what that pass will write through `PendingSettings`.
 
 **Both halves of that are asserted structurally, against the built assembly rather than the
 source**, so a helper in another namespace or a call through an interface is caught where a

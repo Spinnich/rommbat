@@ -252,17 +252,21 @@ or product code anywhere**, so that no API lookup existed to ask.
 declares `title_id`, `save_target` and `save_target_layout` as ROM columns, and **measured on a
 live library it answers for the systems this repo reads 0% of**: 3 of 4 psx `.chd`, 4 of 4 ps2
 `.chd`, 4 of 4 psp `.cso`, 4 of 4 ps3, 3 of 3 each for 3ds, dreamcast, xbox and xbox360. The
-route this design was built around not existing does exist. It is still a **fourth route, not a
-replacement**: it is gated on `TITLE_ID_EXTRACTION_ENABLED`, it answers only for rows scanned
-since the feature landed, and the rule below about asking every route is what it joins.
+route this design was built around not existing does exist, and route 4 below reads it. It is a
+**fourth route, not a replacement**: it is gated on `TITLE_ID_EXTRACTION_ENABLED`, it answers only
+for rows scanned since the feature landed, and the rule below about asking every route is what it
+joins. On the test instance it answers for all 4,426 ROMs of the main `ps2` platform and none of
+the 81 translation patches on `ps2-unofficial`, which RomM never identified.
 
 **Three facts about the field decide how to use it, and none are obvious from its name.**
 
 - **`save_target` is computed from `title_id`, not equal to it.** Xbox `MS-100` has a
   `save_target` of `4D530064`, which is `ascii("MS")` plus `100` as a 16-bit hex number; ps2
   `SCUS-97472` becomes `BASCUS-97472`, the folder PCSX2 creates; 3ds splits the id in half and
-  lower-cases the tail. **Read `save_target` with `save_target_layout`, never `title_id`**, when
-  the question is where a save lives. `title_id` is what came out of the binary.
+  lower-cases the tail. **Read `save_target`, never `title_id`**, when the question is where a
+  save lives. `title_id` is what came out of the binary. RomMBat does not read
+  `save_target_layout`: route 4 puts the target's last segment through the unit path's own key
+  rule, which already says how the directory is matched.
 - **Where both routes answer they agree exactly.** Route 2 reads `head[0x58..0x5C]` as four ASCII
   bytes; RomM's `title_id` holds the same four hex encoded. All 1,601 distinct GameCube ids on a real library
   decode to printable `A-Z0-9` codes, `47553459` being `GU4Y`. So this route corroborates rather
@@ -270,7 +274,8 @@ since the feature landed, and the rule below about asking every route is what it
 - **GameCube's `save_target` has two shapes, and a library holds both.** It is the ASCII code,
   `GAFE`, that a Dolphin `.gci` name carries, except on a row no rescan has rewritten, which
   holds the hex id in both fields (RM-2). A consumer of `save_target` for GameCube accepts
-  either, decoding eight hex digits to four ASCII characters. Nothing reads the field yet.
+  either, decoding eight hex digits to four ASCII characters. Route 4 does not reach GameCube,
+  whose key is read off a `.gci` name and not off a bare code.
 - **A serial is not unique per ROM and is not meant to be.** On a GameCube library scanned end to
   end, 167 ids are shared by 359 of 1,793 rows. A third of that is the library rather than the
   field: multi-disc releases stored as loose files are a row per disc, where one folder per game
@@ -322,10 +327,20 @@ never cached.
    `SAVEDATA/ULES01513SYSDATA` to a ROM filename the ordinary index resolves. It needs no ROM
    read and no observed launch, and it covers only games that have a state.
 
+4. **Read RomM's `save_target`**, carried on `sync_set_member.save_target` from the walk that
+   already fetches the page. It is the only route that needs no play, no state and no readable
+   header, which is what PS2's `.chd` library needs: `BASLUS-21050` is Burnout 3's folder card
+   directory. **Not cached**, because it is a server fact the store re-reads each pass and a ROM
+   RomM re-identifies should take its save with it; a route that disagrees still contests it,
+   and that refusal is cached as any other.
+
 **Both indexes are first-wins, and the two must not diverge.** Within one route a key that two
 ROMs answer to takes the first, because either is as good an answer as the other: for the header
 that is a revision pair sharing a game code, and for the sidecar it is two states naming one
-identifier. Both scans are ordered, by ROM path and by state path, so first is a stable answer
+identifier. **Route 4 is the exception and answers nothing for a shared key**, because a target
+comes from RomM's identification rather than from the file, and a misidentified ROM looks the same
+as a revision: Namco Museum and Namco Museum 50th Anniversary both carry `SLUS-20273` on the test
+instance. Both scans are ordered, by ROM path and by state path, so first is a stable answer
 rather than whichever row the database returned last. Were either index last-wins, the two routes
 would settle the same question by opposite rules.
 

@@ -79,7 +79,6 @@ internal sealed class App : Application
             OpenBudget = () => new BudgetViewModel(_session),
             OpenConflicts = () => ConflictScreens.List(_session, connect: null, pair: StartPairing),
             OpenPlatforms = () => PlatformScreens.List(_session),
-            OpenQueued = () => QueuedChangeScreens.List(_session),
             OpenOutbox = () => OutboxScreens.List(_session),
         });
 

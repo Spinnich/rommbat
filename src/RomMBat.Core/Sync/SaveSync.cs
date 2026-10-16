@@ -77,23 +77,6 @@ public sealed record SaveSyncOutcome
     public int ForAnotherEmulator { get; init; }
 
     /// <summary>
-    /// Per-game memory cards this device holds for games it has not converted, so the emulator
-    /// reads the shared card instead and the player sees no save (#336).
-    /// </summary>
-    /// <remarks>
-    /// <b>Not a failure, and a standing property rather than an event.</b> The card is on disk
-    /// and in step, and converting the game is the whole remedy, so this recurs on every flush
-    /// until it is done. Each one has a line in <see cref="Advisories"/> naming the command. Said on every flush that
-    /// reaches the end of negotiation; a flush that fails earlier has nothing to say.
-    /// Nothing is converted for the player: that is a setting in their own
-    /// <c>es_settings.cfg</c>, and it moves the game off the shared card.
-    /// </remarks>
-    public int NeedsConverting { get; init; }
-
-    /// <summary>One line per game counted in <see cref="NeedsConverting"/>, with the remedy.</summary>
-    public IReadOnlyList<string> Advisories { get; init; } = [];
-
-    /// <summary>
     /// The sync session could not be closed, and <see cref="Problems"/> says why.
     /// </summary>
     /// <remarks>
@@ -114,7 +97,6 @@ public sealed record SaveSyncOutcome
 
     public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0
         && Skipped == 0 && Deferred == 0 && Rejected == 0 && Superseded == 0 && ForAnotherEmulator == 0
-        && NeedsConverting == 0
         && !SessionLeftOpen;
 
     public string Summary
@@ -174,11 +156,6 @@ public sealed record SaveSyncOutcome
             if (ForAnotherEmulator > 0)
             {
                 parts.Add($"{ForAnotherEmulator} left on the server, for an emulator other than the one this device runs");
-            }
-
-            if (NeedsConverting > 0)
-            {
-                parts.Add($"{NeedsConverting} per-game memory card(s) waiting on a game that is not converted");
             }
 
             if (SessionLeftOpen)
@@ -566,6 +543,10 @@ public sealed class SaveSync
                         break;
                     }
 
+                    // A directory save this device has never held, whose container the emulator
+                    // has already made: placed under the key its server name carries.
+                    local ??= FreshUnit(operation);
+
                     var (target, targetProblem) = ResolveTarget(operation, local);
 
                     // Negotiate is unscoped, so a device holding a subset is offered every save
@@ -592,8 +573,8 @@ public sealed class SaveSync
                         break;
                     }
 
-                    // A bundled slot this device has never held has no container to expand and
-                    // no key to place under, so the archive has nowhere to go. Reported rather
+                    // A bundled slot this device has never held, whose container is not on disk
+                    // or is expanded through a '*' only a local unit can resolve. Reported rather
                     // than written to the class A path, which would leave a .zip where an
                     // emulator expects a save.
                     if (local is null && IsUnplaceableUnit(operation))
@@ -601,8 +582,8 @@ public sealed class SaveSync
                         failed++;
                         problems.Add(
                             $"{NameSave(operation.RomId, operation.Slot)}: this is a directory "
-                                + "save and this device holds none for that game yet, so there is "
-                                + "no folder to put it in. Run the game once, then flush again.");
+                                + "save and the folder it goes in is not on this device yet. Run the "
+                                + "game once, then flush again.");
                         break;
                     }
 
@@ -627,6 +608,14 @@ public sealed class SaveSync
                     // device runs the game with opens before its own (#235). Ahead of the holder
                     // check, because a save this device would never read is not a conflict.
                     if (local is null && OpenedFirstByLaunchEmulator(operation, destination, launchEmulator))
+                    {
+                        otherEmulator++;
+                        break;
+                    }
+
+                    // A slot no emulator of this system writes here, on a system that keeps no
+                    // loose save at all. The derived path would put it where nothing reads it.
+                    if (local is null && IsUndeclaredSlot(operation))
                     {
                         otherEmulator++;
                         break;
@@ -711,7 +700,6 @@ public sealed class SaveSync
 
         problems.AddRange(DescribePartialBatches(sent));
 
-        var advisories = UnconvertedCards();
         var leftOpen = false;
 
         try
@@ -760,8 +748,6 @@ public sealed class SaveSync
             Deferred = deferred,
             Rejected = rejected,
             ForAnotherEmulator = otherEmulator,
-            NeedsConverting = advisories.Count,
-            Advisories = advisories,
             SessionLeftOpen = leftOpen,
             BytesTransferred = bytes,
             Problems = problems,
@@ -955,7 +941,15 @@ public sealed class SaveSync
                 row.UpdatedAt,
                 row.ContentHash);
 
-            var (target, problem) = ResolveTarget(operation, local: null);
+            var fresh = FreshUnit(operation);
+            var (target, problem) = ResolveTarget(operation, fresh);
+
+            // Named by its key inside the container, so the restore that follows carries the key
+            // in the pick's own name and finds the same unit again.
+            if (fresh is not null)
+            {
+                target = fresh.Path.Combine(fresh.UnitKey);
+            }
 
             // Not an error and not reported: a device holding a subset of the library is the
             // ordinary case, and every save for a game it does not have lands here.
@@ -970,17 +964,27 @@ public sealed class SaveSync
                 continue;
             }
 
-            // The guard the flush applies at the same decision point, and for the same reason: a
-            // bundled slot this device has never held has no container to expand and no key to
-            // place under, so the class A path would leave a .zip where an emulator expects a
-            // save. Listing it as restorable is already a claim that it can be brought back.
-            if (IsUnplaceableUnit(operation))
+            if (fresh is null && IsUndeclaredSlot(operation))
             {
                 unrestorable.Add(new UnrestorableSave(
                     row.RomId,
                     slot,
-                    "this is a directory save and this device holds none for that game yet, so "
-                        + "there is no folder to put it in. Run the game once, then try again."));
+                    "no emulator of this system reads a save in that slot, so there is nowhere it "
+                        + "would be used."));
+                continue;
+            }
+
+            // The guard the flush applies at the same decision point, and for the same reason: a
+            // bundled slot this device has never held has no container to expand and no key to
+            // place under, so the class A path would leave a .zip where an emulator expects a
+            // save. Listing it as restorable is already a claim that it can be brought back.
+            if (fresh is null && IsUnplaceableUnit(operation))
+            {
+                unrestorable.Add(new UnrestorableSave(
+                    row.RomId,
+                    slot,
+                    "this is a directory save and the folder it goes in is not on this device yet. "
+                        + "Run the game once, then try again."));
                 continue;
             }
 
@@ -1612,6 +1616,9 @@ public sealed class SaveSync
         {
             Directory.CreateDirectory(partialDirectory);
 
+            // A restore picked from the listing names the unit by its key and passes no row.
+            local ??= FreshUnit(operation);
+
             if (local?.ShapeClass == SaveShapeClass.C)
             {
                 var unit = await RestoreUnitAsync(operation, saveId, local, sessionId, part, cancellationToken)
@@ -1798,6 +1805,12 @@ public sealed class SaveSync
                 return (written, $"{Describe(local)}: written, but the server was not told: {ack.Message}");
             }
 
+            // A unit this device never held has no row for the mark below to land on.
+            if (!_store.Saves.List(operation.RomId).Any(row => row.Path == local.Path && row.UnitKey == local.UnitKey))
+            {
+                _store.Saves.Record(local, _time.GetUtcNow());
+            }
+
             // Against the fold of what actually landed, so the next scan sees a unit already in
             // step rather than one that needs sending straight back.
             _store.Saves.MarkUploaded(local.Path, local.UnitKey, outcome.ContentHash, _time.GetUtcNow());
@@ -1895,13 +1908,7 @@ public sealed class SaveSync
         var extension = Path.GetExtension(named);
         var stem = Path.GetFileNameWithoutExtension(rom.FileName);
 
-        // A converted class D container does not live loose under the system folder. PCSX2
-        // writes its per-game card three levels down, in the container the shape declares, and
-        // a card written anywhere else is a file the emulator never looks at. The derived path
-        // below is right for class A and would put a memory card where a .srm belongs.
-        var directory = ConvertedContainerFor(folder, operation.Slot) is { } container
-            ? $"saves/{folder}/{container}"
-            : $"saves/{folder}";
+        var directory = $"saves/{folder}";
 
         // An emulator that keeps its battery saves in its own subdirectory, one that names them
         // after its own title for the game, which only a learned binding can supply (#151), and
@@ -2043,106 +2050,6 @@ public sealed class SaveSync
                 StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// The declared container for a converted class D slot, or null when the slot is not one.
-    /// </summary>
-    /// <remarks>
-    /// The mirror of <see cref="IsUnplaceableUnit"/>, and it reaches the opposite conclusion for
-    /// the opposite reason. A class C unit cannot be placed on a device holding none, because
-    /// the container and the key both come from a local unit that is not there. A converted
-    /// class D container can: it is one file whose name is the ROM's stem, and the shape
-    /// declares where it goes, so a device that has never run the game can still be handed it.
-    /// <para>
-    /// Recognized from the slot, which is <c>{emulator}:{slot}</c> as the shape declares it, and
-    /// never from the extension. Only the shape knows that a <c>.ps2</c> under <c>ps2</c> is a
-    /// memory card rather than something an emulator happens to have left there.
-    /// </para>
-    /// </remarks>
-    private string? ConvertedContainerFor(string folder, string? slot)
-    {
-        if (_shapes.For(folder)?.Conversion is not { IsDiscoverable: true } conversion)
-        {
-            return null;
-        }
-
-        return string.Equals(
-            $"{conversion.Emulator}:{conversion.Slot}",
-            slot ?? string.Empty,
-            StringComparison.OrdinalIgnoreCase)
-            ? conversion.Container
-            : null;
-    }
-
-    /// <summary>
-    /// One line for each per-game card this device holds whose game is not set to read it.
-    /// </summary>
-    /// <remarks>
-    /// Read from the live <c>es_settings.cfg</c> rather than from <c>save_conversion</c>, because
-    /// the file is what the emulator obeys: a conversion recorded and since undone by hand, or one
-    /// made on another install of the same tree, would otherwise read as converted. A system-wide
-    /// value does not count, since it is the per-game key that PCSX2 reads this card under (#336).
-    /// </remarks>
-    private List<string> UnconvertedCards()
-    {
-        var lines = new List<string>();
-
-        var cards = _store.Saves.List().Where(save => save.RomId is not null).ToList();
-
-        if (cards.Count == 0)
-        {
-            return lines;
-        }
-
-        EsSettingsFile? settings = null;
-
-        foreach (var card in cards)
-        {
-            if (_shapes.For(card.System)?.Conversion is not { IsDiscoverable: true, SetTo: { } setTo } conversion
-                || !string.Equals(card.Slot, $"{conversion.Emulator}:{conversion.Slot}", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            // Read only once a card of the converted kind is here, and a file that cannot be read
-            // is an advisory not given: this runs inside the flush, where a throw would leave the
-            // sync session open and skip the state pass.
-            if (settings is null)
-            {
-                try
-                {
-                    settings = EsSettingsFile.Load(_install.Resolve(EsSettingsFile.Location));
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException)
-                {
-                    return lines;
-                }
-            }
-
-            var romId = (int)card.RomId!.Value;
-
-            if (_store.Files.ForRom(romId, LocalFileKind.Rom) is not [{ } rom, ..]
-                || string.IsNullOrEmpty(Path.GetExtension(rom.FileName))
-                || rom.FileName.Contains('"', StringComparison.Ordinal)
-                || DiscSet.Parse(rom.FileName) is not null)
-            {
-                // A disc of a set is refused by the converter, so there is no command to offer.
-                continue;
-            }
-
-            if (settings.Value(EsSettingsFile.PerGameKey(card.System, rom.FileName, conversion.Option)) == setTo)
-            {
-                continue;
-            }
-
-            lines.Add(
-                $"rom {romId} ({rom.FileName}): a per-game memory card is on this device, but "
-                    + "the game is not set to read it and will start from the shared card. "
-                    + $"Run 'saves convert {romId} --apply' to use it.");
-        }
-
-        return lines;
-    }
-
     /// <summary>What to tell a person whose save cannot be placed for a reason with a remedy.</summary>
     private static string? ReasonFor(TargetProblem problem, SyncOperation operation)
     {
@@ -2193,12 +2100,107 @@ public sealed class SaveSync
     }
 
     /// <summary>
+    /// True when the ROM's system keeps only directory saves and no unit path declares this slot.
+    /// </summary>
+    /// <remarks>
+    /// The class A path is derived for any slot this device has never held, which is right
+    /// wherever a loose save is something an emulator reads. On a system with no class A or B
+    /// shape it is not: the server still holds <c>pcsx2:battery</c> cards from per-game memory
+    /// cards, and one written to <c>saves/ps2/</c> is 8 MB PCSX2 never opens. Left on the server,
+    /// as a save for another emulator is.
+    /// </remarks>
+    private bool IsUndeclaredSlot(SyncOperation operation)
+    {
+        var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
+
+        if (roms.Count == 0 || roms[0].Folder is not { } folder || _shapes.For(folder) is not { } shape)
+        {
+            return false;
+        }
+
+        var slot = operation.Slot ?? string.Empty;
+
+        return !shape.HasSyncableClass
+            && _shapes.BatteryRuleForSlot(folder, operation.Slot) is null
+            && !shape.UnitPaths.Any(path =>
+                string.Equals($"{path.Emulator}:{path.Slot}", slot, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// The row a class C save this device has never held is restored into, or null when there
+    /// is nowhere to put it yet.
+    /// </summary>
+    /// <remarks>
+    /// <b>Only into a container the emulator already made, and only one named in full.</b> The
+    /// key is read off the server's file name by the unit path's own rule, so
+    /// <c>BASLUS-21050.zip</c> lands as <c>Mcdf01.ps2/BASLUS-21050/</c>, beside whatever else the
+    /// card holds. A container with a <c>*</c> segment cannot be expanded without a unit already
+    /// in it, since the user id or region it stands for is only known from one; and a container
+    /// not on disk is left to the emulator to create, because what else it writes there, such as
+    /// PCSX2's superblock, is the emulator's.
+    /// <para>
+    /// The server's timestamp tag is cut off before the key is read, since a tagged name such as
+    /// <c>BASLUS-21050 [2026-10-16_10-00-00].zip</c> would otherwise key a <c>name</c> unit wrong.
+    /// </para>
+    /// </remarks>
+    private LocalSave? FreshUnit(SyncOperation operation)
+    {
+        var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
+
+        if (roms.Count == 0
+            || roms[0].Folder is not { } folder
+            || _shapes.For(folder) is not { } shape
+            || operation.FileName is not { } named)
+        {
+            return null;
+        }
+
+        var slot = operation.Slot ?? string.Empty;
+        var declared = shape.UnitPaths.FirstOrDefault(path =>
+            string.Equals($"{path.Emulator}:{path.Slot}", slot, StringComparison.OrdinalIgnoreCase));
+
+        if (declared is null || declared.Segments.Contains("*") || declared.MembersAreFiles)
+        {
+            return null;
+        }
+
+        var container = RelativePath.Create($"{SaveScanner.SavesDirectory.Value}/{declared.Container}");
+
+        if (!Directory.Exists(_install.Resolve(container)))
+        {
+            return null;
+        }
+
+        var stem = ServerTag.Replace(Path.GetFileNameWithoutExtension(named), string.Empty);
+
+        return declared.KeyOf(stem) is { } key
+            ? new LocalSave
+            {
+                Path = container,
+                UnitKey = key,
+                System = folder,
+                Emulator = declared.Emulator,
+                ShapeClass = SaveShapeClass.C,
+                Slot = slot,
+                RomId = operation.RomId,
+                RomPath = roms[0].Path,
+            }
+            : null;
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex ServerTag = new(
+        @"\s*\[[^\]]*\]$",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+        TimeSpan.FromSeconds(1));
+
+    /// <summary>
     /// True when a slot this device has never held is a bundled one, which cannot be placed yet.
     /// </summary>
     /// <remarks>
-    /// A class C restore needs a container and a unit key, and both come from the local unit the
-    /// device already holds. With no local unit there is nothing to expand the declared
-    /// container against: <c>saves/psp/SAVEDATA</c> may not exist at all until PPSSPP has run
+    /// A class C restore needs a container and a unit key. A fixed container the emulator has
+    /// already made takes the key from the server's name (<see cref="FreshUnit"/>); anything else
+    /// needs the local unit the device does not hold, since a <c>*</c> segment has nothing to
+    /// expand against and <c>saves/psp/SAVEDATA</c> may not exist at all until PPSSPP has run
     /// once. Writing the archive to the class A path instead would put a <c>.zip</c> where an
     /// emulator expects a save, so this is reported and the transfer is not attempted.
     /// <para>

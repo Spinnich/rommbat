@@ -21,6 +21,12 @@ public enum SaveUnitKeyKind
 
     /// <summary>A directory of 8 hex characters decoding to a 4-character ASCII game code.</summary>
     HexAscii,
+
+    /// <summary>
+    /// A PS2 memory card directory: <c>B</c>, a region letter and the serial, as in
+    /// <c>BASLUS-21050</c>, keyed on that prefix.
+    /// </summary>
+    Ps2Save,
 }
 
 /// <summary>
@@ -63,6 +69,14 @@ public sealed record SaveUnitPath(
         RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
         TimeSpan.FromSeconds(1));
 
+    // B, the region letter (A, E or I measured) and the serial with its hyphen. What follows is
+    // the game's own, so it is cut off: one game may name several directories after one serial.
+    // BADATA-SYSTEM, the console's own settings, has no serial and is not a unit.
+    private static readonly Regex Ps2SavePattern = new(
+        "^(?<key>B[A-Za-z][A-Za-z]{4}-[0-9]{5})",
+        RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(1));
+
     // <makercode>-<gamecode>-<internal name>.gci. The anchored .gci is load-bearing: Dolphin
     // soft-deletes by appending .deleted, and a name ending .gci.deleted fails to match here
     // rather than being filtered out by a suffix list somewhere else.
@@ -95,6 +109,7 @@ public sealed record SaveUnitPath(
             SaveUnitKeyKind.Name => string.IsNullOrWhiteSpace(entryName) ? null : entryName,
             SaveUnitKeyKind.Gci => Match(GciPattern, entryName)?.ToUpperInvariant(),
             SaveUnitKeyKind.HexAscii => DecodeHexAscii(entryName),
+            SaveUnitKeyKind.Ps2Save => Match(Ps2SavePattern, entryName)?.ToUpperInvariant(),
             _ => null,
         };
     }
@@ -111,6 +126,7 @@ public sealed record SaveUnitPath(
         "name" => SaveUnitKeyKind.Name,
         "gci" => SaveUnitKeyKind.Gci,
         "hex_ascii" => SaveUnitKeyKind.HexAscii,
+        "ps2_save" => SaveUnitKeyKind.Ps2Save,
         _ => SaveUnitKeyKind.Unknown,
     };
 

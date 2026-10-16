@@ -423,63 +423,39 @@ public sealed partial record BatteryRule(
         Systems is null || other.Systems is null || Systems.Overlaps(other.Systems);
 }
 
-/// <summary>How a system's shared container can be made per-game, where it can.</summary>
-/// <param name="Option">The <c>es_settings.cfg</c> key, e.g. <c>pcsx2_slot1_memory</c>.</param>
-/// <param name="SetTo">The value to write. Null where the declaration says not to convert.</param>
-/// <param name="KeysBy">
-/// What the converted container is named after, and <b>the discriminator that decides whether
-/// this release can offer the conversion at all</b>. <c>rom stem</c> means the result drops
-/// into ordinary filename attribution; <c>disc serial</c> and <c>game code</c> mean it comes out
-/// identifier-keyed and needs the Game-ID routes, which is a different piece of work.
-/// </param>
+/// <summary>How a system's shared container can be made per-game, where a setting can.</summary>
+/// <remarks>
+/// <b>A record of the lever, and nothing acts on it.</b> RomMBat converts no game itself: a
+/// system it moves off a shared container declares a <see cref="ForcedSetting"/> instead, and
+/// these entries say what each emulator offers and why it is left at its stock value.
+/// </remarks>
+/// <param name="Option">The <c>es_settings.cfg</c> key, e.g. <c>flycast_vmupergame</c>.</param>
+/// <param name="SetTo">The value that converts. Null where the declaration says not to convert.</param>
+/// <param name="KeysBy">What the converted container is named after.</param>
 /// <param name="Apply">
 /// False where the measured answer is to leave the stock setting alone. <c>psx</c> is the
 /// worked case: stock <c>PerGameTitle</c> binds a multi-disc set through DuckStation's own
 /// database, and the conversion that looks like an improvement is the regression.
 /// </param>
-/// <param name="Container">
-/// Where the converted container lands, relative to <c>saves/&lt;system&gt;/</c>. Null where the
-/// layout has not been measured, which is what keeps an unmeasured tree reported rather than
-/// walked under a guessed rule.
-/// </param>
-/// <param name="Extension">The converted container's extension, which replaces the ROM's.</param>
-/// <param name="Emulator">Who writes it, for the slot and the report.</param>
-/// <param name="Slot">The slot suffix, so the pair is <c>{Emulator}:{Slot}</c>.</param>
 public sealed record PerGameConversion(
     string Option,
     string? SetTo,
     string KeysBy,
     bool Apply,
-    string Note,
-    string? Container = null,
-    string? Extension = null,
-    string? Emulator = null,
-    string? Slot = null)
-{
-    /// <summary>True when the converted container's location and naming are both known.</summary>
-    /// <remarks>
-    /// Both halves, for the reason <see cref="SaveShape.HasUnitPaths"/> needs both: a
-    /// conversion whose result has never been seen on disk must be discovered by measurement
-    /// rather than by guessing at a plausible directory.
-    /// </remarks>
-    public bool IsDiscoverable =>
-        YieldsRomNamedContainer
-        && !string.IsNullOrWhiteSpace(Container)
-        && !string.IsNullOrWhiteSpace(Extension)
-        && !string.IsNullOrWhiteSpace(Emulator)
-        && !string.IsNullOrWhiteSpace(Slot);
+    string Note);
 
-    /// <summary>True when converting produces a container named after the ROM file.</summary>
-    /// <remarks>
-    /// The only shape this release converts, because it is the only one whose result is
-    /// attributable by the filename index that already exists. Anything identifier-keyed is
-    /// reported with its reason rather than half-supported.
-    /// </remarks>
-    public bool YieldsRomNamedContainer =>
-        Apply
-        && SetTo is not null
-        && string.Equals(KeysBy, "rom stem", StringComparison.OrdinalIgnoreCase);
-}
+/// <summary>
+/// A system-level <c>es_settings.cfg</c> value RomMBat writes so a system saves in a shape it
+/// syncs.
+/// </summary>
+/// <remarks>
+/// Written over whatever the file holds, and only once EmulationStation is gone, by
+/// <see cref="ForcedSettings"/>. <c>ps2</c> is the one system that declares one: PCSX2's stock
+/// card is one file every game shares, and <c>folder</c> splits it into a directory per save.
+/// </remarks>
+/// <param name="Option">The bare option, e.g. <c>pcsx2_slot1_memory</c>.</param>
+/// <param name="Value">What it is set to.</param>
+public sealed record ForcedSetting(string Option, string Value, string Evidence);
 
 /// <summary>What is known about one system's saves.</summary>
 /// <param name="Classes">
@@ -507,16 +483,16 @@ public sealed record PerGameConversion(
 /// </param>
 /// <param name="Conversion">
 /// How this system's shared container can be made per-game, or null where no lever exists.
-/// Present for the four systems that declare one, which is not the same as four this release
-/// converts: see <see cref="PerGameConversion.YieldsRomNamedContainer"/>.
 /// </param>
+/// <param name="Forced">The setting RomMBat writes for this system, or null for none.</param>
 public sealed record SaveShape(
     string System,
     IReadOnlyList<SaveShapeClass> Classes,
     string Evidence,
     bool DependsOnEmulator,
     IReadOnlyList<SaveUnitPath> UnitPaths,
-    PerGameConversion? Conversion)
+    PerGameConversion? Conversion,
+    ForcedSetting? Forced = null)
 {
     /// <summary>True when any declared class is a battery shape this build carries.</summary>
     public bool HasSyncableClass => Classes.Any(value => value is SaveShapeClass.A or SaveShapeClass.B);
@@ -620,6 +596,10 @@ public sealed class SaveShapes
     /// <summary>What is known about a system, or null when nothing is.</summary>
     public SaveShape? For(string system) =>
         _shapes.TryGetValue(system, out var shape) ? shape : null;
+
+    /// <summary>Every system that declares a setting RomMBat writes, in ordinal order.</summary>
+    public IEnumerable<SaveShape> WithForcedSettings =>
+        _shapes.Values.Where(shape => shape.Forced is not null).OrderBy(shape => shape.System, StringComparer.Ordinal);
 
     /// <summary>
     /// The rule that claims a file of this name in this directory, or null when none does.
@@ -816,7 +796,8 @@ public sealed class SaveShapes
                 entry.Value.Evidence ?? string.Empty,
                 entry.Value.ShapeDependsOnEmulator,
                 ParseUnitPaths(entry.Value.UnitPaths),
-                ParseConversion(entry.Value.Conversion)),
+                ParseConversion(entry.Value.Conversion),
+                ParseForced(entry.Value.Forced)),
             StringComparer.OrdinalIgnoreCase);
 
         var notASavePaths = rules.NotASavePaths.ToFrozenDictionary(
@@ -1060,15 +1041,7 @@ public sealed class SaveShapes
                 parsed.entry.Evidence ?? string.Empty)),
     ];
 
-    /// <summary>
-    /// Reads a declared conversion, dropping one with no option to write.
-    /// </summary>
-    /// <remarks>
-    /// An entry with no <c>option</c> names no key, so there is nothing to set and nothing to
-    /// put back. Dropped rather than defaulted, for the same reason a container with an
-    /// unrecognized key kind is: every default available here is a guess about someone's
-    /// configuration.
-    /// </remarks>
+    /// <summary>Reads a declared conversion, dropping one with no option.</summary>
     private static PerGameConversion? ParseConversion(ConversionEntry? entry) =>
         entry is null || string.IsNullOrWhiteSpace(entry.Option)
             ? null
@@ -1077,13 +1050,19 @@ public sealed class SaveShapes
                 string.IsNullOrWhiteSpace(entry.SetTo) ? null : entry.SetTo,
                 entry.KeysBy ?? string.Empty,
                 entry.Apply ?? true,
-                entry.Note ?? string.Empty,
-                Blank(entry.Container?.Replace('\\', '/').Trim('/')),
-                Blank(entry.Extension),
-                Blank(entry.Emulator),
-                Blank(entry.Slot));
+                entry.Note ?? string.Empty);
 
     private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    /// <summary>Reads a forced setting, dropping one that names no option or no value.</summary>
+    /// <remarks>
+    /// Dropped rather than defaulted, for the same reason a container with an unrecognized key
+    /// kind is: every default available here is a guess written into somebody's configuration.
+    /// </remarks>
+    private static ForcedSetting? ParseForced(ForcedEntry? entry) =>
+        entry is null || string.IsNullOrWhiteSpace(entry.Option) || string.IsNullOrWhiteSpace(entry.Value)
+            ? null
+            : new ForcedSetting(entry.Option, entry.Value, entry.Evidence ?? string.Empty);
 
     private static string Read(System.Reflection.Assembly assembly, string name)
     {
@@ -1118,6 +1097,21 @@ public sealed class SaveShapes
 
         [JsonPropertyName("per_game_conversion")]
         public ConversionEntry? Conversion { get; init; }
+
+        [JsonPropertyName("forced_setting")]
+        public ForcedEntry? Forced { get; init; }
+    }
+
+    private sealed record ForcedEntry
+    {
+        [JsonPropertyName("option")]
+        public string? Option { get; init; }
+
+        [JsonPropertyName("value")]
+        public string? Value { get; init; }
+
+        [JsonPropertyName("evidence")]
+        public string? Evidence { get; init; }
     }
 
     private sealed record ConversionEntry
@@ -1137,18 +1131,6 @@ public sealed class SaveShapes
 
         [JsonPropertyName("note")]
         public string? Note { get; init; }
-
-        [JsonPropertyName("container")]
-        public string? Container { get; init; }
-
-        [JsonPropertyName("extension")]
-        public string? Extension { get; init; }
-
-        [JsonPropertyName("emulator")]
-        public string? Emulator { get; init; }
-
-        [JsonPropertyName("slot")]
-        public string? Slot { get; init; }
     }
 
     private sealed record UnitPathEntry

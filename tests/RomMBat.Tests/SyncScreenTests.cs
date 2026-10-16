@@ -810,13 +810,13 @@ public sealed class SyncScreenTests : IDisposable
     [Fact]
     public void One_problem_cut_short_is_offered_in_full_though_nothing_was_left_out()
     {
-        // R1.1 on #498. The memory card advisory for a long ROM name runs past two lines and
-        // ends in the command to run, so the box keeps one of one with its remedy trimmed.
-        // Counting only the problems left out offered nothing, and the remedy was unreadable.
+        // R1.1 on #498. A problem naming a long ROM runs past two lines and ends in its remedy,
+        // so the box keeps one of one with the remedy trimmed. Counting only the problems left
+        // out offered nothing, and the remedy was unreadable.
         IReadOnlyList<string> problems =
         [
-            $"'{new string('n', 120)}' shares the system memory card with other games. "
-                + "Run 'saves convert 1234 --apply' to give it its own.",
+            $"'{new string('n', 120)}': {new string('n', 40)} names this save after its own title for "
+                + "the game. Run the game once under it, then try again.",
         ];
 
         Assert.Single(ProgressLayout.Fit(problems));

@@ -130,46 +130,29 @@ public sealed class MenuAndBackgroundTests
     }
 
     [Fact]
-    public async Task Background_quit_applies_what_was_queued_for_exactly_this_moment()
+    public async Task Background_quit_forces_the_folder_card_over_another_value()
     {
         using var tree = TempRetroBatTree.Create();
         var install = tree.Install();
         install.EnsureAppDirectories();
 
-        var key = "ps2[\"Armored Core 3 (USA).chd\"].pcsx2_slot1_memory";
-        int queuedId;
-
         using (var store = LocalStore.Open(install))
         {
             AddRom(install, store, 42, "ps2", "Armored Core 3 (USA).chd");
-            queuedId = QueueConversion(store);
         }
+
+        WriteSettings(install, """<config><string name="ps2.pcsx2_slot1_memory" value="standard" /></config>""");
 
         var run = await AgentRunner.RunAsync(tree, "background", "quit");
 
         // The pass returns the flush's exit code, and an unpaired install is 4, NotPaired.
-        // That is the honest answer and it does not mean the pass did nothing: the config
-        // half and the whole local half of the flush ran before anything needed a server.
+        // That is the honest answer and it does not mean the pass did nothing: the setting and
+        // the whole local half of the flush ran before anything needed a server.
         Assert.Equal(4, run.ExitCode);
+        Assert.Equal("folder", ReadSetting(install));
 
-        var settings = EsSettingsFile.Load(install.Resolve(EsSettingsFile.Location));
-        Assert.Equal("game", settings.Value(key));
-
-        using (var store = LocalStore.OpenAt(install.DatabasePath))
-        {
-            Assert.Empty(store.PendingConfig.ListOutstanding());
-
-            // Readable afterwards, which is the whole reason the row survives being applied.
-            var finished = Assert.Single(store.PendingConfig.ListFinished());
-            Assert.Equal(queuedId, finished.Id);
-            Assert.Equal(PendingConfigResult.Applied, finished.Result);
-            Assert.Contains("pcsx2_slot1_memory", finished.Detail!, StringComparison.Ordinal);
-
-            // And the conversion went through the ordinary writer, so save_conversion knows
-            // what the file held before.
-            var conversion = Assert.Single(store.SaveConversions.List());
-            Assert.Equal(PriorSettingState.Absent, conversion.PriorState);
-        }
+        var log = File.ReadAllText(Path.Combine(install.LogDirectoryPath, "background.log"));
+        Assert.Contains("set ps2.pcsx2_slot1_memory = folder (was standard)", log, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -184,20 +167,16 @@ public sealed class MenuAndBackgroundTests
         using (var store = LocalStore.Open(install))
         {
             AddRom(install, store, 42, "ps2", "Armored Core 3 (USA).chd");
-            QueueConversion(store);
         }
 
         WriteSpoolRecord(install, "quit");
         await AgentRunner.RunAsync(tree, "background", "quit");
 
         var settingsAfterFirst = File.ReadAllBytes(install.Resolve(EsSettingsFile.Location));
-
-        string finishedDetail;
         int journalRows;
 
         using (var store = LocalStore.OpenAt(install.DatabasePath))
         {
-            finishedDetail = Assert.Single(store.PendingConfig.ListFinished()).Detail!;
             journalRows = store.Journal.All(limit: 100).Count;
         }
 
@@ -205,16 +184,10 @@ public sealed class MenuAndBackgroundTests
         var again = await AgentRunner.RunAsync(tree, "background", "quit");
 
         Assert.Equal(4, again.ExitCode);
-
-        // The setting is not rewritten, no second conversion is recorded, and the finished row
-        // is the one the first pass wrote.
         Assert.Equal(settingsAfterFirst, File.ReadAllBytes(install.Resolve(EsSettingsFile.Location)));
 
         using (var store = LocalStore.OpenAt(install.DatabasePath))
         {
-            Assert.Single(store.SaveConversions.List());
-            Assert.Equal(finishedDetail, Assert.Single(store.PendingConfig.ListFinished()).Detail);
-
             // The second spool record became its own journal row, which is right: two quits
             // happened. Nothing else moved.
             Assert.Equal(journalRows + 1, store.Journal.All(limit: 100).Count);
@@ -222,44 +195,30 @@ public sealed class MenuAndBackgroundTests
     }
 
     [Fact]
-    public async Task A_queued_change_survives_a_pass_that_could_not_apply_it()
+    public async Task An_install_with_no_ps2_game_keeps_a_settings_file_RomMBat_never_touched()
     {
-        // Nothing is lost when the world moved: the row is finished with the reason, so the
-        // next time a person opens RomMBat there is something to read.
         using var tree = TempRetroBatTree.Create();
         var install = tree.Install();
         install.EnsureAppDirectories();
 
         using (var store = LocalStore.Open(install))
         {
-            AddRom(install, store, 42, "ps2", "Armored Core 3 (USA).chd");
-            QueueConversion(store);
-
-            // Evicted between queueing and quitting.
-            store.Files.Remove(RelativePath.Create("roms/ps2/Armored Core 3 (USA).chd"));
+            AddRom(install, store, 7, "nes", "Contra (USA).nes");
         }
+
+        WriteSettings(install, "<config />");
+        var before = File.ReadAllBytes(install.Resolve(EsSettingsFile.Location));
 
         await AgentRunner.RunAsync(tree, "background", "quit");
 
-        using (var store = LocalStore.OpenAt(install.DatabasePath))
-        {
-            Assert.Empty(store.PendingConfig.ListOutstanding());
-
-            var finished = Assert.Single(store.PendingConfig.ListFinished());
-            Assert.Equal(PendingConfigResult.Refused, finished.Result);
-            Assert.Contains("no longer on this device", finished.Detail!, StringComparison.Ordinal);
-        }
-
-        var report = await AgentRunner.RunAsync(tree, "saves", "--no-scan");
-        Assert.True(report.Wrote("refused"));
+        Assert.Equal(before, File.ReadAllBytes(install.Resolve(EsSettingsFile.Location)));
     }
 
     [Fact]
-    public async Task A_change_that_throws_is_finished_rather_than_left_to_poison_the_next_quit()
+    public async Task A_setting_that_cannot_be_written_does_not_stop_the_flush()
     {
-        // The queue is never allowed to hold the saves hostage. A write that throws rather than
-        // refusing, and is left unrecorded, would be re-entered by every later quit before it
-        // reached the flush, so one bad row would stop this machine flushing at all.
+        // The settings never hold the saves hostage. A write that throws is logged, the flush
+        // still runs, and the next quit tries again because the file still lacks the value.
         using var tree = TempRetroBatTree.Create();
         var install = tree.Install();
         install.EnsureAppDirectories();
@@ -267,14 +226,11 @@ public sealed class MenuAndBackgroundTests
         using (var store = LocalStore.Open(install))
         {
             AddRom(install, store, 42, "ps2", "Armored Core 3 (USA).chd");
-            QueueConversion(store);
         }
 
         // Readable, so the rest of the pass is unaffected, and unwritable, so the rename at the
         // end of WriteIfChanged throws where a full or read-only volume would.
-        var settings = install.Resolve(EsSettingsFile.Location);
-        Directory.CreateDirectory(Path.GetDirectoryName(settings)!);
-        File.WriteAllText(settings, "<config />");
+        var settings = WriteSettings(install, "<config />");
         File.SetAttributes(settings, FileAttributes.ReadOnly);
 
         AgentRun run;
@@ -290,30 +246,16 @@ public sealed class MenuAndBackgroundTests
 
         // 4 is NotPaired, from the flush. A pass the throw reached would not have one.
         Assert.Equal(4, run.ExitCode);
+        Assert.Null(ReadSetting(install));
 
-        using (var store = LocalStore.OpenAt(install.DatabasePath))
-        {
-            Assert.Empty(store.PendingConfig.ListOutstanding());
-
-            var finished = Assert.Single(store.PendingConfig.ListFinished());
-            Assert.Equal(PendingConfigResult.Failed, finished.Result);
-            Assert.False(string.IsNullOrWhiteSpace(finished.Detail));
-
-            // Nothing was recorded as converted, so a later revert has nothing to undo.
-            Assert.Empty(store.SaveConversions.List());
-        }
-
-        // And it said so in the one place a pass with no console window can.
         var log = File.ReadAllText(Path.Combine(install.LogDirectoryPath, "background.log"));
-        Assert.Contains("ps2/Armored Core 3 (USA).chd: Failed", log, StringComparison.Ordinal);
+        Assert.Contains("settings could not be written", log, StringComparison.Ordinal);
         Assert.Contains("finished, flush exit 4", log, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task A_change_that_worked_leaves_no_empty_section_behind_it()
+    public async Task Saves_names_a_pending_setting_until_a_quit_writes_it()
     {
-        // saves reports only the queued changes that did not work, so a history of nothing but
-        // successes has nothing to say and must not say it with a blank line.
         using var tree = TempRetroBatTree.Create();
         var install = tree.Install();
         install.EnsureAppDirectories();
@@ -321,36 +263,37 @@ public sealed class MenuAndBackgroundTests
         using (var store = LocalStore.Open(install))
         {
             AddRom(install, store, 42, "ps2", "Armored Core 3 (USA).chd");
-            QueueConversion(store);
         }
+
+        var before = await AgentRunner.RunAsync(tree, "saves", "--no-scan");
+        Assert.True(before.Wrote("will be written when EmulationStation next closes"));
+        Assert.True(before.Wrote("ps2.pcsx2_slot1_memory = folder  (now absent)"));
 
         await AgentRunner.RunAsync(tree, "background", "quit");
 
-        var report = await AgentRunner.RunAsync(tree, "saves", "--no-scan");
-        var lines = report.Out.Replace("\r\n", "\n", StringComparison.Ordinal);
+        var after = await AgentRunner.RunAsync(tree, "saves", "--no-scan");
+        var lines = after.Out.Replace("\r\n", "\n", StringComparison.Ordinal);
 
-        Assert.DoesNotContain("will be made when EmulationStation next closes", lines, StringComparison.Ordinal);
+        Assert.DoesNotContain("will be written when EmulationStation next closes", lines, StringComparison.Ordinal);
         Assert.DoesNotContain("\n\n\n", lines, StringComparison.Ordinal);
     }
+
+    private static string WriteSettings(RetroBatInstall install, string xml)
+    {
+        var settings = install.Resolve(EsSettingsFile.Location);
+        Directory.CreateDirectory(Path.GetDirectoryName(settings)!);
+        File.WriteAllText(settings, xml);
+        return settings;
+    }
+
+    private static string? ReadSetting(RetroBatInstall install) =>
+        EsSettingsFile.Load(install.Resolve(EsSettingsFile.Location)).Value("ps2.pcsx2_slot1_memory");
 
     private static void WriteSpoolRecord(RetroBatInstall install, string hookEvent)
     {
         Directory.CreateDirectory(install.Resolve(SpoolDrain.Directory));
         Spool.Write(install.RootPath, new SpoolRecord(hookEvent, DateTimeOffset.UtcNow, 4242, []));
     }
-
-    private static int QueueConversion(LocalStore store) =>
-        store.PendingConfig.Queue(new PendingConfigRequest
-        {
-            RomId = 42,
-            System = "ps2",
-            FsName = "Armored Core 3 (USA).chd",
-            SettingKey = "pcsx2_slot1_memory",
-            DesiredState = DesiredSettingState.Set,
-            DesiredValue = "game",
-            Reason = "a per-game memory card for 'Armored Core 3 (USA).chd'",
-            QueuedAtUtc = DateTimeOffset.UtcNow,
-        });
 
     private static void AddRom(RetroBatInstall install, LocalStore store, int romId, string folder, string fileName)
     {
