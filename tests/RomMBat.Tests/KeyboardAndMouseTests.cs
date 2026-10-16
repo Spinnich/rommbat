@@ -74,6 +74,14 @@ public class KeyboardAndMouseTests
     }
 
     [Fact]
+    public void A_key_the_table_cannot_name_is_not_labeled_as_a_letter()
+    {
+        Assert.Equal("Insert", SdlKey.Label(SdlKey.From(Key.Insert)!.Value));
+        Assert.Equal("Key 1073741922", SdlKey.Label(1073741922));
+        Assert.Equal("X", SdlKey.Label('x'));
+    }
+
+    [Fact]
     public void The_footer_names_the_key_for_an_action()
     {
         Assert.Equal("X", Keys.KeyFor(NavAction.Accept));

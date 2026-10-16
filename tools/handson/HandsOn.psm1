@@ -656,13 +656,13 @@ function Hide-AgentBanner {
 # The keys the UI and ES read from es_input.cfg (src/RomMBat.UI/CLAUDE.md), and those emulators read (waves.md).
 $script:Keys = @{
     Up = 0x26; Down = 0x28; Left = 0x25; Right = 0x27
-    Enter = 0x0D; A = 0x0D; Escape = 0x1B; B = 0x1B; Backspace = 0x08; L1 = 0x08
-    Tab = 0x09; X = 0x09; Start = 0x74; Ctrl = 0x11; Shift = 0x10; Alt = 0x12; Space = 0x20
+    Enter = 0x0D; Escape = 0x1B; Backspace = 0x08
+    Tab = 0x09; Ctrl = 0x11; Shift = 0x10; Alt = 0x12; Space = 0x20
     F1 = 0x70; F2 = 0x71; F3 = 0x72; F4 = 0x73; F5 = 0x74; F6 = 0x75; F7 = 0x76; F8 = 0x77
     F9 = 0x78; F10 = 0x79; F11 = 0x7A; F12 = 0x7B
     PageUp = 0x21; PageDown = 0x22; End = 0x23; Home = 0x24
     # Letters by their own name. ES's keyboard map binds face buttons to letters (a is KeyX,
-    # b KeyZ, x KeyQ, y KeyS), and the bare A, B and X above are older aliases the UI no longer reads.
+    # b KeyZ, x KeyQ, y KeyS).
 }
 # Every letter, so typing on a text screen can be driven: KeyA is 0x41 through KeyZ at 0x5A.
 foreach ($code in 0x41..0x5A) { $script:Keys['Key' + [char]$code] = $code }

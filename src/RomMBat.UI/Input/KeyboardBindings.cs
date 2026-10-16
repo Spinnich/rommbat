@@ -149,6 +149,7 @@ internal static class SdlKey
         Key.Back => Backspace,
         Key.Delete => 127,
         Key.Tab => 9,
+        Key.Insert => Scancode | 73,
         Key.Space => 32,
         Key.Right => Right,
         Key.Left => Left,
@@ -175,6 +176,7 @@ internal static class SdlKey
         Backspace => "Backspace",
         127 => "Delete",
         9 => "Tab",
+        Scancode | 73 => "Insert",
         32 => "Space",
         Right => "Right",
         Left => "Left",
@@ -191,6 +193,9 @@ internal static class SdlKey
         Scancode | 229 => "RShift",
         Scancode | 230 => "RAlt",
         _ when code is >= FirstFunction and <= FirstFunction + 11 => "F" + (code - FirstFunction + 1),
-        _ => char.ToUpperInvariant((char)code).ToString(),
+        // A printable character is its own label. Anything else this table cannot name would
+        // otherwise be cast to a wrong letter, so it is said plainly.
+        >= 33 and <= 126 => char.ToUpperInvariant((char)code).ToString(),
+        _ => "Key " + code,
     };
 }

@@ -45,6 +45,9 @@ internal sealed class ShellWindow : Window
     private readonly KeyboardBindings _keys;
     private readonly HashSet<Key> _keysDown = [];
     private Point? _pointer;
+    private int _pointedAt = -1;
+    private IScreen? _pointedScreen;
+    private double _wheel;
     private bool _keyboardLast;
     private readonly Action _exit;
     private readonly ContentControl _body = new();
@@ -342,7 +345,16 @@ internal sealed class ShellWindow : Window
 
         if (TargetAt(position) is PointerTarget target)
         {
-            Act(_navigator.Point(target.Index));
+            // Once per item, so moving about inside one row does not rebuild the screen.
+            if (target.Index != _pointedAt)
+            {
+                _pointedAt = target.Index;
+                Act(_navigator.Point(target.Index));
+            }
+        }
+        else
+        {
+            _pointedAt = -1;
         }
     }
 
@@ -388,7 +400,18 @@ internal sealed class ShellWindow : Window
     private void OnWheel(object? sender, PointerWheelEventArgs e)
     {
         ShowPointer(true);
-        Act(_navigator.Wheel(Math.Sign(e.Delta.Y)));
+
+        // A touchpad sends many small deltas for one swipe, and a wheel one whole notch each:
+        // a step per whole notch accumulated, so a swipe is not a long run of rows.
+        _wheel += e.Delta.Y;
+
+        while (Math.Abs(_wheel) >= 1)
+        {
+            var notch = Math.Sign(_wheel);
+            _wheel -= notch;
+            Act(_navigator.Wheel(notch));
+        }
+
         e.Handled = true;
     }
 
@@ -471,6 +494,14 @@ internal sealed class ShellWindow : Window
     private void Render()
     {
         var screen = _navigator.Current;
+
+        // What was under the pointer belonged to the last screen, not to a redraw of this one.
+        if (!ReferenceEquals(screen, _pointedScreen))
+        {
+            _pointedScreen = screen;
+            _pointedAt = -1;
+        }
+
         _live.Follow(screen);
 
         // In capitals, as ES titles every menu (RB-423).

@@ -1,7 +1,7 @@
 # The gamepad interface
 
 RomMBat opens full screen from EmulationStation's menu and is built for a controller. Everything
-it does day to day works from the couch, and nothing needs a mouse. When you leave it, you are
+it does day to day works from the couch with a controller, and a keyboard and mouse work too. When you leave it, you are
 back in EmulationStation. It looks like EmulationStation's own menus, using the fonts and button
 icons from your RetroBat install.
 
@@ -11,6 +11,8 @@ RomMBat reads the controller layout you set up in EmulationStation, so the butto
 jobs there as here. The help bar at the bottom of each screen shows what each button does on that
 screen. It draws buttons by their position on the controller rather than by a letter, because
 the bottom face button is A on an Xbox pad, Cross on a PlayStation pad and B on a Switch Pro.
+After you press a key on the keyboard, the help bar shows keys instead, until you touch the
+controller again.
 
 | Button              | What it does                                                                                        |
 | ------------------- | --------------------------------------------------------------------------------------------------- |
@@ -25,6 +27,18 @@ the bottom face button is A on an Xbox pad, Cross on a PlayStation pad and B on 
 | Select              | In Browse library, the view options: search, jump to a letter, sort and filters                     |
 
 They follow EmulationStation's own: Start opens a menu there too, and Accept picks from it.
+
+## Keyboard and mouse
+
+The keyboard uses the keys EmulationStation uses, read from the same configuration, so a key you
+remapped there is remapped here. By default X is Accept, Z is Back, Enter is Start, S and Q are the
+left and top face buttons, Backspace is Select, and the arrow keys, Page Up, Page Down, Home and
+End move and page. Escape also goes Back. On a screen where you type, letters are typed, Enter
+confirms, Escape cancels and Backspace deletes.
+
+With a mouse, moving over a row selects it, a click chooses it, the wheel moves the selection,
+and a right click goes Back, as does a click outside a pop-up. The help bar's entries can be
+clicked too.
 
 **Accept opens a list to choose from rather than stepping through one.** To step through
 choices in place, use Left and Right. A filter row with a few fixed answers, such as yes, no or
