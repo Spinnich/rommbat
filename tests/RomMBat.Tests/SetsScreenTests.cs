@@ -971,6 +971,29 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     [Fact]
+    public void Picking_something_else_after_a_refusal_clears_the_refusal()
+    {
+        SeedPlatform(4, "snes");
+        SeedPlatform(5, "nes");
+
+        var editor = SetEditorViewModel.ForNew(_session);
+        Assert.IsType<ListScreen>(OpenRow(editor, "Platform")).Handle(NavAction.Accept);
+        Navigator.Run(editor, "Create set");
+
+        var second = SetEditorViewModel.ForNew(_session);
+        Assert.IsType<ListScreen>(OpenRow(second, "Platform")).Handle(NavAction.Accept);
+        Navigator.Run(second, "Create set");
+        Assert.NotNull(second.Problem);
+
+        // The line described the platform that was picked, so it must not outlive the pick.
+        var picker = Assert.IsType<ListScreen>(OpenRow(second, "Platform"));
+        picker.Handle(NavAction.Down);
+        picker.Handle(NavAction.Accept);
+
+        Assert.Null(second.Problem);
+    }
+
+    [Fact]
     public void Resolving_from_the_detail_screen_updates_what_it_shows()
     {
         var set = Seed("stale");
