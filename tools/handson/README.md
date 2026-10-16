@@ -67,11 +67,11 @@ before starting the other's.
 | `Show-AgentBanner`, `Hide-AgentBanner`        | Put up, or take down, the "agent is driving" strip across the top of the screen                     |
 | `Use-ScoutTree`, `Use-AgentTree`              | Point every function at the scout tree, or back at the agent tree                                   |
 
-The UI's keys are its desk map: `Up`, `Down`, `Left`, `Right`, `Enter` (A), `Escape` (B),
-`Backspace` or `PageUp` (L1), `PageDown` (R1), `Home` (L2), `End` (R2), `Tab` (the left face
-button), `KeyQ` (the top one), `F5` (Start), `F6` (Select). EmulationStation reads its own keyboard map from `es_input.cfg`, where the face
-buttons are letters: `KeyX` is A, `KeyZ` is B, `KeyS` the left face button and `KeyQ` the top,
-with `Enter` as Start, `Backspace` as Select and `Home` and `End` as L2 and R2.
+The UI and EmulationStation read the same keys from `es_input.cfg`'s keyboard entry: `KeyX` is A,
+`KeyZ` is B, `KeyS` the left face button and `KeyQ` the top, with `Enter` as Start, `Backspace` as
+Select, `PageUp` and `PageDown` as L1 and R1, and `Home` and `End` as L2 and R2. The UI also takes
+`Escape` as Back when the file leaves it unbound. On a text screen the letters are typed, not
+pressed. The mouse is not driven by the kit yet.
 
 ## Rules the functions enforce
 

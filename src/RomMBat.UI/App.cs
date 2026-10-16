@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Themes.Fluent;
 using RomMBat.Core;
 using RomMBat.Core.RetroBat;
+using RomMBat.UI.Input;
 using RomMBat.UI.Screens;
 using RomMBat.UI.Shell;
 
@@ -83,7 +84,7 @@ internal sealed class App : Application
             OpenOutbox = () => OutboxScreens.List(_session),
         });
 
-        return new ShellWindow(new Navigator(root), _gamepad, () => desktop.Shutdown());
+        return new ShellWindow(new Navigator(root), _gamepad, () => desktop.Shutdown(), KeyboardBindings.From(map));
     }
 
     /// <summary>

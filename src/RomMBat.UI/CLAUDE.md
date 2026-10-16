@@ -19,11 +19,13 @@ and the outbox are Core's.
 - **If it cannot be tested without a window, it is in the wrong project.**
 - **Input is read, never detected.** No vendor-id table; the map comes from `es_input.cfg`
   (`retrobat-layout`, "Controller input").
-- **No primary flow needs a mouse.**
-- A physical keyboard drives it at a desk, and is not a supported user flow: arrows move, Enter
-  is A, Escape is B, Backspace or PageUp is L1, PageDown is R1, Home is L2, End is R2, Tab is
-  the left face button, Q the top one, F5 is Start and F6 is Select. A connected controller is read through the same `es_input.cfg` a
-  real install uses.
+- **The pad is first; keyboard and mouse are supported.** Keys come from `es_input.cfg`'s
+  keyboard entry (`KeyboardBindings`): X is A, Z is B, Enter is Start by default. Arrows and Escape
+  fill only keys the file leaves unbound, and a key goes through `NavRepeat` like a pad button.
+- **The mouse speaks in item indexes, never coordinates.** `ScreenView` tags rows, answers and
+  keys with `PointerTarget`, a screen implements `IPointerScreen`, and a click is select then
+  Accept. A screen dimmed behind a popup is `IsHitTestVisible = false`.
+- **A text screen takes the keyboard as text** (`ITextEntryScreen`): letters are not buttons there.
 - **Start is the menu, never a verb.** A screen lists its verbs as `ScreenAction`s and the
   navigator owns Start and the shortcuts; drive one in a test through `Navigator.Press` or
   `Navigator.Run`, because the screen's own `Handle` no longer sees them. Accept confirms or

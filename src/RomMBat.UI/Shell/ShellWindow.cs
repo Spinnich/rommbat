@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using RomMBat.Core.RetroBat;
 using RomMBat.UI.Input;
 using RomMBat.UI.Screens;
@@ -18,12 +19,14 @@ namespace RomMBat.UI.Shell;
 /// </summary>
 /// <remarks>
 /// <b>This is the only class that knows about both Avalonia and the pad</b>, which is what
-/// keeps every screen testable: the screens see <see cref="NavAction"/> and nothing else.
+/// keeps every screen testable: the screens see no Avalonia type and no coordinate, only a
+/// <see cref="NavAction"/>, the index of an item pointed at, or text typed.
 /// <para>
-/// <b>The keyboard is a development convenience and is not a supported flow.</b> No primary
-/// flow may require anything but a controller, and the keys mapped here exist so the UI can be
-/// worked on at a desk without a pad plugged in. They are deliberately the obvious ones rather
-/// than a second input system read from <c>es_input.cfg</c>'s keyboard section.
+/// <b>The pad, the keyboard and the mouse are all supported, and the pad is first.</b> A key
+/// means what <c>es_input.cfg</c>'s keyboard entry says it does, so it is the key EmulationStation
+/// uses (<see cref="KeyboardBindings"/>), and it reaches the screens as the same held names a pad
+/// produces, so repeat and one-press-one-action behave identically. The mouse points at the
+/// items a screen tagged, and a click is pointing followed by Accept.
 /// </para>
 /// </remarks>
 internal sealed class ShellWindow : Window
@@ -40,6 +43,13 @@ internal sealed class ShellWindow : Window
 
     private readonly Navigator _navigator;
     private readonly GamepadReader? _gamepad;
+    private readonly KeyboardBindings _keys;
+    private readonly HashSet<Key> _keysDown = [];
+    private Point? _pointer;
+    private int _pointedAt = -1;
+    private IScreen? _pointedScreen;
+    private double _wheel;
+    private bool _keyboardLast;
     private readonly Action _exit;
     private readonly ContentControl _body = new();
     private readonly ContentControl _overlay = new()
@@ -54,10 +64,15 @@ internal sealed class ShellWindow : Window
     private GamepadAvailability? _lastAvailability;
     private readonly LiveFollow _live;
 
-    public ShellWindow(Navigator navigator, GamepadReader? gamepad, Action exit)
+    public ShellWindow(Navigator navigator, GamepadReader? gamepad, Action exit, KeyboardBindings? keys = null)
     {
         _navigator = navigator;
         _gamepad = gamepad;
+        _keys = keys ?? KeyboardBindings.From(null);
+
+        // Hidden until the mouse moves, because the window is shown on a television where a
+        // pointer in the middle of the panel is clutter.
+        ShowPointer(false);
         _exit = exit;
 
         // Raised from whatever thread did the work, so hop to the UI thread before touching controls.
@@ -95,6 +110,15 @@ internal sealed class ShellWindow : Window
             OnKey,
             Avalonia.Interactivity.RoutingStrategies.Tunnel,
             handledEventsToo: true);
+
+        AddHandler(KeyUpEvent, OnKeyUp, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(TextInputEvent, OnText, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerMovedEvent, OnPointerMoved, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerPressedEvent, OnPointerPressed, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerWheelChangedEvent, OnWheel, Avalonia.Interactivity.RoutingStrategies.Tunnel, handledEventsToo: true);
+
+        // A key released while another window had focus would otherwise stay held for good.
+        Deactivated += (_, _) => _keysDown.Clear();
     }
 
     /// <summary>The chrome at its design size, scaled to the display (<see cref="DesignSize"/>).</summary>
@@ -212,7 +236,19 @@ internal sealed class ShellWindow : Window
 
     private void Poll()
     {
-        var held = _gamepad?.Held() ?? (IReadOnlySet<string>)new HashSet<string>(StringComparer.Ordinal);
+        var held = new HashSet<string>(_gamepad?.Held() ?? new HashSet<string>(StringComparer.Ordinal), StringComparer.Ordinal);
+
+        if (held.Count > 0)
+        {
+            SetKeyboardLast(false);
+            ShowPointer(false);
+        }
+
+        // Not while typing: the letters that are buttons in ES are letters here.
+        if (_navigator.Current is not ITextEntryScreen)
+        {
+            held.UnionWith(_keys.Held(_keysDown));
+        }
 
         // A controller arriving or leaving changes what is on screen without anyone pressing
         // anything, and it is the one change a user cannot prompt: with no pad there is no
@@ -241,30 +277,212 @@ internal sealed class ShellWindow : Window
 
     private void OnKey(object? sender, KeyEventArgs e)
     {
-        var action = e.Key switch
-        {
-            Key.Up => (NavAction?)NavAction.Up,
-            Key.Down => NavAction.Down,
-            Key.Left => NavAction.Left,
-            Key.Right => NavAction.Right,
-            Key.Enter => NavAction.Accept,
-            Key.Escape => NavAction.Back,
-            Key.Back => NavAction.PageUp,
-            Key.Tab => NavAction.Alternate,
-            Key.Q => NavAction.Extra,
-            Key.PageUp => NavAction.PageUp,
-            Key.PageDown => NavAction.PageDown,
-            Key.F5 => NavAction.Start,
-            Key.F6 => NavAction.Options,
-            Key.Home => NavAction.PreviousGroup,
-            Key.End => NavAction.NextGroup,
-            _ => null,
-        };
+        SetKeyboardLast(true);
+        ShowPointer(false);
 
-        if (action is { } resolved && !_navigator.Handle(resolved))
+        if (_navigator.Current is ITextEntryScreen)
+        {
+            // The grid is a pad's way of typing. A physical keyboard types directly: letters
+            // arrive as text, and only the keys that are not letters are actions.
+            NavAction? typing = e.Key switch
+            {
+                Key.Enter => NavAction.Start,
+                Key.Escape => NavAction.Back,
+                Key.Back or Key.Delete => NavAction.PageUp,
+                Key.Up => NavAction.Up,
+                Key.Down => NavAction.Down,
+                Key.Left => NavAction.Left,
+                Key.Right => NavAction.Right,
+                _ => null,
+            };
+
+            if (typing is { } typed)
+            {
+                e.Handled = true;
+                Act(_navigator.Handle(typed));
+            }
+
+            return;
+        }
+
+        if (_keys.Names(e.Key).Count > 0)
+        {
+            // Held until released, and read on the next poll with everything else held.
+            _keysDown.Add(e.Key);
+            e.Handled = true;
+        }
+    }
+
+    private void OnKeyUp(object? sender, KeyEventArgs e) => _keysDown.Remove(e.Key);
+
+    private void OnText(object? sender, TextInputEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(e.Text) && !e.Text.Any(char.IsControl))
+        {
+            _navigator.Type(e.Text);
+        }
+    }
+
+    private void OnPointerMoved(object? sender, PointerEventArgs e)
+    {
+        var position = e.GetPosition(this);
+
+        // Only real movement: a redraw under a still pointer raises a move, and showing the
+        // pointer for it would undo hiding it on a key press.
+        if (_pointer == position)
+        {
+            return;
+        }
+
+        var first = _pointer is null;
+        _pointer = position;
+
+        if (first)
+        {
+            return;
+        }
+
+        ShowPointer(true);
+
+        if (TargetAt(position) is PointerTarget target)
+        {
+            // Once per item, so moving about inside one row does not rebuild the screen.
+            if (target.Index != _pointedAt)
+            {
+                _pointedAt = target.Index;
+                Act(_navigator.Point(target.Index));
+            }
+        }
+        else
+        {
+            _pointedAt = -1;
+        }
+    }
+
+    private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var properties = e.GetCurrentPoint(this).Properties;
+        ShowPointer(true);
+
+        if (properties.IsRightButtonPressed)
+        {
+            e.Handled = true;
+            Act(_navigator.Handle(NavAction.Back));
+            return;
+        }
+
+        // The first press of a double click has already acted, and a second would choose
+        // whatever the screen it opened draws under the pointer.
+        if (!properties.IsLeftButtonPressed || e.ClickCount > 1)
+        {
+            return;
+        }
+
+        e.Handled = true;
+
+        switch (TargetAt(e.GetPosition(this)))
+        {
+            case PointerTarget target:
+                Act(_navigator.Click(target.Index));
+                break;
+
+            case HintTarget hint:
+                Act(_navigator.Handle(hint.Action));
+                break;
+
+            case ScrimTarget:
+                // Outside a popup, which is the way out of it that costs nothing.
+                Act(_navigator.Handle(NavAction.Back));
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    private void OnWheel(object? sender, PointerWheelEventArgs e)
+    {
+        ShowPointer(true);
+
+        // A touchpad sends many small deltas for one swipe, and a wheel one whole notch each:
+        // a step per whole notch accumulated, so a swipe is not a long run of rows.
+        _wheel += e.Delta.Y;
+
+        while (Math.Abs(_wheel) >= 1)
+        {
+            var notch = Math.Sign(_wheel);
+            _wheel -= notch;
+            Act(_navigator.Wheel(notch));
+        }
+
+        e.Handled = true;
+    }
+
+    private void Act(bool stillOpen)
+    {
+        if (!stillOpen)
         {
             _exit();
         }
+    }
+
+    private sealed record ScrimTarget;
+
+    /// <summary>What a drawn item under the pointer stands for, or null.</summary>
+    private object? TargetAt(Point position)
+    {
+        if (this.InputHitTest(position) is not Visual hit)
+        {
+            return null;
+        }
+
+        foreach (var visual in hit.GetSelfAndVisualAncestors())
+        {
+            if (ReferenceEquals(visual, _scrim) && _scrim.IsVisible)
+            {
+                return new ScrimTarget();
+            }
+
+            if (visual is Control { Tag: PointerTarget or HintTarget } control)
+            {
+                return control.Tag;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The key to draw on a footer hint, or null to draw the pad's glyph.
+    /// </summary>
+    /// <remarks>
+    /// On a text screen the letters type, so the keys that act are the ones <see cref="OnKey"/>
+    /// names there and not the ones <c>es_input.cfg</c> binds.
+    /// </remarks>
+    private string? KeyLabel(NavAction action) => _navigator.Current is ITextEntryScreen
+        ? action switch
+        {
+            NavAction.Start => "Enter",
+            NavAction.Back => "Esc",
+            NavAction.PageUp => "Backspace",
+            NavAction.PageDown => "Space",
+            _ => null,
+        }
+        : _keys.KeyFor(action);
+
+    private void ShowPointer(bool visible) =>
+        Cursor = visible ? null : new Cursor(StandardCursorType.None);
+
+    /// <summary>Redraws the footer when the hand changes between the pad and the keyboard.</summary>
+    private void SetKeyboardLast(bool keyboard)
+    {
+        if (_keyboardLast == keyboard)
+        {
+            return;
+        }
+
+        _keyboardLast = keyboard;
+        Render();
     }
 
     /// <summary>
@@ -279,6 +497,14 @@ internal sealed class ShellWindow : Window
     private void Render()
     {
         var screen = _navigator.Current;
+
+        // What was under the pointer belonged to the last screen, not to a redraw of this one.
+        if (!ReferenceEquals(screen, _pointedScreen))
+        {
+            _pointedScreen = screen;
+            _pointedAt = -1;
+        }
+
         _live.Follow(screen);
 
         // In capitals, as ES titles every menu (RB-423).
@@ -291,7 +517,17 @@ internal sealed class ShellWindow : Window
         _footer.Children.Clear();
         foreach (var hint in screen.Hints)
         {
-            _footer.Children.Add(ScreenView.Hint(hint));
+            var key = _keyboardLast && !hint.IsDirectional ? KeyLabel(hint.Action) : null;
+            var control = ScreenView.Hint(hint, key);
+
+            // Clickable, as ES's help bar is, except the directional hint, which names no one action.
+            if (control is Panel panel && !hint.IsDirectional)
+            {
+                panel.Background = Brushes.Transparent;
+                panel.Tag = new HintTarget(hint.Action);
+            }
+
+            _footer.Children.Add(control);
         }
     }
 }

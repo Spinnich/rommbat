@@ -52,7 +52,7 @@ namespace RomMBat.UI.Screens;
 /// ruled with Spinnich. Which file and when it is read are <see cref="CoverSlot"/>'s.
 /// </para>
 /// </remarks>
-public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IActionScreen, IReturnAware, IDisposable
+public sealed class BrowseViewModel : IScreen, IWindowedScreen, IPointerScreen, ILiveScreen, IActionScreen, IReturnAware, IDisposable
 {
     private readonly InstallSession _session;
     private readonly Func<Uri, RomMConnection>? _connect;
@@ -210,6 +210,24 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IAc
     ];
 
     public int Cursor => _state.Cursor;
+
+    /// <summary>Selects a row under a pointer, never while a page is in flight.</summary>
+    public bool PointAt(int index)
+    {
+        var rows = Rows;
+
+        if (_state.IsLoading || index < 0 || index >= rows.Count || !rows[index].Available)
+        {
+            return false;
+        }
+
+        if (index != _state.Cursor)
+        {
+            Publish(current => current with { Cursor = index });
+        }
+
+        return true;
+    }
 
     /// <summary>What the art box shows: the highlighted game's cover, or why there is none.</summary>
     public Cover Cover => _cover.Current;

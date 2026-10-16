@@ -33,7 +33,7 @@ public sealed record EditorRow(string Label, string Value, string? Detail, bool 
 /// whether a folder is real or a slug resolves; it asks, and it prints the sentence it gets.
 /// </para>
 /// </remarks>
-public sealed class SetEditorViewModel : IScreen, IActionScreen
+public sealed class SetEditorViewModel : IScreen, IPointerScreen, IActionScreen
 {
     private readonly InstallSession _session;
     private readonly SyncSetDefinition? _existing;
@@ -178,6 +178,18 @@ public sealed class SetEditorViewModel : IScreen, IActionScreen
 
     /// <summary>Which row the cursor is on.</summary>
     public int Cursor { get; private set; }
+
+    /// <summary>Selects a row under a pointer.</summary>
+    public bool PointAt(int index)
+    {
+        if (index < 0 || index >= Rows.Count)
+        {
+            return false;
+        }
+
+        Cursor = index;
+        return true;
+    }
 
     /// <summary>
     /// Which slice of the rows is on screen.

@@ -65,6 +65,52 @@ public sealed class Navigator
         return !HasExited;
     }
 
+    /// <summary>Moves the selection under a pointer, without choosing anything.</summary>
+    /// <returns>False once RomMBat should close.</returns>
+    public bool Point(int index)
+    {
+        if (HasExited || Current is not IPointerScreen pointer)
+        {
+            return !HasExited;
+        }
+
+        if (pointer.PointAt(index))
+        {
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+
+        return true;
+    }
+
+    /// <summary>Selects the item and chooses it, as a pointer click does.</summary>
+    /// <returns>False once RomMBat should close.</returns>
+    public bool Click(int index)
+    {
+        if (HasExited || Current is not IPointerScreen pointer || !pointer.PointAt(index))
+        {
+            return !HasExited;
+        }
+
+        return Handle(NavAction.Accept);
+    }
+
+    /// <summary>Scrolls by one step, as a wheel notch does, except where it would move a cursor on a grid.</summary>
+    /// <returns>False once RomMBat should close.</returns>
+    public bool Wheel(int notches) =>
+        Current is ITextEntryScreen || notches == 0
+            ? !HasExited
+            : Handle(notches > 0 ? NavAction.Up : NavAction.Down);
+
+    /// <summary>Gives the current screen typed characters, when it takes them.</summary>
+    public void Type(string text)
+    {
+        if (!HasExited && Current is ITextEntryScreen entry && text.Length > 0)
+        {
+            entry.Type(text);
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
     /// <summary>
     /// What a press on <paramref name="screen"/> asks for, with Start and the shortcuts
     /// answered first for every screen that lists actions.

@@ -40,7 +40,7 @@ public sealed record ConfirmButton(string Label, Func<ScreenCommand> Run)
 /// not followed by a list that simply has one row fewer and no word on why.
 /// </para>
 /// </remarks>
-public sealed class ConfirmScreen : IScreen, IPopupScreen, IWindowedScreen, ILiveScreen, IDisposable
+public sealed class ConfirmScreen : IScreen, IPopupScreen, IWindowedScreen, IPointerScreen, ILiveScreen, IDisposable
 {
     private readonly CancellationTokenSource _load = new();
     private int _safe;
@@ -196,6 +196,18 @@ public sealed class ConfirmScreen : IScreen, IPopupScreen, IWindowedScreen, ILiv
         IsAnswered = true;
 
         return ScreenCommand.Stay;
+    }
+
+    /// <summary>Selects an answer under a pointer, unless it cannot be given yet.</summary>
+    public bool PointAt(int index)
+    {
+        if (index < 0 || index >= Buttons.Count || !Buttons[index].Enabled)
+        {
+            return false;
+        }
+
+        Selected = index;
+        return true;
     }
 
     public ScreenCommand Handle(NavAction action)
