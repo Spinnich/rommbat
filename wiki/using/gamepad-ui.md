@@ -20,11 +20,9 @@ controller again.
 | Accept              | Open or choose what the cursor is on, answer yes, save, or move on. Your confirm button in RetroBat |
 | Back                | Leave this screen or cancel, or on the main menu go back to EmulationStation                        |
 | Start               | Open the screen's menu, which lists everything that screen can do                                   |
-| Left face button    | A shortcut to the screen's most common action, such as Sync now, or Search                          |
+| Left face button    | A shortcut to the screen's most common action, such as Sync now                                     |
 | Top face button     | A shortcut to the next most common, such as Check for changes                                       |
 | L1 and R1           | Move up or down one screen of a list at a time, stopping at the top and the bottom                  |
-| L2 and R2           | In Browse library, the previous or next platform                                                    |
-| Select              | In Browse library, the view options: search, jump to a letter, sort and filters                     |
 
 They follow EmulationStation's own: Start opens a menu there too, and Accept picks from it.
 
@@ -32,8 +30,7 @@ They follow EmulationStation's own: Start opens a menu there too, and Accept pic
 
 The keyboard uses the keys EmulationStation uses, read from the same configuration, so a key you
 remapped there is remapped here. By default X is Accept, Z is Back, Enter is Start, S and Q are the
-left and top face buttons, Backspace is Select, and the arrow keys, Page Up, Page Down, Home and
-End move and page. Escape also goes Back. On a screen where you type, letters are typed, Enter
+left and top face buttons, and the arrow keys, Page Up and Page Down move and page. Escape also goes Back. On a screen where you type, letters are typed, Enter
 confirms, Escape cancels and Backspace deletes.
 
 With a mouse, moving over a row selects it, a click chooses it, the wheel moves the selection,
@@ -41,8 +38,7 @@ and a right click goes Back, as does a click outside a pop-up. The help bar's en
 clicked too.
 
 **Accept opens a list to choose from rather than stepping through one.** To step through
-choices in place, use Left and Right. A filter row with a few fixed answers, such as yes, no or
-either, is the one exception: Accept moves it to the next answer.
+choices in place, use Left and Right.
 
 **Back never saves, deletes or stops anything without asking.** Leaving a screen with
 unsaved changes asks whether to discard them, and stopping a sync or a check for changes asks first.
@@ -55,7 +51,7 @@ in the box above the answers, and Up and Down scroll it. Once you answer, the bo
 happened, and Done closes it.
 
 When a screen has finished its work, its footer says Done, and Accept or Back leaves it. While it
-is still taking a game off, removing a set, settling a conflict or forgetting files, Back says
+is still removing a set, settling a conflict or forgetting files, Back says
 Stop and asks first, with Keep going selected.
 
 ## The main menu
@@ -65,7 +61,6 @@ Each row says what it is for, and the ones that need attention carry a count.
 | Row               | What it is for                                                                                                       |
 | ----------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Sync sets         | What this device keeps. See [Sync sets](sync-sets.md)                                                                |
-| Browse library    | Search your library, or look through what is on this device. See [Browse library](browse-and-install.md)             |
 | Conflicts         | Saves that changed here and on another device. See [Conflicts](../saves/conflicts.md)                                |
 | Platforms         | Where each RomM platform's games land in RetroBat. See [Sync sets](sync-sets.md#when-games-land-in-the-wrong-folder) |
 | Pending settings  | Settings waiting for you to quit EmulationStation. See [Memory cards](../saves/memory-cards.md)                      |
@@ -79,8 +74,7 @@ so when it cannot be reached.
 
 ## Typing
 
-Two things ask you to type: your server's address when you pair, and a name or search term. For
-those, RomMBat opens an on-screen keyboard in your EmulationStation language's layout. On it, L1
+One thing asks you to type: your server's address when you pair. For that, RomMBat opens an on-screen keyboard in your EmulationStation language's layout. On it, L1
 deletes a letter and R1 types a space. Everything else, such as a disk limit, is chosen with
 the d-pad.
 

@@ -39,8 +39,8 @@ the same seeding. Six `libretro` cores and Mesen share the loose `.srm`, so thos
 copying. **A boot write is not recognizably blank on every system** (RB-294): Mesen flushes
 random bytes, and a game that uses cartridge RAM as scratch space leaves real-looking ones, so
 move every boot write out before a flush. **Bring in a clock cartridge if the set has none**:
-a filter set with `--folder` put Pokemon Silver into `gb`, and it showed where each row keeps a
-real clock, which a clockless game cannot (RB-298). **BizHawk's pad key
+Pokemon Silver, synced into `gb` with `--folder`, showed where each row keeps a real clock,
+which a clockless game cannot (RB-298). **BizHawk's pad key
 follows ES's `-state_slot`, which moves up as states accumulate**, and a `Ctrl+F<n>` sent by
 `keybd_event` needs the keys held about 400 ms.
 

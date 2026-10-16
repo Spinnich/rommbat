@@ -138,14 +138,6 @@ public sealed record PlatformOption(
     string? Note);
 
 /// <summary>What a caller wants a new set to be.</summary>
-/// <remarks>
-/// <b><see cref="Filter"/> and <see cref="ScopeValue"/> are separate fields on purpose.</b> A
-/// filter scope is built from fields rather than from a value, so a front end assembling one
-/// has no value to supply and cannot trip #78. The agent still maps <c>--value</c> onto
-/// <see cref="ScopeValue"/>, and a filter draft still ignores it, which is that defect exactly
-/// and is preserved here rather than fixed: it is filed, and fixing it while passing would
-/// change the agent's behavior inside a refactor whose whole claim is that it did not.
-/// </remarks>
 public sealed record SetDraft
 {
     public required string Name { get; init; }
@@ -154,9 +146,6 @@ public sealed record SetDraft
 
     /// <summary>An <c>fs_slug</c> or a numeric RomM id for a platform, an id for a collection.</summary>
     public string? ScopeValue { get; init; }
-
-    /// <summary>The fields a <see cref="CatalogScopeKind.Filter"/> scope is made of.</summary>
-    public CatalogFilter? Filter { get; init; }
 
     public int? MaxGames { get; init; }
 
@@ -191,15 +180,6 @@ public sealed record SetEdit
     public bool ClearFolderOverride { get; init; }
 
     public string? FolderOverride { get; init; }
-
-    /// <summary>
-    /// A replacement filter, for a filter-scoped set. Null leaves it alone.
-    /// </summary>
-    /// <remarks>
-    /// Ignored on any other scope, because a platform set's scope value is an identity rather
-    /// than a query and changing it is what removing and re-adding is for.
-    /// </remarks>
-    public CatalogFilter? Filter { get; init; }
 }
 
 /// <summary>
@@ -226,26 +206,6 @@ public sealed record SetEdit
 /// </remarks>
 public sealed class SyncSetService
 {
-    /// <summary>
-    /// The saved filter of a filter-scoped set, or an empty one for any other scope.
-    /// </summary>
-    /// <remarks>
-    /// <b>That a filter set keeps its filter in <c>scope_value</c> is one fact and belongs in
-    /// one place.</b> <see cref="SetResolver"/> knew it and the set editor was about to learn
-    /// it separately, which is two readers of a storage decision neither of them makes.
-    /// </remarks>
-    public static CatalogFilter FilterOf(SyncSetDefinition set)
-    {
-        ArgumentNullException.ThrowIfNull(set);
-
-        // Verified rather than assumed for the picked kind: its scope_value is an id array,
-        // which would parse as an empty filter anyway, but "an empty filter" and "this scope
-        // has no filter" have to be the same answer on purpose rather than by luck.
-        return set.Scope == CatalogScopeKind.Filter
-            ? CatalogFilterJson.Parse(set.ScopeValue)
-            : new CatalogFilter();
-    }
-
     private readonly InstallSession _session;
 
     public SyncSetService(InstallSession session)
@@ -377,19 +337,15 @@ public sealed class SyncSetService
         [
             .. Enum.GetValues<CatalogScopeKind>().Select(kind =>
             {
-                // Two different reasons a scope may not be pickable, and they are not
-                // interchangeable. One is this pairing's grant, which the user can fix by
-                // pairing again. The other is that RomMBat cannot list what the scope could
-                // point at, which they cannot fix at all, and a scope offered without a way to
-                // complete it is worse than one that is not offered.
+                // This pairing's grant is the one reason a scope may not be pickable, and the
+                // user can fix it by pairing again.
                 var missingGrant = RequiresCollections(kind) && !allowed;
-                var cannotList = CatalogScopeService.WhyNotListable(kind);
 
                 return new ScopeOption(
                     kind,
                     SyncSetStore.ScopeLabel(kind),
-                    !missingGrant && cannotList is null,
-                    missingGrant ? unavailable : cannotList);
+                    !missingGrant,
+                    missingGrant ? unavailable : null);
             }),
         ];
     }
@@ -399,7 +355,7 @@ public sealed class SyncSetService
     /// </summary>
     /// <remarks>
     /// From <c>platform_map</c>, which is what <c>platforms list</c> reads, so a platform absent
-    /// here is absent there too and the answer is to sync or browse once. Rows with no
+    /// here is absent there too and the answer is to sync once. Rows with no
     /// <see cref="PlatformOption.PlatformId"/> are dropped: a scope needs the numeric id the
     /// endpoint accepts, and a row without one cannot be turned into one.
     /// </remarks>
@@ -441,7 +397,7 @@ public sealed class SyncSetService
 
         var value = draft.ScopeValue ?? string.Empty;
 
-        if (draft.Scope != CatalogScopeKind.Filter && string.IsNullOrWhiteSpace(value))
+        if (string.IsNullOrWhiteSpace(value))
         {
             return SetOutcome.No(
                 SetRefusal.MissingValue,
@@ -462,11 +418,6 @@ public sealed class SyncSetService
             }
 
             value = platformId.ToString(CultureInfo.InvariantCulture);
-        }
-
-        if (draft.Scope == CatalogScopeKind.Filter)
-        {
-            value = CatalogFilterJson.Write(draft.Filter ?? new CatalogFilter());
         }
 
         if (draft.FolderOverride is { } folder && !EsSystemsFile.Load(_session.Install).HasFolder(folder))
@@ -537,18 +488,6 @@ public sealed class SyncSetService
 
         _session.Store.SyncSets.UpdatePolicy(updated, now);
 
-        // Written second and only when it changed, so an edit that touched the caps alone does
-        // not throw away a resolve that is still valid.
-        if (edit.Filter is { } filter && set.Scope == CatalogScopeKind.Filter)
-        {
-            var written = CatalogFilterJson.Write(filter);
-
-            if (!string.Equals(written, set.ScopeValue, StringComparison.Ordinal))
-            {
-                _session.Store.SyncSets.UpdateFilter(set.Id, written, now);
-            }
-        }
-
         return SetOutcome.Ok(_session.Store.SyncSets.Find(name) ?? updated);
     }
 
@@ -593,9 +532,7 @@ public sealed class SyncSetService
     };
 
     internal static bool RequiresCollections(CatalogScopeKind scope) =>
-        scope is CatalogScopeKind.Collection
-            or CatalogScopeKind.SmartCollection
-            or CatalogScopeKind.VirtualCollection;
+        scope is CatalogScopeKind.Collection or CatalogScopeKind.SmartCollection;
 
     /// <summary>
     /// The refusal sentence, built from the requirement rather than written out.

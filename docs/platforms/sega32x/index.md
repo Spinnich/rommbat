@@ -82,14 +82,8 @@ before the pass.
 
 ## The set
 
-|          |                                                                     |
-| -------- | ------------------------------------------------------------------- |
-| Name     | Picked on RomMBat agent tree                                        |
-| Scope    | `picked`, the three games added with `game install`                 |
-| Policy   | no game cap, no size cap, ordered by recent                         |
-| Resolves | 7 games across the tree's systems, 5.8 MB, the three into `sega32x` |
-
-The sync fetched the three ROMs and 12 media files, and wrote one gamelist with three entries.
+The three games were synced alone into `sega32x`: three ROMs and 12 media files, and one
+gamelist with three entries.
 
 ## Steps 1, 2 and 3, for every row
 

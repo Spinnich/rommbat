@@ -1,6 +1,6 @@
 # Offline screens
 
-Part of the [offline-and-portable](SKILL.md) skill. What the sets, mapping, browse and removal surfaces do with the server off.
+Part of the [offline-and-portable](SKILL.md) skill. What the sets, mapping and removal surfaces do with the server off.
 
 ## Offline-first
 
@@ -12,7 +12,7 @@ Part of the [offline-and-portable](SKILL.md) skill. What the sets, mapping, brow
   be done.
 
   **The platform mapping is offline too, and its repair is install-wide.** `platform_map` is
-  written by every resolve and every browse, so every row the mapping screen shows, and the
+  written by every resolve, so every row the mapping screen shows, and the
   override that fixes one, are local. A screen that waited on an unreachable LAN host to show
   them would trade the working state for nothing, which is why the screen takes no connection
   at all. The agent's `platforms list` refreshes first because it can; the interface does not,
@@ -26,7 +26,7 @@ Part of the [offline-and-portable](SKILL.md) skill. What the sets, mapping, brow
   and carrying it out deletes files and rewrites gamelists from local state, so `rommbat-agent
 evict` works with the server off. What it lacks is an interface: RomMBat guessing
   which games matter least is a bad policy even when a person starts it, so freeing space is the
-  user's, by dropping a sync set or a single game. Do not go looking for eviction screens.
+  user's, by dropping a sync set. Do not go looking for eviction screens.
 
   **A resolve is unbounded work over somebody else's network, so a cancel is the ordinary
   case, not a failure path.** A cancel records its offset exactly as an unreachable server does
@@ -35,43 +35,7 @@ evict` works with the server off. What it lacks is an interface: RomMBat guessin
   5.3.0-alpha.2, but that is one platform on one server: a slower host, a larger scope or a
   worse link puts minutes back, and a resume costs nothing.
 
-## Browsing and removing, offline
-
-- **Browse degrades, it does not refuse.** With a server it pages `GET /api/roms`; without one
-  it lists what the device holds, out of `local_file` joined to `sync_set_member`. That follows the
-  rule that the offline browsable set is the locally present subset, which is what
-  EmulationStation shows anyway. **It says which of the two it is showing, always**, not only
-  when it degraded: a person who never sees the online form cannot otherwise tell the offline
-  one apart from a library that has shrunk. `BrowseService` decides which; the screen words it.
-- **Nothing holds more than one page.** Moving past the bottom fetches the next offset and
-  **replaces** what is held. A screen that appended would look identical for the first few pages
-  and hold an 83k library by the end, which is why the assertion is a row count across several
-  pages rather than a look at one.
-- **50 rows a page, measured, not 250.** `RomPager.DefaultPageSize` is for a resolve, which
-  wants the fewest requests for a whole scope. Against the live 96,060-rom instance, warm: 50
-  rows 280 ms, 250 rows 611 ms. 250 is cheaper per row and more than twice the wait for the page
-  a person is looking at, and at `ListWindow.Capacity`'s eight rows it is 31 screens of scrolling
-  per fetch.
-- **It starts on the platform list, not on the library.** A live instance holds 96,060 games, so
-  opening on all of them is 1,922 pages and somebody after one console is shown another's games
-  first. Narrowing is the first thing anyone does, so it is the first thing offered.
-- **Ask for name order explicitly.** `CatalogQuery` defaults to ascending id because that is what
-  makes a resumable walk survive a library changing underneath it. A person scrolling wants
-  alphabetical, and id order is the worst kind of wrong here: a library imported in name order
-  carries ids in roughly that order, so the list reads as sorted until it is not. Measured, an
-  id-ordered snes page put "3 Ninjas Kick Back" before "3-jigen Kakutou Ballz" and then dropped
-  the latter out of sequence. Name it rather than leaving `order_by` empty, which the schema
-  documents as relevance ordering on MySQL and name ordering elsewhere: an order that depends on
-  the server's database is not one a person can learn.
-- **A row needs the title and the whole file name, and both were measured.** 750 rows a platform:
-  every arcade file name is a romset code with no tags at all (`10yard.zip`) and 87.3% differ
-  from the display name, so the title has to be the label; 69 megadrive and 67 psx titles are
-  shared by two or more rows, so the file name has to be under it. Showing tags on some platforms
-  and the file name on others makes the rule change under a person's feet.
-- **A paged list stops at the end; it does not wrap.** Every other list in the UI wraps. Wrapping
-  to page one after nine thousand rows of paging silently undoes them and looks exactly like the
-  stall a failed fetch produces. Stopping _silently_ is worse again, so there is a row saying so.
-  A library that fits one page still wraps: there is no paging to undo.
+## Lists and removal, offline
 
 ### Two kinds of list, and drawing one as the other
 

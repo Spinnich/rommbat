@@ -256,8 +256,11 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
     {
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
+        var query = await fixture.Session.LargestPlatformAsync(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.SkipWhen(query is null, "No platform on this instance can be read, or none has games.");
+
         var page = await fixture.Session.Connection.GetRomPageAsync(
-            new CatalogQuery { Scope = CatalogScopeKind.Filter },
+            query!,
             limit: 100,
             offset: 0,
             cancellationToken: TestContext.Current.CancellationToken);
@@ -366,10 +369,15 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         string? extension = null,
         CancellationToken cancellationToken = default)
     {
+        if (await fixture.Session.LargestPlatformAsync("fs_size_bytes", cancellationToken) is not { } query)
+        {
+            return null;
+        }
+
         for (var offset = 0; offset < 1500; offset += 250)
         {
             var page = await fixture.Session.Connection.GetRomPageAsync(
-                new CatalogQuery { Scope = CatalogScopeKind.Filter, OrderBy = "fs_size_bytes" },
+                query,
                 limit: 250,
                 offset: offset,
                 cancellationToken: cancellationToken);

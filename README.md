@@ -21,9 +21,9 @@ The name is a portmanteau of RomM and RetroBat that lands close to "wombat".
 - Pair from the couch. RomMBat shows a code and a QR; scan it with your phone, or type the
   code into RomM's web interface, and approve. The only thing you type with the controller is
   the server's address, and no password is ever entered.
-- Sync sets. Choose what this device holds by platform, collection, smart collection or
-  saved search, capped by game count and size. The catalog is browsed page by page rather than
-  mirrored, so a library of 100,000 games is no burden.
+- Sync sets. Choose what this device holds by platform, collection or smart collection, capped
+  by game count and size. The catalog is read page by page rather than mirrored, so a library of
+  100,000 games is no burden.
 - Lands where RetroBat expects it. Games go into `roms\<system>\`, with `gamelist.xml`
   entries, artwork, video and manuals, and BIOS goes into `bios\`, matched by checksum.
 - Saves, save states and playtime go back to RomM, including folder saves such as PPSSPP's,

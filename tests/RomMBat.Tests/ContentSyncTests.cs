@@ -602,8 +602,8 @@ public sealed class ContentSyncTests : IDisposable
         // The permanent-failure shape: a member whose hash is blank rather than null reaches the
         // planner, an empty string is not null, and the size-only adoption path is unreachable.
         // The file is re-planned as a download on every sync and refused again by verification
-        // afterwards, forever. A member arrives this way from the per-game install path, which
-        // plans the row it was picked from rather than one read back out of SQLite.
+        // afterwards, forever. A member planned from the row in hand rather than one read back
+        // out of SQLite arrives this way.
         using var stub = Library(1);
         using var store = LocalStore.Open(_tree.Install());
         var install = _tree.Install();

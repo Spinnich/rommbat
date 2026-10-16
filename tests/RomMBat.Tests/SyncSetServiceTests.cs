@@ -56,7 +56,6 @@ public sealed class SyncSetServiceTests : IDisposable
     [Theory]
     [InlineData(CatalogScopeKind.Collection)]
     [InlineData(CatalogScopeKind.SmartCollection)]
-    [InlineData(CatalogScopeKind.VirtualCollection)]
     public void A_collection_scope_is_refused_when_the_pairing_never_got_collections_read(
         CatalogScopeKind scope)
     {
@@ -221,13 +220,23 @@ public sealed class SyncSetServiceTests : IDisposable
     // ---- the scope picker's own data ----
 
     [Fact]
+    public void A_set_can_hold_a_platform_a_collection_or_a_smart_collection_and_nothing_else()
+    {
+        PairWith([.. RomMScopes.Requested]);
+
+        Assert.Equal(
+            [CatalogScopeKind.Collection, CatalogScopeKind.SmartCollection, CatalogScopeKind.Platform],
+            Service.Scopes().Select(option => option.Kind).Order());
+    }
+
+    [Fact]
     public void Every_scope_is_offered_and_the_unavailable_ones_carry_their_reason()
     {
         PairWith("roms.read");
 
         var scopes = Service.Scopes();
 
-        // All five, always. A picker that dropped the unavailable ones would leave a user who
+        // All of them, always. A picker that dropped the unavailable ones would leave a user who
         // knows their RomM has collections concluding RomMBat cannot use them, when the reason
         // is their own pairing and is fixable.
         Assert.Equal(Enum.GetValues<CatalogScopeKind>().Length, scopes.Count);
@@ -240,36 +249,11 @@ public sealed class SyncSetServiceTests : IDisposable
     }
 
     [Fact]
-    public void A_full_grant_leaves_every_listable_scope_pickable()
+    public void A_full_grant_leaves_every_scope_pickable()
     {
         PairWith([.. RomMScopes.Requested]);
 
-        // Every scope RomMBat can list the values of. A grant is not the only reason a scope may
-        // be unpickable, and conflating the two would make a permanent gap look like something
-        // re-pairing would fix.
-        //
-        // Derived from WhyNotListable rather than excluding a kind by name, which is what makes
-        // this cover a scope kind added later: naming the exception here would have left the
-        // sixth kind asserting the opposite of what it means.
-        Assert.All(
-            Service.Scopes().Where(option => CatalogScopeService.WhyNotListable(option.Kind) is null),
-            option => Assert.True(option.Available, $"{option.Kind} should be pickable"));
-    }
-
-    [Fact]
-    public void A_scope_whose_values_cannot_be_listed_is_never_offered_as_pickable()
-    {
-        PairWith([.. RomMScopes.Requested]);
-
-        // A hands-on pass reached a scope that could be picked and then not completed: the
-        // editor had no row to set a value and the only thing the screen could say was that a
-        // value was needed. Offering a scope with no way to finish it is worse than not
-        // offering it, and the reason has to say so rather than blaming the pairing.
-        var virtualCollection = Service.Scopes().Single(o => o.Kind == CatalogScopeKind.VirtualCollection);
-
-        Assert.False(virtualCollection.Available);
-        Assert.NotNull(virtualCollection.Unavailable);
-        Assert.DoesNotContain("granted", virtualCollection.Unavailable, StringComparison.OrdinalIgnoreCase);
+        Assert.All(Service.Scopes(), option => Assert.True(option.Available, $"{option.Kind} should be pickable"));
     }
 
     [Fact]
@@ -278,11 +262,10 @@ public sealed class SyncSetServiceTests : IDisposable
         PairWith([.. RomMScopes.Requested]);
 
         // The generalizing form. A scope is pickable only if something can produce its value:
-        // the platform picker, the collection picker, or the filter's own fields.
+        // the platform picker or the collection picker.
         foreach (var option in Service.Scopes().Where(o => o.Available))
         {
-            var completable = option.Kind == CatalogScopeKind.Filter
-                || option.Kind == CatalogScopeKind.Platform
+            var completable = option.Kind == CatalogScopeKind.Platform
                 || CatalogScopeService.CanList(option.Kind);
 
             Assert.True(completable, $"{option.Kind} is offered with no way to set its value");
@@ -296,13 +279,6 @@ public sealed class SyncSetServiceTests : IDisposable
 
         // The one that matters. A picker deciding availability for itself would be a second
         // copy of the rule inside Add, and the two would drift the first time either moved.
-        //
-        // Two reasons a scope is unavailable, and they are not interchangeable: the pairing's
-        // grant, which Add enforces and which re-pairing fixes, and RomMBat being unable to
-        // list what the scope could point at, which Add has no opinion about because it is not
-        // a fact about the request. Written as one equality it read as though Add answered
-        // both, and the sixth scope kind is the first that is unavailable for only the second
-        // reason.
         foreach (var option in Service.Scopes())
         {
             var refusal = Service
@@ -310,9 +286,8 @@ public sealed class SyncSetServiceTests : IDisposable
                 .Refusal;
 
             var grantMissing = refusal == SetRefusal.MissingScope;
-            var cannotList = CatalogScopeService.WhyNotListable(option.Kind) is not null;
 
-            Assert.Equal(option.Available, !grantMissing && !cannotList);
+            Assert.Equal(option.Available, !grantMissing);
             Assert.Equal(grantMissing, SyncSetService.RequiresCollections(option.Kind));
         }
     }
@@ -394,33 +369,6 @@ public sealed class SyncSetServiceTests : IDisposable
     public void Removing_a_set_that_is_not_there_says_so()
     {
         Assert.Equal(SetRefusal.NotFound, Service.Remove("ghost").Refusal);
-    }
-
-    // ---- #78, fixed at the agent, unchanged here ----
-
-    [Fact]
-    public void A_filter_draft_is_built_from_its_fields_and_ignores_a_scope_value()
-    {
-        // #78 was the agent accepting --value on a filter scope, never reading it and never
-        // complaining, which produced the widest possible scope from a command naming three
-        // games. The agent refuses it.
-        //
-        // This behavior is unchanged and is correct: a filter is built from fields, so a
-        // draft carrying a value has nothing to do with it, and a front end assembling one has
-        // no value to supply. Asserted so that a later change here is a deliberate one.
-        var outcome = Service.Add(
-            new SetDraft
-            {
-                Name = "f",
-                Scope = CatalogScopeKind.Filter,
-                ScopeValue = "this is ignored",
-                Filter = new CatalogFilter { SearchTerm = "Mario" },
-            },
-            Now);
-
-        Assert.Equal(SetRefusal.None, outcome.Refusal);
-        Assert.Contains("Mario", outcome.Set!.ScopeValue, StringComparison.Ordinal);
-        Assert.DoesNotContain("this is ignored", outcome.Set.ScopeValue, StringComparison.Ordinal);
     }
 
     // ---- offline ----

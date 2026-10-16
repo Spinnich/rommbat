@@ -27,8 +27,8 @@ read-when: Before adding a project reference or a type that crosses from one pro
  +----------v-----------+   +----------v---------------+
  |  rommbat-agent.exe   |   |      RomMBat.exe         |
  |  one pass, then exit |   |  full-screen gamepad UI  |
- |  drains the spool    |   |  pair, sync sets, browse |
- |  flush: when online  |   |  online browse is paged  |
+ |  drains the spool    |   |  pair, sync sets, budget |
+ |  flush: when online  |   |  conflicts, mapping      |
  +----------^-----------+   +--------------------------+
             |  spool/*.hook files; start and quit
             |  also spawn `background <event>`

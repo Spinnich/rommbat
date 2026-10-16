@@ -78,7 +78,7 @@ as a sweep of the library.
 Verified: RomM 5.3.1, 2026-09-28. How: timed three hits and three misses live.
 A hit took 0.16 to 0.46 s and a 404 0.09 to 0.42 s. That is cheap for a handful of ROMs and
 still a request per ROM, so RomMBat reads rows during the walk and fetches by id only for a
-picked set roamed to another device, where no walk can name the ids (RB-94).
+multi-file game's member list, once per game it downloads (RB-94).
 
 ## RB-93. A paged row already carries the metadata; the detail route adds only user arrays
 
@@ -117,7 +117,6 @@ The filter maps a value to a provider's id column and drops any value it has no 
 15 it knows are `igdb`, `ss`, `moby`, `launchbox`, `ra`, `hasheous`, `tgdb`, `flashpoint`,
 `hltb`, `demozoo`, `pouet`, `csdb`, `steam`, `gamelist` and `libretro`. An unrecognized
 `statuses` value returns zero rows instead, so the authority for statuses is `RomUserStatus`.
-RomMBat's picker offers only values the server knows.
 
 ## RB-237. `filter_values` is not the list of filters `GET /api/roms` accepts
 
@@ -125,8 +124,7 @@ Verified: RomM 5.2.0, 2026-08-31, and 5.3.1, 2026-09-28. How: read the live side
 The sidecar reports 13 keys, and the route takes 13 array filters besides `platform_ids`. Eleven
 match. `game_modes` has no filter behind it, and `platforms` is a scope, sent as ids where every
 other key is names. `statuses` and `metadata_providers` are filters with no values in the
-sidecar (RB-236). RomMBat builds its filter screen from the route's parameters and uses the
-sidecar only for values.
+sidecar (RB-236). RomMBat does not read the sidecar.
 
 ## RB-242. `GET /api/roms` ignores an unknown parameter, so `platform_id` returns everything
 
@@ -143,9 +141,8 @@ first row under it. The offsets follow the scope, the search and `order_dir=desc
 `fs_size_bytes`, `created_at`, `first_release_date`, `average_rating` or `last_played`, all of
 which sort, the index is empty; an `order_by` the server does not know sorts by name. Symbols are
 keyed one by one: the library opens on seven before `a` and ends on three after `z`. A platform
-of 3,454 answered 8.7 KB in 85 ms, the 95,976-ROM library 7.4 KB in 0.2 to 0.4 s. RomMBat reads
-it in one request per view for the library's letter jump, folds digits and symbols into `#`, and
-offers the jump only under a name sort.
+of 3,454 answered 8.7 KB in 85 ms, the 95,976-ROM library 7.4 KB in 0.2 to 0.4 s. RomMBat does
+not read it.
 
 ## RM-1. `utils/platform_aliases.py` maps RomM's folder names to its slugs
 

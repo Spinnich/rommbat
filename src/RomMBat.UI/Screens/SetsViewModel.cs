@@ -64,8 +64,8 @@ public static class SetsScreens
             backLabel: "Back")
         {
             EmptyMessage = "No sync sets yet. A set is what this device keeps: a platform, a "
-                + "collection, or a search. How much room they may use together is set under "
-                + "disk space.",
+                + "collection, or a smart collection. How much room they may use together is set "
+                + "under disk space.",
             ActionList = () =>
             {
                 var none = sets.Count == 0 ? "There are no sets yet." : null;

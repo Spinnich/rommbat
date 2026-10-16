@@ -41,8 +41,6 @@ public static class RootScreens
 
         public Func<IScreen>? OpenSets { get; init; }
 
-        public Func<IScreen>? OpenBrowse { get; init; }
-
         public Func<IScreen>? OpenBudget { get; init; }
 
         public Func<IScreen>? OpenConflicts { get; init; }
@@ -91,12 +89,8 @@ public static class RootScreens
             var refused = store.Outbox.FailedCount();
 
             Add(
-                new ListRow("Sync sets", null, "What this device keeps: a platform, a collection or a search."),
+                new ListRow("Sync sets", null, "What this device keeps: a platform, a collection or a smart collection."),
                 routes.OpenSets);
-
-            Add(
-                new ListRow("Browse library", null, "Search the library, or read what is already here."),
-                routes.OpenBrowse);
 
             Add(
                 new ListRow(

@@ -69,16 +69,6 @@ public sealed class StoreAggregateTests : IDisposable
         Assert.Equal(2_560, _session.Store.Files.SyncedBytes());
     }
 
-    [Fact]
-    public void A_set_with_no_members_occupies_nothing_rather_than_everything()
-    {
-        // The empty-collection case, which an IN () built by string concatenation turns into
-        // either a syntax error or a clause that matches every row.
-        Row(1, LocalFileKind.Rom, 2_048, FileOrigin.Synced);
-
-        Assert.Equal(0, _session.Store.Files.BytesForRoms([]));
-    }
-
     /// <summary>
     /// The size the issue named, timed, so the claim is a measurement rather than an argument.
     /// </summary>

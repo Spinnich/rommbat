@@ -99,18 +99,7 @@ internal static class SetsCommand
         catch (ArgumentOutOfRangeException)
         {
             return Usage(
-                $"'{scopeText}' is not a scope. Use collection, smart_collection, virtual_collection, platform or filter.");
-        }
-
-        // A filter scope is built from its own flags, so --value has nothing to be. Ignoring it
-        // would produce the widest possible scope from a command that named three games: the
-        // empty filter matches the entire library. Refused rather than ignored. #78.
-        if (scope == CatalogScopeKind.Filter && command.Value("value") is { Length: > 0 })
-        {
-            return Usage(
-                "a filter scope is built from --search, --favorite, --genres, --regions, "
-                    + "--languages and --tags, so --value has nothing to name. Without this "
-                    + "refusal the filter would be empty, which matches the whole library.");
+                $"'{scopeText}' is not a scope. Use platform, collection or smart_collection.");
         }
 
         var draft = new SetDraft
@@ -118,18 +107,6 @@ internal static class SetsCommand
             Name = name,
             Scope = scope,
             ScopeValue = command.Value("value"),
-            Filter = scope == CatalogScopeKind.Filter
-                ? new CatalogFilter
-                {
-                    SearchTerm = command.Value("search"),
-                    // Both spellings are accepted, and the help names --favorite.
-                    Favorite = command.Has("favorite") || command.Has("favourite") ? true : null,
-                    Genres = Split(command.Value("genres")),
-                    Regions = Split(command.Value("regions")),
-                    Languages = Split(command.Value("languages")),
-                    Tags = Split(command.Value("tags")),
-                }
-                : null,
             MaxGames = ParseInt(command.Value("max-games")),
             MaxBytes = ByteSize.Parse(command.Value("max-bytes")),
             Ordering = SyncSetStore.ParseOrdering(command.Value("order")),
@@ -146,7 +123,7 @@ internal static class SetsCommand
             case SetRefusal.MissingScope:
                 Console.Error.WriteLine(outcome.Problem);
                 Console.Error.WriteLine(
-                    "Use --scope platform or --scope filter, or pair again and approve collections.read.");
+                    "Use --scope platform, or pair again and approve collections.read.");
                 return ExitCode.Refused;
 
             case SetRefusal.MissingValue:
@@ -377,11 +354,6 @@ internal static class SetsCommand
             ? moment.ToUniversalTime().ToString("u", CultureInfo.InvariantCulture)
             : "never";
 
-    private static string[] Split(string? value) =>
-        string.IsNullOrWhiteSpace(value)
-            ? []
-            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
     private static int? ParseInt(string? value) =>
         int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
 
@@ -389,9 +361,9 @@ internal static class SetsCommand
     {
         Console.Error.WriteLine($"rommbat-agent: {message}");
         Console.Error.WriteLine("  sets list");
-        Console.Error.WriteLine("  sets add <name> --scope platform --value <id> [--max-games N] [--max-bytes 8GB]");
+        Console.Error.WriteLine("  sets add <name> --scope platform|collection|smart_collection --value <id>");
+        Console.Error.WriteLine("                  [--max-games N] [--max-bytes 8GB]");
         Console.Error.WriteLine("                  [--order name|size_asc|size_desc|recent] [--folder <retrobat folder>]");
-        Console.Error.WriteLine("  sets add <name> --scope filter [--search TEXT] [--favorite] [--genres A,B]");
         Console.Error.WriteLine("  sets show <name>");
         Console.Error.WriteLine("  sets remove <name>");
         Console.Error.WriteLine("  sets resolve [<name>]");

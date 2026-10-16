@@ -113,8 +113,7 @@ Verified: RetroBat 8.2.1, 2026-10-06. How: drove ES on the agent tree through th
 In a game list the help bar reads SELECT OPTIONS, START MENU, then BACK on the right button,
 SEARCH/RANDOM on the left, SAVE STATES/FAVORITE on the top, and GAME OPTIONS (HOLD) on the bottom,
 whose press launches. L1 and R1 move one screen. L2 and R2 leave the list for the previous or next
-system's. The system carousel puts SEARCH/RANDOM on the left button too. RomMBat's game list
-searches on the left button for the same reason.
+system's. The system carousel puts SEARCH/RANDOM on the left button too.
 
 ## RB-422. ES's letter jump, text filter and sort live in a popup Select opens
 

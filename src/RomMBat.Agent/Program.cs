@@ -29,8 +29,6 @@ internal static class Program
         "sync",       // resolve sets, pull content, media and BIOS
         "sets",       // define what this device syncs, and resolve it
         "platforms",  // the mapping surface: list, map, unmap
-        "browse",     // one page of the catalog, to show the pager working
-        "game",       // one game by id: show, install, remove
         "budget",     // how much of this drive RomMBat may use
         "evict",      // free space, dry run unless --apply
         "bios",       // the firmware each system's emulators read, and what is missing
@@ -100,8 +98,6 @@ internal static class Program
                 "status" => await StatusCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "sets" => await SetsCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "platforms" => await PlatformsCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
-                "browse" => await BrowseCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
-                "game" => await GameCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "sync" => await SyncCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "budget" => await BudgetCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "evict" => await EvictCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
@@ -154,8 +150,6 @@ internal static class Program
         Console.Error.WriteLine("  status      Report local state, and probe the server unless --offline");
         Console.Error.WriteLine("  sets        list | add | show | remove | resolve sync sets");
         Console.Error.WriteLine("  platforms   list | map | unmap the RomM to RetroBat folder mapping");
-        Console.Error.WriteLine("  browse      Print one page of the catalog");
-        Console.Error.WriteLine("  game        show | install | remove <rom-id>: one game, by the id browse prints");
         Console.Error.WriteLine("  sync        Resolve a set and pull its ROMs into the tree");
         Console.Error.WriteLine("  budget      Show or set how much of this drive RomMBat may use");
         Console.Error.WriteLine("  evict       Show what would be removed to get back inside the budget");
@@ -181,9 +175,9 @@ internal static class Program
         Console.Error.WriteLine("  --name <label>    How this device appears in the RomM device list");
         Console.Error.WriteLine("  --protect         Encrypt the stored token with a passphrase you type");
         Console.Error.WriteLine("  --passphrase <s>  Unlock a token stored with --protect, for any command that calls out");
-        Console.Error.WriteLine("  --offline         status, sync, bios, saves, platforms list, game show: work from local state without the server");
+        Console.Error.WriteLine("  --offline         status, sync, bios, saves, platforms list: work from local state without the server");
         Console.Error.WriteLine("  --dry-run         sync: say what would happen and write nothing");
-        Console.Error.WriteLine("  --apply           evict, uninstall, game remove: actually remove. bios: actually fetch. saves");
+        Console.Error.WriteLine("  --apply           evict, uninstall: actually remove. bios: actually fetch. saves");
         Console.Error.WriteLine("                    restore, saves convert: actually write. outbox drop: actually delete. Without it,");
         Console.Error.WriteLine("                    none of these writes");
         Console.Error.WriteLine("  --all-failed      outbox drop: every entry the server refused, instead of one id");

@@ -166,8 +166,7 @@ public class PlatformScreenTests : IDisposable
     public void The_whole_screen_answers_with_the_server_switched_off()
     {
         // Nothing here takes a connection, and that is deliberate: platform_map is written by
-        // every resolve and every browse, so the rows a person came to fix are already local.
-        // A screen that waited on an unreachable LAN host would trade the working state for
+        // every resolve, so the rows a person came to fix are already local. A screen that waited on an unreachable LAN host would trade the working state for
         // nothing. This install has never been paired.
         Unmapped("arcade", "Arcade");
         Map("snes", "snes", "Super Nintendo");

@@ -20,9 +20,8 @@ record exists where no skill or [architecture](../../architecture/README.md) fil
 | [clock-file-keeps-its-own-slot](clock-file-keeps-its-own-slot.md)         | A `.rtc` stays one slot until RomM bundles saves                     |
 | [class-b-batch-report](class-b-batch-report.md)                           | Class B siblings report as one batch; `batch_key` stays unwritten    |
 | [where-a-sentence-lives](where-a-sentence-lives.md)                       | Which of Core or a front end owns a message                          |
-| [sets-on-the-interface](sets-on-the-interface.md)                         | How the UI defines, names, filters, resolves and roams a set         |
+| [sets-on-the-interface](sets-on-the-interface.md)                         | Which scopes a set has; how the UI defines, resolves, roams it       |
 | [sync-run-is-whole-or-absent](sync-run-is-whole-or-absent.md)             | A sync leaves each game whole or absent, and what follows from it    |
-| [picked-sets-and-per-game-install](picked-sets-and-per-game-install.md)   | Hand-picked games are a scope kind; one press installs a game        |
 | [conflict-and-mapping-screens](conflict-and-mapping-screens.md)           | Two conflict verbs and no resolve-all; unmapped platforms first      |
 | [interface-language](interface-language.md)                               | The interface stays English; the keyboard follows ES's language      |
 | [packaging-and-release](packaging-and-release.md)                         | The portable zip is the artifact, and who announces a release        |

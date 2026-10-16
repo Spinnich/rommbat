@@ -27,14 +27,18 @@ card of its own, which then syncs like any other save.
 RetroBat's FOLDER choice for the PlayStation 2 memory card is still a shared card: every game
 writes into the one folder, `Mcdf01.ps2`, so RomMBat does not sync that either.
 
-1. In [Browse library](../using/browse-and-install.md), open the game.
-2. Press Start for the menu, and choose Give it its own memory card.
-3. Read what changes, then choose Queue it.
-4. Quit EmulationStation. RomMBat makes the change as it closes.
+This is done from a terminal in your RetroBat folder, with the game's RomM game number: the
+number at the end of the game's page address in RomM's web interface.
 
-RomMBat waits for EmulationStation to close because it writes the change into RetroBat's own
-settings, and EmulationStation overwrites those with its own copy when it closes. Until then,
-the change is listed under Pending settings on the main menu, where you can cancel it.
+1. Run `emulators\rommbat\rommbat-agent.exe saves convert <game number>`. It says what would
+   change, and writes nothing.
+2. With EmulationStation closed, run it again with `--apply` to make the change. With
+   EmulationStation open, use `--at-quit` instead, and RomMBat makes the change as
+   EmulationStation closes.
+
+RomMBat needs EmulationStation closed because it writes the change into RetroBat's own settings,
+and EmulationStation overwrites those with its own copy when it closes. A change made with
+`--at-quit` is listed under Pending settings on the main menu until then, where you can cancel it.
 
 ## Before you give a game its own card
 

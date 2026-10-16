@@ -17,7 +17,7 @@ files beside it, by section:
 | [Offline-first](transfers.md#offline-first): canceled transfers, the `.part` rule and the `partial/` sweep                                                        | [transfers.md](transfers.md)   |
 | [Offline-first](store.md#offline-first): the shared SQLite connection and `TreeLock`                                                                              | [store.md](store.md)           |
 | [Offline-first](offline-ui.md#offline-first): which set and mapping operations work with the server off                                                           | [offline-ui.md](offline-ui.md) |
-| [Browsing and removing, offline](offline-ui.md#browsing-and-removing-offline)                                                                                     | [offline-ui.md](offline-ui.md) |
+| [Lists and removal, offline](offline-ui.md#lists-and-removal-offline)                                                                                             | [offline-ui.md](offline-ui.md) |
 | [Two kinds of list, and drawing one as the other](offline-ui.md#two-kinds-of-list-and-drawing-one-as-the-other)                                                   | [offline-ui.md](offline-ui.md) |
 | [A footer offers a verb exactly when that verb works](offline-ui.md#a-footer-offers-a-verb-exactly-when-that-verb-works)                                          | [offline-ui.md](offline-ui.md) |
 | [The claim rule: a game another enabled set still wants is held back](offline-ui.md#the-claim-rule-a-game-another-enabled-set-still-wants-is-held-back)           | [offline-ui.md](offline-ui.md) |

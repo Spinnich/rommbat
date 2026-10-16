@@ -33,7 +33,6 @@ internal static class ScreenView
         OnScreenKeyboard keyboard => Keyboard(keyboard),
         PairingViewModel pairing => Pairing(pairing),
         MessageScreen message => Message(message),
-        ListScreen { Cover: { } cover } list => WithCover(List(list), cover.Current),
         ListScreen list => List(list),
         SetEditorViewModel editor => Editor(editor.Rows, editor.Cursor, editor.Window, editor.Problem),
         BudgetViewModel budget => Editor(budget.Rows, budget.Cursor, budget.Window, null),
@@ -43,19 +42,6 @@ internal static class ScreenView
         // the transfer, so two reads could draw a game name from one moment beside a count from
         // another.
         SyncViewModel sync => Progress(sync.State.Layout),
-
-        // The same body a ListScreen draws, given the same things. Browse is a list with a pager
-        // behind it rather than a different picture, and a second copy of this in the file most
-        // likely to grow worst is not worth having.
-        BrowseViewModel browse => WithCover(
-            List(
-                browse,
-                note: browse.Note,
-                isLoading: browse.IsLoading,
-                loadingMessage: browse.LoadingMessage,
-                empty: "Nothing matched. Search for something else, or widen the platform.",
-                pager: true),
-            browse.Cover),
 
         _ => new TextBlock { Text = screen.Title, Foreground = Theme.Text },
     };
@@ -92,15 +78,12 @@ internal static class ScreenView
         _ => null,
     };
 
-    /// <summary>The shoulders, the triggers, Start and Select, which every layout spells the same way.</summary>
+    /// <summary>The shoulders and Start, which every layout spells the same way.</summary>
     private static string ButtonWord(NavAction action) => action switch
     {
         NavAction.Start => "Start",
         NavAction.PageUp => "L1",
         NavAction.PageDown => "R1",
-        NavAction.Options => "Select",
-        NavAction.PreviousGroup => "L2",
-        NavAction.NextGroup => "R2",
         _ => action.ToString(),
     };
 
@@ -122,9 +105,6 @@ internal static class ScreenView
             NavAction.Start => "button_start",
             NavAction.PageUp => "button_l",
             NavAction.PageDown => "button_r",
-            NavAction.Options => "button_select",
-            NavAction.PreviousGroup => "button_lt",
-            NavAction.NextGroup => "button_rt",
             _ => "dpad_all",
         };
 
@@ -547,23 +527,14 @@ internal static class ScreenView
     /// <summary>
     /// The list body, given only what it draws.
     /// </summary>
-    /// <remarks>
-    /// Split out when browse arrived, because browse is a list with a pager behind it rather
-    /// than a different picture, and it is not a <see cref="ListScreen"/>: it holds one page and
-    /// moves by fetching, where a <c>ListScreen</c> has all its rows the moment it opens. Both
-    /// arms draw through here, so the windowing, the two edge markers and the fixed width cannot
-    /// be got right in one and wrong in the other, which is the failure shape this file has
-    /// produced three times.
-    /// </remarks>
     private static StackPanel List(
-        IWindowedScreen screen,
+        ListScreen screen,
         string? note,
         bool isLoading,
         string? loadingMessage,
         string? empty,
         LoadProgress? progress = null,
-        bool counts = false,
-        bool pager = false)
+        bool counts = false)
     {
         var rows = screen.Rows;
         var stack = new StackPanel
@@ -580,9 +551,8 @@ internal static class ScreenView
             Width = ListWidth,
         };
 
-        // Reserved on every screen that has one, empty or not, and cut at its budget. Browse
-        // blanks its note while a page loads, and a note that came and went moved the rows
-        // under it with every page turned (#490).
+        // Reserved on every screen that has one, empty or not, and cut at its budget, because a
+        // note that came and went moved the rows under it (#490).
         if (note is not null)
         {
             stack.Children.Add(new TextBlock
@@ -600,14 +570,7 @@ internal static class ScreenView
             });
         }
 
-        // Under the note, so a pager can hold it at the height of a full page. Browse swaps a
-        // page of rows for one loading line on every page turned, and the body is centered, so
-        // the note and the frame jumped each time.
-        var body = new StackPanel
-        {
-            Spacing = stack.Spacing,
-            Height = pager ? ListWindow.PagerHeight : double.NaN,
-        };
+        var body = new StackPanel { Spacing = stack.Spacing };
 
         stack.Children.Add(body);
 
@@ -684,136 +647,6 @@ internal static class ScreenView
 
         return stack;
     }
-
-    /// <summary>How much wider the panel is drawn for a screen with an art box beside its list.</summary>
-    public const double CoverSpan = CoverGap + CoverWidth;
-
-    /// <summary>
-    /// True when the screen, or the one a popup is drawn over, has an art box beside its list.
-    /// </summary>
-    /// <remarks>
-    /// Asked of the popup's underneath too, so opening VIEW OPTIONS over browse does not narrow
-    /// the panel and move the list the popup is dimming.
-    /// </remarks>
-    public static bool HasCover(IScreen screen)
-    {
-        var seen = new HashSet<IScreen>(ReferenceEqualityComparer.Instance);
-
-        for (IScreen? current = screen; current is not null && seen.Add(current); current = (current as IPopupScreen)?.Underneath)
-        {
-            if (current is BrowseViewModel or ListScreen { Cover: not null })
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// A list with the highlighted game's box art to its right, as ES's detailed view lays it out.
-    /// </summary>
-    /// <remarks>
-    /// <b>The box is one size in every state</b>, empty, placeholder or image, so the list beside
-    /// it never moves as covers arrive (#490). A cover is fitted inside it, never stretched.
-    /// </remarks>
-    private static StackPanel WithCover(Control list, Cover cover)
-    {
-        var row = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = CoverGap,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
-
-        row.Children.Add(list);
-        row.Children.Add(CoverBox(cover));
-
-        return row;
-    }
-
-    private static Border CoverBox(Cover cover)
-    {
-        var image = cover is { State: CoverState.Ready, Bytes: { } bytes } ? Decode(bytes) : null;
-
-        return new Border
-        {
-            Width = CoverWidth,
-            Height = CoverHeight,
-            VerticalAlignment = VerticalAlignment.Center,
-
-            // A well while there is no picture, so the slot reads as a place art goes rather
-            // than as a gap; bare under a picture, whose own edges are the frame.
-            Background = image is null ? Theme.Well : Brushes.Transparent,
-            Child = image is not null
-                ? new Image { Source = image, Stretch = Stretch.Uniform }
-                : cover.State is CoverState.Ready or CoverState.Missing
-                    ? new TextBlock
-                    {
-                        Text = "No cover art",
-                        Foreground = Theme.Dim,
-                        FontSize = 17,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                    }
-                    : null,
-        };
-    }
-
-    /// <summary>
-    /// A cover's bytes as a bitmap, kept for the last few so a redraw does not decode again.
-    /// </summary>
-    /// <remarks>
-    /// Keyed by the array itself, which <see cref="CoverCache"/> hands back unchanged for one
-    /// game. Decoded to the box's width, so a large local image costs what the box shows and
-    /// not what the file holds. Null for bytes that are not an image.
-    /// </remarks>
-    private static Avalonia.Media.Imaging.Bitmap? Decode(byte[] bytes)
-    {
-        var index = Decoded.FindIndex(entry => ReferenceEquals(entry.Bytes, bytes));
-
-        if (index >= 0)
-        {
-            return Decoded[index].Image;
-        }
-
-        Avalonia.Media.Imaging.Bitmap? image;
-
-        try
-        {
-            using var stream = new MemoryStream(bytes);
-            image = Avalonia.Media.Imaging.Bitmap.DecodeToWidth(stream, (int)CoverWidth);
-        }
-        catch (Exception)
-        {
-            // Broad, because the decoder's failures are not documented and a throw here is a
-            // screen that cannot draw. A file that is not an image is a game with no cover.
-            image = null;
-        }
-
-        Decoded.Insert(0, (bytes, image));
-
-        if (Decoded.Count > DecodedKept)
-        {
-            Decoded.RemoveAt(Decoded.Count - 1);
-        }
-
-        return image;
-    }
-
-    /// <summary>The covers decoded most recently, newest first. Drawn on the UI thread only.</summary>
-    private static readonly List<(byte[] Bytes, Avalonia.Media.Imaging.Bitmap? Image)> Decoded = [];
-
-    /// <summary>Enough for a cursor moving back and forth over a few rows.</summary>
-    private const int DecodedKept = 6;
-
-    /// <summary>The art box, portrait as box art is, and shorter than a full page of rows.</summary>
-    private const double CoverWidth = 440;
-
-    private const double CoverHeight = 600;
-
-    /// <summary>Between the list and the art box.</summary>
-    private const double CoverGap = 48;
 
     /// <summary>
     /// How much of the list is off screen, said rather than implied.
@@ -1322,13 +1155,12 @@ internal static class ScreenView
     public static Control? Overlay(IScreen screen) => screen switch
     {
         ActionMenuScreen menu => MenuPanel(menu),
-        ViewOptionsScreen options => MenuPanel(options),
         ConfirmScreen { Underneath: not null } confirm => ConfirmPanel(confirm),
         _ => null,
     };
 
     /// <summary>A menu popup: the same rows a list draws, in a panel of fixed width.</summary>
-    private static Border MenuPanel(IWindowedScreen menu)
+    private static Border MenuPanel(ActionMenuScreen menu)
     {
         var stack = new StackPanel { Spacing = ListWindow.RowSpacing };
         var window = menu.Window;

@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
 using RomM.Client;
+using RomM.Client.Catalog;
 using RomMBat.Core.Identity;
 using RomMBat.Core.Store;
 using Xunit;
@@ -156,6 +157,30 @@ internal sealed class LiveSession(LocalStore store, string deviceId, Uri origin,
         return JsonDocument.Parse(
             await http.GetStringAsync(RomMConnection.JoinOrigin(origin, path), cancellationToken)
                 .ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// A query over the platform holding the most games, or null when none can be read.
+    /// </summary>
+    /// <remarks>
+    /// The widest page walk a sync set can ask for, since every set is scoped and an unscoped
+    /// query is refused rather than paged.
+    /// </remarks>
+    public async Task<CatalogQuery?> LargestPlatformAsync(string orderBy = "id", CancellationToken cancellationToken = default)
+    {
+        var platforms = await Connection.ListPlatformsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        if (!platforms.IsSuccess || platforms.Value!.MaxBy(platform => platform.RomCount) is not { RomCount: > 0 } largest)
+        {
+            return null;
+        }
+
+        return new CatalogQuery
+        {
+            Scope = CatalogScopeKind.Platform,
+            ScopeId = largest.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            OrderBy = orderBy,
+        };
     }
 
     public void Dispose() => Connection.Dispose();

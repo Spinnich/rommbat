@@ -42,8 +42,8 @@ public class SyncSetTests : IDisposable
         // Bumped by hand with every migration, deliberately. Deriving it from the directory
         // would make this test agree with any number the migrations happen to produce, and the
         // thing worth catching is a migration added without anyone deciding to add one.
-        Assert.Equal(21, LocalStore.ExpectedSchemaVersion);
-        Assert.Equal(21, _store.SchemaVersion);
+        Assert.Equal(22, LocalStore.ExpectedSchemaVersion);
+        Assert.Equal(22, _store.SchemaVersion);
     }
 
     [Fact]
@@ -342,7 +342,7 @@ public class SyncSetTests : IDisposable
         stub.Library.Add(new StubRom(1, 1, "snes", "snes", "One", "One.sfc", "sfc", 1));
 
         using var connection = Connect(stub);
-        var set = Add(new SyncSetDefinition { Name = "everything", Scope = CatalogScopeKind.Filter, ScopeValue = "{}" });
+        var set = Add(new SyncSetDefinition { Name = "everything", Scope = CatalogScopeKind.Platform, ScopeValue = "1" });
 
         var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
 

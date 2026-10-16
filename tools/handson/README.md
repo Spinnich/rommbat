@@ -28,7 +28,7 @@ Copy-Item -Recurse D:\retrobat-pristine D:\retrobat-agent    # then set ROMMBAT_
 Publish-ToAgentTree
 Connect-AgentTree
 Invoke-Agent hooks install; Invoke-Agent menu install
-Invoke-Agent sets add smb --scope filter --search "Super Mario Bros. (World)"
+Invoke-Agent sets add nes --scope platform --value nes --max-games 3
 Invoke-Agent sync
 ```
 

@@ -76,7 +76,6 @@ internal sealed class App : Application
         {
             StartPairing = StartPairing,
             OpenSets = () => SetsScreens.List(_session, connect: null, pair: StartPairing),
-            OpenBrowse = () => BrowseViewModel.Start(_session),
             OpenBudget = () => new BudgetViewModel(_session),
             OpenConflicts = () => ConflictScreens.List(_session, connect: null, pair: StartPairing),
             OpenPlatforms = () => PlatformScreens.List(_session),

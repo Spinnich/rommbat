@@ -59,38 +59,20 @@ public sealed class UnknownSystemExitCodeTests
         Assert.True(run.Complained("es_systems.cfg"), run.Error);
     }
 
-    [Fact]
-    public async Task Sets_add_refuses_a_filter_scope_given_a_value_rather_than_ignoring_it()
+    [Theory]
+    [InlineData("filter")]
+    [InlineData("virtual_collection")]
+    [InlineData("picked")]
+    public async Task Sets_add_refuses_a_scope_that_is_not_one_of_the_three_and_names_them(string scope)
     {
-        // #78. --value was accepted, never read and never complained about, so this command
-        // produced an empty filter, which is the widest possible scope rather than the three
-        // games the search term names. The only thing that caught it was an unrelated refusal
-        // to resolve arcade without --folder, and adding --folder is an ordinary thing to do.
         using var tree = TempRetroBatTree.Create();
         AgentRunner.WriteEsSystems(tree);
 
-        var run = await AgentRunner.RunAsync(
-            tree, "sets", "add", "mine", "--scope", "filter", "--value", "Armored Core 3");
+        var run = await AgentRunner.RunAsync(tree, "sets", "add", "mine", "--scope", scope, "--value", "3");
 
         Assert.Equal(Usage, run.ExitCode);
-        Assert.True(run.Complained("--search"), run.Error);
-
-        // And the refusal is the whole of it: nothing was written.
+        Assert.True(run.Complained("platform, collection or smart_collection"), run.Error);
         Assert.False(run.Wrote("mine"), run.Out);
-    }
-
-    [Fact]
-    public async Task Sets_add_still_accepts_a_filter_scope_built_from_its_own_flags()
-    {
-        // The other side of the same gate, so a refusal that turned every filter away would
-        // fail here rather than passing as a fix.
-        using var tree = TempRetroBatTree.Create();
-        AgentRunner.WriteEsSystems(tree);
-
-        var run = await AgentRunner.RunAsync(
-            tree, "sets", "add", "mine", "--scope", "filter", "--search", "Armored Core 3");
-
-        Assert.NotEqual(Usage, run.ExitCode);
     }
 
     [Fact]

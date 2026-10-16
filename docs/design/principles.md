@@ -95,24 +95,20 @@ cleanly on reconnect.**
 Pulling everything is not an option; it would exhaust the RetroBat host. Separate the two
 things that "sync" usually conflates:
 
-- **Catalog** (metadata about ROMs) is _never_ mirrored wholesale. When online, browsing
-  is a thin paged client over `GET /api/roms` with `search_term` and filters. When
-  offline, the browsable set is the locally present subset, which is what ES shows
-  anyway. Optionally cache catalog rows for selected sync sets only.
+- **Catalog** (metadata about ROMs) is _never_ mirrored wholesale. RomMBat reads it only to
+  resolve a sync set, by paging `GET /api/roms` under the set's scope, and keeps the rows of
+  the games a set selects. It has no library browser: what is on the device is what ES shows.
 - **Content** (ROM, media and BIOS bytes) is strictly opt-in and bounded by a disk
   budget.
 
 Guardrails that follow from this:
 
 - Never page `GET /api/roms` without `with_char_index=false&with_filter_values=false`.
-  Each of those sidecars scans the whole library. Each is asked for in one request of its own
-  at `limit=1`, and only where it is the point: the filter values for a filter picker, and the
-  letter index for a letter jump.
+  Each of those sidecars scans the whole library, and nothing RomMBat does needs either.
 
   **`with_rom_id_index=false` too, under every scope.** Under a scoping parameter the index
   spans the scope rather than the library and is resent on every page: 63 KiB a 250-row page on
-  a 9,194-ROM platform and 114 KiB on a 16,687-ROM virtual collection, for no latency. #188, and
-  RM-9.
+  a 9,194-ROM platform, for no latency. #188, and RM-9.
 
   `with_total` stays on and is what keeps `total` non-null with the index off. With the index
   off it is a separate count, whose cost under a scope is inside the noise of the page (RM-9).
@@ -121,7 +117,7 @@ Guardrails that follow from this:
   full `set[int]` and it is present on the _list_ endpoint too, so `GET /api/collections`
   on a large instance returns every membership of every collection in one payload.
   Resolve membership by paging `GET /api/roms?collection_id=` (or
-  `smart_collection_id=` / `virtual_collection_id=`) instead.
+  `smart_collection_id=`) instead.
 - Use the `/identifiers` endpoints for deletion reconciliation rather than re-pulling full
   rows, **except `/api/roms/identifiers`**. It answers quickly, but it takes no parameters, so
   it returns the whole library's ids and cannot be scoped to a set. Deletion of content is
@@ -147,13 +143,12 @@ Guardrails that follow from this:
 A 100k library is unnavigable from a couch with a gamepad. The organizing abstraction is
 a **Sync Set**: a named scope plus a policy.
 
-- **Scope** can be a collection, a smart collection, a virtual collection, a platform, or
-  a saved filter over any supported `GET /api/roms` query. Collections are the
-  recommended default and the best first implementation, but they are deliberately _one_
-  scope type rather than the only mechanism, so users who do not curate collections in
-  RomM are not stranded. Useful ready-made filters include `favorite`, `last_played`,
-  `has_saves`, `playable`, plus the multi-value `genres` / `franchises` / `companies` /
-  `regions` / `player_counts` filters with their `any`/`all`/`none` logic operators.
+- **Scope** is a platform, a collection or a smart collection, each something RomM already
+  defines and names. A smart collection is where a filter lives: RomM saves the search and
+  RomMBat syncs what it matches, so users who want `favorite`, `has_saves` or a genre build it
+  in RomM rather than in RomMBat. Platforms mean users who do not curate collections are not
+  stranded. Why there are no others is in
+  [sets-on-the-interface](decisions/sets-on-the-interface.md).
 - **Policy** covers: max games, max bytes, ordering (name, recently added, recently
   played), and eviction rules (keep favorites, keep the last N played, and **never evict
   a game with unflushed local saves**).
