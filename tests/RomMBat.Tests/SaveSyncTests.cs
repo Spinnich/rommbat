@@ -1017,6 +1017,10 @@ public class SaveSyncTests
         var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Downloaded);
+
+        // Told the truth: running the game cannot clear this, so the message must not say to.
+        Assert.Contains(outcome.Problems, problem => problem.Contains("saves bind", StringComparison.Ordinal));
+        Assert.DoesNotContain(outcome.Problems, problem => problem.Contains("Run the game", StringComparison.Ordinal));
         Assert.Equal(
             "played here",
             File.ReadAllText(fixture.Resolve("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/BASLUS-21050")));

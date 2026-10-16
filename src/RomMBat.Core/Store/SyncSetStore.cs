@@ -532,16 +532,27 @@ public sealed class SyncSetStore
         using var command = _connection.Command(
             """
             SELECT rom_id, save_target FROM sync_set_member
-            WHERE save_target IS NOT NULL AND length(trim(save_target)) > 0
             ORDER BY resolved_at DESC;
             """);
 
         var targets = new Dictionary<long, string>();
+        var seen = new HashSet<long>();
         using var reader = command.ExecuteReader();
 
         while (reader.Read())
         {
-            targets.TryAdd(reader.GetInt64(0), reader.GetString(1));
+            var romId = reader.GetInt64(0);
+
+            // The newest resolve decides, so a null in it hides an older target.
+            if (!seen.Add(romId))
+            {
+                continue;
+            }
+
+            if (!reader.IsDBNull(1) && reader.GetString(1) is { } target && target.Trim().Length > 0)
+            {
+                targets[romId] = target;
+            }
         }
 
         return targets;

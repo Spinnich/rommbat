@@ -582,8 +582,12 @@ public sealed class SaveSync
                         failed++;
                         problems.Add(
                             $"{NameSave(operation.RomId, operation.Slot)}: this is a directory "
-                                + "save and the folder it goes in is not on this device yet. Run the "
-                                + "game once, then flush again.");
+                                + (FreshUnitTaken(operation)
+                                    ? "save and a save for another game, or one not yet tied to a game, "
+                                        + "is already in its place. Tie it to a game with saves bind, "
+                                        + "then flush again."
+                                    : "save and the folder it goes in is not on this device yet. Run the "
+                                        + "game once, then flush again."));
                         break;
                     }
 
@@ -983,8 +987,11 @@ public sealed class SaveSync
                 unrestorable.Add(new UnrestorableSave(
                     row.RomId,
                     slot,
-                    "this is a directory save and the folder it goes in is not on this device yet. "
-                        + "Run the game once, then try again."));
+                    FreshUnitTaken(operation)
+                        ? "this is a directory save and a save for another game, or one not yet tied to "
+                            + "a game, is already in its place. Tie it to a game with saves bind, then try again."
+                        : "this is a directory save and the folder it goes in is not on this device yet. "
+                            + "Run the game once, then try again."));
                 continue;
             }
 
@@ -2132,7 +2139,8 @@ public sealed class SaveSync
     /// </summary>
     /// <remarks>
     /// <b>Only into a container the emulator already made, only one named in full, and never over
-    /// a unit already under the key.</b> The key is read off the server's file name by the unit
+    /// a unit already under the key</b>, which belongs to another ROM sharing the serial or to no
+    /// ROM yet, and a restore into it would replace it without a conflict (#205). The key is read off the server's file name by the unit
     /// path's own rule, so <c>BASLUS-21050.zip</c> lands as <c>Mcdf01.ps2/BASLUS-21050/</c>,
     /// beside whatever else the card holds. A container with a <c>*</c> segment cannot be expanded without a unit already
     /// in it, since the user id or region it stands for is only known from one; and a container
@@ -2143,7 +2151,17 @@ public sealed class SaveSync
     /// <c>BASLUS-21050 [2026-10-16_10-00-00].zip</c> would otherwise key a <c>name</c> unit wrong.
     /// </para>
     /// </remarks>
-    private LocalSave? FreshUnit(SyncOperation operation)
+    private LocalSave? FreshUnit(SyncOperation operation) =>
+        FreshCandidate(operation) is { } fresh && SaveUnitTransfer.Find(_units, fresh) is null ? fresh : null;
+
+    /// <summary>
+    /// True when <see cref="FreshUnit"/> found a place for the save but a unit already sits
+    /// there, so waiting for the emulator would never clear it.
+    /// </summary>
+    private bool FreshUnitTaken(SyncOperation operation) =>
+        FreshCandidate(operation) is { } fresh && SaveUnitTransfer.Find(_units, fresh) is not null;
+
+    private LocalSave? FreshCandidate(SyncOperation operation)
     {
         var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
 
@@ -2178,9 +2196,7 @@ public sealed class SaveSync
             return null;
         }
 
-        // A unit already under the key belongs to another ROM that shares the serial, or to no
-        // ROM yet, and a restore into it would replace it without a conflict (#205).
-        var fresh = new LocalSave
+        return new LocalSave
         {
             Path = container,
             UnitKey = key,
@@ -2191,8 +2207,6 @@ public sealed class SaveSync
             RomId = operation.RomId,
             RomPath = roms[0].Path,
         };
-
-        return SaveUnitTransfer.Find(_units, fresh) is null ? fresh : null;
     }
 
     private static readonly System.Text.RegularExpressions.Regex ServerTag = new(
