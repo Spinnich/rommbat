@@ -325,7 +325,8 @@ are different claims, and only the second is evidence.
 | Memory card    | A PS2 battery save after opting that game into a per-game memory card | **Yes**, see below |
 
 **The memory card, done on `ps2` / Armored Core 3 (USA), PCSX2.** Not a certification: one game, one
-system, steps 4, 6 and 9 only. Results are RB-182 to RB-188.
+system, steps 4, 6 and 9 only, on RetroBat 8.2.0. The facts it rests on are RB-182 to RB-188, which
+name the games they were last measured on.
 
 | Step                                       | Result                                                                                  |
 | ------------------------------------------ | --------------------------------------------------------------------------------------- |
