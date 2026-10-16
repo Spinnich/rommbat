@@ -100,7 +100,8 @@ A row that cannot pass is recorded with its reason. That is a result, not a gap.
   notification and the same line, `PR 251 open: run /drive-pr 251 in a fresh session`.
 - **`--hands-on <PR>`**: post the result on that PR as one comment: each row and option driven,
   what the emulator wrote, what RomMBat did with it, and anything not driven with the reason.
-  Add a line to that PR's ledger, then end with a push notification and the same line,
+  Add a line to that PR's ledger, creating the ledger in `/drive-pr`'s shape if the PR has none
+  yet, then end with a push notification and the same line,
   `PR 251 hands-on recorded: re-run /drive-pr 251`.
 
 Leave the agent tree as the pass left it. The next hands-on pass resets what it needs.

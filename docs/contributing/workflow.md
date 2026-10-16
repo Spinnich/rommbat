@@ -61,7 +61,8 @@ Nothing needs a terminal watched. When a command stops, you get a push notificat
 
 - `label:ready-to-merge`: review the PR and merge it.
 - `label:needs-decision`: the question is on the PR and in the terminal as a multiple-choice.
-- An open PR with neither label is waiting for `/drive-pr`.
+- An open PR with neither label is waiting for the command its last notification named:
+  `/drive-pr`, or `/certify <system> --hands-on <n>` first for a save-logic change.
 
 Each PR carries its own record. A **review comment** per round lists numbered findings (`R2.3`
 is round 2, finding 3). One **ledger comment**, edited in place, holds the ruling on every

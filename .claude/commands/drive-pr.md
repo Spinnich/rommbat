@@ -101,9 +101,11 @@ and the row says what that evidence was.
    rides along. A fix that falsifies a doc corrects it in the same commit (`pre-pr-verification`,
    "Documentation parity"). A fix owes the hands-on pass `pre-pr-verification`'s "Hands-on by change type"
    names for it: redeploy to the agent tree and re-drive what the fix touched, updating the PR
-   body's Hands-on section. For save logic run `/certify <system> --hands-on $PR`. A pass that
-   cannot run is recorded in the ledger as unproven. Then
+   body's Hands-on section. A pass that cannot run is recorded in the ledger as unproven. Then
    `pwsh -File tools/pre-pr.ps1 -Quiet`, commit naming the finding IDs, push, update the ledger.
+   A save-logic fix owes `/certify <system> --hands-on $PR`, which stops for play, so once the
+   fix is pushed end with a push notification and the same line:
+   `PR 251: fix pushed, run /certify snes --hands-on 251, then /drive-pr 251, each in a fresh session`.
 8. **Decide the next step.**
    - Anything FIXED this round changed the code, so go to 3 for the next round.
    - An open MAINTAINER row: **needs the maintainer**, whatever else holds.
