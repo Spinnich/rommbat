@@ -32,26 +32,26 @@ Why is in [docs/architecture/projects.md](docs/architecture/projects.md#srcrommb
 Find the task, load the first column's target, then the section it names. Terms such as row,
 shape, slot, set and floor are defined in [docs/design/glossary.md](docs/design/glossary.md).
 
-| Task                                                                                   | Load                                                                                                         |
-| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Calling RomM: `RomM.Client`, pairing, scopes, a 401, 403 or 409                        | `romm-api`: "Traps", "Scopes"                                                                                |
-| Reading or writing inside RetroBat: `es_*.cfg`, hooks, the ES menu, `gamelist.xml`     | `retrobat-layout`: the section named after the file                                                          |
-| BIOS and firmware: which file a row reads, and what to upload to RomM                  | `python3 tools/firmware.py`, then `retrobat-layout`: "bios/ is a shared tree", `platform-mapping`            |
-| A RomM platform landing in the wrong folder, or unmapped                               | `platform-mapping`: "Resolution chain", "Adding or fixing a mapping"                                         |
-| Saves, states, slots, conflicts, memory cards: `SaveSync`, `SaveFlushService`, `Save*` | `save-sync`: "Where the flush passes live", then "The four shapes" or "Protocol rules"                       |
-| Outbox, journal, spool, `TreeLock`, relative paths, the token, clock skew              | `offline-and-portable`                                                                                       |
-| Controller input, `es_input.cfg`, the gamepad UI                                       | [src/RomMBat.UI/CLAUDE.md](src/RomMBat.UI/CLAUDE.md), `retrobat-layout`: "Controller input"                  |
-| Certifying a `(system, emulator, core)` row                                            | `platform-certification`: "Checklist", with `docs/platforms/nes/` as the worked example                      |
-| How RetroBat or RomM behaves, and the evidence, or an `RB-`/`RM-` ID                   | [docs/upstream/](docs/upstream/README.md): the topic file, or grep the ID                                    |
-| How RomMBat's code is laid out and why                                                 | [docs/architecture/](docs/architecture/README.md), the file for the area                                     |
-| Why a behavior was chosen, when no skill says                                          | [docs/design/decisions/](docs/design/decisions/README.md), the record it names                               |
-| A RomM or RetroBat release: scouting a prerelease, adopting a stable, the floor        | `version-adoption`, then `/upstream`                                                                         |
-| Writing or editing any doc                                                             | [docs/contributing/writing.md](docs/contributing/writing.md)                                                 |
-| A scripted edit or a `gh` body edit from Windows                                       | [docs/contributing/windows-agent-hazards.md](docs/contributing/windows-agent-hazards.md)                     |
-| Driving a change on a real install: deploy, ES, the UI, keys, screenshots              | [tools/handson/README.md](tools/handson/README.md), then `pre-pr-verification`: "Hands-on by change type"    |
-| A token, the test server or an install path: where it is, why it answers 403           | [docs/contributing/local-secrets.md](docs/contributing/local-secrets.md), and `python3 tools/localenv.py`    |
-| Wrapping up: commit, PR, "done"                                                        | `pre-pr-verification`, all of it, then `tools/pre-pr.ps1`                                                    |
-| Picking up an issue, driving or reviewing a PR, certifying a system                    | [docs/contributing/workflow.md](docs/contributing/workflow.md), then `/start-issue`, `/drive-pr`, `/certify` |
+| Task                                                                                   | Load                                                                                                                        |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Calling RomM: `RomM.Client`, pairing, scopes, a 401, 403 or 409                        | `romm-api`: "Traps", "Scopes"                                                                                               |
+| Reading or writing inside RetroBat: `es_*.cfg`, hooks, the ES menu, `gamelist.xml`     | `retrobat-layout`: the section named after the file                                                                         |
+| BIOS and firmware: which file a row reads, and what to upload to RomM                  | `python3 tools/firmware.py`, then `retrobat-layout`: "bios/ is a shared tree", `platform-mapping`                           |
+| A RomM platform landing in the wrong folder, or unmapped                               | `platform-mapping`: "Resolution chain", "Adding or fixing a mapping"                                                        |
+| Saves, states, slots, conflicts, memory cards: `SaveSync`, `SaveFlushService`, `Save*` | `save-sync`: "Where the flush passes live", then "The four shapes" or "Protocol rules"                                      |
+| Outbox, journal, spool, `TreeLock`, relative paths, the token, clock skew              | `offline-and-portable`                                                                                                      |
+| Controller input, `es_input.cfg`, the gamepad UI                                       | [src/RomMBat.UI/CLAUDE.md](src/RomMBat.UI/CLAUDE.md), `retrobat-layout`: "Controller input"                                 |
+| Certifying a `(system, emulator, core)` row                                            | `platform-certification`: "Checklist", with `docs/platforms/nes/` as the worked example                                     |
+| How RetroBat or RomM behaves, and the evidence, or an `RB-`/`RM-` ID                   | [docs/upstream/](docs/upstream/README.md): the topic file, or grep the ID                                                   |
+| How RomMBat's code is laid out and why                                                 | [docs/architecture/](docs/architecture/README.md), the file for the area                                                    |
+| Why a behavior was chosen, when no skill says                                          | [docs/design/decisions/](docs/design/decisions/README.md), the record it names                                              |
+| A RomM or RetroBat release: scouting a prerelease, adopting a stable, the floor        | `version-adoption`, then `/upstream`                                                                                        |
+| Writing or editing any doc                                                             | [docs/contributing/writing.md](docs/contributing/writing.md)                                                                |
+| A scripted edit or a `gh` body edit from Windows                                       | [docs/contributing/windows-agent-hazards.md](docs/contributing/windows-agent-hazards.md)                                    |
+| Driving a change on a real install: deploy, ES, the UI, keys, screenshots              | [tools/handson/README.md](tools/handson/README.md), then `pre-pr-verification`: "Hands-on by change type"                   |
+| A token, the test server or an install path: where it is, why it answers 403           | [docs/contributing/local-secrets.md](docs/contributing/local-secrets.md), and `python3 tools/localenv.py`                   |
+| Wrapping up: commit, PR, "done"                                                        | `pre-pr-verification`, all of it, then `tools/pre-pr.ps1`                                                                   |
+| Planning a feature or bug, picking up an issue, driving or reviewing a PR, certifying  | [docs/contributing/workflow.md](docs/contributing/workflow.md), then `/plan-issue`, `/start-issue`, `/drive-pr`, `/certify` |
 
 ## Six rules that override intuition
 
