@@ -16,7 +16,8 @@ Measurement says: Only when DuckStation is the selected emulator. This install r
 
 ## RB-9b. DuckStation's stock `PerGameTitle` holds a disc set on one card, and `PerGameFileTitle` would split it
 
-Under the stock `PerGameTitle`, Metal Gear Solid's two discs through a `.m3u` and Final Fantasy VII's three loose discs, launched as disc 1 alone, each wrote one card, `<saveName with the disc marker removed>_<port>.mcd`, whose stem matches every serial of the set in `gamedb.yaml` (RB-329). Regions keep separate cards and a revision shares its base release's. `PerGameFileTitle` keys the card by each disc's file, so it would split a set at the disc change.
+Verified: RetroBat 8.3.0, 2026-10-15. How: booted Metal Gear Solid's `.m3u`, then disc 2's `.cue` alone, under DuckStation 0.1-11752 at the stock `PerGameTitle` and at `PerGameFileTitle`, listed `saves/psx/duckstation/memcards/`, and read `gamedb.yaml`.
+Under the stock `PerGameTitle`, Metal Gear Solid's two discs through a `.m3u`, and disc 2 launched alone from its `.cue`, each wrote one card, `Metal Gear Solid (USA)_<port>.mcd`: `gamedb.yaml`'s `saveName` with the disc marker removed, which every serial of the set shares (RB-329). Regions keep separate cards, because each region's `saveName` names it. `PerGameFileTitle` keys the card by the file launched: through the `.m3u` it opens the same `Metal Gear Solid (USA)_<port>.mcd`, while disc 2's own file gets `Metal Gear Solid (USA) (Disc 2)_<port>.mcd`, so a set played from loose discs splits at the disc change.
 
 ## RB-310. EmulationStation lists a folder holding discs and a same-named playlist as one game
 

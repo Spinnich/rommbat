@@ -131,7 +131,7 @@ not a measurement, which is why this one was driven.
 
 **The declared directory is otherwise the one to use even when the emulator writes elsewhere.**
 An emulator may write under its own naming, with RetroBat mirroring into the declared path
-about 120 ms later while the game is still running (PPSSPP:
+a few milliseconds later while the game is still running (PPSSPP:
 `psp/PPSSPP_STATE/<GAMEID>_<ver>_<slot>.ppst` mirrored to
 `psp/ppsspp/<rom filename>_<slot>.ppst`). ES passes the launcher `-state_slot` and
 `-state_file` naming the **declared** path, and the launcher hands it to the emulator, so a

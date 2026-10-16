@@ -12,19 +12,15 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../../upstrea
 Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, it counts the user's PS2 library, and ps2's `<extension>` still lists .m3u, gaining only .decomp in 8.2.1. How: recovered from the findings ledger, which recorded it during M6 stage 2c (ad01b2d) on the 8.2.0 install its header names; the method is the text below.
 So loose sibling files are the only layout the conversion refusal has to read, and RetroBat's `ps2` listing `.m3u` in `<extension>` neither binds a set nor means anything by its absence, which matches its own wiki saying PCSX2 cannot use one
 
-## RB-175. Both reproduced on PS2, having been measured on PS1
+## RB-175. A PS2 card's size and mtime cannot say whether it holds a save
 
-Verified: RetroBat 8.2.0, 2026-08-24. How: recovered from the findings ledger, which recorded it during M6 stage 2c (ad01b2d) on the 8.2.0 install its header names; the method is the text below.
-The claim being checked: A PS2 launch rewrites both shared memory cards, and an empty card is the same size as a real one (**the `save-sync` skill**, RB-43 and RB-328)
+Verified: RetroBat 8.3.0, 2026-10-16. How: hashed and counted the byte values of `saves/ps2/pcsx2/memcards/` around Burnout 3 launches under PCSX2 2.8.2 on the agent tree's 8.3.0 install, before and after it saved a profile to its own card.
+PCSX2 creates `Mcd001.ps2` and `Mcd002.ps2` unformatted, 8,650,752 B of one byte value. After Burnout 3 formatted its own card and saved, that card was still 8,650,752 B, now 250 distinct byte values, and its mtime matched the untouched `Mcd002.ps2` to the tenth of a millisecond. So mtime cannot decide whether a card changed, size cannot tell an empty card from one holding a save, and only the contents separate them (RB-43, RB-328).
 
-What was measured: **Both reproduced on PS2, having been measured on PS1.** `Mcd001.ps2` and `Mcd002.ps2` are each 8,650,752 B with identical mtimes to the second, and their byte histograms are **256 distinct values against 76**. So mtime cannot decide whether either changed, size cannot tell a formatted empty card from one holding a save, and only the contents separate them
+## RB-176. PCSX2's sidecar is a third format: the serial plus a CRC
 
-## RB-176. PCSX2's is a third format: the serial plus a CRC
-
-Verified: RetroBat 8.2.0, 2026-08-24. How: recovered from the findings ledger, which recorded it during M6 stage 2c (ad01b2d) on the 8.2.0 install its header names; the method is the text below.
-The claim being checked: A `.txt` sidecar holds the emulator's native basename, and DuckStation's holds a bare serial (**145, 168**)
-
-What was measured: **PCSX2's is a third format: the serial plus a CRC.** `saves/ps2/pcsx2/Armored Core 3 (USA).txt` holds `SLUS-20435 (FDB4D261)`, and the two others on the install match its shape. So it is neither the bare serial DuckStation writes nor the underscore-joined form PPSSPP writes, and `GameIdAttributor.FromSidecar`'s first-underscore split leaves it whole rather than parsing it. Relevant to **#37**, and not on the per-game memory card's path, because a converted PS2 card is rom-named and attributes by filename
+Verified: RetroBat 8.3.0, 2026-10-15. How: saved a state in Armored Core 3 under PCSX2 2.8.2 with `F2` and read the files RetroBat mirrored into `saves/ps2/pcsx2/`.
+`saves/ps2/pcsx2/Armored Core 3 (USA).txt` holds `SLUS-20435 (FDB4D261)`, beside the mirrored `Armored Core 3 (USA).01.p2s`, while PCSX2's own copy is `emulators/pcsx2/sstates/SLUS-20435 (FDB4D261).01.p2s`. So it is neither the bare serial DuckStation writes nor the underscore-joined form PPSSPP writes, and `GameIdAttributor.FromSidecar`'s first-underscore split leaves it whole rather than parsing it. It is not on the per-game memory card's path, because a converted PS2 card is rom-named and attributes by filename (RB-182).
 
 ## RB-177. The `K:` test stick cannot stand in for the real install on PS2
 
@@ -33,20 +29,18 @@ Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, it de
 
 ## RB-182. A converted PCSX2 memory card is `<rom stem>.ps2`, so the extension is replaced and not appended
 
-Verified: RetroBat 8.2.0, 2026-08-24. How: recovered from the findings ledger, which recorded it during M6 stage 2c (fedbfbf) on the 8.2.0 install its header names; the method is the text below.
-Driven end to end: `ps2["Armored Core 3 (USA).chd"].pcsx2_slot1_memory=game` produced `saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2`, 8,650,752 B. **Two naming rules are in play at once and confusing them is the whole trap**: the `es_settings.cfg` key must carry `.chd` or it is ignored silently (RB-358), while the card PCSX2 writes drops it. The consequence is the good one: the stem `Armored Core 3 (USA)` is exactly the `(folder, stem)` key class A attribution already uses, so a converted card resolves through the existing `RomIndex` with no new route, which is the claim the whole PS2 story rested on. It lands **three levels deep**, under `saves/ps2/pcsx2/memcards/`, where class A discovery only reads files loose directly under `saves/<system>/`
+Verified: RetroBat 8.3.0, 2026-10-15. How: ran `saves convert` on Armored Core 3 on the agent tree's 8.3.0 install, booted it under PCSX2 2.8.2, and read `PCSX2.ini` and `memcards/`.
+`ps2["Armored Core 3 (USA).chd"].pcsx2_slot1_memory=game` makes `emulatorlauncher` write `Slot1_Filename = Armored Core 3 (USA).ps2`, and PCSX2 creates `saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2`, 8,650,752 B. **Two naming rules are in play at once and confusing them is the whole trap**: the `es_settings.cfg` key must carry `.chd` or it is ignored silently (RB-358), while the card PCSX2 writes drops it. The stem is exactly the `(folder, stem)` key class A attribution already uses, so a converted card resolves through the existing `RomIndex` with no new route. It lands **three levels deep**, under `saves/ps2/pcsx2/memcards/`, where class A discovery only reads files loose directly under `saves/<system>/`.
 
-## RB-183. True while the game is using them, and a converted game leaves the shared card completely alone
+## RB-183. A converted game leaves the shared card completely alone, and its own card holds only its saves
 
-Verified: RetroBat 8.2.0, 2026-08-24. How: recovered from the findings ledger, which recorded it during M6 stage 2c (ad01b2d) on the 8.2.0 install its header names; the method is the text below.
-The claim being checked: A PS2 launch rewrites both shared memory cards, so mtime cannot decide whether one changed (**175, the `save-sync` skill**)
-
-What was measured: **True while the game is using them, and a converted game leaves the shared card completely alone.** After the converted launch, `Mcd001.ps2` was **untouched**: mtime still the moment it was copied, md5 unchanged at `d3334798…`. So the conversion really does redirect the writes, the stranded save really is stranded, and the warning's wording is honest rather than cautious. The new card holds **exactly one game's saves**, `SLUS-20435` with 4 entries, against `Mcd001`'s 11 games, which is the class D attribution problem solved and measured rather than argued
+Verified: RetroBat 8.3.0, 2026-10-16. How: converted Burnout 3 on the agent tree's 8.3.0 install, saved a profile under PCSX2 2.8.2, and hashed `memcards/` before and after.
+Across the converted launch `Mcd001.ps2` kept its mtime and md5, so the conversion redirects the writes and a save left on the shared card is stranded there, as the warning says. The new card, `Burnout 3 - Takedown (USA, Canada).ps2`, holds one serial, `BASLUS-21050`, the game's own: one game's saves on one card, which is the class D attribution problem solved rather than argued.
 
 ## RB-184. `pcsx2_slot1_memory=game` leaves slot 2 shared, and moves its mtime without changing a byte
 
-Verified: RetroBat 8.2.0, 2026-08-24. How: recovered from the findings ledger, which recorded it during M6 stage 2c (fedbfbf) on the 8.2.0 install its header names; the method is the text below.
-`Mcd002.ps2` was written at `08:28:22.0017`, the same instant as the new card, and its md5 is unchanged at `96cebf28…`, 76 distinct byte values, no game serial in it. So it is RB-328's formatted-empty card reproduced on PS2, and it is a fresh demonstration on the converted path that **mtime moves while content does not**, which is why every save is content-hashed
+Verified: RetroBat 8.3.0, 2026-10-16. How: hashed `memcards/` around converted launches of Armored Core 3 and Burnout 3 under PCSX2 2.8.2 on the agent tree's 8.3.0 install.
+`Slot2_Filename` stays `Mcd002.ps2`, and each converted launch wrote it at the same instant as the game's own card, to the tenth of a millisecond, with its md5 unchanged: one byte value, the unformatted card PCSX2 creates, which no game formatted. So on the converted path too **mtime moves while content does not**, which is why every save is content-hashed.
 
 ## RB-186. Eviction refuses a ROM whose converted card holds an unsent save, and fails closed when that leaves it short
 
@@ -65,13 +59,12 @@ The row is still there, still class D, still in step, and the conversion record 
 
 ## RB-376. Launching a PS2 game rewrites the shared memory cards on its own
 
-Verified: RetroBat 8.2.0, 2026-08-09. How: recovered from the findings ledger, which recorded it in M0's probes (d608a87) on the 8.2.0 install its header names; the method is the text below.
-Incidental, but it bears directly on class D. The PCSX2 run touched both shared cards without
-the game being asked to save anything:
+Verified: RetroBat 8.3.0, 2026-10-15. How: hashed `saves/ps2/` around two Armored Core 3 launches under PCSX2 2.8.2 on the agent tree's 8.3.0 install in which nothing was saved.
+Both shared cards were written when the game closed, without the game being asked to save:
 
 ```text
-*changed pcsx2\memcards\Mcd001.ps2   8650752 B
-*changed pcsx2\memcards\Mcd002.ps2   8650752 B
+pcsx2\memcards\Mcd001.ps2   8650752 B   15:13:54.7840 -> 15:15:29.8625   md5 unchanged
+pcsx2\memcards\Mcd002.ps2   8650752 B   15:13:54.7845 -> 15:15:29.8625   md5 unchanged
 ```
 
 **So a class-D container's mtime changes merely because a game was launched.** Any sync that
@@ -80,15 +73,14 @@ every session. Content hashing is required, not optional, for class D.
 
 ## RB-406. `pcsx2_slot1_memory=folder` makes slot 1 one shared directory, split per save by PS2 serial
 
-Verified: RetroBat 8.2.1, 2026-10-01. How: read `es_settings.cfg`, PCSX2's `inis/PCSX2.ini` and `saves/ps2/pcsx2/memcards/` on `E:`, where the maintainer had chosen FOLDER for `ps2` system-wide a month earlier, then drove Armored Core 3 on a fresh PCSX2 on `R:` with FOLDER set.
-`emulatorlauncher` writes `Slot1_Filename = Mcdf01.ps2`, and PCSX2 makes `memcards/Mcdf01.ps2/`
-a directory: a `_pcsx2_superblock` and one directory per save, each with its own `_pcsx2_index`.
-`McdFolderAutoManage = true` sits in `E:`'s INI, but neither program wrote it on `R:`, and the
-card worked without it. The directories take the save's own name, which starts with the serial
-(`BASLUS-20435S00` for Armored Core 3, `BASCUS-97399GodOfWar`): 38 files from 7 saves on `E:`,
-and on `R:` a 41,600 B save beside `icon.sys`, `AC3S.ICO` and `_pcsx2_index`. So it is a shared
-container, one fixed name that every game writes to. Only the units inside it are per save, and
-they are keyed by serial, not by the ROM stem. `Mcd001.ps2` stopped changing, and slot 2 is
-still the file `Mcd002.ps2`, so `saves` reports both cards on one row and names each file.
-RomMBat declares `Mcdf01.ps2` a shared container. Syncing it would take a route from serial to
-ROM that RomMBat does not have.
+Verified: RetroBat 8.3.0, 2026-10-16. How: set `ps2.pcsx2_slot1_memory=folder` on the agent tree's 8.3.0 install, booted Armored Core 3 and then saved a Burnout 3 profile under PCSX2 2.8.2, and read `PCSX2.ini` and `memcards/`.
+`emulatorlauncher` writes `Slot1_Filename = Mcdf01.ps2`, and PCSX2 makes `memcards/Mcdf01.ps2/` a
+directory holding a `_pcsx2_superblock`, 0 B until a game formats the card and 8,192 B after.
+`McdFolderAutoManage = true` comes from RetroBat's `PCSX2.ini` template. Each save is a directory
+named from the save's own name, which starts with the serial: Burnout 3's profile is
+`BASLUS-21050/`, a 61,772 B `BASLUS-21050` beside `icon.sys`, `view.ico` and `_pcsx2_index`. So
+it is a shared container, one fixed name that every game writes to. Only the units inside it are
+per save, and they are keyed by serial, not by the ROM stem. `Mcd001.ps2` stopped changing, and
+slot 2 is still the file `Mcd002.ps2`, so `saves` reports both cards on one row and names each
+file. RomMBat declares `Mcdf01.ps2` a shared container. Syncing it would take a route from serial
+to ROM that RomMBat does not have.

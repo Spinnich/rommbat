@@ -61,7 +61,7 @@ Verified: RetroBat 8.2.0, 2026-08-08. How: snapshotted the whole `saves/<system>
 Four more are in RB-370, and `flycast`, which reaches its declared directory through the
 launcher's mirror, is in RB-343. The declared `<file>` was right for every emulator driven, so
 `StateScanner` attributes a state by its `{{romfilename}}` stem with no Game ID. A manual save
-reaches the declared directory about 120 ms after the keypress, while the emulator runs. An
+reaches the declared directory within a fraction of a second of the keypress, while the emulator runs. An
 autosave state, driven here through `<system>.autosave=1`, appears only at exit, and the
 `autosave_file` and `autosave_image` templates both matched. `libretro` needs no mirror, because
 the launcher points RetroArch at the declared path. The `<image>` is missing more often than

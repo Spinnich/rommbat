@@ -40,7 +40,7 @@ public sealed record StateRow(
 /// <summary>The screenshot uploaded beside a state, when one was.</summary>
 /// <remarks>
 /// <b>Absent is the normal case, not the exception.</b> RetroBat mirrors an emulator's own
-/// screenshot into the ES-facing directory about 120 ms after the state, and the emulator can
+/// screenshot into the ES-facing directory milliseconds after the state, and the emulator can
 /// still be writing it: across three saves of one PPSSPP game the mirrored image came out
 /// correct, zero bytes and absent. So a state with no screenshot says nothing about the state.
 /// </remarks>

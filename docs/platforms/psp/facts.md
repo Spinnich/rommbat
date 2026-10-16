@@ -7,17 +7,15 @@ read-when: Before certifying a `psp` row or changing how RomMBat handles a `psp`
 
 Facts RomMBat relies on, one per heading. [The upstream reference](../../upstream/README.md) says what an entry holds and how IDs are kept.
 
-## RB-36. Neither is stale
+## RB-36. Neither of PPSSPP's two state copies is stale
 
-Verified: RetroBat 8.2.0, 2026-08-09. How: recovered from the findings ledger, which recorded it in M0's probes (d608a87) on the 8.2.0 install its header names; the method is the text below.
-Plan says: PPSSPP's two populated state directories mean the declared template is wrong (probe 2, earlier)
-
-Measurement says: **Neither is stale.** RetroBat mirrors native to ES-facing about 120 ms after each save, live. The declared template is correct and `saves/psp/ppsspp/` is authoritative
+Verified: RetroBat 8.3.0, 2026-10-15. How: saved a state in Bust-A-Move Deluxe under PPSSPP 1.20.4 on the agent tree's 8.3.0 install with `F2`, and read both copies' creation and write times.
+RetroBat mirrors the native state into the ES-facing directory live, a few milliseconds after PPSSPP finishes writing it, and the two copies are byte-identical. The declared template is correct and `saves/psp/ppsspp/` is authoritative (RB-366).
 
 ## RB-37. A downloaded PPSSPP state reaches the emulator through the ES-facing path
 
-Verified: RetroBat 8.2.0, 2026-08-09. How: recovered from the findings ledger, which recorded it in M0's probes (d608a87) on the 8.2.0 install its header names; the method is the text below.
-ES passes `-state_slot` and `-state_file` naming the **ES-facing** path, and the launcher hands it to PPSSPP as `--state=`. Writing there is sufficient; the native copy is rebuilt from it
+Verified: RetroBat 8.3.0, 2026-10-15. How: deleted `PPSSPP_STATE/` and launched Bust-A-Move Deluxe with `-state_slot 0 -state_file` naming the ES-facing state, then read `emulatorLauncher.log` and the native copy.
+ES passes `-state_slot` and `-state_file` naming the **ES-facing** path, and the launcher hands it to PPSSPP as `--state=`. Writing there is sufficient; the native copy is rebuilt from it.
 
 ## RB-154. Confirmed on a second, independently produced sample
 
@@ -35,23 +33,23 @@ The pass says: **True, and it works.** No `.cso` header and no state sidecar exi
 
 ## RB-159. PPSSPP loads a save unit RomMBat restored
 
-Verified: RetroBat 8.2.0, 2026-08-17. How: recovered from the findings ledger, which recorded it during M6 stage 2b's hands-on pass (74e9529) on the 8.2.0 install its header names; the method is the text below.
-The staged restore (not atomic, #38) put the server's four files into `SAVEDATA/ULUS100570000/` and Bust-A-Move loaded the save. With the fold proving the bytes identical, a real save round-trips the same way
+Verified: RetroBat 8.3.0, 2026-10-16. How: saved in Bust-A-Move Deluxe under PPSSPP 1.20.4, took the server's copy with `saves resolve --keep-server`, then loaded it in the game.
+The restore put the server's four files into `SAVEDATA/ULUS100570000/`, and the game listed the unit at 89 KB and reported `Load completed.` With the fold proving the bytes identical, a real save round-trips the same way.
 
 ## RB-304. `libretro`/`ppsspp` keeps its memory stick in the standalone's, so both rows write one container
 
-Verified: RetroBat 8.2.1, 2026-09-23. How: recovered from the findings ledger, which recorded it while driving `psp`'s directory save (d88eb42) on the 8.2.1 install the certification records name; the method is the text below.
-The core's `ms0:/PSP/SAVEDATA/ULUS10202003` is `saves/psp/SAVEDATA/ULUS10202003`, beside the standalone's `ULUS10202001`, so both rows write one container and one unit. The game offered three in-game slots as `ULUS10202001` to `003`, one folder each, all under the `ULUS10202` prefix. Its save states go to `saves/psp/libretro.ppsspp/`.
+Verified: RetroBat 8.3.0, 2026-10-16. How: saved in Bust-A-Move Deluxe under PPSSPP 1.20.4 and then under `libretro`/`ppsspp` from ES, and read `es_launch_stdout.log`, `retroarch.cfg` and `saves/psp/`.
+The core's `ms0:/PSP/SAVEDATA/ULUS100570000` is `saves/psp/SAVEDATA/ULUS100570000`: it offered to overwrite the standalone's save, and its write landed in that unit (`[SCEUTIL] Saving file with size 156 in ms0:/PSP/SAVEDATA/ULUS100570000/GAME.DAT`), because RetroArch's `savefile_directory` is `saves/psp`. So both rows write one container and one unit. Its save states go to `saves/psp/libretro.ppsspp/`, RetroArch's `savestate_directory`.
 
 ## RB-305. The class C unit's hash is the server's on every transfer, end to end
 
 Verified: RomM 5.3.0, 2026-09-23. Carried: RomM 5.3.1, 2026-10-14, the 5.3.0-to-5.3.1 source diff (225 files, from the trees) touches nothing under backend/endpoints/saves and no backend line naming `content_hash`. How: recovered from the findings ledger, which recorded it while driving `psp`'s directory save (d88eb42) against RomM 5.3.0; the method is the text below.
 The `quit` hook's pass uploaded the unit as save 437 with `content_hash` `3f2685c3...`, the local fold and a hand computation of RomM's rule alike; three folders later went up as 439 at `1e1e98ae...`, the same three ways. A peer row staged with no device, 440 holding `001` and `003`, came down at `ab160d10...`, passed the check against the offered hash after extraction, and swapped in with `002` moved to `replaced/`. The next flush was 0 up, 0 down.
 
-## RB-306. `libretro`/`ppsspp` freezes on each in-game save, though the folders it leaves are whole
+## RB-306. `libretro`/`ppsspp` writes an in-game save once, with rewind off at RetroBat's default
 
-Verified: RetroBat 8.2.1, 2026-09-23. How: recovered from the findings ledger, which recorded it while driving `psp`'s directory save (d88eb42) on the 8.2.1 install the certification records name; the method is the text below.
-Each in-game save froze the game, and `es_launch_stdout.log` shows the core writing `ULUS10202003/00000000.000` 1,674 times with `[Rewind] Buffer capacity insufficient` between writes. The folders it left are whole: 42,528 B each, `PARAM.SFO` parsing with the player's own id. Recorded against the core, not the save shape.
+Verified: RetroBat 8.3.0, 2026-10-16. How: saved in Bust-A-Move Deluxe under `libretro`/`ppsspp` from ES, and read `retroarch.cfg`, `es_launch_stdout.log` and `saves/psp/SAVEDATA/`.
+RetroBat leaves `psp`'s rewind off (`rewind_enable = "false"`). The save wrote `GAME.DAT` once, the log has no `[Rewind]` line, the game did not stall, and the unit it left is whole: four files, 91,607 B. A save with rewind turned on for `psp` is unmeasured.
 
 ## RB-307. RomM's `save_target` for a rehashed PSP game is the unit key, layout `folder-prefix`
 
@@ -60,47 +58,43 @@ Verified: RomM 5.3.0, 2026-09-23. Carried: RomM 5.3.1, 2026-10-14, the 5.3.0-to-
 
 ## RB-366. PPSSPP writes states to two places, and RetroBat mirrors between them (resolved)
 
-Verified: RetroBat 8.2.0, 2026-08-09. How: recovered from the findings ledger, which recorded it in M0's probes (d608a87) on the 8.2.0 install its header names; the method is the text below.
-The same PSP game appears under two different naming schemes at once:
+Verified: RetroBat 8.3.0, 2026-10-15. How: saved a state in Bust-A-Move Deluxe under PPSSPP 1.20.4 on the agent tree's 8.3.0 install with `F2`, read every file's creation and write time, then deleted the native copies and relaunched with `-state_file`.
+The same PSP state appears under two naming schemes at once:
 
 ```text
-saves/psp/ppsspp/3rd Birthday, The (Europe)_0.ppst     <- matches es_savestates.cfg
-saves/psp/PPSSPP_STATE/ULES01513_1.00_0.ppst           <- PPSSPP's native location
+saves/psp/ppsspp/Bust-A-Move - Deluxe (USA)_0.ppst   <- matches es_savestates.cfg
+saves/psp/PPSSPP_STATE/ULUS10057_1.00_0.ppst         <- PPSSPP's native location
 ```
 
-Static evidence could not say which is current, so it was driven live on a real PSP library
-(`tools/m0-probes/probe2-psp-states.ps1`, Patapon, a game with no prior state so nothing
-existing was touched). **Both are real, and neither is stale: RetroBat keeps them in sync.**
+**Both are real, and neither is stale: RetroBat keeps them in sync.** The launcher sets
+`saves/psp` as PPSSPP's content path, so PPSSPP writes natively to
+`PPSSPP_STATE/<GAMEID>_<version>_<slot>.ppst`, and the mirror follows live:
 
-**Sync-out is live, not at exit.** The launcher sets `saves/psp` as PPSSPP's content path,
-so PPSSPP writes natively to `PPSSPP_STATE/<GAMEID>_<version>_<slot>.ppst`. Pressing F2 at
-`00:34:43.294` produced:
+| Time         | File                                                                         |
+| ------------ | ---------------------------------------------------------------------------- |
+| 15:21:27.209 | the native `.ppst` finishes writing                                          |
+| 15:21:27.212 | the ES-facing `.ppst` is created, byte-identical and with the native's mtime |
+| 15:21:27.215 | `ppsspp/<rom filename>.txt`                                                  |
+| 15:21:27.216 | `PPSSPP_STATE/<GAMEID>_1.00_0.jpg`                                           |
 
-| Time         | File                                            |
-| ------------ | ----------------------------------------------- |
-| 00:34:43.411 | both `.ppst` copies, byte-identical, same mtime |
-| 00:34:43.416 | `ppsspp/<rom filename>.txt`                     |
-| 00:34:43.431 | `PPSSPP_STATE/<GAMEID>_1.00_0.jpg`              |
-
-So the mirror is made **about 120 ms after the save, while the emulator is still running**.
-Re-checking at exit showed nothing further changed, so there is no exit-time pass to wait for.
+So the mirror is made **a few milliseconds after the save, while the emulator is still
+running**. After exit no file had changed, so there is no exit-time pass to wait for.
 
 **The `.txt` is a name-mapping sidecar.** It holds exactly the native basename:
 
 ```text
-saves/psp/ppsspp/Patapon (Europe) (En,Fr,De,Es,It).txt   ->   UCES00995_1.00
+saves/psp/ppsspp/Bust-A-Move - Deluxe (USA).txt   ->   ULUS10057_1.00
 ```
 
 That is how RetroBat translates between the ROM-filename scheme and the game-ID scheme. It
 is not a save, but it is **not disposable either**: treat it as part of the state.
 
 **The ES-facing directory is the authoritative one, and it is the one RomMBat must use.**
-ES passes the launcher `-state_slot N -state_file <ES-facing path>` (the same pattern appears
-in the log for `gba` and `ps2`), and the launcher then hands the emulator the ES-facing path
-directly:
+ES passes the launcher `-state_slot N -state_file <ES-facing path>`, and the launcher then
+hands the emulator the ES-facing path directly:
 
 ```text
-PPSSPPWindows64.exe -fullscreen "<rom>" --state="...\saves\psp\ppsspp\Patapon (Europe) (En,Fr,De,Es,It)_0.ppst"
+PPSSPPWindows64.exe -fullscreen "<rom>" --state="...\saves\psp\ppsspp\Bust-A-Move - Deluxe (USA)_0.ppst"
 ```
 
 Deleting every native file and relaunching that way **recreated the native copy byte for
