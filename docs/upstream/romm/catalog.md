@@ -117,7 +117,6 @@ The filter maps a value to a provider's id column and drops any value it has no 
 15 it knows are `igdb`, `ss`, `moby`, `launchbox`, `ra`, `hasheous`, `tgdb`, `flashpoint`,
 `hltb`, `demozoo`, `pouet`, `csdb`, `steam`, `gamelist` and `libretro`. An unrecognized
 `statuses` value returns zero rows instead, so the authority for statuses is `RomUserStatus`.
-RomMBat's picker offers only values the server knows.
 
 ## RB-237. `filter_values` is not the list of filters `GET /api/roms` accepts
 
@@ -125,8 +124,7 @@ Verified: RomM 5.2.0, 2026-08-31, and 5.3.1, 2026-09-28. How: read the live side
 The sidecar reports 13 keys, and the route takes 13 array filters besides `platform_ids`. Eleven
 match. `game_modes` has no filter behind it, and `platforms` is a scope, sent as ids where every
 other key is names. `statuses` and `metadata_providers` are filters with no values in the
-sidecar (RB-236). RomMBat builds its filter screen from the route's parameters and uses the
-sidecar only for values.
+sidecar (RB-236). RomMBat does not read the sidecar.
 
 ## RB-242. `GET /api/roms` ignores an unknown parameter, so `platform_id` returns everything
 
