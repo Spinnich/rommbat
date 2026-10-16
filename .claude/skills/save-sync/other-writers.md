@@ -96,7 +96,8 @@ driven under stock `PerGameTitle` produced **one card for the set**:
 and `_2` is an empty formatted card. The stem is `gamedb.yaml`'s `saveName` with the disc
 marker removed, so it carries the region (`(USA)`) but not the disc and not the rom's
 `(Rev 1)`. DuckStation binds a disc set through its own database, which is exactly what
-`PerGameFileTitle` would throw away by keying on three separate filenames.
+`PerGameFileTitle` throws away for a disc launched from its own file, keying the card on that
+file's name.
 
 **The playlist is not what binds the set; the database is.** Metal Gear Solid's disc 2, launched
 from its own `.cue` rather than through the `.m3u` a RomM sync lands beside it, opened the same

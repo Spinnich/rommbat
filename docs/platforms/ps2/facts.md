@@ -15,7 +15,7 @@ So loose sibling files are the only layout the conversion refusal has to read, a
 ## RB-175. A PS2 card's size and mtime cannot say whether it holds a save
 
 Verified: RetroBat 8.3.0, 2026-10-16. How: hashed and counted the byte values of `saves/ps2/pcsx2/memcards/` around Burnout 3 launches under PCSX2 2.8.2 on the agent tree's 8.3.0 install, before and after it saved a profile to its own card.
-PCSX2 creates `Mcd001.ps2` and `Mcd002.ps2` unformatted, 8,650,752 B of one byte value. After Burnout 3 formatted its own card and saved, that card was still 8,650,752 B, now 250 distinct byte values, and its mtime matched the untouched `Mcd002.ps2` to the tenth of a millisecond. So mtime cannot decide whether a card changed, size cannot tell an empty card from one holding a save, and only the contents separate them (RB-43, RB-328).
+PCSX2 creates `Mcd001.ps2` and `Mcd002.ps2` unformatted, 8,650,752 B of one byte value. After Burnout 3 formatted its own card and saved, that card was still 8,650,752 B, now 250 distinct byte values, and its mtime matched `Mcd002.ps2`, rewritten in the same instant with no byte changed, to the tenth of a millisecond. So mtime cannot decide whether a card changed, size cannot tell an empty card from one holding a save, and only the contents separate them (RB-43, RB-328).
 
 ## RB-176. PCSX2's sidecar is a third format: the serial plus a CRC
 
