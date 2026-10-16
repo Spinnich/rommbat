@@ -426,6 +426,24 @@ internal sealed class ShellWindow : Window
         return null;
     }
 
+    /// <summary>
+    /// The key to draw on a footer hint, or null to draw the pad's glyph.
+    /// </summary>
+    /// <remarks>
+    /// On a text screen the letters type, so the keys that act are the ones <see cref="OnKey"/>
+    /// names there and not the ones <c>es_input.cfg</c> binds.
+    /// </remarks>
+    private string? KeyLabel(NavAction action) => _navigator.Current is ITextEntryScreen
+        ? action switch
+        {
+            NavAction.Start => "Enter",
+            NavAction.Back => "Esc",
+            NavAction.PageUp => "Backspace",
+            NavAction.PageDown => "Space",
+            _ => null,
+        }
+        : _keys.KeyFor(action);
+
     private void ShowPointer(bool visible) =>
         Cursor = visible ? null : new Cursor(StandardCursorType.None);
 
@@ -465,7 +483,7 @@ internal sealed class ShellWindow : Window
         _footer.Children.Clear();
         foreach (var hint in screen.Hints)
         {
-            var key = _keyboardLast && !hint.IsDirectional ? _keys.KeyFor(hint.Action) : null;
+            var key = _keyboardLast && !hint.IsDirectional ? KeyLabel(hint.Action) : null;
             var control = ScreenView.Hint(hint, key);
 
             // Clickable, as ES's help bar is, except the directional hint, which names no one action.
