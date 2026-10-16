@@ -99,8 +99,9 @@ marker removed, so it carries the region (`(USA)`) but not the disc and not the 
 `PerGameFileTitle` would throw away by keying on three separate filenames.
 
 **The playlist is not what binds the set; the database is.** Metal Gear Solid's disc 2, launched
-alone from its `.cue` with no `.m3u`, opened the set's `Metal Gear Solid (USA)_1.mcd` (RB-9b).
-That is the layout a RomM sync creates, so stock is safe on it.
+from its own `.cue` rather than through the `.m3u` a RomM sync lands beside it, opened the same
+`Metal Gear Solid (USA)_1.mcd` the playlist opens (RB-9b). So stock keeps one card for the set
+however a disc is launched.
 
 **But the card and the state are keyed differently.** The card is per disc
 **set**; the save state is `Final Fantasy VII (USA) (Disc 1)_01.sav`, named from the rom file
