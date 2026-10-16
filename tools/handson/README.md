@@ -118,13 +118,16 @@ emulator's generated config happens to bind it, which RetroBat does not promise,
 bind is a limit of this kit, not a defect to report. These are the ones met so far:
 
 - **PCSX2 has no keyboard Start.** `emulatorlauncher` writes `P1_Start = Keyboard/Return` under
-  `[Pad1]`, a key PCSX2 does not read, so a game waiting on Start never moves. To drive one, set
-  `ps2.disableautocontrollers=1` in `es_settings.cfg`, which stops the generator rewriting
-  `[Pad1]`, and add `Start = Keyboard/Return` to the tree's `PCSX2.ini`. Take both back out
-  afterwards.
-- **`Send-Key -Window` lands only the first key of a call** on PCSX2 and PPSSPP, and none at all
-  on RetroArch. Send one key per call, with a screenshot between, and send to RetroArch without
-  `-Window`, which reaches it while it holds the foreground.
-- **Each emulator maps the face buttons to different letters.** PCSX2 takes Cross as `KeyZ`,
-  PPSSPP takes it as `KeyX` (`saves/psp/SYSTEM/controls.ini`), and RetroArch takes it as `x`, the
-  RetroPad's B (`input_player1_b` in `retroarch.cfg`). Read the bind before sending.
+  `[Pad1]`, a key PCSX2 does not read, so a game waiting on Start never moves on
+  `Send-Key Enter`. To drive one, set `ps2.disableautocontrollers=1` in `es_settings.cfg`, which
+  stops the generator rewriting `[Pad1]`, and add `Start = Keyboard/Return` to the tree's
+  `PCSX2.ini`. Take both back out afterwards.
+- **Back-to-back `Send-Key` calls drop every key after the first** on PCSX2 and PPSSPP, at a
+  second apart or less within one script, and `-Window` lands none at all on RetroArch. Calls
+  about 2 s apart, each in its own `pwsh` run, all landed. Send a key, take a screenshot, then
+  send the next, and send to RetroArch without `-Window`, which reaches it while it holds the
+  foreground.
+- **Each emulator maps the face buttons to different keys.** Cross is `Send-Key KeyZ` on PCSX2,
+  `KeyX` on PPSSPP (`saves/psp/SYSTEM/controls.ini`), and `KeyX` on RetroArch, the RetroPad's B
+  (`input_player1_b` in `retroarch.cfg`). Start is `Enter` on all three once bound. Read the
+  emulator's bind before sending.
