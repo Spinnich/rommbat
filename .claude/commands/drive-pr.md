@@ -26,6 +26,9 @@ including pushes to this PR's branch and comments on it, you do without asking
   none on authority. Changing correct code to satisfy it is the failure this loop is most exposed
   to: the reviewer runs on a different model from this command, but neither side knows the
   other's blind spots.
+- **The PR body's "Why it is this way" is the author's record.** This session did not write the
+  change either, so a finding that re-proposes an approach listed there may be REJECTED citing
+  that line, unless the finding brings evidence the reason did not weigh.
 - **The maintainer's comments on the PR are decisions.** Do them. If you think one is wrong, say
   so once, with evidence, in the ledger.
 
@@ -73,8 +76,10 @@ and the row says what that evidence was.
 3. **Behind main?** If the PR conflicts, or main moved under a file it touches, rebase onto
    `origin/main` and `git push --force-with-lease`. Put the old head sha in the ledger so the next
    round can `git range-diff` it. Otherwise leave history alone: new commits on top, no amend.
-4. **CI.** Wait for it (`gh pr checks $PR --watch`). Fix every failure before the review round,
-   because a review of a red branch is wasted. The failure classes:
+4. **CI.** Wait for it with `gh pr checks $PR --watch --interval 30 > /dev/null`, then read the
+   result once with `gh pr checks $PR --json name,bucket,link`. Without a TTY, `--watch` reprints
+   the whole table on every refresh, about 250 lines over one run. Fix every failure before the
+   review round, because a review of a red branch is wasted. The failure classes:
    - `build`: Release with `-warnaserror`. Reproduce with `tools/pre-pr.ps1`, never a plain build.
    - `publish-check`: compiles but cannot publish single-file (reflection, trimming,
      `Assembly.Location`). Reproduce with the publish command in `build.yml`.
@@ -96,9 +101,11 @@ and the row says what that evidence was.
    rides along. A fix that falsifies a doc corrects it in the same commit (`pre-pr-verification`,
    "Documentation parity"). A fix owes the hands-on pass `pre-pr-verification`'s "Hands-on by change type"
    names for it: redeploy to the agent tree and re-drive what the fix touched, updating the PR
-   body's Hands-on section. For save logic run `/certify <system> --hands-on $PR`. A pass that
-   cannot run is recorded in the ledger as unproven. Then
+   body's Hands-on section. A pass that cannot run is recorded in the ledger as unproven. Then
    `pwsh -File tools/pre-pr.ps1 -Quiet`, commit naming the finding IDs, push, update the ledger.
+   A save-logic fix owes `/certify <system> --hands-on $PR`, which stops for play, so once the
+   fix is pushed end with a push notification and the same line:
+   `PR 251: fix pushed, run /certify snes --hands-on 251, then /drive-pr 251, each in a fresh session`.
 8. **Decide the next step.**
    - Anything FIXED this round changed the code, so go to 3 for the next round.
    - An open MAINTAINER row: **needs the maintainer**, whatever else holds.

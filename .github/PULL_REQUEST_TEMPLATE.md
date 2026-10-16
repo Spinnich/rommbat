@@ -4,6 +4,9 @@
 **Description**
 <sup>Explain the changes or enhancements you are proposing with this pull request.</sup>
 
+**Why it is this way**
+<sup>Each approach considered and rejected, with its reason, so a reviewer who never saw the work can rule on a finding that re-proposes one. "None" when nothing was rejected.</sup>
+
 **AI assistance disclosure**
 <sup>Required. See <a href="https://github.com/rommapp/rommbat/blob/main/CONTRIBUTING.md#ai-assistance-notice">CONTRIBUTING.md</a>. State whether AI assistance was used and to what extent, including for the PR text itself. RomMBat is developed primarily with Claude Code, so "written primarily by Claude Code" is the expected answer, not an admission.</sup>
 

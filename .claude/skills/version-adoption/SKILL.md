@@ -129,4 +129,4 @@ and must move, and some are the version a measurement was taken on and must not.
    from a pristine install of the new stable first (`tools/handson/README.md`, "The agent tree").
 
 The PR takes `semver:minor` ([versioning](../../../docs/design/decisions/versioning.md)), closes
-the tracking issue, and runs `/drive-pr`.
+the tracking issue, and ends at the open PR, which `/drive-pr` takes in a fresh session.
