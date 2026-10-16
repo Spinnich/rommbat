@@ -76,8 +76,10 @@ and the row says what that evidence was.
 3. **Behind main?** If the PR conflicts, or main moved under a file it touches, rebase onto
    `origin/main` and `git push --force-with-lease`. Put the old head sha in the ledger so the next
    round can `git range-diff` it. Otherwise leave history alone: new commits on top, no amend.
-4. **CI.** Wait for it (`gh pr checks $PR --watch`). Fix every failure before the review round,
-   because a review of a red branch is wasted. The failure classes:
+4. **CI.** Wait for it with `gh pr checks $PR --watch --interval 30 > /dev/null`, then read the
+   result once with `gh pr checks $PR --json name,bucket,link`. Without a TTY, `--watch` reprints
+   the whole table on every refresh, about 250 lines over one run. Fix every failure before the
+   review round, because a review of a red branch is wasted. The failure classes:
    - `build`: Release with `-warnaserror`. Reproduce with `tools/pre-pr.ps1`, never a plain build.
    - `publish-check`: compiles but cannot publish single-file (reflection, trimming,
      `Assembly.Location`). Reproduce with the publish command in `build.yml`.
