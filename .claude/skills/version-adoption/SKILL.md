@@ -24,13 +24,17 @@ read a delta, and the traps in it, is in [delta.md](delta.md).
 `tools/upstream_watch.py`, run daily by `.github/workflows/upstream-watch.yml`, keeps one issue per
 upstream version line above the floor, labeled `upstream` and titled
 `<RomM|RetroBat> <major>.<minor>: scout and adopt`. It owns the releases table between its markers
-and comments when a tag appears. Everything else in the issue is the pass's:
+and comments when a tag appears, or when a listed tag starts shipping a different build. The table's
+Version column is the build a tag ships, read from its `*-win64-setup.exe` asset, and it can differ
+from the tag: RetroBat tag `8.3.1` ships `RetroBat-v8.3.1.1-stable-win64-setup.exe`. RomM ships no
+such asset, so its Version is the tag's. Everything else in the issue is the pass's:
 
 - **One findings comment per scouted tag**, edited in place when the same tag is scouted again.
   A newer prerelease gets a new comment that says which earlier findings still hold at it.
 - The adoption PR says `Fixes #<n>`. A line whose stable ships while a scout is open goes straight
   to adoption, and the scout's findings become its starting list.
-- The watch respects a closed issue until upstream ships a tag the issue does not list.
+- The watch respects a closed issue until upstream ships a tag, or a build of a listed tag, that
+  the issue does not list.
 
 ## Scout: a prerelease
 
@@ -94,9 +98,13 @@ and must move, and some are the version a measurement was taken on and must not.
 2. Move together, or the startup check disagrees with the README: `RetroBatVersion.Minimum`,
    `RetroBatVersion.LastTested`, `RetroBatRoot.MinimumVersion`, the `README.md` requirements
    table, and the guide's `wiki/getting-started/requirements.md`. A test asserts the first three
-   agree. The guide's compatibility table, `wiki/reference/compatibility.md`, is left alone: each
-   row records what a release was tested against, and the next release's row is added when it is
-   cut (`DEVELOPER_SETUP.md`, "Cutting a release").
+   agree. For RetroBat the value is what `system/version.info` reports on a tree built from the
+   tag (`./tools/retrobat-install.ps1 -Version <tag>`), less its `-stable-win64` suffix, and not
+   the tag, because that file is what the startup check compares. The tracking issue's Version
+   column is the hint and the tree is the measurement. Step 1's refresh still takes the tag, and a plain `refresh.sh` finds the tag whose setup asset names the floor. The
+   guide's compatibility table, `wiki/reference/compatibility.md`, is left alone: each row records
+   what a release was tested against, and the next release's row is added when it is cut
+   (`DEVELOPER_SETUP.md`, "Cutting a release").
 3. `python3 tools/docs/check.py --stale` then lists the facts to classify: every fact whose
    `Verified:` stamp names a build below the new floor, and every fact with no stamp. It reads
    the floor from `RetroBatVersion.Minimum` and `RomMServerVersion.Minimum`, so run it once the

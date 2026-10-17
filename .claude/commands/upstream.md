@@ -8,7 +8,9 @@ effort: medium
 # Scout or adopt an upstream release
 
 PROJECT = the first word of $ARGUMENTS (`romm` or `retrobat`). TAG = the second, upstream's
-own tag (`5.4.0-alpha.1`, `beta_8.3.0`, `8.3.0`).
+own tag (`5.4.0-alpha.1`, `beta_8.3.0`, `8.3.1`). The version an adoption writes can differ from
+it: tag `8.3.1` ships RetroBat 8.3.1.1, and the floor takes the installed tree's `version.info`
+(`version-adoption`, Adopt step 2).
 
 Load `version-adoption` before anything else. `SKILL.md` holds both checklists and `delta.md`
 the traps in reading a delta. This stops for the maintainer only for a design-of-record question

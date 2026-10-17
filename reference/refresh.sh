@@ -9,8 +9,8 @@
 #   ./refresh.sh --ref retrobat=beta_8.3.0 --out /tmp/scout
 #   ./refresh.sh --ref retrobios=<commit sha>      # move the retrobios pin
 #
-# --ref takes a project's release tag; each project defaults to the floor in code, so the
-# vendored files describe the builds RomMBat supports and not upstream's default branch.
+# --ref takes a project's release tag; each project defaults to the release of the floor in code,
+# so the vendored files describe the builds RomMBat supports and not upstream's default branch.
 # --out writes into a scratch directory instead of reference/, which is how a scout pass reads
 # a prerelease without touching the vendored copy (the version-adoption skill).
 # retrobios versions its firmware packs, not its metadata, so its ref is a commit, kept as _ref in
@@ -24,7 +24,8 @@ floor() { # source file -> the version its Minimum parses
 }
 
 romm_ref=$(floor src/RomM.Client/RomMServerVersion.cs)
-retrobat_ref=$(floor src/RomMBat.Core/Diagnostics/RetroBatVersion.cs)
+retrobat_floor=$(floor src/RomMBat.Core/Diagnostics/RetroBatVersion.cs)
+retrobat_ref=
 retrobios_ref=
 out=.
 
@@ -52,6 +53,16 @@ while [ $# -gt 0 ]; do
     ;;
   esac
 done
+
+# The floor is the build system/version.info reports, which can carry a fourth component its tag
+# lacks (tag 8.3.1 ships 8.3.1.1), so the default ref is the tag whose stable setup asset names
+# that build, and the floor itself when none does.
+if [ -z "$retrobat_ref" ]; then
+  retrobat_ref=$(gh api "repos/RetroBat-Official/retrobat/releases" --paginate \
+    --jq ".[] | select(any(.assets[]; .name == \"RetroBat-v$retrobat_floor-stable-win64-setup.exe\")) | .tag_name" |
+    sed -n 1p)
+  retrobat_ref=${retrobat_ref:-$retrobat_floor}
+fi
 
 mkdir -p "$out"
 out=$(cd "$out" && pwd)

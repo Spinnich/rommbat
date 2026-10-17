@@ -7,10 +7,27 @@ import unittest
 import upstream_watch as watch
 
 
-def release(tag: str, prerelease: bool = False) -> watch.Release:
-    found = watch.normalize(tag, prerelease, "2026-10-06T11:04:59Z")
+def release(tag: str, prerelease: bool = False, *assets: str) -> watch.Release:
+    found = watch.normalize(tag, prerelease, "2026-10-06T11:04:59Z", list(assets))
     assert found is not None
     return found
+
+
+def retrobat(tag: str, shipped: str, prerelease: bool = False) -> watch.Release:
+    channel = "beta" if prerelease else "stable"
+    setup = f"RetroBat-v{shipped}-{channel}-win64-setup.exe"
+    return release(tag, prerelease, setup, setup + ".sha256.txt")
+
+
+# The table #568 carried before the Version column existed.
+LEGACY = (
+    "Tracks RetroBat 8.3.\n\n"
+    f"{watch.START}\n"
+    "| Tag | Kind | Published | Run |\n"
+    "| --- | --- | --- | --- |\n"
+    "| `8.3.1` | **stable** | 2026-10-16 | `/upstream retrobat 8.3.1` |\n"
+    f"{watch.END}\n"
+)
 
 
 class NormalizeTest(unittest.TestCase):
@@ -32,6 +49,23 @@ class NormalizeTest(unittest.TestCase):
 
     def test_the_prerelease_flag_ranks_even_an_unsuffixed_tag_below_its_release(self) -> None:
         self.assertLess(release("8.3.0", True).key, release("8.3.0").key)
+
+    def test_the_setup_asset_names_the_shipped_version(self) -> None:
+        r = retrobat("8.3.1", "8.3.1.1")
+        self.assertEqual((r.tag, r.shipped, r.line), ("8.3.1", "8.3.1.1", "8.3"))
+        self.assertGreater(r.key, release("8.3.1").key)
+
+    def test_a_beta_asset_ships_its_core_version(self) -> None:
+        self.assertEqual(retrobat("beta_8.3.0", "8.3.0", True).shipped, "8.3.0")
+
+    def test_a_release_with_no_setup_asset_ships_its_tag(self) -> None:
+        self.assertEqual(release("5.4.0-alpha.1", True).shipped, "5.4.0-alpha.1")
+        self.assertEqual(release("5.4.0", False, "notes.txt").shipped, "5.4.0")
+
+    def test_two_setup_assets_are_ambiguous_and_ship_the_tag(self) -> None:
+        r = release("8.3.1", False, "RetroBat-v8.3.1.1-stable-win64-setup.exe",
+                    "RetroBat-v8.3.1.2-stable-win64-setup.exe")
+        self.assertEqual(r.shipped, "8.3.1")
 
 
 class PlanTest(unittest.TestCase):
@@ -62,7 +96,9 @@ class PlanTest(unittest.TestCase):
         actions = watch.plan("RomM", "5.3.1", first + [release("5.4.0")], [issue])
         self.assertEqual([(a.kind, a.number) for a in actions], [("update", 7), ("comment", 7)])
         self.assertTrue(actions[0].body.startswith("Notes the maintainer added."))
-        self.assertEqual(watch.tags_in(actions[0].body), {"5.4.0-alpha.1", "5.4.0"})
+        self.assertEqual(
+            watch.rows_in(actions[0].body), {("5.4.0-alpha.1", "5.4.0-alpha.1"), ("5.4.0", "5.4.0")}
+        )
         self.assertIn("**stable**. Adoption is due", actions[1].body)
         self.assertNotIn("alpha.1", actions[1].body)
 
@@ -73,6 +109,42 @@ class PlanTest(unittest.TestCase):
         self.assertEqual(watch.plan("RetroBat", "8.2.1", first, [closed]), [])
         actions = watch.plan("RetroBat", "8.2.1", first + [release("8.3.0")], [closed])
         self.assertEqual([a.kind for a in actions], ["open"])
+
+    def test_the_table_shows_the_shipped_version_and_the_comment_names_both(self) -> None:
+        opened = watch.plan("RetroBat", "8.3.0", [retrobat("8.3.1", "8.3.1.1")], [])[0]
+        self.assertIn("| `8.3.1` | `8.3.1.1` | **stable** |", opened.body)
+        issue = watch.Issue(5, opened.title, opened.body, True)
+        actions = watch.plan(
+            "RetroBat", "8.3.0", [retrobat("8.3.1", "8.3.1.1"), retrobat("8.3.2", "8.3.2.1")], [issue]
+        )
+        self.assertIn("`8.3.2` ships RetroBat 8.3.2.1 and is **stable**", actions[1].body)
+
+    def test_a_reupload_under_a_listed_tag_is_announced(self) -> None:
+        opened = watch.plan("RetroBat", "8.3.0", [retrobat("8.3.1", "8.3.1.1")], [])[0]
+        issue = watch.Issue(5, opened.title, opened.body, True)
+        actions = watch.plan("RetroBat", "8.3.0", [retrobat("8.3.1", "8.3.1.2")], [issue])
+        self.assertEqual([(a.kind, a.number) for a in actions], [("update", 5), ("comment", 5)])
+        self.assertEqual(watch.rows_in(actions[0].body), {("8.3.1", "8.3.1.2")})
+        self.assertIn("`8.3.1` now ships RetroBat 8.3.1.2", actions[1].body)
+
+    def test_a_closed_issue_that_lists_the_tag_but_not_the_version_reopens_the_line(self) -> None:
+        opened = watch.plan("RetroBat", "8.3.0", [retrobat("8.3.1", "8.3.1.1")], [])[0]
+        closed = watch.Issue(9, opened.title, opened.body, False)
+        self.assertEqual(watch.plan("RetroBat", "8.3.0", [retrobat("8.3.1", "8.3.1.1")], [closed]), [])
+        actions = watch.plan("RetroBat", "8.3.0", [retrobat("8.3.1", "8.3.1.2")], [closed])
+        self.assertEqual([a.kind for a in actions], ["open"])
+
+    def test_a_legacy_table_announces_a_tag_whose_version_differs(self) -> None:
+        issue = watch.Issue(568, "RetroBat 8.3: scout and adopt", LEGACY, True)
+        actions = watch.plan("RetroBat", "8.3.0", [retrobat("8.3.1", "8.3.1.1")], [issue])
+        self.assertEqual([a.kind for a in actions], ["update", "comment"])
+        self.assertIn("| Tag | Version | Kind |", actions[0].body)
+        self.assertEqual(watch.rows_in(actions[0].body), {("8.3.1", "8.3.1.1")})
+        self.assertIn("`8.3.1` now ships RetroBat 8.3.1.1", actions[1].body)
+
+    def test_a_legacy_row_whose_tag_is_its_version_stays_quiet(self) -> None:
+        issue = watch.Issue(568, "RetroBat 8.3: scout and adopt", LEGACY, True)
+        self.assertEqual(watch.plan("RetroBat", "8.3.0", [retrobat("8.3.1", "8.3.1")], [issue]), [])
 
 
 if __name__ == "__main__":

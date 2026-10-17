@@ -29,7 +29,11 @@ START = "<!-- upstream-watch:start -->"
 END = "<!-- upstream-watch:end -->"
 # RomM tags 5.4.0-alpha.1; RetroBat tags 8.2.1 and beta_8.3.0, and once tagged a stable 8.0.
 TAG = re.compile(r"^(?:(?P<channel>[a-z]+)_)?v?(?P<core>\d+(?:\.\d+)+)(?:-(?P<suffix>[0-9A-Za-z.]+))?$")
-ROW = re.compile(r"^\| `(?P<tag>[^`]+)` \|", re.MULTILINE)
+# RetroBat's tag and its build can differ: tag 8.3.1 ships RetroBat-v8.3.1.1-stable-win64-setup.exe,
+# and system/version.info, which the startup check compares, follows the build.
+SETUP = re.compile(r"^\w+-v(?P<core>\d+(?:\.\d+)+)-[0-9A-Za-z]+-win64-setup\.exe$")
+# A table written before the Version column has no second backticked cell, and reads as None.
+ROW = re.compile(r"^\| `(?P<tag>[^`]+)` \|(?: `(?P<shipped>[^`]+)` \|)?", re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -38,6 +42,7 @@ class Release:
     version: str  # normalized: beta_8.3.0 reads as 8.3.0-beta
     prerelease: bool
     published: str
+    shipped: str  # the setup asset's version, or the tag's when there is no single setup asset
 
     @property
     def line(self) -> str:
@@ -46,7 +51,11 @@ class Release:
     @property
     def key(self) -> tuple:
         """check.version_key's order, ranked on GitHub's prerelease flag rather than the suffix."""
-        return (check.version_key(self.version.partition("-")[0], None)[0], not self.prerelease)
+        return (check.version_key(self.shipped.partition("-")[0], None)[0], not self.prerelease)
+
+    @property
+    def differs(self) -> bool:
+        return self.shipped.partition("-")[0] != self.version.partition("-")[0]
 
 
 @dataclass(frozen=True)
@@ -65,31 +74,43 @@ class Action:
     body: str = ""
 
 
-def normalize(tag: str, prerelease: bool, published: str) -> Release | None:
+def normalize(
+    tag: str, prerelease: bool, published: str, assets: list[str] | None = None
+) -> Release | None:
     match = TAG.match(tag)
     if not match:
         return None
     suffix = match["suffix"] or match["channel"]
     version = match["core"] + (f"-{suffix}" if suffix else "")
-    return Release(tag, version, prerelease, published)
+    setups = [m["core"] for m in map(SETUP.match, assets or []) if m]
+    shipped = setups[0] if len(setups) == 1 else version
+    return Release(tag, version, prerelease, published, shipped)
 
 
 def title(project: str, line: str) -> str:
     return f"{project} {line}: scout and adopt"
 
 
-def tags_in(body: str) -> set[str]:
-    return set(ROW.findall(body.partition(START)[2].partition(END)[0]))
+def rows_in(body: str) -> set[tuple[str, str | None]]:
+    table_text = body.partition(START)[2].partition(END)[0]
+    return {(m["tag"], m["shipped"]) for m in ROW.finditer(table_text)}
+
+
+def listed(r: Release, rows: set[tuple[str, str | None]]) -> bool:
+    """Whether a table already shows this build. A legacy row knows only its tag, which is
+    enough unless the build's version differs from it."""
+    return (r.tag, r.shipped) in rows or ((r.tag, None) in rows and not r.differs)
 
 
 def table(project: str, releases: list[Release]) -> str:
     rows = [
-        f"| `{r.tag}` | {'prerelease' if r.prerelease else '**stable**'} | {r.published[:10]} | "
-        f"`/upstream {project.lower()} {r.tag}` |"
+        f"| `{r.tag}` | `{r.shipped}` | {'prerelease' if r.prerelease else '**stable**'} | "
+        f"{r.published[:10]} | `/upstream {project.lower()} {r.tag}` |"
         for r in sorted(releases, key=lambda r: r.key, reverse=True)
     ]
     return "\n".join(
-        [START, "| Tag | Kind | Published | Run |", "| --- | --- | --- | --- |", *rows, END]
+        [START, "| Tag | Version | Kind | Published | Run |", "| --- | --- | --- | --- | --- |",
+         *rows, END]
     )
 
 
@@ -113,15 +134,21 @@ def splice(existing: str, project: str, releases: list[Release]) -> str:
     return existing.rstrip() + "\n\n" + fresh + "\n"
 
 
-def comment(project: str, new: list[Release]) -> str:
+def comment(project: str, new: list[Release], tags: set[str]) -> str:
+    """One line per new build. A tag the table already listed is a re-upload or a hotfix build."""
     lines = []
     for r in sorted(new, key=lambda r: r.key):
         run = f"`/upstream {project.lower()} {r.tag}`"
+        name = f"`{r.tag}`"
+        if r.tag in tags:
+            name += f" now ships {project} {r.shipped} and"
+        elif r.differs:
+            name += f" ships {project} {r.shipped} and"
         if r.prerelease:
-            lines.append(f"- `{r.tag}` is a prerelease. Scout it: {run}.")
+            lines.append(f"- {name} is a prerelease. Scout it: {run}.")
         else:
             lines.append(
-                f"- `{r.tag}` is **stable**. Adoption is due within one RomMBat release: {run}."
+                f"- {name} is **stable**. Adoption is due within one RomMBat release: {run}."
             )
     return "\n".join(lines)
 
@@ -142,16 +169,18 @@ def plan(project: str, floor: str, releases: list[Release], issues: list[Issue])
         if current is None:
             # A closed issue that already lists every release was closed on purpose; respect it
             # until upstream ships something it has not seen.
-            seen = set().union(*(tags_in(i.body) for i in mine)) if mine else set()
-            if {r.tag for r in members} <= seen:
+            seen = set().union(*(rows_in(i.body) for i in mine)) if mine else set()
+            if all(listed(r, seen) for r in members):
                 continue
             actions.append(Action("open", name, body=body(project, line, members, floor)))
             continue
-        new = [r for r in members if r.tag not in tags_in(current.body)]
+        rows = rows_in(current.body)
+        new = [r for r in members if not listed(r, rows)]
         if not new:
             continue
+        tags = {tag for tag, _ in rows}
         actions.append(Action("update", name, current.number, splice(current.body, project, members)))
-        actions.append(Action("comment", name, current.number, comment(project, new)))
+        actions.append(Action("comment", name, current.number, comment(project, new, tags)))
     return actions
 
 
@@ -167,7 +196,9 @@ def gh(*args: str, stdin: str | None = None) -> str:
 def fetch_releases(repo: str) -> list[Release]:
     raw = json.loads(gh("api", f"repos/{repo}/releases?per_page=50"))
     found = (
-        normalize(r["tag_name"], r["prerelease"], r["published_at"] or "")
+        normalize(
+            r["tag_name"], r["prerelease"], r["published_at"] or "", [a["name"] for a in r["assets"]]
+        )
         for r in raw
         if not r["draft"]
     )
