@@ -121,7 +121,9 @@ is named after the ROM file (RB-182), so each disc of a set gets its own card an
 disc change. So PS2 is not converted per game. **RomMBat forces the folder card for the whole
 system** (`ps2.pcsx2_slot1_memory = folder`, from `background quit`), which splits the one card
 into a directory per save keyed by serial (RB-406), and syncs those directories as class C units.
-What that does for a disc set is not measured yet, and is #565's to settle.
+A disc set lands as a folder with a playlist that starts disc 1 (RB-435). What a disc change, or
+a launch of disc 2 alone, does to that card is not measured yet: the two discs of a set can carry
+different serials, so a directory keyed by one may not be offered to the other.
 
 **Forcing it costs what is on the stock card.** The shared `Mcd001.ps2` held saves for **11
 distinct games** on a real card, and the redirect leaves that card completely alone (RB-406), so a

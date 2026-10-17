@@ -312,17 +312,62 @@ public sealed class MultiDiscSyncTests : IDisposable
     }
 
     [Fact]
-    public void The_bundled_table_unlocks_psx_and_nothing_else()
+    public void The_bundled_table_unlocks_psx_and_ps2_and_nothing_else()
     {
-        // A system is added to multi_file.json by its own certification pass, so a second entry
-        // appearing without one is what this is here to notice.
-        Assert.Equal(["psx"], MultiFileLayouts.Bundled.Systems);
+        // A system is added to multi_file.json by its own measurement, so an entry appearing
+        // without one is what this is here to notice.
+        Assert.Equal(["ps2", "psx"], MultiFileLayouts.Bundled.Systems.Order(StringComparer.Ordinal));
 
         var psx = MultiFileLayouts.Bundled.For("psx")!;
         Assert.True(psx.IsDisc("Game (Disc 1).cue"));
         Assert.True(psx.IsDisc("Game (Disc 1).chd"));
         Assert.False(psx.IsDisc("Game (Disc 1).bin"));
         Assert.False(psx.IsDisc("Game.m3u"));
+    }
+
+    [Fact]
+    public void A_ps2_set_as_RomM_holds_it_lists_both_discs_in_order_and_not_its_own_playlist()
+    {
+        // Rom 322205's three files on the test server, listed in the order RomM returns them.
+        var ps2 = MultiFileLayouts.Bundled.For("ps2")!;
+
+        Assert.Equal(
+            [
+                "Metal Gear Solid 3 - Subsistence (USA) (En,Es) (Disc 1) (Subsistence).chd",
+                "Metal Gear Solid 3 - Subsistence (USA) (En,Es) (Disc 2) (Persistence).chd",
+            ],
+            ps2.DiscsOf(
+            [
+                "Metal Gear Solid 3 - Subsistence (USA) (En,Es) (Disc 2) (Persistence).chd",
+                "Metal Gear Solid 3 - Subsistence (USA) (En,Es) (Disc 1) (Subsistence).chd",
+                "Metal Gear Solid 3 - Subsistence (USA) (En,Es).m3u",
+            ]));
+
+        // A bin/cue set names the sheet, never the image it points at.
+        Assert.Equal(["Game (Disc 1).cue"], ps2.DiscsOf(["Game (Disc 1).cue", "Game (Disc 1).bin"]));
+    }
+
+    [Fact]
+    public async Task A_ps2_disc_set_lands_as_a_folder_with_a_playlist_named_after_it()
+    {
+        // The launcher hands PCSX2 the playlist's first disc (RB-435), and ES lists the folder as
+        // one game (RB-434), so ps2 lands exactly as psx does.
+        using var stub = DiscSet(
+            "ps2",
+            (21, "Set (USA) (Disc 1).chd", Bytes('1', 3000)),
+            (22, "Set (USA) (Disc 2).chd", Bytes('2', 2000)));
+        using var store = LocalStore.Open(_tree.Install());
+
+        var outcome = await SyncAsync(stub, store, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+
+        var game = Assert.Single(store.Files.ForRom(1), row => row.Kind == LocalFileKind.Rom);
+        Assert.Equal($"roms/ps2/{SetName}/{SetName}.m3u", game.Path.Value);
+        Assert.Equal(
+            "Set (USA) (Disc 1).chd\nSet (USA) (Disc 2).chd"u8.ToArray(),
+            File.ReadAllBytes(_tree.Install().Resolve(game.Path)));
     }
 
     [Fact]
@@ -350,7 +395,7 @@ public sealed class MultiDiscSyncTests : IDisposable
                 new SyncSetDefinition { Name = "psx", Scope = CatalogScopeKind.Platform, ScopeValue = "1" },
                 DateTimeOffset.UtcNow);
 
-        var systems = Fixtures.Synthesize(("psx", ".cue .chd .m3u .pbp"));
+        var systems = Fixtures.Synthesize(("psx", ".cue .chd .m3u .pbp"), ("ps2", ".iso .cso .bin .chd .m3u"));
         var resolver = new SetResolver(systems, new PlatformResolver(systems));
 
         using var connection = Connect(stub);
@@ -377,14 +422,17 @@ public sealed class MultiDiscSyncTests : IDisposable
     private static byte[] Bytes(char fill, int length) => Encoding.ASCII.GetBytes(new string(fill, length));
 
     /// <summary>A psx library holding one multi-file rom, rom 1, made of these members.</summary>
-    private static StubRomMServer DiscSet(params (int Id, string Name, byte[] Bytes)[] files)
+    private static StubRomMServer DiscSet(params (int Id, string Name, byte[] Bytes)[] files) => DiscSet("psx", files);
+
+    /// <summary>A library on one platform, platform 1, holding one multi-file rom, rom 1.</summary>
+    private static StubRomMServer DiscSet(string slug, params (int Id, string Name, byte[] Bytes)[] files)
     {
         var stub = new StubRomMServer();
-        stub.Platforms.Add(new StubPlatform(1, "psx", "psx", "PlayStation"));
+        stub.Platforms.Add(new StubPlatform(1, slug, slug, slug));
 
         var members = files.Select(file => new StubRomFile(file.Id, file.Name, file.Bytes)).ToList();
 
-        stub.Library.Add(new StubRom(1, 1, "psx", "psx", SetName, SetName, string.Empty, members.Sum(file => (long)file.Bytes.Length))
+        stub.Library.Add(new StubRom(1, 1, slug, slug, SetName, SetName, string.Empty, members.Sum(file => (long)file.Bytes.Length))
         {
             HasMultipleFiles = true,
             Files = members,
