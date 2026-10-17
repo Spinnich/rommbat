@@ -399,6 +399,9 @@ function Start-EmulatorLauncher {
         keyboard binds only. -WithPad is for a launch the maintainer plays, such as a disc ES does
         not list: it copies the pad arguments from the newest launch in emulatorLauncher.log that
         carried them, so a game launched from the pad in ES must have run on the tree first.
+
+        -StateFile, with -StateSlot, is the launch ES makes when a state is picked from its save
+        state menu: a path under saves/, as the mirror names it.
     #>
     param(
         [Parameter(Mandatory)] [string] $System,
@@ -406,6 +409,8 @@ function Start-EmulatorLauncher {
         [string] $Core,
         [Parameter(Mandatory)] [string] $Rom,
         [switch] $WithPad,
+        [int] $StateSlot = -1,
+        [string] $StateFile,
         [int] $TimeoutSec = 300
     )
     Assert-TakeoverAllowed
@@ -415,6 +420,11 @@ function Start-EmulatorLauncher {
     $pad = if ($WithPad) { Get-LauncherPadArguments (Join-Path $root 'emulationstation\emulatorLauncher.log') }
     Show-AgentBanner
     $arguments = "$(if ($pad) { "$pad " })-system $System -emulator $Emulator$(if ($Core) { " -core $Core" }) -rom `"$romPath`""
+    if ($StateSlot -ge 0) { $arguments += " -state_slot $StateSlot" }
+    if ($StateFile) {
+        $statePath = if ([IO.Path]::IsPathRooted($StateFile)) { $StateFile } else { Join-Path $root $StateFile }
+        $arguments += " -state_file `"$statePath`""
+    }
     Start-TreeProcess -FilePath (Join-Path $root 'emulationstation\emulatorLauncher.exe') -ArgumentList $arguments `
         -WorkingDirectory (Join-Path $root 'emulationstation')
     Write-Host "Launched $System/$Emulator$(if ($Core) { "/$Core" }) on $(Split-Path $romPath -Leaf)$(if ($pad) { " with $pad" })"

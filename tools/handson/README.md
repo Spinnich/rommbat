@@ -118,6 +118,10 @@ pressed. The mouse is not driven by the kit yet.
   newest launch in `emulationstation/emulatorLauncher.log` that carried them, and refuses when none
   did, so launch one game from the pad in ES on the tree first. Use it for a disc change or a disc
   ES does not list; a boot nobody plays needs none.
+- **A state is loaded the way ES's state menu loads it.** Passing
+  `Start-EmulatorLauncher -StateSlot 1 -StateFile 'saves\ps2\pcsx2\<rom>.01.p2s'` sends
+  `-state_slot` and `-state_file`, so a restored state is proven to boot without a pad hotkey
+  (RB-437).
 - **Evidence stays local.** Screenshots go under `probe-output/`, which git ignores. The PR's
   Hands-on section names the paths and says what each showed.
 
