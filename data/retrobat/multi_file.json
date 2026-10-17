@@ -1,6 +1,12 @@
 {
   "_comment": "Systems whose multi-file RomM roms RomMBat syncs, and how they land. A system is added only by its own certification pass: step 2 of the platform-certification skill. See the platform-certification skill, step 2.",
   "systems": {
+    "ps2": {
+      "layout": "folder",
+      "playlist": "m3u",
+      "disc_extensions": [".cue", ".chd", ".iso", ".cso", ".mdf"],
+      "evidence": "RB-434 and RB-435: RetroBat's EmulationStation lists roms/ps2/<fs_name>/<fs_name>.m3u as one game, emulatorLauncher hands both PCSX2 builds the playlist's first disc, and libretro:pcsx2 reads the playlist itself. Play! is handed the playlist and cannot read one."
+    },
     "psx": {
       "layout": "folder",
       "playlist": "m3u",

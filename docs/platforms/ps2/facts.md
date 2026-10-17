@@ -10,7 +10,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../../upstrea
 ## RB-172. A real PS2 library is 302 single-disc titles against 7 two-disc sets, with no `.m3u` anywhere and no per-game folders
 
 Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, it counts the user's PS2 library, and ps2's `<extension>` still lists .m3u, gaining only .decomp in 8.2.1. How: recovered from the findings ledger, which recorded it during M6 stage 2c (ad01b2d) on the 8.2.0 install its header names; the method is the text below.
-So a set on disk is loose sibling files, and RetroBat's `ps2` listing `.m3u` in `<extension>` neither binds a set nor means anything by its absence, which matches its own wiki saying PCSX2 cannot use one
+So a set on disk is loose sibling files, and RetroBat's `ps2` listing `.m3u` in `<extension>` neither binds a set nor means anything by its absence. RetroBat's wiki says PCSX2 cannot read one, and the launcher hands it the playlist's first disc instead (RB-435)
 
 ## RB-175. A PS2 card's size and mtime cannot say whether it holds a save
 
@@ -69,3 +69,18 @@ keyed by `B`, a region letter and the serial, not by the ROM stem. That is exact
 `save_target` for the ROM, `BASLUS-21050` for Burnout 3, so RomMBat forces `folder` and syncs each
 directory as a class C unit. `Mcd001.ps2` stopped changing, and slot 2 is still the file
 `Mcd002.ps2`, so `saves` names both stock cards as shared.
+
+## RB-434. EmulationStation lists a `ps2` folder holding discs and a same-named playlist as one game
+
+Verified: RetroBat 8.3.0, 2026-10-17. How: placed two generated `.chd` stand-ins in `roms/ps2/Probe Set (USA)/` on the agent tree, read `/systems/ps2/games` with and without `Probe Set (USA).m3u` beside them, and screenshotted the list.
+With the playlist, ES returned one entry, `roms/ps2/Probe Set (USA)/Probe Set (USA).m3u`, as on `psx` (RB-310). Without it, each disc was its own game, and only `<hidden>true</hidden>` on disc 2's gamelist entry left one tile. So `ps2` lands a set the way `psx` does, and nothing is hidden.
+
+## RB-435. Both PCSX2 builds are handed a playlist's first disc, the libretro core reads the playlist, and Play! cannot
+
+Verified: RetroBat 8.3.0, 2026-10-17. How: booted a one-line `.m3u` naming `Armored Core 3 (USA).chd` on each of `ps2`'s four rows through `emulatorLauncher` on the agent tree, read `emulatorLauncher.log` and RetroArch's log, and screenshotted each.
+`pcsx2` 2.8.2 was started on `Armored Core 3 (USA).chd`, not the playlist, and booted. `pcsx2-16` was started the same way and exited in 3 s with code 0, the same command line a direct launch of the `.chd` produces, so the playlist changes nothing for it. `libretro:pcsx2` was handed the playlist, logged `Disk #1 added from M3U` and booted `SLUS-20435`. `play` was handed the playlist and crashed in 7 s with `0xC0000409`, while the same `.chd` launched directly booted. So a set's playlist starts disc 1 on every row but Play!. What a disc change does to the folder card is RB-436.
+
+## RB-436. A disc change in `pcsx2` keeps a set's one folder card: disc 2 reads and writes the directory disc 1 made
+
+Verified: RetroBat 8.3.0, 2026-10-17. How: on the agent tree with `pcsx2` 2.8.2 and Devil May Cry 2 (USA) as a two-disc set, rom 320198, Disc 1 `SLUS-20484` and Disc 2 `SLUS-20627`, launched through ES, saved on Disc 1, changed disc from the pause menu in the same session, saved from Disc 2, then read the memory card directory and the flush before and after.
+Disc 1 wrote `Mcdf01.ps2/BASLUS-20484/`. Disc 2 loaded (`Serial: SLUS-20627` in PCSX2's log), listed that save on its memory card screen, and a save from it rewrote the files in `BASLUS-20484/` in place. No `BASLUS-20627` directory appeared. So a set is one save unit keyed by the serial its first save used, though its discs carry different serials. `libretro:pcsx2` logged `Disk #1 added from M3U` and `Disk #2 added from M3U` on the same set. Not driven: a cold boot of Disc 2 on its own.

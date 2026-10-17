@@ -127,8 +127,9 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    reports the ones the list omits as unlisted in ES. Capture the list in the record, note any
    unlisted count the resolve reports, and do not manufacture a file to test either direction.
 
-   **`.m3u` support is per emulator**, so this step can differ between rows of one system: PCSX2
-   cannot use a playlist although `ps2` lists `.m3u`. Where it does, record it per emulator.
+   **`.m3u` support is per emulator**, so this step can differ between rows of one system: on `ps2`
+   the launcher hands PCSX2 a playlist's first disc, the libretro core reads the playlist, and
+   Play! cannot read one (RB-435). Record it per emulator.
 
 3. The firmware slots the system's emulators read, resolved against RomM **by md5**, or for a
    zip by its members. `python3 tools/firmware.py rows <system>` lists what each row reads, with
