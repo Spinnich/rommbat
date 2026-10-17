@@ -60,10 +60,10 @@ def firmware_evidence(bios):
     check("RetroBat rows no source describes and nothing marks", len(evidence.unresolved), 0)
     check("Row-map entries no RetroBat row uses", evidence.unused, [])
     check("retrobios profiles vendored", len(evidence.profiles), 221)
-    check("RetroBat rows", len(rows), 709)
+    check("RetroBat rows", len(rows), 708)
     check("  ...described by a retrobios profile", sum(1 for s in rows if s.get("profiles")), 562)
     check("  ...described by BizHawk's firmware list", sum(1 for s in rows if s.get("bizhawk")), 55)
-    check("  ...marked as having no retrobios source", sum(1 for s in rows if "none" in s), 92)
+    check("  ...marked as having no retrobios source", sum(1 for s in rows if "none" in s), 91)
 
     shapes = {}
     for key, body in bios.items():
@@ -174,16 +174,16 @@ def main():
             mapping[folder] = aliases[folder]
 
     print("\nPlatform mapping")
-    check("RetroBat systems", len(systems), 241)
+    check("RetroBat systems", len(systems), 240)
     check("RomM known platform slugs", len(slugs), 459)
     check("  ...and the enum members carrying them", len(members), 459)
     check("Folder aliases upstream publishes", len(aliases), 138)
-    check("  ...of those, RetroBat system folders", len(set(aliases) & systems), 93)
-    check("  ...naming folders RetroBat lacks", len(set(aliases) - systems), 45)
+    check("  ...of those, RetroBat system folders", len(set(aliases) & systems), 92)
+    check("  ...naming folders RetroBat lacks", len(set(aliases) - systems), 46)
 
-    check("RetroBat folders resolving to a RomM slug", len(mapping), 166)
+    check("RetroBat folders resolving to a RomM slug", len(mapping), 165)
     check("  ...by identity, the folder being a slug", sum(1 for f, s in mapping.items() if f == s), 73)
-    check("  ...via the alias table", sum(1 for f, s in mapping.items() if f != s), 93)
+    check("  ...via the alias table", sum(1 for f, s in mapping.items() if f != s), 92)
     check("Mapped slugs RomM does not know", len(set(mapping.values()) - slugs), 0)
 
     unmapped = sorted(systems - set(mapping))
@@ -201,7 +201,7 @@ def main():
         fanout.setdefault(slug, []).append(folder)
     multi = {k: v for k, v in fanout.items() if len(v) > 1}
     check("Distinct RomM slugs reached", len(fanout), 148)
-    check("RomM slugs mapping to several folders", len(multi), 10)
+    check("RomM slugs mapping to several folders", len(multi), 9)
     check("  ...widest fan-out (arcade)", max(len(v) for v in multi.values()), 7)
 
     print("\nFirmware")

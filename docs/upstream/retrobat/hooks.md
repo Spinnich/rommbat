@@ -9,14 +9,14 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 
 ## RB-346. Hooks do not block game launch
 
-Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches. How: an 8 s sleep in every hook, timed against `emulatorLauncher.log`.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: an 8 s sleep in every hook, timed against `emulatorLauncher.log`.
 ES spawns event scripts fire-and-forget. `emulatorLauncher` started 30 ms after the `game-start`
 hook on three launches of three, while the hook still had 8 s of sleep ahead of it. So a hook's
 running time never delays a launch.
 
 ## RB-197. A hook runs during the launch, not inside it
 
-Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches. How: joined 23 journaled `game-start` records to the launcher log's `[Startup]` stamps.
+Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: joined 23 journaled `game-start` records to the launcher log's `[Startup]` stamps.
 The launcher's `[Startup]` line lands a median 24 ms after the hook's record (20 of 23 between 12
 and 44 ms). Against the hook's own ~60 ms start, ES spawned it before the launcher began and did
 not wait. The launcher then takes 0.5 s to 2.8 s to reach `[Running]`. A spawn costs contention,
@@ -24,7 +24,7 @@ not latency. Rule 4 is about the network and does not rest on this.
 
 ## RB-195. A hook's start cost is JIT, not size
 
-Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, it times RomMBat's own hook binary and its publish options, which no RetroBat change reaches. How: 31 interleaved runs each of the hook and the agent on a USB stick.
+Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: 31 interleaved runs each of the hook and the agent on a USB stick.
 The 75.9 MB agent reaches `Main` in 34.0 ms; the 11.0 MB trimmed hook took 59.8 ms to start and
 111.3 ms to finish. `PublishTrimmed` discards the framework's precompiled code, so a trimmed app
 without R2R JITs everything. `PublishReadyToRun` costs 1.8 MB a copy and takes one invocation to
@@ -33,7 +33,7 @@ so it stays on.
 
 ## RB-347. Hooks run concurrently, including with each other
 
-Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches. How: sleeping hooks in every event folder appending to one log.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: sleeping hooks in every event folder appending to one log.
 A `quit` fired 2.1 s after a `game-end` while that hook was mid-sleep, and their appends
 interleaved. Three `game-end` hooks were in flight at once. So each RomMBat hook writes its own
 spool file and renames it into place, sharing nothing, and the flush that drains the spool takes
@@ -41,14 +41,14 @@ spool file and renames it into place, sharing nothing, and the flush that drains
 
 ## RB-350. ES runs every script in an event folder
 
-Verified: RetroBat 8.2.0, 2026-08-08, and 8.2.1, 2026-09-27. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches, and RetroBat's 8.3.0 tree adds no event script. How: a probe script beside the shipped `start/updatestores.bat`; listed every event folder.
+Verified: RetroBat 8.2.0, 2026-08-08, and 8.2.1, 2026-09-27. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: a probe script beside the shipped `start/updatestores.bat`; listed every event folder.
 Both ran, 63 ms apart, in alphabetical order. A stock install ships a script only in `start/` and
 `update-gamelists/`, both `updatestores.bat`, and every other event folder is empty. RomMBat
 installs its hook as a separate file beside RetroBat's rather than replacing it.
 
 ## RB-348. `game-start` gets three arguments, and no system, emulator or core
 
-Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches; 8.2.1's FileData::launchGame change only pauses watchers. How: a hook echoing its arguments, on games whose stem and display name differ.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: a hook echoing its arguments, on games whose stem and display name differ.
 `$1` is the absolute rom path, `$2` the rom basename, `$3` the gamelist `<name>`. `$4` and `$5`
 are empty. Batocera documents `$3` as the system; on RetroBat it is the display name. The
 launcher's `[Startup]` line in `emulationstation/emulatorLauncher.log` carries `-system`,
@@ -58,14 +58,14 @@ log. The hook spools `$1` verbatim, and the drain relativizes it before anything
 
 ## RB-349. `game-end` gets no arguments, and can fire with no `game-start`
 
-Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches. How: three `es_menu` launches driven by calling `emulatorLauncher.exe` directly.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: three `es_menu` launches driven by calling `emulatorLauncher.exe` directly.
 `game-end` never receives an argument, so it cannot name the game that ended. It also fires for a
 launch that fails (`path is null`, exit 204) with no `game-start` before it. RomMBat tolerates a
 `game-end` that closes nothing.
 
 ## RB-221. An ES-menu launch fires both events
 
-Verified: RetroBat 8.2.1, 2026-08-26. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches, and the `es_menu` command is unchanged in 8.3.0's reference diff. How: two RomMBat sessions opened from the ES menu, journal read after.
+Verified: RetroBat 8.2.1, 2026-08-26. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: two RomMBat sessions opened from the ES menu, journal read after.
 A successful launch of an `es_menu` entry fires `game-start` carrying
 `system/es_menu/rommbat.menu`, then `game-end` carrying nothing. So a missing `game-start` does
 not identify a menu launch; RomMBat keys its discard on the launcher log's `es_menu` rom and
@@ -73,27 +73,27 @@ discards the paired `game-start` with it.
 
 ## RB-222. RomMBat's own launch never becomes a play session
 
-Verified: RetroBat 8.2.1, 2026-08-26. Carried: RetroBat 8.3.0, 2026-10-14, it measures RomMBat's own discard of its launch, keyed on launch-log lines RB-118 carries. How: two RomMBat sessions from the ES menu, then a PS2 game, outbox read after.
+Verified: RetroBat 8.2.1, 2026-08-26. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: two RomMBat sessions from the ES menu, then a PS2 game, outbox read after.
 Both RomMBat sessions journaled `discarded` and added no outbox row; the PS2 game straight after
 journaled `correlated` and its `play_session` was sent. Both rom paths were journaled relative
 to the root.
 
 ## RB-63. `game-selected` and `system-selected` fire on every cursor move
 
-Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches. How: hooks placed in folders created for the two events.
+Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: hooks placed in folders created for the two events.
 Neither event ships a folder under `scripts/`. `game-selected` carries
 `<system> <rom path> <display name>`, the system `game-start` withholds, but it fires once per
 cursor move, so it is at most a last-known-selection hint. RomMBat does not use it.
 
 ## RB-351. `game-end` fires when the emulator is killed
 
-Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches; the launcher returns the same exit codes, and 8.3.0 only logs more about them. How: one launch quit normally and one killed from Task Manager.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: one launch quit normally and one killed from Task Manager.
 `game-end` fired 83 ms after a clean exit (code 0) and 66 ms after the kill (code 1). So a crashed
 emulator still closes the journal record, though `game-end` cannot say how the game ended.
 
 ## RB-352. A `.bat` hook never starts when the display name holds a space
 
-Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches, so the .bat command is still built the same way. How: seven launches, then a crossover that swapped two entries' `<name>`.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: seven launches, then a crossover that swapped two entries' `<name>`.
 `game-start` produced no record for any game whose `<name>` held a space and a record for every
 game whose name did not, and the behavior followed the name across the swap. ES fires the event
 in every case (RB-395); the `.bat` is what never starts. Nearly every scraped name holds a space.
@@ -101,7 +101,7 @@ Filed upstream as [#2196](../issues.md#rb-342-2196-the-es-hook-bug-filed-with-ba
 
 ## RB-396. Only an `.exe` hook survives a real game name
 
-Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches, so each script form is still started the same way. How: a `.bat`, a `.ps1` and an `.exe` hook side by side in all nine event folders.
+Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: a `.bat`, a `.ps1` and an `.exe` hook side by side in all nine event folders.
 
 | Launch                                                   | `.bat` | `.ps1`          | `.exe` |
 | -------------------------------------------------------- | ------ | --------------- | ------ |
@@ -123,7 +123,7 @@ arguments arrive intact; ES does not pass it. An `.exe` has no interpreter in be
 
 ## RB-398. A host can fire every event and run no script form at all
 
-Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches, so each script form is still started the same way. How: the three-form install on a second PC under another Windows account.
+Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: the three-form install on a second PC under another Windows account.
 All four events fired and the `.exe` recorded each, while neither the `.bat` nor the `.ps1` ran
 for any event, including the three that pass no arguments. ES was started by `RetroBat.exe` with
 `--home` on the stick, and the volume was writable. RomMBat's hooks are executables for this
@@ -148,7 +148,7 @@ storage policy was set on that host, so this is one strict setting, not all of t
 
 ## RB-382. A hook reaches the RetroBat root four levels up
 
-Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.0, 2026-10-14, the hook folders and the shipped updatestores.bat are unchanged in both RetroBat diffs. How: read the shipped `scripts/start/updatestores.bat`; probe hooks resolved four levels to the root after a drive-letter move.
+Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: read the shipped `scripts/start/updatestores.bat`; probe hooks resolved four levels to the root after a drive-letter move.
 Hooks live at `emulationstation/.emulationstation/scripts/<event>/`. `%~dp0..\..\..\` reaches
 `emulationstation/`, which is where the shipped script's `emulatorLauncher.exe` sits, and the
 root needs `%~dp0..\..\..\..\`. RomMBat's hooks resolve from their own module path, so nothing
@@ -156,7 +156,7 @@ depends on the count at runtime.
 
 ## RB-400. A hook's working directory depends on its form
 
-Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches, and neither changelog changes how RetroBat.exe passes --home. How: the three-form install from RB-396, logging the working directory.
+Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: the three-form install from RB-396, logging the working directory.
 A `.bat` and an `.exe` start in their own folder, a `.ps1` in ES's home, so a RomMBat hook
 resolves the root from its own module path, never the working directory. ES finds its scripts under the `--home` that `RetroBat.exe`
 passes (`RetroBat.log` records it); no `HOME` variable is set, so ES started directly resolves
@@ -165,7 +165,7 @@ user, whether `RetroBat.exe` has run there.
 
 ## RB-394. The ES logs last one start; `emulatorLauncher.log` lasts weeks
 
-Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.0, 2026-10-14, `es_log` rotation and SimpleLogger are unchanged; 8.3.0's Log.cpp change moves SIGTERM handling on Linux only. How: read the stick's logs a day after a session on another host.
+Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: read the stick's logs a day after a session on another host.
 `es_log.txt` rotates through `es_log.0.txt` to `es_log.3.txt` on every ES start, and the root's
 `RetroBat.log` is overwritten. `emulatorLauncher.log` rotates by size into
 `emulatorLauncher.log.old`, and 268 KB covered five weeks and 70 launches, both hosts included.
@@ -173,7 +173,7 @@ RomMBat reads both launcher files and tolerates a rotation between reads.
 
 ## RB-395. ES logs its scripting only at `LogLevel=debug`
 
-Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches; 8.3.0's Log.cpp change moves SIGTERM handling on Linux only. How: set `LogLevel` to `debug` in `es_settings.cfg` and launched a game.
+Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: set `LogLevel` to `debug` in `es_settings.cfg` and launched a game.
 The default level is error-only. On `debug`, ES logs `fireEvent:`, `queuing:` and `executing:`
 for every script, quoting only arguments that hold a space and writing the script path with
 forward slashes. It logs `executing:` for a process that never starts, and no error after, so
@@ -181,13 +181,13 @@ the line is not evidence a hook ran.
 
 ## RB-209. The `start` and `quit` hooks carry a session and a save to RomM unattended
 
-Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, Scripting.cpp is unchanged in both ES diffs (RB-342 read it at 8.3.0) and #478's step 8 ran the hooks on two 8.3.0 launches, and #478 carried two 8.3.0 launches to the server through them. How: two ES sessions with no RomMBat command run, outbox and server read after.
+Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: two ES sessions with no RomMBat command run, outbox and server read after.
 Each hook's detached pass reached the server and exited 0 with no terminal open. One session
 carried both a `play_session` and a battery save, and the server's hash matched the local file.
 
 ## RB-213. The emulator's save is on disk before the `quit` pass reads
 
-Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, RetroArch's save timing is unchanged: 8.3.0's retroarch.cfg template changes `video_driver` and the overlay only, and neither changelog bumps RetroArch. How: timestamps from RetroArch's `.srm`, the journal and the upload.
+Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: timestamps from RetroArch's `.srm`, the journal and the upload.
 RetroArch wrote the `.srm` 0.7 s before `game-end`, the `quit` hook fired 3.2 s after
 `game-end`, and the scan saw the new bytes 0.5 s later. The uploaded hash differed from both the
 file before play and the server's copy, so the pass sent what the player saved.

@@ -6,7 +6,7 @@ read-when: Moving the supported RomM or RetroBat version, or touching the startu
 # Version compatibility
 
 Every RomMBat release states the minimum RomM and RetroBat versions it supports. Currently
-**RetroBat 8.3.0** and **RomM 5.4.0**.
+**RetroBat 8.3.1.1** and **RomM 5.4.0**.
 
 **The floor tracks the newest stable, it does not sit at the oldest version that happens to
 work.** RomMBat adopts a new RomM or RetroBat stable within one release of it appearing and

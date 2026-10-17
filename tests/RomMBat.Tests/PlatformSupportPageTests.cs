@@ -202,11 +202,13 @@ public sealed class PlatformSupportPageTests
     /// <remarks>
     /// An emulator's cores are either under <c>&lt;cores&gt;</c> or one bare <c>&lt;core&gt;</c>
     /// (<c>mednafen</c> on <c>nes</c> is the second), and one with neither is a row of its own.
+    /// 8.3.1 nests <c>play</c> and <c>pcsx2-16</c> inside <c>ps2</c>'s <c>libretro</c> element, so the
+    /// emulators are read at any depth: the file still declares them, in this order.
     /// </remarks>
     private static Dictionary<string, List<(string Emulator, string? Core)>> DeclaredRows() =>
         Systems().ToDictionary(
             system => (string)system.Element("name")!,
-            system => system.Element("emulators")?.Elements("emulator")
+            system => system.Element("emulators")?.Descendants("emulator")
                 .SelectMany(emulator =>
                 {
                     var cores = emulator.Descendants("core").Select(core => (string?)core.Value).ToList();

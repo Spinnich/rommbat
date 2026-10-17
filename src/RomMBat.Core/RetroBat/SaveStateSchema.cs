@@ -169,7 +169,7 @@ public sealed record SaveStateCore(string Name, bool Enabled, string? System, st
 /// </summary>
 /// <remarks>
 /// <b>Parsed, never hardcoded</b>, and read from the live install so a user's edits count. The
-/// shipped 8.3.0 file declares 16 emulators, which is what bounds state sync: not the 245
+/// shipped file declares 16 emulators, which is what bounds state sync: not the 244
 /// systems <c>es_systems.cfg</c> declares.
 /// <para>
 /// <b>Discovery reverses the template rather than expanding a slot range.</b> Compiling

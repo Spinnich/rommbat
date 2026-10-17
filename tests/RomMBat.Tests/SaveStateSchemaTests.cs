@@ -20,7 +20,7 @@ public class SaveStateSchemaTests
     {
         var schema = Fixtures.LoadSaveStates();
 
-        // The bound on state sync: 16 emulators, not the 245 systems es_systems.cfg declares.
+        // The bound on state sync: 16 emulators, not the 244 systems es_systems.cfg declares.
         Assert.Equal(16, schema.Emulators.Count);
     }
 

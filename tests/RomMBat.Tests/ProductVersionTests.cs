@@ -160,7 +160,7 @@ public class ProductVersionTests
     [Fact]
     public void The_stock_RetroBat_version_string_is_supported()
     {
-        var check = RetroBatVersion.Check("8.3.0-stable-win64");
+        var check = RetroBatVersion.Check("8.3.1.1-stable-win64");
 
         Assert.Equal(CompatibilityVerdict.Supported, check.Verdict);
     }
@@ -171,7 +171,7 @@ public class ProductVersionTests
         var check = RetroBatVersion.Check("8.1.0-stable-win64");
 
         Assert.Equal(CompatibilityVerdict.TooOld, check.Verdict);
-        Assert.Contains("8.3.0", check.Message, StringComparison.Ordinal);
+        Assert.Contains("8.3.1.1", check.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -189,8 +189,8 @@ public class ProductVersionTests
     public void The_declared_minimums_match_the_compatibility_table()
     {
         Assert.Equal(ProductVersion.Parse("5.4.0"), RomMServerVersion.Minimum);
-        Assert.Equal(ProductVersion.Parse("8.3.0"), RetroBatVersion.Minimum);
-        Assert.Equal(new Version(8, 3, 0), RetroBatRoot.MinimumVersion);
+        Assert.Equal(ProductVersion.Parse("8.3.1.1"), RetroBatVersion.Minimum);
+        Assert.Equal(new Version(8, 3, 1, 1), RetroBatRoot.MinimumVersion);
     }
 
     /// <summary>

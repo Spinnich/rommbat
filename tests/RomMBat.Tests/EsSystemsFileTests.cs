@@ -45,8 +45,19 @@ public class EsSystemsFileTests
 
         Assert.True(systems.TryGetFolder("mastersystem", out var mastersystem));
         Assert.Equal(
-            ["libretro", "mednafen", "mesen", "ares", "kega-fusion", "bizhawk", "jgenesis", "blastem"],
+            ["libretro", "jgenesis", "blastem", "mednafen", "mesen", "ares", "kega-fusion", "bizhawk"],
             mastersystem.Emulators);
+    }
+
+    [Fact]
+    public void An_emulator_nested_inside_another_is_not_an_emulator_of_the_system()
+    {
+        var systems = Fixtures.LoadEsSystems();
+
+        // 8.3.1.1 leaves ps2's libretro element open, so play and pcsx2-16 sit inside it (RB-438).
+        // The default is the first entry, which the nesting does not move.
+        Assert.True(systems.TryGetFolder("ps2", out var ps2));
+        Assert.Equal(["pcsx2", "libretro"], ps2.Emulators);
     }
 
     [Fact]
@@ -136,12 +147,13 @@ public class EsSystemsFileTests
 
         // The capture is 8.2.0's and is not re-captured when the floor moves (fixtures/README.md),
         // so they agree on every folder but the ones a release since then renamed or added:
-        // 8.3.0 renamed gzdoom to doom and added zeldaclassic. Named rather than tolerated, so a
-        // third difference fails. The template has 245 active systems, four of which own no
-        // folder under roms/, so a count of <system> elements against folder names is off by four.
-        Assert.Equal(["doom", "zeldaclassic"], template.Folders.Where(folder => !live.Contains(folder)).Order(StringComparer.Ordinal));
-        Assert.Equal(["gzdoom"], live.Where(folder => !template.HasFolder(folder)).Order(StringComparer.Ordinal));
-        Assert.Equal(241, template.Folders.Count);
+        // 8.3.0 renamed gzdoom to doom and added zeldaclassic; 8.3.1 renamed n64recomp to recomp and
+        // commented prboom out, folding it into doom. Named rather than tolerated, so another
+        // difference fails. The template has 244 active systems, four of which own no folder under
+        // roms/, so a count of <system> elements against folder names is off by four.
+        Assert.Equal(["doom", "recomp", "zeldaclassic"], template.Folders.Where(folder => !live.Contains(folder)).Order(StringComparer.Ordinal));
+        Assert.Equal(["gzdoom", "n64recomp", "prboom"], live.Where(folder => !template.HasFolder(folder)).Order(StringComparer.Ordinal));
+        Assert.Equal(240, template.Folders.Count);
     }
 
     [Fact]

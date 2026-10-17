@@ -25,7 +25,7 @@ manifest is built, and why, is [firmware-from-emulator-evidence](../design/decis
 
 149 systems, 943 slots, 352 distinct md5s, 71 slots with no identity. Sources: RetroBat-Official/emulatorlauncher batocera-systems/Resources/batocera-systems.json; Abdess/retrobios 527526a8e2be1b251e18c2ee9f3e2dcbb5adac06.
 
-Systems: [3do](#3do), [3ds](#3ds), [actionmax](#actionmax), [adam](#adam), [advision](#advision), [amiga1200](#amiga1200), [amiga4000](#amiga4000), [amiga500](#amiga500), [amigacd32](#amigacd32), [amigacdtv](#amigacdtv), [apfm1000](#apfm1000), [apple2](#apple2), [apple2gs](#apple2gs), [aquarius](#aquarius), [arcadia](#arcadia), [archimedes](#archimedes), [astrocade](#astrocade), [atari5200](#atari5200), [atari7800](#atari7800), [atari800](#atari800), [atarist](#atarist), [atom](#atom), [atomiswave](#atomiswave), [bbcmicro](#bbcmicro), [bk](#bk), [c128](#c128), [c20](#c20), [c64](#c64), [camplynx](#camplynx), [cave](#cave), [cdi](#cdi), [channelf](#channelf), [chihiro](#chihiro), [coco](#coco), [colecovision](#colecovision), [cps1](#cps1), [cps2](#cps2), [cps3](#cps3), [crvision](#crvision), [daphne](#daphne), [dos](#dos), [dragon32](#dragon32), [dreamcast](#dreamcast), [ecwolf](#ecwolf), [electron](#electron), [enterprise](#enterprise), [fbneo](#fbneo), [fds](#fds), [flash](#flash), [fm7](#fm7), [fmtowns](#fmtowns), [fpinball](#fpinball), [gamate](#gamate), [gamecom](#gamecom), [gamecube](#gamecube), [gamegear](#gamegear), [gamepock](#gamepock), [gb](#gb), [gb2players](#gb2players), [gba](#gba), [gbc](#gbc), [gbc2players](#gbc2players), [gmaster](#gmaster), [gp32](#gp32), [hbmame](#hbmame), [hikaru](#hikaru), [intellivision](#intellivision), [j2me](#j2me), [jaguar](#jaguar), [jaguarcd](#jaguarcd), [laseractive](#laseractive), [lindbergh](#lindbergh), [loopy](#loopy), [lynx](#lynx), [mame](#mame), [mastersystem](#mastersystem), [megacd](#megacd), [megadrive](#megadrive), [megadrive-msu](#megadrive-msu), [msx1](#msx1), [msx2](#msx2), [msx2+](#msx2-1), [msxturbor](#msxturbor), [n64](#n64), [n64dd](#n64dd), [namco2x6](#namco2x6), [naomi](#naomi), [naomi2](#naomi2), [nds](#nds), [neogeo](#neogeo), [neogeo64](#neogeo64), [neogeocd](#neogeocd), [nes](#nes), [ngage](#ngage), [ngp](#ngp), [ngpc](#ngpc), [odyssey2](#odyssey2), [oricatmos](#oricatmos), [pc88](#pc88), [pc98](#pc98), [pcengine](#pcengine), [pcenginecd](#pcenginecd), [pcfx](#pcfx), [pegasus](#pegasus), [pokemini](#pokemini), [prboom](#prboom), [ps2](#ps2), [ps3](#ps3), [ps4](#ps4), [psp](#psp), [psvita](#psvita), [psx](#psx), [pv1000](#pv1000), [samcoupe](#samcoupe), [satellaview](#satellaview), [saturn](#saturn), [scummvm](#scummvm), [scv](#scv), [sega32x](#sega32x), [segastv](#segastv), [sgb](#sgb), [sgb-msu1](#sgb-msu1), [singe](#singe), [snes](#snes), [snes-msu1](#snes-msu1), [spectravideo](#spectravideo), [sufami](#sufami), [supergrafx](#supergrafx), [supracan](#supracan), [switch](#switch), [ti99](#ti99), [triforce](#triforce), [tutor](#tutor), [vc4000](#vc4000), [vectrex](#vectrex), [vg5k](#vg5k), [vircon32](#vircon32), [vpinball](#vpinball), [vsmile](#vsmile), [wii](#wii), [wiiu](#wiiu), [x1](#x1), [x68000](#x68000), [xbox](#xbox), [xbox360](#xbox360), [xegs](#xegs), [zinc](#zinc), [zx81](#zx81), [zxspectrum](#zxspectrum).
+Systems: [3do](#3do), [3ds](#3ds), [actionmax](#actionmax), [adam](#adam), [advision](#advision), [amiga1200](#amiga1200), [amiga4000](#amiga4000), [amiga500](#amiga500), [amigacd32](#amigacd32), [amigacdtv](#amigacdtv), [apfm1000](#apfm1000), [apple2](#apple2), [apple2gs](#apple2gs), [aquarius](#aquarius), [arcadia](#arcadia), [archimedes](#archimedes), [astrocade](#astrocade), [atari5200](#atari5200), [atari7800](#atari7800), [atari800](#atari800), [atarist](#atarist), [atom](#atom), [atomiswave](#atomiswave), [bbcmicro](#bbcmicro), [bk](#bk), [c128](#c128), [c20](#c20), [c64](#c64), [camplynx](#camplynx), [cave](#cave), [cdi](#cdi), [channelf](#channelf), [chihiro](#chihiro), [coco](#coco), [colecovision](#colecovision), [cps1](#cps1), [cps2](#cps2), [cps3](#cps3), [crvision](#crvision), [daphne](#daphne), [doom](#doom), [dos](#dos), [dragon32](#dragon32), [dreamcast](#dreamcast), [ecwolf](#ecwolf), [electron](#electron), [enterprise](#enterprise), [fbneo](#fbneo), [fds](#fds), [flash](#flash), [fm7](#fm7), [fmtowns](#fmtowns), [fpinball](#fpinball), [gamate](#gamate), [gamecom](#gamecom), [gamecube](#gamecube), [gamegear](#gamegear), [gamepock](#gamepock), [gb](#gb), [gb2players](#gb2players), [gba](#gba), [gbc](#gbc), [gbc2players](#gbc2players), [gmaster](#gmaster), [gp32](#gp32), [hbmame](#hbmame), [hikaru](#hikaru), [intellivision](#intellivision), [j2me](#j2me), [jaguar](#jaguar), [jaguarcd](#jaguarcd), [laseractive](#laseractive), [lindbergh](#lindbergh), [loopy](#loopy), [lynx](#lynx), [mame](#mame), [mastersystem](#mastersystem), [megacd](#megacd), [megadrive](#megadrive), [megadrive-msu](#megadrive-msu), [msx1](#msx1), [msx2](#msx2), [msx2+](#msx2-1), [msxturbor](#msxturbor), [n64](#n64), [n64dd](#n64dd), [namco2x6](#namco2x6), [naomi](#naomi), [naomi2](#naomi2), [nds](#nds), [neogeo](#neogeo), [neogeo64](#neogeo64), [neogeocd](#neogeocd), [nes](#nes), [ngage](#ngage), [ngp](#ngp), [ngpc](#ngpc), [odyssey2](#odyssey2), [oricatmos](#oricatmos), [pc88](#pc88), [pc98](#pc98), [pcengine](#pcengine), [pcenginecd](#pcenginecd), [pcfx](#pcfx), [pegasus](#pegasus), [pokemini](#pokemini), [ps2](#ps2), [ps3](#ps3), [ps4](#ps4), [psp](#psp), [psvita](#psvita), [psx](#psx), [pv1000](#pv1000), [samcoupe](#samcoupe), [satellaview](#satellaview), [saturn](#saturn), [scummvm](#scummvm), [scv](#scv), [sega32x](#sega32x), [segastv](#segastv), [sgb](#sgb), [sgb-msu1](#sgb-msu1), [singe](#singe), [snes](#snes), [snes-msu1](#snes-msu1), [spectravideo](#spectravideo), [sufami](#sufami), [supergrafx](#supergrafx), [supracan](#supracan), [switch](#switch), [ti99](#ti99), [triforce](#triforce), [tutor](#tutor), [vc4000](#vc4000), [vectrex](#vectrex), [vg5k](#vg5k), [vircon32](#vircon32), [vpinball](#vpinball), [vsmile](#vsmile), [wii](#wii), [wiiu](#wiiu), [x1](#x1), [x68000](#x68000), [xbox](#xbox), [xbox360](#xbox360), [xegs](#xegs), [zinc](#zinc), [zx81](#zx81), [zxspectrum](#zxspectrum).
 
 ## 3do
 
@@ -966,7 +966,7 @@ Sega Chihiro: 5 slots, 7 files reported.
 | --- | --- | --- | --- | --- |
 | `bios/chihiro/chihiro_xbox_bios.bin` | yes | RetroBat's list | no identity: RetroBat names it without a hash and no source gives one |  |
 | `bios/chihiro/fpr21042_m29w160et.bin` | yes | RetroBat's list | no identity: RetroBat names it without a hash and no source gives one |  |
-| `bios/chihiro/ic10_g24lc64` | yes | RetroBat's list | no identity: RetroBat names it without a hash and no source gives one |  |
+| `bios/chihiro/ic10_g24lc64.bin` | yes | RetroBat's list | no identity: RetroBat names it without a hash and no source gives one |  |
 | `bios/chihiro/ic11_24lc024.bin` | yes | RetroBat's list | no identity: RetroBat names it without a hash and no source gives one |  |
 | `bios/chihiro/pc20_g24lc64.bin` | yes | RetroBat's list | no identity: RetroBat names it without a hash and no source gives one |  |
 
@@ -1221,6 +1221,14 @@ Read, never fetched:
 | `tq_alt.zip` | `hypseus/hypseus` | hypseus has no cited firmware directory |
 | `tq_swear.zip` | `hypseus/hypseus` | hypseus has no cited firmware directory |
 | `uvt.zip` | `hypseus/hypseus` | hypseus has no cited firmware directory |
+
+## doom
+
+doom: 1 slots, 0 files reported.
+
+| Slot | Required | Readers | Accepted | Evidence |
+| --- | --- | --- | --- | --- |
+| `bios/prboom.wad` | no | `libretro/prboom` | `72ae1b47820fcc93cc0df9c428d0face` no region; retrobios `prboom` | `prboom`: `src/d_main.c:1449-1465 (PACKAGE .wad load), libretro/libretro.c:4171-4252 (I_FindFile search), src/config.h:39 (PACKAGE=prboom)` |
 
 ## dos
 
@@ -3272,14 +3280,6 @@ Nintendo Pokemon Mini: 1 slots, 0 files reported.
 | Slot | Required | Readers | Accepted | Evidence |
 | --- | --- | --- | --- | --- |
 | `bios/bios.min` | yes | `libretro/pokemini`, RetroBat's list | `1e4fb124a3a886865acb574f388c803d` world; RetroBat's list | `pokemini`: `source/PokeMini.c:189-206 (PokeMini_LoadBIOSFile), libretro/libretro.c:565 (path)` |
-
-## prboom
-
-prboom: 1 slots, 0 files reported.
-
-| Slot | Required | Readers | Accepted | Evidence |
-| --- | --- | --- | --- | --- |
-| `bios/prboom.wad` | no | `libretro/prboom` | `72ae1b47820fcc93cc0df9c428d0face` no region; retrobios `prboom` | `prboom`: `src/d_main.c:1449-1465 (PACKAGE .wad load), libretro/libretro.c:4171-4252 (I_FindFile search), src/config.h:39 (PACKAGE=prboom)` |
 
 ## ps2
 

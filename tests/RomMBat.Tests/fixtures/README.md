@@ -92,8 +92,8 @@ them; that difference is asserted in `EsInputMapTests` against a real runtime GU
 supported RetroBat version because it is linked from `reference/` rather than copied. It is
 enough because it carries every parser trap a live file does: five systems whose `<name>`
 differs from their folder, one `<name>` used twice, four entries pointing outside `roms/`,
-one with no path, and two systems inside XML comments. `es_systems.live.json` agrees with it
-on 239 of its 241 folders: 8.3.0 renamed `gzdoom` to `doom` and added `zeldaclassic`. Shipped code still reads the live file; this is a fixture, not a substitute.
+one with no path, and three systems inside XML comments. `es_systems.live.json` agrees with it
+on 237 of its 240 folders: 8.3.0 renamed `gzdoom` to `doom` and added `zeldaclassic`, and 8.3.1 renamed `n64recomp` to `recomp`. Shipped code still reads the live file; this is a fixture, not a substitute.
 
 `gamegear-gamelist.xml` is four entries lifted verbatim from a real scraped install, two of
 them carrying `playcount` and `lastplayed`, so a test can assert user fields survive a sync.

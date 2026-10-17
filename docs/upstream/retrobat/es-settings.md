@@ -9,7 +9,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 
 ## RB-358. `<system>["<rom filename>"].<key>` is a per-game override, and the filename needs its extension
 
-Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.0, 2026-10-14, Program.cs loads the per-game override in the same order in both launcher diffs (8.3.0 reformats the line and strips -monitor from the command-line overrides), and libretro's smooth binding is unchanged. How: six `es_settings.cfg` cases on `ports`, launching a rom each time and reading `video_smooth` from the regenerated `retroarch.cfg`.
+Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no es_settings.cfg key or default it names changed (the one default in the window, HideWindow, is off Windows only). How: six `es_settings.cfg` cases on `ports`, launching a rom each time and reading `video_smooth` from the regenerated `retroarch.cfg`.
 
 | Case | `es_settings.cfg`                                    | Launched        | `video_smooth` |
 | ---- | ---------------------------------------------------- | --------------- | -------------- |
@@ -27,7 +27,7 @@ RomM's `fs_name` and refuses a name with no extension. ES writes the key with it
 
 ## RB-248. A per-game emulator choice lives in `gamelist.xml`, not here
 
-Verified: RetroBat 8.2.1, 2026-09-13. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's ES diff changes GuiMetaDataEd for RTL alignment only, and Gamelist.cpp's only change in either ES diff trusts gamelist.xml past a non-zero IndexDirectoryDepth (b69fb143), which is 0, unlimited, by default. How: set one `nes` game's emulator from ES's own menu, then launched five games under fourteen `nes["<rom>.zip"].emulator` keys.
+Verified: RetroBat 8.2.1, 2026-09-13. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no es_settings.cfg key or default it names changed (the one default in the window, HideWindow, is off Windows only). How: set one `nes` game's emulator from ES's own menu, then launched five games under fourteen `nes["<rom>.zip"].emulator` keys.
 The menu left `es_settings.cfg` byte-identical and added `<emulator>` and `<core>` children to
 that game's element in `gamelist.xml`. The fourteen keys, in `PerGameKey`'s form, survived every
 ES rewrite and were never read: every launch ran the system-level `nes.emulator` and `nes.core`.
@@ -35,7 +35,7 @@ ES picks the emulator before `emulatorlauncher` runs, so RB-358's chain covers f
 
 ## RB-178. ES serializes the model it loaded at startup, so a key written while it runs is discarded
 
-Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, Settings.cpp changes defaults only (MaxVRAM in 8.2.1; ScraperMediaFilter, IndexDirectoryDepth, AntiAliasing and RightStickVolume in 8.3.0), not when the file is loaded or written. How: wrote keys before ES started and forced a rewrite; then, on `K:`, merged two keys in atomically under a running ES and read the file after its next write.
+Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no es_settings.cfg key or default it names changed (the one default in the window, HideWindow, is off Windows only). How: wrote keys before ES started and forced a rewrite; then, on `K:`, merged two keys in atomically under a running ES and read the file after its next write.
 A key present when ES starts survives its rewrites, including a nonsense per-game key ES cannot
 understand. A key written after it started was on disk, escaped, and gone after ES's next write.
 `Language` shows this is not a merge: ES added it at startup and dropped it on that same write.
@@ -46,7 +46,7 @@ the ES process is gone (`EmulationStationProcess`), and re-reads it afterwards.
 
 ## RB-179. ES can write the file during launch as well as on exit
 
-Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, Settings.cpp changes defaults only (MaxVRAM in 8.2.1; ScraperMediaFilter, IndexDirectoryDepth, AntiAliasing and RightStickVolume in 8.3.0), not when the file is loaded or written. How: read the file's mtime across a start-and-quit session, then compared it against the `start` and `quit` hooks' own millisecond stamps over four sessions on `K:`.
+Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no es_settings.cfg key or default it names changed (the one default in the window, HideWindow, is off Windows only). How: read the file's mtime across a start-and-quit session, then compared it against the `start` and `quit` hooks' own millisecond stamps over four sessions on `K:`.
 A session that only started and quit left the file untouched, so ES does not write it every time.
 In the four timed sessions a launch write landed 7.7, 4.9, 1.6 and 1.7 s before the `start` hook
 fired. In the one diffed, it added `Language` and nothing else, so ES wrote a change of its own
@@ -57,7 +57,7 @@ triggers a write of its own is not known.
 
 ## RB-200. The exit write comes before the `quit` hook, and ES is still alive when the hook fires
 
-Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, Settings.cpp changes defaults only (MaxVRAM in 8.2.1; ScraperMediaFilter, IndexDirectoryDepth, AntiAliasing and RightStickVolume in 8.3.0), not when the file is loaded or written, and neither ES diff touches the quit event or ES's exit. How: three sessions forced to write on exit by a bogus `LastSystem`, timed from `GET /quit` with the file sampled every 25 ms.
+Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no es_settings.cfg key or default it names changed (the one default in the window, HideWindow, is off Windows only). How: three sessions forced to write on exit by a bogus `LastSystem`, timed from `GET /quit` with the file sampled every 25 ms.
 
 | Event                         | When                     |
 | ----------------------------- | ------------------------ |
@@ -71,7 +71,7 @@ hook.
 
 ## RB-170. ES adds and drops `Language=en_US` on its own
 
-Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, Settings.cpp changes defaults only (MaxVRAM in 8.2.1; ScraperMediaFilter, IndexDirectoryDepth, AntiAliasing and RightStickVolume in 8.3.0), not when the file is loaded or written, none of them Language. How: watched `Language` across ES rewrites on one install, then diffed the file across days on two installs and three GameCube launches.
+Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no es_settings.cfg key or default it names changed (the one default in the window, HideWindow, is off Windows only). How: watched `Language` across ES rewrites on one install, then diffed the file across days on two installs and three GameCube launches.
 `Language=en_US` vanished on a rewrite while `fr_FR` survived. On another install the key was
 absent one day and present at `en_US` the next, with nothing else changed, and over three
 launches ES added it again and changed nothing else, 56 settings to 57. Whether `en_US` is ES's
@@ -81,15 +81,15 @@ and never reads a key's presence or absence as the user's choice.
 
 ## RB-185. The ES menu shows an absent feature key as "Auto", and hides a per-game override
 
-Verified: RetroBat 8.2.0, 2026-08-24. How: read `pcsx2_slot1_memory` and the other choices in `es_features.cfg`, and the menu after a conversion.
+Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.1.1, 2026-10-17, the choice counts below were re-measured on the 8.3.1.1 file, `pcsx2_slot1_memory`'s three choices are unchanged, and the only ES menu change in the window hides features whose required setting is unset (7988b09d). How: read `pcsx2_slot1_memory` and the other choices in `es_features.cfg`, and the menu after a conversion.
 `es_features.cfg` declares `standard`, `folder` and `game` for `pcsx2_slot1_memory` and no
-`auto`. Only 3 of 10,724 choice entries declare one, so ES shows AUTO for any unset feature, and
+`auto`. Only 11 of 11,817 choice entries declare one (`name="AUTO" value="auto"`), so ES shows AUTO for any unset feature, and
 `switchauto` and `sliderauto` do the same for switches and sliders. With a per-game key set,
 the system-level menu still reads Auto while the per-game key outranks it.
 
 ## RB-210. A setting written at the quit, once ES has exited, survives the next session
 
-Verified: RetroBat 8.3.0, 2026-10-16. How: on the agent tree's 8.3.0 install with a PS2 ROM synced and `ps2.pcsx2_slot1_memory` absent, ran an ES session, read `es_settings.cfg` and `background quit`'s log, then ran a second session and read both again.
+Verified: RetroBat 8.3.0, 2026-10-16. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no es_settings.cfg key or default it names changed (the one default in the window, HideWindow, is off Windows only). How: on the agent tree's 8.3.0 install with a PS2 ROM synced and `ps2.pcsx2_slot1_memory` absent, ran an ES session, read `es_settings.cfg` and `background quit`'s log, then ran a second session and read both again.
 At the first quit the log read `set ps2.pcsx2_slot1_memory = folder (was absent)` before the
 flush, and the file held the key afterwards. Through the whole second session ES kept it, and the
 second quit wrote nothing. So a key written after the exit write is the one ES loads next, and
@@ -97,7 +97,7 @@ second quit wrote nothing. So a key written after the exit write is the one ES l
 
 ## RB-169. The file holds plaintext credentials
 
-Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, the credential keys are ES's scraper and RetroAchievements settings, and both Settings.cpp diffs change defaults only. How: read a real install's file.
+Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no es_settings.cfg key or default it names changed (the one default in the window, HideWindow, is off Windows only). How: read a real install's file.
 It carries `ScreenScraperPass`, `global.retroachievements.password`,
 `global.retroachievements.token` and `IGDBSecret` in clear, with the user's names under
 `ScreenScraperUser`, `global.retroachievements.username` and `global.netplay.nickname`. So a

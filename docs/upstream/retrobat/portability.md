@@ -9,21 +9,21 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 
 ## RB-377. The version is in `system/version.info`, and there is no `build.ini`
 
-Verified: RetroBat 8.2.0, 2026-08-09, and 8.2.1, 2026-09-28. How: read the file, and searched the whole tree for `build.ini`.
+Verified: RetroBat 8.2.0, 2026-08-09, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; the tree diff adds no config that holds a drive path. How: read the file, and searched the whole tree for `build.ini`.
 The file is one line, `8.2.1-stable-win64`, with a channel and an architecture after the version.
 `ProductVersion` ignores the suffix rather than reading it as a semantic-versioning prerelease,
 which would rank a stock install below its own release.
 
 ## RB-378. `retrobat.ini`, `emulationstation/` and `roms/` mark the root
 
-Verified: RetroBat 8.2.0, 2026-08-09, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's `retrobat_tree.lst` adds folders under bios/, emulators/, screenshots/ and user/ only, and the three markers are unchanged. How: listed the root of a stock install.
+Verified: RetroBat 8.2.0, 2026-08-09, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; the tree diff adds no config that holds a drive path. How: listed the root of a stock install.
 The root also holds `saves/`, `bios/`, `system/`, `emulators/` and `user/`. `RootMarkers` takes
 `retrobat.ini` alone as decisive, or both folders together, since either folder alone is a common
 enough name to match partway up an unrelated tree.
 
 ## RB-381. The registry records where the install was last seen, not where it is
 
-Verified: RetroBat 8.2.0, 2026-08-09, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, 8.3.0's RetroBat.exe changes in the changelog (AppLauncher, DisableWindowsInterface, RandomTheme) name no registry key. How: read `HKCU\Software\RetroBat`.
+Verified: RetroBat 8.2.0, 2026-08-09, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; the tree diff adds no config that holds a drive path. How: read `HKCU\Software\RetroBat`.
 `LatestKnownInstallPath` holds the root with a trailing backslash, per Windows user, on one
 machine. After the stick moved G: to D: to K: it read `K:\RetroBat\`, so it follows RetroBat's
 last run there and nothing later: RomMBat can run from a new letter before RetroBat has.
@@ -32,14 +32,14 @@ markers (RB-378) before trusting it.
 
 ## RB-391. An install survives a new drive letter and a second host
 
-Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.0, 2026-10-14, neither release adds an absolute path to the config RetroBat generates, and 8.3.0's simple64 template trades its C:/retrobat paths for relative ones. How: moved an NTFS stick G: to D: on a second machine under another Windows user, then back as K:, launching a game on each.
+Verified: RetroBat 8.2.0, 2026-08-09. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; the tree diff adds no config that holds a drive path. How: moved an NTFS stick G: to D: on a second machine under another Windows user, then back as K:, launching a game on each.
 Root discovery found `K:\RetroBat`, ES passed `K:\RetroBat\roms\...` paths, and the second machine
 launched a game (exit 0) and rewrote a `gamelist.xml` on the stick. Only the hooks failed there
 (RB-398). So RomMBat persists no absolute path, keys identity to the drive, and uses no DPAPI.
 
 ## RB-401. RetroBat's live config holds no absolute path
 
-Verified: RetroBat 8.2.0, 2026-08-09, and 8.2.1, 2026-09-28. How: scanned every `.cfg`, `.ini`, `.xml`, `.menu`, `.json`, `.bat` and `.info` in the tree for a drive-rooted path.
+Verified: RetroBat 8.2.0, 2026-08-09, and 8.2.1, 2026-09-28. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; the tree diff adds no config that holds a drive path. How: scanned every `.cfg`, `.ini`, `.xml`, `.menu`, `.json`, `.bat` and `.info` in the tree for a drive-rooted path.
 `es_systems.cfg`, `es_settings.cfg`, `es_savestates.cfg`, `es_features.cfg`, every
 `gamelist.xml` and every `.menu` are clean, and `retrobat.ini` names a path only in a comment.
 `es_systems.cfg` writes `~\..\roms\<system>`. The 27 hits of 5,741 files on 8.2.1 are emulator configs holding the current root
