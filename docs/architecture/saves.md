@@ -132,8 +132,8 @@ picks a side, with `saves resolve` or the UI's conflict screens. A conflict is k
 server row and not only on its digest, because a slot returning to contents it once held is a
 different row carrying a decided hash. Keeping the local side is the only thing that sends
 `overwrite=true`, which gets past the 409 and
-**appends** rather than replacing: row identity is the server's own datetime-tagged filename at
-one-second resolution, so no decision a person takes lands on the row it is overwriting. The
+**appends** rather than replacing: the server reserves a datetime-tagged name no other version
+holds, so no decision a person takes lands on the row it is overwriting (RB-160). The
 server's copy stays one row down, where negotiate no longer looks, since it pairs on the newest
 row per slot alone (measured, not inferred); `autocleanup_limit=10` bounds the slot. **Until
 something writes into it, or the row above it is deleted:** `PUT /api/saves/{id}` rewrites a row

@@ -7,7 +7,7 @@ Part of the [platform-certification](SKILL.md) skill. What each system certified
 **All nine `nes` rows are through, and the first is the model for the rest.** `nes` under
 `libretro`/`nestopia` on 2026-09-20, then the other two `libretro` cores, both `bizhawk` cores,
 `jgenesis`, `mesen`, `mednafen` and `ares` on 2026-09-21, at RomM `5.3.0-beta.1` and RetroBat
-8.2.1, all nine steps with step 6 N/A, carried to `5.3.0` with step 9 re-run, and to the `5.3.1` floor with steps 1 and 9 re-run. The two later `libretro` passes took under an hour between
+8.2.1, all nine steps with step 6 N/A, carried to `5.3.0` with step 9 re-run, to `5.3.1` with steps 1 and 9 re-run, and to the `5.4.0` floor with steps 4, 8 and 9 re-driven. The two later `libretro` passes took under an hour between
 them, which is what a row costs once steps 1, 2 and 3 carry. The last four needed code first: a
 battery rule each and, for three, a state declaration in RomMBat's bundled supplement, which is
 what a row outside `es_savestates.cfg` will need on every other system too. Read

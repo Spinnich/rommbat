@@ -24,7 +24,7 @@ cartridge without the chip's (below).
 
 ## Where each row stands
 
-**Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.3.0.** Step 9 was re-driven at
+**Every certified row holds at the floor, RomM `5.4.0` and RetroBat 8.3.0.** Step 9 was re-driven at
 8.3.0 on 2026-10-14 in #478, on a tree built from a pristine 8.3.0 install: a second sync of the
 record's games downloaded nothing, wrote nothing under `roms/`, and left every gamelist
 byte-identical. Step 8 was re-driven the same day on two ES launches. Steps 1 to 7 carry: no folder

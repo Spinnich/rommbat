@@ -2957,8 +2957,8 @@ public class SaveSyncTests
     public async Task A_peer_row_holding_this_devices_bytes_is_acknowledged_without_a_transfer()
     {
         // The skip above recognizes the bytes, and the head is no longer the row this device
-        // exchanged. Measured at 5.3.0 (s4 M6): left unacknowledged, the server's record for the
-        // device stays at the old row and the next edit's upload is refused 409.
+        // exchanged. At 5.4.0 negotiate records the identical head itself (RB-309), so the
+        // acknowledgment costs a call and changes nothing; at 5.3.x the next edit's upload was refused 409 without it.
         using var fixture = SyncFixture.Create();
         fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
         fixture.Scan();

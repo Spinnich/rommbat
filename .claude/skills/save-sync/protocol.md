@@ -10,8 +10,8 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   2 seconds and round up**, so a save can be stamped 2 s in the future and several saves
   written together share one timestamp. Mtimes are not bit-stable across filesystems.
 - **`overwrite=true` does not replace a row in the slot, whatever it looks like.** A slotted
-  upload is renamed with a `[YYYY-MM-DD_HH-MM-SS]` tag and the row is keyed on that name, so the
-  reserves a name no other version holds, so every upload appends. `overwrite` only suppresses the 409
+  upload is renamed with a `[YYYY-MM-DD_HH-MM-SS]` tag and the row is keyed on that name; the
+  server reserves a name no other version holds, so every upload appends. `overwrite` only suppresses the 409
   checks and the identical-content dedup. So `--keep-local` appends, the server's copy stays one
   row down until something writes into it in place (see "Other writers on the same slots"), and `autocleanup_limit=10` is what bounds the slot rather than the resolution bounding
   it at one. Never tell a user their copy replaced the server's. RB-160.
@@ -166,9 +166,8 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   one standing, one second apart. Confirmed on a second shape, class A on `nes`: a keep-local sent
   save 212 and left 210 standing. The flag is what gets past the 409 an ordinary upload earns
   when this device's sync record is stale; it is not an instruction to the server to reuse the
-  row. Anything reasoning about how many rows a slot has after a resolution has to expect two,
-  subject to the one-second rule above: a decision taken later than the same second appends, and
-  one taken inside it updates the row in place.
+  row. Anything reasoning about how many rows a slot has after a resolution has to expect two:
+  every slotted upload appends (RB-160).
 
 - **`ConflictResolutionService` takes `TreeLock`, and refuses rather than treating a held lock
   as done.** It runs the same `SaveUnitTransfer.Restore` a flush does, so two of them at once, or

@@ -61,7 +61,7 @@ missing or older, and answers 409. So RomMBat treats a 409 as the conflict path,
 
 ## RB-160. A slotted upload makes a new row, whatever second it lands in
 
-Verified: RomM 5.3.1, 2026-09-29, and 5.4.0, 2026-10-17. How: posted two versions into one slot inside one second, then one a second later; read `reserve_version_name`.
+Verified: RomM 5.4.0, 2026-10-17. How: posted two versions into one slot inside one second, then one a second later; read `reserve_version_name`.
 The server reserves a tagged name that no other version holds before it writes, and moves a taken
 name on by a second (`reserve_version_name`). Two postings inside one second made rows 841 and 842,
 tagged a second apart, and a third a second later made 843.
@@ -93,7 +93,7 @@ back when something makes it the newest again, which `PUT /api/saves/{id}` does 
 
 ## RB-164. A negotiate leaves the device's previous session open
 
-Verified: RomM 5.3.1, 2026-09-29, and 5.4.0, 2026-10-17. How: negotiated twice as one device, then completed both sessions; completed one session three times on 5.2.0, 2026-08-25; on 5.4.0 negotiated twice, completed both, then completed one again, and read `complete_sync_session` and the cleanup task.
+Verified: RomM 5.4.0, 2026-10-17. How: negotiated twice as one device, completed both sessions, then completed one again; read `complete_sync_session` and the cleanup task.
 Both sessions completed 200. A repeat completion answers 400, "Session is already COMPLETED",
 not a 404, 409 or 410, and it means the first close landed. A session left open for 24 hours is
 failed by a scheduled cleanup, and `/complete` still takes one the cleanup expired; one closed on
@@ -185,7 +185,7 @@ negotiate answers `no_op` only when it is sent.
 
 ## RB-308. A peer's upload of bytes a row in the slot already holds returns that row
 
-Verified: RomM 5.3.1, 2026-09-29, and 5.4.0, 2026-10-17. How: ran `s4-older-mtime.py` case M5; on 5.4.0 ran it again and read `promote_to_slot_head`.
+Verified: RomM 5.4.0, 2026-10-17. How: ran `s4-older-mtime.py` case M5 and read `promote_to_slot_head`.
 This device uploaded row 833; a peer uploaded different bytes as 834 and then the first bytes
 again, which came back as 833 and became the slot's newest (`promote_to_slot_head` moves its
 `updated_at` past the head's). Negotiate for this device then answered `no_op`, "Content is
@@ -194,7 +194,7 @@ row.
 
 ## RB-309. Negotiate records a head that holds the device's own bytes, so the next upload lands
 
-Verified: RomM 5.3.1, 2026-09-29, and 5.4.0, 2026-10-17. How: ran `s4-older-mtime.py` case M6; on 5.4.0 ran it again, where the edit landed with and without the acknowledgment; read `negotiate_sync`.
+Verified: RomM 5.4.0, 2026-10-17. How: ran `s4-older-mtime.py` case M6, where the edit landed with and without the acknowledgment; read `negotiate_sync`.
 With this device's row deleted and a peer's row 838 holding the same bytes at the head,
 negotiate answers `no_op`, "Content is identical", on 838 and records the device as in step with
 it (`record_identical_content`), so an upload of an edit lands 200 without `POST
@@ -269,7 +269,7 @@ this device's oldest state rows on the server. The local files survive and are n
 
 ## RM-11. A slot keeps at most 50 versions, pruned on every slotted upload, and a slot name is at most 255 characters
 
-Verified: RomM 5.3.1, 2026-09-29, and 5.4.0, 2026-10-17. How: ran `s3-slot-retention.py`; read `add_save`, `_slot_retention` and `prune_slot`; on 5.4.0 ran `s3-slot-retention.py` again, where a slot of 256 characters answered 422.
+Verified: RomM 5.4.0, 2026-10-17. How: ran `s3-slot-retention.py`, where a slot of 256 characters answered 422; read `add_save`, `_slot_retention` and `prune_slot`.
 `add_save` keeps the tighter of `MAX_SAVES_PER_SLOT` (env, default 50, `0` disables it) and the
 client's `autocleanup_limit` when it sets `autocleanup`, first clamped to 1 to
 `MAX_AUTOCLEANUP_LIMIT` (env, default 100). It prunes past that on every slotted upload, keeping

@@ -30,7 +30,7 @@ an md5 of the ROM, and a directory per game (RB-336 to RB-341). RetroBat lists n
 
 ## Where each row stands
 
-**Every certified row but `gopher64` holds at the floor, RomM `5.3.1` and RetroBat 8.3.0.** Step 9
+**Every certified row but `gopher64` holds at the floor, RomM `5.4.0` and RetroBat 8.3.0.** Step 9
 was re-driven at 8.3.0 on 2026-10-14 in #478, on a tree built from a pristine 8.3.0 install: a
 second sync of the record's games downloaded nothing, wrote nothing under `roms/`, and left every
 gamelist byte-identical. Step 8 was re-driven the same day on two ES launches. Steps 1 to 7 carry:
@@ -63,7 +63,7 @@ byte-identical at 5.4.0.
 |            |                                                                                           |
 | ---------- | ----------------------------------------------------------------------------------------- |
 | RetroBat   | `8.2.1-stable-win64`, the floor then                                                      |
-| RomM       | `5.3.1`, the floor, read back by `status` as Supported                                    |
+| RomM       | `5.3.1`, read back by `status` as Supported                                               |
 | Root       | `R:\RetroBat`                                                                             |
 | Client     | the `n64-certification` branch, deployed as each rule landed                              |
 | Budget     | `none`                                                                                    |
