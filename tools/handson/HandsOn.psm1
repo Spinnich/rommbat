@@ -389,7 +389,7 @@ function Start-EmulatorLauncher {
     .SYNOPSIS
         Boots one row through emulatorLauncher directly, without ES, and waits for the emulator.
     .DESCRIPTION
-        For a boot nobody plays: a scout's smoke, a certification's launch check. No ES means no
+        By default for a boot nobody plays: a scout's smoke, a certification's launch check. No ES means no
         hooks run, so it records no play session; Start-Game is the launch that does. Pass -Core
         for any emulator that has one, because bizhawk configures one input port without it (RB-374). -Rom is
         a file name under roms/<system>/, or a full path.
