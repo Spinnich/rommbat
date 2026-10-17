@@ -6,8 +6,8 @@
     python tools/corpus.py [system ...] --apply    create a missing collection, add and remove
                                                    members to match
 
-Each system's games are one collection, "RomMBat corpus: <system>", owned by the test
-account, which is the account the agent tree pairs as. ROMMBAT_TEST_DEV_TOKEN, the token on that
+Each system's games are one collection, "RomMBat corpus: <system>", private and owned by the
+test account, which is the account the agent tree pairs as. ROMMBAT_TEST_DEV_TOKEN, the token on that
 account that holds every scope, reads and writes them; a read-only check falls back to the
 approver token when it is not set. A game is
 resolved by its file name on its RomM platform, since rom ids differ per server. A game the
@@ -34,7 +34,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CORPUS = ROOT / "docs" / "platforms" / "corpus.md"
-HEADER = ["Game", "Platform", "Size", "md5", "Covers"]
+HEADER = ["Game", "Platform", "Size", "md5", "Covers", "First save"]
 NAME_PREFIX = "RomMBat corpus: "
 PAGE = 250
 
@@ -95,7 +95,7 @@ def parse(markdown: str) -> dict[str, list[Entry]]:
             continue
         if len(cells) != len(HEADER):
             raise ValueError(f"{system}: a corpus row needs {len(HEADER)} cells: {line}")
-        name, platform, size, md5, _ = cells
+        name, platform, size, md5, _, _ = cells
         if not re.fullmatch(r"[0-9a-f]{32}", md5):
             raise ValueError(f"{system}: {name} has no md5: {md5!r}")
         corpus.setdefault(system, []).append(Entry(system, name, platform, int(size.replace(",", "")), md5))
@@ -183,7 +183,7 @@ class Server:
         ]
         body = ("".join(parts) + f"--{boundary}--\r\n").encode()
         return self.call(
-            "POST", "/api/collections", {"is_public": "true"}, body, f"multipart/form-data; boundary={boundary}"
+            "POST", "/api/collections", {"is_public": "false"}, body, f"multipart/form-data; boundary={boundary}"
         )
 
 

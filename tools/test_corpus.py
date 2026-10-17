@@ -17,17 +17,17 @@ PAGE = """## How it is pulled
 
 ## nes
 
-| Game                 | Platform | Size   | md5                                | Covers  |
-| -------------------- | -------- | ------ | ---------------------------------- | ------- |
-| `Zelda (USA).zip`    | `nes`    | 65,652 | `614fb3085826e62f3be3a3fe0b931689` | Battery |
+| Game                 | Platform | Size   | md5                                | Covers  | First save |
+| -------------------- | -------- | ------ | ---------------------------------- | ------- | ---------- |
+| `Zelda (USA).zip`    | `nes`    | 65,652 | `614fb3085826e62f3be3a3fe0b931689` | Battery | A name     |
 
 Wanted: prose under a table is not a row.
 
 ## psx
 
-| Game              | Platform | Size        | md5                                | Covers    |
-| ----------------- | -------- | ----------- | ---------------------------------- | --------- |
-| `Set (USA)`       | `psx`    | 779,304,107 | `2cb39eccdb821396ba1e665ac9d1c1ef` | Two discs |
+| Game              | Platform | Size        | md5                                | Covers    | First save |
+| ----------------- | -------- | ----------- | ---------------------------------- | --------- | ---------- |
+| `Set (USA)`       | `psx`    | 779,304,107 | `2cb39eccdb821396ba1e665ac9d1c1ef` | Two discs | Not timed  |
 """
 
 
