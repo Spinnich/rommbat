@@ -210,6 +210,14 @@ runs, trims it. `sms` has no other EmulatorJS core, and a session's first write 
 newest slotted save's slot (RM-4). The next flush found the local `.srm` unchanged since it was last in step,
 downloaded the newer row, and kept the displaced file in `emulators/rommbat/replaced/`.
 
+## RB-438. Negotiate answers `delete`, with a null `save_id`, for a slot emptied in the web UI
+
+Verified: RomM 5.4.0, 2026-10-17. How: on the agent tree uploaded each of nine `nes` rows' saves and the `ps2` folder card's unit, deleted the slot's saves with `POST /api/saves/delete` (200), and read what the next flush did with the negotiate answer.
+The answer is `delete`, with no `save_id`. A save written
+after the loss answers `upload` instead, so an unsent or changed local copy is not removed. RomMBat
+parses it as `SyncAction.Delete`, moves the save aside under `replaced/` and forgets the row
+rather than recording a conflict.
+
 ## RM-3. `/api/memory-cards` is a card per `(user, emulator)`, with no ROM
 
 Verified: RomM 5.3.1, 2026-09-29, and 5.4.0, 2026-10-17. How: ran `s2-memory-card-record.py`; read `MemoryCard`; on 5.4.0 ran `s2-memory-card-record.py` again.

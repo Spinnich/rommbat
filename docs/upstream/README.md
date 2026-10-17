@@ -82,5 +82,5 @@ names and the change could alter what the fact says ([delta.md](../../.claude/sk
   fails on a citation that resolves to no heading.
 - A fact is edited in place when the behavior changes on a version move, keeping its ID. A fact
   that stops being true is deleted with every citation of it.
-- An ID is never reused. The next free numbers are **438** for `RB-` and **29** for `RM-`.
+- An ID is never reused. The next free numbers are **439** for `RB-` and **29** for `RM-`.
   Take one and raise the number here in the same change.

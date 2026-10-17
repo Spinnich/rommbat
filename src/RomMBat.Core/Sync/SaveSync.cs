@@ -724,6 +724,14 @@ public sealed class SaveSync
                     {
                         var kept = RemoveLocal(local);
                         removed++;
+
+                        // An open conflict on the slot has nothing left to keep on either side,
+                        // and no other route closes it (RB-276 is the same trap).
+                        _store.SaveConflicts.Resolve(
+                            operation.RomId,
+                            operation.Slot ?? string.Empty,
+                            ConflictResolution.KeepServer,
+                            _time.GetUtcNow());
                         problems.Add($"{NameSave(operation.RomId, operation.Slot)}: deleted on the "
                             + "server, so it was taken out of the tree"
                             + (kept is null ? "." : $" and a copy kept at {kept}."));

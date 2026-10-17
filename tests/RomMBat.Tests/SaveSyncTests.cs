@@ -351,6 +351,53 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_removal_closes_the_open_conflict_on_the_slot()
+    {
+        // A conflict on a slot the server then empties has nothing to keep on either side:
+        // keep-local has no file and keep-server no row to fetch, so nothing else closes it.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played here");
+        fixture.Scan();
+        fixture.MarkSent();
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+        Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "delete";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Removed);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+    }
+
+    [Fact]
+    public async Task A_directory_save_removal_stopped_by_a_locked_member_puts_back_what_it_deleted()
+    {
+        // A half-removed unit would be uploaded next flush as the slot's new head.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
+        fixture.Scan();
+        fixture.MarkSent();
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "delete";
+
+        // Shared for reading but not for deleting, so the copy aside succeeds and the delete of
+        // the second member fails on Windows, with the first already gone.
+        using var held = new FileStream(
+            fixture.Resolve("saves/mame/nvram/25pacman/flash"),
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read);
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Removed);
+        Assert.Equal(1, outcome.Failed);
+        Assert.Equal("one", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
+        Assert.NotEmpty(fixture.Store.Saves.List());
+    }
+
+    [Fact]
     public async Task A_removal_for_a_game_being_played_waits_for_the_next_flush()
     {
         using var fixture = SyncFixture.Create();

@@ -278,14 +278,22 @@ public static class SaveUnitTransfer
             // flush uploads as the slot's new head, so the members already gone come back.
             foreach (var file in deleted)
             {
-                var back = install.Resolve(file.Path);
-                Directory.CreateDirectory(Path.GetDirectoryName(back)!);
-                File.Copy(
-                    Path.Combine(
-                        install.Resolve(aside.Value),
-                        file.ArchivePath.Replace('/', Path.DirectorySeparatorChar)),
-                    back,
-                    overwrite: true);
+                try
+                {
+                    var back = install.Resolve(file.Path);
+                    Directory.CreateDirectory(Path.GetDirectoryName(back)!);
+                    File.Copy(
+                        Path.Combine(
+                            install.Resolve(aside.Value),
+                            file.ArchivePath.Replace('/', Path.DirectorySeparatorChar)),
+                        back,
+                        overwrite: true);
+                }
+                catch (Exception put) when (put is IOException or UnauthorizedAccessException)
+                {
+                    // The original failure is what the caller reports; the copy aside still
+                    // holds every member, so one that will not come back is not lost.
+                }
             }
 
             throw;
