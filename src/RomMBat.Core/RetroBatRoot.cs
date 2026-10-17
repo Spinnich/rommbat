@@ -28,7 +28,7 @@ public static class RetroBatRoot
     /// Minimum supported RetroBat version. Below this, RomMBat refuses to run. Kept in step
     /// with <see cref="Diagnostics.RetroBatVersion.Minimum"/>, which a test asserts.
     /// </summary>
-    public static Version MinimumVersion { get; } = new(8, 3, 0);
+    public static Version MinimumVersion { get; } = new(8, 3, 1, 1);
 
     /// <summary>
     /// Locates the root, or returns null when there is nothing to find.

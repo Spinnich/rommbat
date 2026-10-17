@@ -29,12 +29,7 @@ boot launches below (#464).
 
 ## Where each row stands
 
-**Every certified row holds at the floor, RomM `5.4.0` and RetroBat 8.3.0.** Step 9 was re-driven at
-8.3.0 on 2026-10-14 in #478, on a tree built from a pristine 8.3.0 install: a second sync of the
-record's games downloaded nothing, wrote nothing under `roms/`, and left every gamelist
-byte-identical. Step 8 was re-driven the same day on two ES launches. Steps 1 to 7 carry: no folder
-name, no BIOS entry and no `es_savestates.cfg` entry for an existing row changed, and no generator
-change between 8.2.1 and 8.3.0 touches where an existing row saves. `kega-fusion` stays not
+**Every certified row holds at the floor, RomM `5.4.0` and RetroBat 8.3.1.1.** Step 9 was re-driven at 8.3.1.1 on 2026-10-17, on a tree built from a pristine 8.3.1.1 install: a second sync of the record's games downloaded nothing, wrote nothing under `roms/` and left every gamelist unchanged. Steps 1 to 8 carry: no folder name, BIOS entry or `es_savestates.cfg` entry for an existing row changed, no generator change between 8.3.0 and 8.3.1.1 touches where an existing row saves, and the delta's launch changes (window placement, Wiimote and gun input) act only on a configured screen or pad, which no row's steps set. Nobody played this move: `mesen`, `ares`, `snes9x`, `bizhawk`, `jgenesis` and `duckstation` each started on the agent tree, and steps 7 and 8 carry on the hook and gamelist paths the delta leaves alone. `kega-fusion` stays not
 certified at 8.2.1: 8.3.0 moves its saves and states under `saves/sega32x/`, as on `megadrive` (RB-416, #519).
 `blastem` is new in 8.3.0 and untested (#521).
 

@@ -106,7 +106,7 @@
     "mupen64/*": {
       "profiles": ["rosalies-mupen-gui"]
     },
-    "n64recomplauncher/*": {
+    "quiverlauncher/*": {
       "none": "a recompiled-game launcher; reads no firmware"
     },
     "nosgba/*": {

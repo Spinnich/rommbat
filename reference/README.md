@@ -181,8 +181,8 @@ The files are at the floor:
 
 | Files                                                         | Ref                                                                                             |
 | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `systems_names.lst`, `es_systems.cfg`, `retrobat-license.txt` | `RetroBat-Official/retrobat` tag `8.3.0`, published 2026-10-10                                  |
-| `es_savestates.cfg`, `batocera-systems.json`                  | `RetroBat-Official/emulatorlauncher` commit `79f5b1aaf659`, the last before 8.3.0 was published |
+| `systems_names.lst`, `es_systems.cfg`, `retrobat-license.txt` | `RetroBat-Official/retrobat` tag `8.3.1`, published 2026-10-16                                  |
+| `es_savestates.cfg`, `batocera-systems.json`                  | `RetroBat-Official/emulatorlauncher` commit `b4e600bbf4dc`, the last before 8.3.1 was published |
 | `romm-*`                                                      | `rommapp/romm` tag `5.4.0`                                                                      |
 | `retrobios/`                                                  | `Abdess/retrobios` commit `527526a8e2be`, `_ref` in `database-subset.json`                      |
 

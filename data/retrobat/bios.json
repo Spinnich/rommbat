@@ -4439,7 +4439,7 @@
           "required": true
         },
         {
-          "path": "bios/chihiro/ic10_g24lc64",
+          "path": "bios/chihiro/ic10_g24lc64.bin",
           "accepted": [],
           "readers": ["retrobat"],
           "required": true
@@ -5836,6 +5836,24 @@
           "readers": ["hypseus/hypseus"]
         }
       ]
+    },
+    "doom": {
+      "name": "doom",
+      "slots": [
+        {
+          "path": "bios/prboom.wad",
+          "accepted": [
+            {
+              "md5": "72ae1b47820fcc93cc0df9c428d0face",
+              "size": 143312,
+              "from": ["profile:prboom"]
+            }
+          ],
+          "readers": ["libretro/prboom"],
+          "required": false
+        }
+      ],
+      "reported": []
     },
     "dos": {
       "name": "dos",
@@ -26860,24 +26878,6 @@
           ],
           "readers": ["libretro/pokemini", "retrobat"],
           "required": true
-        }
-      ],
-      "reported": []
-    },
-    "prboom": {
-      "name": "prboom",
-      "slots": [
-        {
-          "path": "bios/prboom.wad",
-          "accepted": [
-            {
-              "md5": "72ae1b47820fcc93cc0df9c428d0face",
-              "size": 143312,
-              "from": ["profile:prboom"]
-            }
-          ],
-          "readers": ["libretro/prboom"],
-          "required": false
         }
       ],
       "reported": []
