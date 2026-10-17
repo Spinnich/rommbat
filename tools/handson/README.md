@@ -28,9 +28,13 @@ Copy-Item -Recurse D:\retrobat-pristine D:\retrobat-agent    # then set ROMMBAT_
 Publish-ToAgentTree
 Connect-AgentTree
 Invoke-Agent hooks install; Invoke-Agent menu install
-Invoke-Agent sets add nes --scope platform --value nes --max-games 3
+Invoke-Agent sets add corpus-nes --scope collection --value <id> --folder nes
 Invoke-Agent sync
 ```
+
+The set is a system's [test-game corpus](../../docs/platforms/corpus.md), and
+`python3 tools/corpus.py nes` prints its collection id and the line above. A pass that needs
+another system adds that system's corpus set the same way.
 
 `Connect-AgentTree -Repair` re-pairs, keeping `device.id`, so RomM keeps one device for the tree.
 

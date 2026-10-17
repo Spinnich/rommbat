@@ -27,6 +27,7 @@ EXPECTED = {
     "ROMMBAT_TEST_SERVER": "the RomM instance the live tests and probes call",
     "ROMMBAT_TEST_APPROVER_TOKEN": "approver account token: pairs, and what the probes use",
     "ROMMBAT_TEST_OWNER_TOKEN": "owner account token, narrowly scoped: reads an install's play sessions",
+    "ROMMBAT_TEST_CORPUS_TOKEN": "approver account token with collections.write: keeps the test-game corpus",
     "ROMMBAT_AGENT_ROOT": "the agent's RetroBat tree, for hands-on passes and /certify",
     "ROMMBAT_MAINTAINER_ROOT": "the maintainer's own tree, read only",
     "ROMMBAT_SCOUT_ROOT": "the scout tree, for a RetroBat prerelease",

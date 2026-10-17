@@ -56,14 +56,14 @@ is evidence.
 
 ## Choosing test games
 
-**The agent recommends the test set. It never asks the maintainer which game to use.** A set is
-chosen to cover the system's edge cases, so each game in it has to cover a case that no other game
-in the set covers. Weigh the candidates in this order:
+**Start from the [test-game corpus](../../../docs/platforms/corpus.md)**: its games for the
+system are the set, and the agent picks an addition only for a case they leave uncovered, adding it
+to the corpus with the reason once the pass shows it is the best test. It never asks the maintainer
+which game to use. Each game covers a case no other in the set does. Weigh candidates in this order:
 
 1. **In the library, unpinned, in English.** Page `GET /api/roms?platform_ids=<id>` with the owner
    token in `.env`, check `gamelist.xml` for an `<emulator>` pin, and take USA or English releases,
-   since the maintainer has to navigate them. A better game the library lacks can still be named
-   as an addition, as Pokemon Silver was for `gb`, as long as it is marked missing.
+   since the maintainer navigates them. A better game the library lacks goes under Wanted.
 2. **A fast save at a known point.** The first battery save should land within a minute or two of
    boot. Zelda writes one as soon as a name is registered. Avoid a game that commits once and then
    rewrites a working copy (RB-326), and one whose first save is deep in play (SotN, Metal Gear
@@ -84,9 +84,9 @@ the web (GameFAQs, wikis, No-Intro and Redump notes) rather than from memory. Pr
 coverage table, one row per edge case naming the game that covers it, or "none in library" with a
 suggested addition. Then ask one `AskUserQuestion` with the recommended set first.
 
-**The games reach the agent tree through a sync set, and a set is a platform, a collection or a
-smart collection.** RomMBat cannot pull one game on its own, so put the chosen games in a RomM
-collection and sync that, or sync the platform with a game cap.
+The games reach the agent tree as the system's corpus collection set (`tools/corpus.py`), so an
+addition joins the page and the collection before the pass; one the library lacks in the needed
+layout goes under the page's Wanted, for the maintainer to build in RomM.
 
 ## Checklist
 
