@@ -79,9 +79,9 @@ Silver's clock files per row are in
 
 ## gbc
 
-| Game                                                  | Platform | Size      | md5                                | Covers                             | First save                                  |
-| ----------------------------------------------------- | -------- | --------- | ---------------------------------- | ---------------------------------- | ------------------------------------------- |
-| `Pokemon - Crystal Version (USA, Europe) (Rev 1).zip` | `gbc`    | 1,029,939 | `301899b8087289a6436b0a241fbbb474` | MBC3 with a clock and 32 KB of RAM | Played from the intro, clock set. Not timed |
+| Game                                                  | Platform | Size      | md5                                | Covers                                                                         | First save                                  |
+| ----------------------------------------------------- | -------- | --------- | ---------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------- |
+| `Pokemon - Crystal Version (USA, Europe) (Rev 1).zip` | `gbc`    | 1,029,939 | `301899b8087289a6436b0a241fbbb474` | The clock files each `gbc` row writes, held until a better clock game is known | Played from the intro, clock set. Not timed |
 
 ## gba
 
@@ -122,10 +122,13 @@ Where each one saves is in [the sega32x record](sega32x/index.md).
 
 ## n64
 
-| Game                                               | Platform | Size       | md5                                | Covers                                          | First save              |
-| -------------------------------------------------- | -------- | ---------- | ---------------------------------- | ----------------------------------------------- | ----------------------- |
-| `Legend of Zelda, The - Ocarina of Time (USA).zip` | `n64`    | 26,564,897 | `5bd1fe107bf8106b2ab6650abecd54d6` | 32 KB of cartridge SRAM                         | Not timed               |
-| `Mario Kart 64 (USA).zip`                          | `n64`    | 8,991,046  | `3a67d9986f54eb282924fca4cd5f6dff` | 512 B EEPROM, and a ghost on the Controller Pak | A lap writes the EEPROM |
+| Game                      | Platform | Size      | md5                                | Covers                                          | First save              |
+| ------------------------- | -------- | --------- | ---------------------------------- | ----------------------------------------------- | ----------------------- |
+| `Mario Kart 64 (USA).zip` | `n64`    | 8,991,046 | `3a67d9986f54eb282924fca4cd5f6dff` | 512 B EEPROM, and a ghost on the Controller Pak | A lap writes the EEPROM |
+
+Ocarina of Time, the other game the first pass used, is out: no record names a reason beyond 32 KB
+of SRAM, and its first save was never timed. Wanted: a game with cartridge SRAM that saves within
+a minute or two of boot.
 
 ## psx
 
