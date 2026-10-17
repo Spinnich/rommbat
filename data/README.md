@@ -82,7 +82,7 @@ segment deep. Both differ here, and both files say so in their own `_comment`:
   rather than `saves/<system>/`, with some emulator-named folders sitting at the top level
   beside the system ones (RB-361, RB-119).
 
-Both files carry a `_provenance` key, and each `save_shapes.json` entry its own. `observed` means it was seen on a real
+Both files carry a `_provenance` key, and each `save_shapes.json` entry a `provenance` of its own. `observed` means it was seen on a real
 install; `declared` means it comes from `es_savestates.cfg` or `es_features.cfg` and has
 not yet been seen written. `save_directories.json` regenerates with
 `python tools/m0-probes/probe2-emit-data.py <retrobat-root>`. `save_shapes.json` has no
