@@ -31,7 +31,7 @@ no license file at the vendored commit, so nothing stands beside `es_savestates.
 
 | File                              | Source                                                                                  | What it settles                                                                                                                                                                 |
 | --------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `systems_names.lst`               | `RetroBat-Official/retrobat` `system/configgen/systems_names.lst`                       | The authoritative list of RetroBat system folder names (241)                                                                                                                    |
+| `systems_names.lst`               | `RetroBat-Official/retrobat` `system/configgen/systems_names.lst`                       | The authoritative list of RetroBat system folder names (240)                                                                                                                    |
 | `es_systems.cfg`                  | `RetroBat-Official/retrobat` `system/templates/emulationstation/es_systems.cfg`         | Per-system `<extension>`, plus `<manufacturer>`/`<hardware>`/`<release>` used to derive rollout order. **Read the live copy at runtime**; this is the shipped template          |
 | `retrobat-license.txt`            | `RetroBat-Official/retrobat` `license.txt`                                              | The notice the two files above are copied under: LGPL-3.0 for the RetroBat Team's code, CC BY-NC-SA 4.0 for the project as a work                                               |
 | `es_savestates.cfg`               | `RetroBat-Official/emulatorlauncher` `.emulationstation/es_savestates.cfg`              | Per-emulator save-state schema: directory, file, image, autosave templates, slot bounds                                                                                         |
@@ -54,20 +54,20 @@ that cites it needs revisiting.
 
 **Platform mapping is many-to-many and incomplete**
 
-|                                              |                   |
-| -------------------------------------------- | ----------------- |
-| RetroBat systems                             | 241               |
-| RomM known platform slugs                    | 459               |
-| Folder aliases upstream publishes            | 138               |
-| Of those, RetroBat system folders            | 93                |
-| Of those, naming folders RetroBat lacks      | 45                |
-| RetroBat folders resolving to a RomM slug    | 166               |
-| Of those, by identity (the folder is a slug) | 73                |
-| Of those, via the alias table                | 93                |
-| **RetroBat systems with no mapping**         | **75 (31%)**      |
-| Of those, resolved by normalization alone    | 1                 |
-| Distinct RomM slugs reached                  | 148               |
-| RomM slugs mapping to several folders        | 10 (`arcade` → 7) |
+|                                              |                  |
+| -------------------------------------------- | ---------------- |
+| RetroBat systems                             | 240              |
+| RomM known platform slugs                    | 459              |
+| Folder aliases upstream publishes            | 138              |
+| Of those, RetroBat system folders            | 92               |
+| Of those, naming folders RetroBat lacks      | 46               |
+| RetroBat folders resolving to a RomM slug    | 165              |
+| Of those, by identity (the folder is a slug) | 73               |
+| Of those, via the alias table                | 92               |
+| **RetroBat systems with no mapping**         | **75 (31%)**     |
+| Of those, resolved by normalization alone    | 1                |
+| Distinct RomM slugs reached                  | 148              |
+| RomM slugs mapping to several folders        | 9 (`arcade` → 7) |
 
 **The seed is upstream's resolver, not a table of pairs.** `resolve_platform_slug` in
 `backend/utils/platform_aliases.py` tries a config binding, then identity when the folder name is
@@ -75,7 +75,7 @@ itself a slug, then `PLATFORM_FS_ALIASES`. So `nes` maps to `nes` without appear
 
 `tools/build-platform-map.py` walks **RetroBat's** system list and asks upstream what each folder
 resolves to, rather than importing upstream's 138 keys and correcting them. Core principle 3 is
-why: the alias table is a Batocera / RetroBat / ES-DE union and 45 of its keys name folders no
+why: the alias table is a Batocera / RetroBat / ES-DE union and 46 of its keys name folders no
 RetroBat install has, so walking from RetroBat's side never sees them.
 
 Identity catches almost everything, so normalization rescues one folder, `actionmax` against

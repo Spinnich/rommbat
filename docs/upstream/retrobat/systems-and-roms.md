@@ -34,8 +34,8 @@ path, not on a list of names, and keeps the four as `NonRomSystems`, which nothi
 
 ## RB-70. `arcade` and `kodi` are inside XML comments
 
-Verified: RetroBat 8.3.0, 2026-10-14. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; systems_names.lst loses n64recomp and prboom and gains recomp, and no extension list the fact names changed but CHIHIRO's. How: counted `<system>` with a regex and with an XML parser.
-A regex over `<system>` finds 247, including both. An XML parser finds 245 and neither, which is
+Verified: RetroBat 8.3.1.1, 2026-10-17. How: counted `<system>` in the vendored `reference/es_systems.cfg` with a regex and with an XML parser, and listed the systems inside comments.
+A regex over `<system>` finds 246, including both. An XML parser finds 244 and neither, which is
 why `EsSystemsFile` loads the file with `XDocument`.
 
 ## RB-173. A disc marker is always `(Disc N)`, and text can follow it
