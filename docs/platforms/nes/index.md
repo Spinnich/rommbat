@@ -38,6 +38,15 @@ byte-identical. Step 8 was re-driven the same day on two ES launches. Steps 1 to
 name, no BIOS entry and no `es_savestates.cfg` entry for an existing row changed, and no generator
 change between 8.2.1 and 8.3.0 touches where an existing row saves. Nothing is owed.
 
+**At RomM `5.4.0`, steps 4, 8 and 9 are re-driven and the rest carry.** On 2026-10-17, on a deploy of the
+adoption branch to the agent tree, `status` read 5.4.0 as Supported and two syncs downloaded nothing and left every
+gamelist unchanged (step 9). A `gb` battery save went up, restored byte for byte and went up again as a head, with no
+second flush moving anything (step 4), and a played game's session reached RomM (step 8). Steps 2, 5, 6 and 7 carry on
+the server contract, which answered as before when re-measured (RB-315, RM-15 and RB-83 for step 2, RB-126 and RB-258
+for step 5, RM-3 for step 6, the gamelist exporter and media paths for step 7); RomMBat's own state, memory card and
+multi-file passes were not re-driven at 5.4.0. Steps 1 and 3 carry: the platform aliases, slugs and firmware list are
+byte-identical at 5.4.0.
+
 | File                                         | What it holds                                                                                                                   |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | This file                                    | Steps 1, 2 and 3, which are the system's; the set; where each row stores a save; what the pass turned up; RomM's browser player |

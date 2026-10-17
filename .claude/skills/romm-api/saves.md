@@ -23,10 +23,9 @@ Part of the [romm-api](SKILL.md) skill. The save, state, play-session and sync-s
   `POST /api/saves/{id}/downloaded` after the bytes are written and verified, or a download
   that dies mid-body leaves the server sure the device is current and the next negotiate
   answers `no_op` forever (RM-17).
-- **What decides whether a slotted upload appends is the clock, not `overwrite`.** The server
-  renames the upload to carry a `[YYYY-MM-DD_HH-MM-SS]` tag and then looks the row up by
-  **that** name, at one-second resolution, so two postings into one slot inside one second are
-  one row and two a second apart are two. **`overwrite=true` never replaces a row.** What it
+- **A slotted upload always appends, whatever `overwrite` says.** The server reserves a
+  `[YYYY-MM-DD_HH-MM-SS]` tagged name that no other version holds and moves a taken one on by a
+  second, so two postings into one slot inside one second are two rows. **`overwrite=true` never replaces a row.** What it
   does is suppress the 409 checks **and** the identical-content dedup. RB-160.
 - **Identical uploads dedup within a slot** (same row reused, count unchanged) **only when
   `overwrite` is absent**, which is what makes a replayed flush safe and a repeated
@@ -130,9 +129,8 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   longer makes an appending upload safe on its own: the in-place `PUT` above puts one back at the
   head of the slot, where negotiate can offer it as a `download`, and the client refusing that is
   what keeps a keep-local from being undone (`save-sync`). RB-163.
-- **A negotiate cancels the device's previous active session**, so `/sessions/{id}/complete` on
-  that earlier one answers **400** `Session is already CANCELLED`. Complete a session before
-  negotiating again, or accept that the first one can never be tidied up. RB-164.
+- **A negotiate leaves the device's previous session open**, and both can be completed. A
+  session left open for 24 hours is failed by a scheduled cleanup, and `/complete` still takes it. RB-164.
   Closing needs `devices.write`, and a refused close returns a failure rather than throwing, so
   `SaveSync` reads it and reports every refusal except `already COMPLETED` (RB-164), which means the
   close landed. A 403 there otherwise reads as a clean sync with the session left open (#90), so

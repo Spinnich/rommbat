@@ -19,11 +19,10 @@ namespace RomMBat.Tests.Support;
 /// <see cref="NegotiateActions"/> rather than computed.
 /// </para>
 /// <para>
-/// <b>A slot's row identity is the tagged name, not the flag.</b> <c>overwrite=true</c> suppresses
-/// the 409 checks and the identical-content dedup and does <b>not</b> replace a row, so whether an
-/// upload updates one or appends one turns on whether it lands in the same second as the row it
-/// would replace. Tests holding <see cref="ServerDate"/> fixed therefore see one row per slot;
-/// advancing it between uploads is how a slot is made to grow. RB-160.
+/// <b>A slotted upload always appends a row.</b> <c>overwrite=true</c> suppresses the 409 checks
+/// and the identical-content dedup and does <b>not</b> replace a row, and a name already taken in
+/// the slot moves on a second, so a test holding <see cref="ServerDate"/> fixed still sees a row
+/// per upload. RB-160.
 /// </para>
 /// </remarks>
 internal sealed partial class StubRomMServer
@@ -277,7 +276,7 @@ internal sealed partial class StubRomMServer
                 : null;
 
             var action = NegotiateActions.TryGetValue((romId, slot), out var told) ? told : "no_op";
-            var existing = Saves.Values.FirstOrDefault(row => row.RomId == romId && row.Slot == slot);
+            var existing = NewestInSlot(romId, slot);
 
             operations.Add(new
             {
@@ -295,7 +294,7 @@ internal sealed partial class StubRomMServer
 
         foreach (var (romId, slot) in UnsolicitedDownloads)
         {
-            var existing = Saves.Values.FirstOrDefault(row => row.RomId == romId && row.Slot == slot);
+            var existing = NewestInSlot(romId, slot);
 
             operations.Add(new
             {
@@ -331,7 +330,7 @@ internal sealed partial class StubRomMServer
 
         foreach (var (romId, slot) in UnsolicitedConflicts)
         {
-            var existing = Saves.Values.FirstOrDefault(row => row.RomId == romId && row.Slot == slot);
+            var existing = NewestInSlot(romId, slot);
 
             operations.Add(new
             {
@@ -405,12 +404,9 @@ internal sealed partial class StubRomMServer
         var extension = Path.GetExtension(sentName).TrimStart('.');
         var now = ServerDate ?? DateTimeOffset.UnixEpoch;
 
-        // <b>overwrite=true does not replace the row in the slot.</b> The server renames a
-        // slotted upload to carry a datetime tag at one-second resolution and looks the row up
-        // by that name, so what decides between updating a row and appending one is the clock
-        // and never the flag. Two uploads inside one second are one row; a second apart they are
-        // two. RB-160, and it is why this stub does not reuse the id in the slot outright:
-        // that would hide an append, so a resolution could not be seen to grow the slot.
+        // <b>A slotted upload never replaces a row, and neither does overwrite=true.</b> The
+        // server reserves a datetime-tagged name before it writes and moves a taken one on by a
+        // second, so two uploads in one second are two rows named a second apart. RB-160.
         var candidate = new StubSave
         {
             Id = 0,
@@ -423,25 +419,34 @@ internal sealed partial class StubRomMServer
             UpdatedAt = now,
         };
 
-        var named = Saves.Values.FirstOrDefault(row =>
-            row.RomId == romId
-            && row.Slot == slot
-            && string.Equals(row.FileName, candidate.FileName, StringComparison.Ordinal));
+        while (Saves.Values.Any(row =>
+                   row.RomId == romId
+                   && row.Slot == slot
+                   && string.Equals(row.FileName, candidate.FileName, StringComparison.Ordinal)))
+        {
+            candidate = candidate with { UpdatedAt = candidate.UpdatedAt.AddSeconds(1) };
+        }
 
-        var id = named?.Id ?? (Saves.Count == 0 ? 100 : Saves.Keys.Max() + 1);
+        var id = Saves.Count == 0 ? 100 : Saves.Keys.Max() + 1;
 
-        // Only a new row records the uploader. The server sets origin_device_id when it inserts
-        // and never touches it on the update path, so a row updated in place keeps naming
-        // whoever first created it.
+        // Only a new row records the uploader, and every upload is one.
         var save = candidate with
         {
             Id = id,
-            OriginDeviceId = named?.OriginDeviceId ?? query.GetValueOrDefault("device_id", string.Empty),
+            OriginDeviceId = query.GetValueOrDefault("device_id", string.Empty),
         };
 
         Saves[id] = save;
         return Json(HttpStatusCode.OK, Describe(save));
     }
+
+    /// <summary>The row negotiate speaks for in a slot: the newest by <c>updated_at</c>, then id. RB-163.</summary>
+    private StubSave? NewestInSlot(int romId, string slot) =>
+        Saves.Values
+            .Where(row => row.RomId == romId && row.Slot == slot)
+            .OrderByDescending(row => row.UpdatedAt)
+            .ThenByDescending(row => row.Id)
+            .FirstOrDefault();
 
     private HttpResponseMessage SaveContent(HttpRequestMessage request, int saveId)
     {

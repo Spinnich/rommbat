@@ -93,11 +93,10 @@ public class SaveConflictTests
 
         Assert.True(outcome.Resolved, outcome.Message);
 
-        // The server now holds this device's bytes. One row here only because the fixture holds
-        // the server clock still, so the upload carries the same datetime tag as the row it is
-        // overwriting and updates it. A resolution taken a second later appends instead, which
-        // the test below drives. RB-160.
-        var stored = Assert.Single(fixture.Stub.Saves.Values);
+        // The server now holds this device's bytes as a new head. The row it was written over
+        // stays one down: overwrite=true never replaces a row. RB-160.
+        Assert.Equal(2, fixture.Stub.Saves.Count);
+        var stored = fixture.Stub.Saves.Values.MaxBy(save => save.Id)!;
         Assert.Equal("what this device did", System.Text.Encoding.UTF8.GetString(stored.Bytes));
 
         // And the local file is untouched, which is the point of keeping it.
@@ -113,22 +112,17 @@ public class SaveConflictTests
     }
 
     [Fact]
-    public async Task Keeping_the_local_side_a_second_later_appends_a_row_rather_than_replacing_one()
+    public async Task Keeping_the_local_side_appends_a_row_rather_than_replacing_one()
     {
-        // overwrite=true does not replace the row in the slot, whatever the flag suggests.
-        // The server renames a slotted upload to carry the current second
-        // and keys the row on that name, so what decides between updating and appending is the
-        // clock. A person deciding a conflict is never inside the same second as the save they are
-        // deciding against, so the real answer for the only caller of overwrite=true is: it
-        // appends, and autocleanup bounds the slot at ten rather than the resolution bounding it
-        // at one. RB-160.
+        // overwrite=true does not replace the row in the slot, whatever the flag suggests, and
+        // neither does any other slotted upload: the server reserves a datetime-tagged name that
+        // no other version holds, so the real answer for the only caller of overwrite=true is that
+        // it appends, and autocleanup bounds the slot at ten rather than the resolution bounding
+        // it at one. RB-160.
         using var fixture = ConflictFixture.Create();
         await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         fixture.Stub.ConflictOnUpload.Add((7, Slot));
-
-        // The clock has moved on by the time the person answers, which is the ordinary case.
-        fixture.Stub.ServerDate = fixture.Stub.ServerDate!.Value.AddMinutes(5);
 
         var outcome = await fixture.ResolveAsync(
             ConflictResolution.KeepLocal,

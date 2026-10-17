@@ -299,8 +299,8 @@ public sealed class SaveConflictResolver
         var pruned = Prune(conflict);
 
         // Not "replaced the server's copy". overwrite=true gets past the 409 and does not
-        // replace the row: the server tags a slotted upload with the current second and keys the
-        // row on that name, so a decision taken later than the same second appends. The older
+        // replace the row: the server tags a slotted upload with a name no other version holds,
+        // so it always appends. The older
         // copy is still there, one row down, and autocleanup bounds the slot at ten.
         return new ConflictResolutionOutcome(
             true,

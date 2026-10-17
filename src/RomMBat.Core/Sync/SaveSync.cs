@@ -1417,12 +1417,10 @@ public sealed class SaveSync
     /// <returns>A problem to report, or null.</returns>
     /// <remarks>
     /// <b>The server keeps a per-device record of the last row synced, and refuses an upload
-    /// against a stale one.</b> Measured at 5.3.0 (<c>s4-older-mtime.py</c>, M6): with this
-    /// device's row gone and a peer's row holding the same bytes at the head, negotiate answers
-    /// <c>no_op (Content is identical)</c>, the next edit's upload is refused 409 "Slot has a
-    /// newer save since your last sync", and after acknowledging the peer's row the same upload
-    /// lands. So a head this device holds but never exchanged is acknowledged without a
-    /// transfer, the same call a download ends with.
+    /// against a stale one.</b> Negotiate already records an identical head for the device
+    /// (<c>s4-older-mtime.py</c>, M6, RB-309), so at 5.4.0 an edit uploads without this. A head
+    /// this device holds but never exchanged is still acknowledged without a transfer, the same
+    /// call a download ends with, which costs one request and changes nothing.
     /// </remarks>
     private async Task<string?> SettleOnHeadAsync(
         SyncOperation operation,

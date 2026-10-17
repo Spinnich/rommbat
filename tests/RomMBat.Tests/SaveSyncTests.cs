@@ -114,7 +114,7 @@ public class SaveSyncTests
         Assert.Equal(0, outcome.Failed);
         Assert.False(outcome.IsNoOp);
 
-        var stored = fixture.Stub.Saves.Values.Single(save => save.RomId == 42);
+        var stored = fixture.Stub.Saves.Values.Where(save => save.RomId == 42).MaxBy(save => save.Id)!;
         Assert.Equal("from the backup", System.Text.Encoding.UTF8.GetString(stored.Bytes));
 
         // And the slot settles, so the next pass has nothing to correct.

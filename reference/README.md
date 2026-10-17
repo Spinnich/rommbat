@@ -40,6 +40,7 @@ no license file at the vendored commit, so nothing stands beside `es_savestates.
 | `romm-platform_aliases.py`        | `rommapp/romm` `backend/utils/platform_aliases.py`                                      | `PLATFORM_FS_ALIASES` and `resolve_platform_slug`: how RomM turns a folder name into a slug. Seed for the platform map. A seed, **not** an answer                               |
 | `romm-known_bios_files.json`      | `rommapp/romm` `backend/models/fixtures/known_bios_files.json`                          | What RomM's `is_verified` flag is computed from                                                                                                                                 |
 | `romm-gamelist_exporter.py`       | `rommapp/romm` `backend/utils/gamelist_exporter.py`                                     | The gamelist field reference RomMBat's writer follows, and the source of two unit conversions RomMBat would otherwise have to guess at                                          |
+| `romm-datetime.py`                | `rommapp/romm` `backend/utils/datetime.py`                                              | The millisecond-to-UTC conversion the gamelist exporter calls for `releasedate`                                                                                                 |
 | `romm-LICENSE`                    | `rommapp/romm` `LICENSE`                                                                | The AGPL-3.0 the `romm-*` files above are copied under                                                                                                                          |
 | `retrobios/emulators/*.yml`       | `Abdess/retrobios` `emulators/`, at the commit in `database-subset.json`'s `_ref`       | Which files each emulator's code reads, cited file:line, with any hash it checks. Only the 221 profiles a RetroBat row resolves to (`tools/firmware_sources.py`)                |
 | `retrobios/platforms/bizhawk.yml` | `Abdess/retrobios` `platforms/bizhawk.yml`, same commit                                 | BizHawk's `FirmwareDatabase.cs` as retrobios scrapes it, by sha1. BizHawk has no emulator profile                                                                               |
@@ -182,7 +183,7 @@ The files are at the floor:
 | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `systems_names.lst`, `es_systems.cfg`, `retrobat-license.txt` | `RetroBat-Official/retrobat` tag `8.3.0`, published 2026-10-10                                  |
 | `es_savestates.cfg`, `batocera-systems.json`                  | `RetroBat-Official/emulatorlauncher` commit `79f5b1aaf659`, the last before 8.3.0 was published |
-| `romm-*`                                                      | `rommapp/romm` tag `5.3.1`                                                                      |
+| `romm-*`                                                      | `rommapp/romm` tag `5.4.0`                                                                      |
 | `retrobios/`                                                  | `Abdess/retrobios` commit `527526a8e2be`, `_ref` in `database-subset.json`                      |
 
 A pull from either upstream's default branch would put the vendored copy ahead of every shipped

@@ -45,7 +45,7 @@ The name is a portmanteau of RomM and RetroBat that lands close to "wombat".
 | -------- | ----------------------------------------- |
 | Windows  | 10 or 11, 64-bit                          |
 | RetroBat | 8.3.0 or newer                            |
-| RomM     | 5.3.1 or newer, on a server you can reach |
+| RomM     | 5.4.0 or newer, on a server you can reach |
 
 An older RomM or RetroBat is refused at startup, and a newer one works with a warning.
 [Compatibility](https://spinnich.github.io/rommbat/reference/compatibility/) names what each

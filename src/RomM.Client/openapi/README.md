@@ -1,19 +1,19 @@
 # The pinned RomM schema
 
-`romm-5.3.1.json` is a byte-exact copy of `GET /openapi.json` (served at the root,
-not under `/api`) from a RomM instance reporting `SYSTEM.VERSION = 5.3.1`. The generated DTOs
+`romm-5.4.0.json` is a byte-exact copy of `GET /openapi.json` (served at the root,
+not under `/api`) from a RomM instance reporting `SYSTEM.VERSION = 5.4.0`. The generated DTOs
 in [`../Generated/RomMApiSchema.g.cs`](../Generated/RomMApiSchema.g.cs) come from it and
 are committed, so an upstream deploy cannot change the contract mid-session.
 
 |                |                                                                    |
 | -------------- | ------------------------------------------------------------------ |
-| RomM version   | 5.3.1, the minimum RomMBat supports                                |
-| Source         | a self-hosted 5.3.1 instance, host redacted                        |
-| Pulled         | 2026-09-24                                                         |
-| `info.version` | 5.3.1                                                              |
-| sha256         | `fe182c0ad052f855b470ae9be0fb5931d23e97dbf8752b5b6949784714d8e210` |
-| Paths          | 198                                                                |
-| Schemas        | 272                                                                |
+| RomM version   | 5.4.0, the minimum RomMBat supports                                |
+| Source         | a self-hosted 5.4.0 instance, host redacted                        |
+| Pulled         | 2026-10-17                                                         |
+| `info.version` | 5.4.0                                                              |
+| sha256         | `ce59cca7062a05d7e63a93f3f6da896dd42604e87494055ca05e473b5287d43b` |
+| Paths          | 226                                                                |
+| Schemas        | 329                                                                |
 
 **The pin is always the minimum version RomMBat declares support for**, so the generated DTOs
 describe the oldest server the client claims to work with. Since RomMBat tracks the newest
@@ -26,10 +26,11 @@ file from it without an account, a token or a hostname that would have to be scr
 5.1.0 pin came from there. None of the 5.2.0, 5.3.0-alpha.2, 5.3.0-alpha.3, 5.3.0-beta.1 or 5.3.0 pins
 nor this one did: the demo reported 5.1.0 on 2026-08-25, 5.2.0 on 2026-09-14 and again on
 2026-09-21, hours after 5.3.0 shipped, and still 5.2.0 on 2026-09-24, a day after 5.3.1, so each
-was pulled from a self-hosted instance of the pinned version instead.
+was pulled from a self-hosted instance of the pinned version instead. The 5.4.0 capture was too;
+the demo was not read that day.
 
 The sha256 above is how the capture is checked rather than trusted; a `/openapi.json` from any
-stock 5.3.1 hashes to it. That holds because `backend/main.py` registers every router
+stock 5.4.0 hashes to it. That holds because `backend/main.py` registers every router
 unconditionally at this tag, so the served schema is decided by the version and not by the
 instance's configuration. **`SYSTEM.VERSION` was read at capture time rather than assumed**: a
 live library can be upgraded underneath the work, which is how upstream's own tag moved from

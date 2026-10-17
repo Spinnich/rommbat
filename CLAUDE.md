@@ -109,7 +109,7 @@ was used and to what extent.
 layout, and the Playnite plugin as the structural analog for a C# repo in the org.
 
 **Version floor.** Every release names its minimum RomM and RetroBat. Currently RetroBat 8.3.0
-and RomM 5.3.1, both the newest stable; anything older is refused at startup, and anything newer
+and RomM 5.4.0, both the newest stable; anything older is refused at startup, and anything newer
 warns. The floor moves forward: adopt a new stable within one release, and never move the floor,
 the tested row or the pin to a prerelease. A prerelease gets a scout pass instead, which reports
 what adoption will owe and lands fixes that are correct on the floor too. A daily workflow opens
