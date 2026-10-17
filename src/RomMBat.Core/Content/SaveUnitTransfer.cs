@@ -234,6 +234,75 @@ public static class SaveUnitTransfer
         return CopyAside(install, Find(units, local), local, asideDirectory, now);
     }
 
+    /// <summary>
+    /// Takes a unit out of the tree, keeping a copy under <paramref name="asideDirectory"/>.
+    /// </summary>
+    /// <remarks>
+    /// The copy is complete before the first member is deleted, so a failure part way leaves the
+    /// copy and whatever members remain. The unit's own members only, never the container, which
+    /// other games share.
+    /// </remarks>
+    public static RelativePath? MoveAside(
+        RetroBatInstall install,
+        SaveUnitScanner units,
+        LocalSave local,
+        RelativePath asideDirectory,
+        DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(units);
+
+        var unit = Find(units, local);
+        var aside = CopyAside(install, unit, local, asideDirectory, now);
+
+        if (aside is null || unit is null)
+        {
+            return null;
+        }
+
+        var emptied = new List<string>();
+        var deleted = new List<SaveUnitFile>();
+
+        try
+        {
+            foreach (var file in unit.Files)
+            {
+                var absolute = install.Resolve(file.Path);
+                File.Delete(absolute);
+                deleted.Add(file);
+                emptied.Add(Path.GetDirectoryName(absolute)!);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A member locked part way would otherwise leave a partial unit that the next
+            // flush uploads as the slot's new head, so the members already gone come back.
+            foreach (var file in deleted)
+            {
+                try
+                {
+                    var back = install.Resolve(file.Path);
+                    Directory.CreateDirectory(Path.GetDirectoryName(back)!);
+                    File.Copy(
+                        Path.Combine(
+                            install.Resolve(aside.Value),
+                            file.ArchivePath.Replace('/', Path.DirectorySeparatorChar)),
+                        back,
+                        overwrite: true);
+                }
+                catch (Exception put) when (put is IOException or UnauthorizedAccessException)
+                {
+                    // The original failure is what the caller reports; the copy aside still
+                    // holds every member, so one that will not come back is not lost.
+                }
+            }
+
+            throw;
+        }
+
+        PruneEmpty(install.Resolve(local.Path), emptied);
+        return aside;
+    }
+
     private static RelativePath? CopyAside(
         RetroBatInstall install,
         SaveUnit? unit,

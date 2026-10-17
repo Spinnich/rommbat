@@ -271,6 +271,211 @@ public class SaveSyncTests
         Assert.Contains("never sent", conflict.Reason, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task A_slot_the_server_emptied_is_taken_out_of_the_tree_with_a_copy_and_is_not_a_conflict()
+    {
+        // #481, RomM 5.4: a save deleted in the web UI answers `delete` with a null save_id.
+        // Treated as a conflict its only exits were a fetch of nothing and a re-upload that
+        // undid the deletion.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
+
+        fixture.Stub.Saves.Clear();
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "delete";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Removed);
+        Assert.Equal(0, outcome.Conflicts);
+        Assert.Equal(0, outcome.Failed);
+        Assert.False(File.Exists(fixture.Resolve("saves/snes/ActRaiser (USA).srm")));
+        Assert.Empty(fixture.Store.Saves.List());
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+
+        var copy = Assert.Single(Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value)));
+        Assert.Equal("progress", File.ReadAllText(copy));
+    }
+
+    [Fact]
+    public async Task Two_saves_with_one_file_name_emptied_in_one_flush_each_keep_their_own_copy()
+    {
+        // The copy is named for the stamp and the file name, so a NES and a GB `Pac-Man (USA)`
+        // removed in the same second would otherwise share one name and the second would
+        // overwrite the first, leaving the NES save nowhere.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(1, "nes", "Pac-Man (USA)", ".zip", ".srm", "the nes save");
+        fixture.AddGame(2, "gb", "Pac-Man (USA)", ".zip", ".srm", "the gb save");
+        fixture.Scan();
+        fixture.MarkSent();
+        fixture.Stub.NegotiateActions[(1, "libretro:battery")] = "delete";
+        fixture.Stub.NegotiateActions[(2, "libretro:battery")] = "delete";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, outcome.Removed);
+
+        var copies = Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value))
+            .Select(File.ReadAllText)
+            .Order(StringComparer.Ordinal);
+
+        Assert.Equal(["the gb save", "the nes save"], copies);
+    }
+
+    [Fact]
+    public async Task A_directory_save_the_server_emptied_loses_its_own_members_and_keeps_a_copy()
+    {
+        // Class C: the unit's members go and the container, which other games share, stays.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
+        fixture.AddUnit(9, "galaga", ("eeprom", "a neighbor"));
+        fixture.Scan();
+        fixture.MarkSent();
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "delete";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Removed);
+        Assert.Equal(0, outcome.Failed);
+        Assert.False(File.Exists(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
+        Assert.False(File.Exists(fixture.Resolve("saves/mame/nvram/25pacman/flash")));
+        Assert.Equal("a neighbor", File.ReadAllText(fixture.Resolve("saves/mame/nvram/galaga/eeprom")));
+        Assert.DoesNotContain(fixture.Store.Saves.List(), save => save.UnitKey == "25pacman");
+
+        var copy = Assert.Single(Directory.GetDirectories(fixture.Resolve(SaveSync.AsideDirectory.Value)));
+
+        Assert.Equal("one", File.ReadAllText(Path.Combine(copy, "25pacman", "eeprom")));
+        Assert.Equal("two", File.ReadAllText(Path.Combine(copy, "25pacman", "flash")));
+    }
+
+    [Fact]
+    public async Task A_removal_closes_the_open_conflict_on_the_slot()
+    {
+        // A conflict on a slot the server then empties has nothing to keep on either side:
+        // keep-local has no file and keep-server no row to fetch, so nothing else closes it.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played here");
+        fixture.Scan();
+        fixture.MarkSent();
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+        Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "delete";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Removed);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+
+        // The copy pointer goes with it, so a conflict that reopens takes a copy of its own.
+        Assert.Null(Assert.Single(fixture.Store.SaveConflicts.List()).LocalCopyPath);
+    }
+
+    [Fact]
+    public async Task A_delete_for_a_slot_with_no_local_save_still_closes_its_open_conflict()
+    {
+        // The save file was removed by hand before the server emptied the slot: keep-local has
+        // no file and keep-server nothing to fetch, so the delete is the only way out.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played here");
+        fixture.Scan();
+        fixture.MarkSent();
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        var row = Assert.Single(fixture.Store.Saves.List());
+        fixture.Store.Saves.Forget([(row.Path, row.UnitKey)]);
+        fixture.Stub.NegotiateActions.Clear();
+        fixture.Stub.UnsolicitedDeletes.Add((7, "libretro:battery"));
+
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+    }
+
+    [Fact]
+    public async Task A_directory_save_removal_stopped_by_a_locked_member_puts_back_what_it_deleted()
+    {
+        // A half-removed unit would be uploaded next flush as the slot's new head.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
+        fixture.Scan();
+        fixture.MarkSent();
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "delete";
+
+        // Shared for reading but not for deleting, so the copy aside succeeds and the delete of
+        // the second member fails on Windows, with the first already gone.
+        using var held = new FileStream(
+            fixture.Resolve("saves/mame/nvram/25pacman/flash"),
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read);
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Removed);
+        Assert.Equal(1, outcome.Failed);
+        Assert.Equal("one", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
+        Assert.NotEmpty(fixture.Store.Saves.List());
+    }
+
+    [Fact]
+    public async Task A_removal_for_a_game_being_played_waits_for_the_next_flush()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "what the emulator has open");
+        fixture.Scan();
+        fixture.MarkSent();
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "delete";
+
+        fixture.Launch(7, "Tetris (World)");
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Deferred);
+        Assert.Equal(0, outcome.Removed);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal("what the emulator has open", File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+        Assert.NotEmpty(fixture.Store.Saves.List());
+    }
+
+    [Fact]
+    public async Task A_delete_for_a_slot_this_device_holds_nothing_in_changes_nothing()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played here");
+        fixture.Scan();
+        fixture.MarkSent();
+        fixture.Stub.UnsolicitedDeletes.Add((99, "libretro:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Removed);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(0, outcome.Conflicts);
+        Assert.True(File.Exists(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
+    [Fact]
+    public async Task A_slot_the_server_emptied_is_sent_again_when_the_local_save_changed_since()
+    {
+        // The server's own rule: a copy written after the loss answers upload. This is the
+        // client's half, for an edit the scan has not yet reported as a hash change.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played here offline, never sent");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "delete";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Removed);
+        Assert.Equal(1, outcome.Uploaded);
+        Assert.True(File.Exists(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
     [Theory]
     [InlineData(ConflictResolution.KeepLocal, "played here offline, never sent")]
     [InlineData(ConflictResolution.KeepServer, "played on the other device")]

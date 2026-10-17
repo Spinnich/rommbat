@@ -91,6 +91,9 @@ internal sealed partial class StubRomMServer
     /// </remarks>
     public HashSet<(int RomId, string Slot)> UnsolicitedConflicts { get; } = [];
 
+    /// <summary>Slots negotiate volunteers as <c>delete</c> without the client naming them (#481).</summary>
+    public HashSet<(int RomId, string Slot)> UnsolicitedDeletes { get; } = [];
+
     /// <summary>
     /// Save ids the client acknowledged, in order.
     /// </summary>
@@ -325,6 +328,22 @@ internal sealed partial class StubRomMServer
                 reason = "held on the server with no slot",
                 server_updated_at = NaiveOrNull(existing?.UpdatedAt),
                 server_content_hash = OmitHash ? null : HashLie ?? existing?.ContentHash,
+            });
+        }
+
+        foreach (var (romId, slot) in UnsolicitedDeletes)
+        {
+            operations.Add(new
+            {
+                action = "delete",
+                rom_id = romId,
+                save_id = (int?)null,
+                file_name = (string?)null,
+                slot,
+                emulator = (string?)null,
+                reason = "deleted on the server",
+                server_updated_at = (string?)null,
+                server_content_hash = (string?)null,
             });
         }
 
