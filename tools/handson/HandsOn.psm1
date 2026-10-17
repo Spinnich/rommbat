@@ -151,7 +151,7 @@ function Test-HandsOnEnv {
     $scout = $script:TreeKey -eq 'ROMMBAT_SCOUT_ROOT'
 
     $results[".env has $script:TreeKey"] = [bool]$root
-    $results['.env has the server and approver token'] = [bool]($envValues['ROMMBAT_TEST_SERVER'] -and $envValues['ROMMBAT_TEST_APPROVER_TOKEN'])
+    $results['.env has the server and an approving token'] = [bool]($envValues['ROMMBAT_TEST_SERVER'] -and ($envValues['ROMMBAT_TEST_DEV_TOKEN'] -or $envValues['ROMMBAT_TEST_APPROVER_TOKEN']))
     $results['agent tree exists'] = [bool]($root -and (Test-Path (Join-Path $root 'RetroBat.exe')) -and (Test-Path (Join-Path $root 'emulationstation')))
 
     $versionFile = if ($root) { Join-Path $root 'system\version.info' }
@@ -265,7 +265,9 @@ function Connect-AgentTree {
         }
         if (-not $code) { throw "pair printed no code. stderr: $(Get-Content -Raw $err)" }
 
-        $headers = @{ Authorization = "Bearer $($envValues['ROMMBAT_TEST_APPROVER_TOKEN'])" }
+        # The dev token holds me.write, so it approves; the approver token is the older spelling.
+        $approver = if ($envValues['ROMMBAT_TEST_DEV_TOKEN']) { $envValues['ROMMBAT_TEST_DEV_TOKEN'] } else { $envValues['ROMMBAT_TEST_APPROVER_TOKEN'] }
+        $headers = @{ Authorization = "Bearer $approver" }
         $pending = Invoke-RestMethod -Uri "$server/api/auth/device/pending/$code" -Headers $headers
         $body = @{ user_code = $code; approved_scopes = @($pending.requested_scopes); device_name = $DeviceName; expires_in = 'never' } |
             ConvertTo-Json
