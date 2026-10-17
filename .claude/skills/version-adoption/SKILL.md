@@ -101,7 +101,7 @@ and must move, and some are the version a measurement was taken on and must not.
    agree. For RetroBat the value is what `system/version.info` reports on a tree built from the
    tag (`./tools/retrobat-install.ps1 -Version <tag>`), less its `-stable-win64` suffix, and not
    the tag, because that file is what the startup check compares. The tracking issue's Version
-   column is the hint and the tree is the measurement. Step 1's refresh still takes the tag. The
+   column is the hint and the tree is the measurement. Step 1's refresh still takes the tag, and a plain `refresh.sh` finds the tag whose setup asset names the floor. The
    guide's compatibility table, `wiki/reference/compatibility.md`, is left alone: each row records
    what a release was tested against, and the next release's row is added when it is cut
    (`DEVELOPER_SETUP.md`, "Cutting a release").
