@@ -57,7 +57,7 @@ before starting the other's.
 | `Connect-AgentTree [-Repair]`                 | Pairs headlessly, approving with the approver token for exactly the scopes requested                |
 | `Start-ES`, `Stop-ES`                         | Start RetroBat and wait for ES's API; end any game, quit, wait for the process to exit              |
 | `Get-ESGames <system>`, `Start-Game <path>`   | List a system through ES, and launch through it so the hooks run as for a player                    |
-| `Start-EmulatorLauncher`                      | Boot one row through `emulatorLauncher` without ES, so no hooks: `-System -Emulator -Core -Rom`     |
+| `Start-EmulatorLauncher [-WithPad]`           | Boot one row through `emulatorLauncher` without ES, so no hooks: `-System -Emulator -Core -Rom`     |
 | `Wait-Emulator`, `Get-LauncherDialog`         | Wait for the emulator, answering "install now?"; the handle of a launcher prompt, or nothing        |
 | `Stop-Game [-Force]`                          | WM_CLOSE (Escape for ares), then Escape, then No to "keep the uncompressed game?"; `-Force` kills   |
 | `Start-RomMBatUI`, `Stop-RomMBatUI`           | The deployed `RomMBat.exe` on the tree, standalone                                                  |
@@ -108,6 +108,12 @@ pressed. The mouse is not driven by the kit yet.
   made before the pad has touched ES carries no pad, so the pad does nothing in the game
   (RB-419). Set the row, leave ES on its menu, and let the maintainer launch it. `Start-Game` is
   for launches the agent drives with `Send-Key`.
+- **A row the maintainer plays outside ES gets `-WithPad`.** `Start-EmulatorLauncher` alone passes
+  no `-p1*` arguments, so `emulatorLauncher` configures no pad: PCSX2 got `Keyboard/Up` and
+  `Keyboard/Z` in `[Pad1]` and the pad did nothing. `-WithPad` copies the pad arguments from the
+  newest launch in `emulationstation/emulatorLauncher.log` that carried them, and refuses when none
+  did, so launch one game from the pad in ES on the tree first. Use it for a disc change or a disc
+  ES does not list; a boot nobody plays needs none.
 - **Evidence stays local.** Screenshots go under `probe-output/`, which git ignores. The PR's
   Hands-on section names the paths and says what each showed.
 

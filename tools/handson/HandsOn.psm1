@@ -389,28 +389,54 @@ function Start-EmulatorLauncher {
     .SYNOPSIS
         Boots one row through emulatorLauncher directly, without ES, and waits for the emulator.
     .DESCRIPTION
-        For a boot nobody plays: a scout's smoke, a certification's launch check. No ES means no
+        By default for a boot nobody plays: a scout's smoke, a certification's launch check. No ES means no
         hooks run, so it records no play session; Start-Game is the launch that does. Pass -Core
         for any emulator that has one, because bizhawk configures one input port without it (RB-374). -Rom is
         a file name under roms/<system>/, or a full path.
+
+        Without ES no -p1* arguments reach emulatorLauncher, and it configures no pad: PCSX2 got
+        keyboard binds only. -WithPad is for a launch the maintainer plays, such as a disc ES does
+        not list: it copies the pad arguments from the newest launch in emulatorLauncher.log that
+        carried them, so a game launched from the pad in ES must have run on the tree first.
     #>
     param(
         [Parameter(Mandatory)] [string] $System,
         [Parameter(Mandatory)] [string] $Emulator,
         [string] $Core,
         [Parameter(Mandatory)] [string] $Rom,
+        [switch] $WithPad,
         [int] $TimeoutSec = 300
     )
     Assert-TakeoverAllowed
-    Show-AgentBanner
     $root = Get-AgentRoot
     $romPath = if ([IO.Path]::IsPathRooted($Rom)) { $Rom } else { Join-Path $root "roms\$System\$Rom" }
     if (-not (Test-Path -LiteralPath $romPath)) { throw "No ROM at $romPath" }
-    $arguments = "-system $System -emulator $Emulator$(if ($Core) { " -core $Core" }) -rom `"$romPath`""
+    $pad = if ($WithPad) { Get-LauncherPadArguments (Join-Path $root 'emulationstation\emulatorLauncher.log') }
+    Show-AgentBanner
+    $arguments = "$(if ($pad) { "$pad " })-system $System -emulator $Emulator$(if ($Core) { " -core $Core" }) -rom `"$romPath`""
     Start-TreeProcess -FilePath (Join-Path $root 'emulationstation\emulatorLauncher.exe') -ArgumentList $arguments `
         -WorkingDirectory (Join-Path $root 'emulationstation')
-    Write-Host "Launched $System/$Emulator$(if ($Core) { "/$Core" }) on $(Split-Path $romPath -Leaf)"
+    Write-Host "Launched $System/$Emulator$(if ($Core) { "/$Core" }) on $(Split-Path $romPath -Leaf)$(if ($pad) { " with $pad" })"
     $null = Wait-Emulator -TimeoutSec $TimeoutSec
+}
+
+function Get-LauncherPadArguments {
+    <#
+    .SYNOPSIS
+        The -pN* arguments of the newest [Startup] line in an emulatorLauncher.log that has any,
+        as one string to pass on.
+    .DESCRIPTION
+        ES writes them from %CONTROLLERSCONFIG% only for a launch a pad has touched (RB-419), so
+        the newest such line names the pad in use. The log appends across launches, and a
+        -WithPad launch writes its own copy, so one ES launch from the pad serves every later one.
+    #>
+    param([Parameter(Mandatory)] [string] $LogPath)
+    $line = if (Test-Path -LiteralPath $LogPath) {
+        Select-String -LiteralPath $LogPath -Pattern '\[Startup\].*\s-p\d+index\s' | Select-Object -Last 1
+    }
+    if (-not $line) { throw "No launch in $LogPath carried a pad. Launch any game from the pad in ES on this tree, then retry." }
+    # A value is one token or a quoted string; -p1name and -p1path hold spaces and '&'.
+    (([regex]::Matches($line.Line, '-p\d+[a-z]+\s+(?:"[^"]*"|\S+)')).Value) -join ' '
 }
 
 function Get-EmulatorProcess {
