@@ -7,7 +7,7 @@ Tables RomMBat ships and reads at runtime, and three that nothing reads at runti
 | File                                    | Shape                                                                 | Derived from                                                                |
 | --------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `retrobat/platforms.json`               | RomM slug to an **ordered list** of RetroBat folders                  | `systems_names.lst`, resolved by RomM's `backend/utils/platform_aliases.py` |
-| `retrobat/save_shapes.json`             | RetroBat system to save class A/B/C/D                                 | `tools/m0-probes/probe2-emit-data.py`, run against a real install           |
+| `retrobat/save_shapes.json`             | RetroBat system to save class A/B/C/D                                 | Driven on a real install, one shape at a time, and edited by hand           |
 | `retrobat/bios.json`                    | RetroBat system to the firmware slots its emulators read              | `batocera-systems.json` and `reference/retrobios/`, joined by a generator   |
 | `retrobat/save_rules.json`              | Which files under `saves/` and two emulators' folders are whose saves | `tools/m6-probes/m6-emit-save-rules.py`, plus hand-measured rules           |
 | `retrobat/multi_file.json`              | Systems whose multi-file ROMs sync, and how each lands                | One certification pass per system                                           |
@@ -73,7 +73,7 @@ Who decides what is in
 ## The two save tables depart from Grout in two ways, deliberately
 
 Grout's `cfw/*/data/save_directories.json` keys by **RomM slug** and its values are one
-segment deep. Both differ here, and the emitted files say so in their own `_comment`:
+segment deep. Both differ here, and both files say so in their own `_comment`:
 
 - **Keyed by RetroBat system folder, not RomM slug.** This file describes RetroBat's disk
   layout. Joining a slug to a system folder is what `platforms.json` above is for, and
@@ -82,10 +82,12 @@ segment deep. Both differ here, and the emitted files say so in their own `_comm
   rather than `saves/<system>/`, with some emulator-named folders sitting at the top level
   beside the system ones (RB-361, RB-119).
 
-Both files carry a `_provenance` field per entry. `observed` means it was seen on a real
+Both files carry a `_provenance` key, and each `save_shapes.json` entry a `provenance` of its own. `observed` means it was seen on a real
 install; `declared` means it comes from `es_savestates.cfg` or `es_features.cfg` and has
-not yet been seen written. Regenerate with
-`python tools/m0-probes/probe2-emit-data.py <retrobat-root>`.
+not yet been seen written. `save_directories.json` regenerates with
+`python tools/m0-probes/probe2-emit-data.py <retrobat-root>`. `save_shapes.json` has no
+generator: the PR that measures a shape edits its entry, citing the fact that records it in
+[save-locations](../docs/upstream/retrobat/save-locations.md).
 
 **`_state_directory_templates` is copied from `es_savestates.cfg` and is not trustworthy on
 its own.** Four sibling keys qualify it: `_state_directory_verified` lists the eleven

@@ -192,8 +192,8 @@ work. All three counts are against the 51 systems above.
   `SaveScanner` falls back to treating a loose file under `saves/<system>/` as class A. That
   fallback is probably right for the generation 2 to 4 tail and it has never been measured, so
   step 4 in waves 4 through 7 either confirms it or finds the exception. A confirmation is worth
-  recording: the file is generated, so a new entry comes from re-running the probe against an
-  install that has the system populated, not from hand-editing.
+  recording: the file has no generator, so the PR that measures a shape edits its entry and cites
+  the fact that records it in [save-locations](../upstream/retrobat/save-locations.md).
 - **BIOS is smaller than the system count suggests.** RetroBat's own list names nothing for
   sixteen of the 51, and five (`mastersystem`, `vectrex`, `sega32x`, `ngp`, `ngpc`) only files
   it gives no hash for. The bundled manifest adds what every other emulator reads, mostly

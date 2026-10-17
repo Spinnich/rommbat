@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""M0 probe 2: emit data/retrobat/save_directories.json and save_shapes.json.
+"""M0 probe 2: emit data/retrobat/save_directories.json.
 
 Shape follows grout's `cfw/*/data/save_directories.json`: an object keyed by identifier
 whose values are lists of save directories relative to a known root.
 
-Two deliberate departures from grout, both documented in the emitted files:
+Two deliberate departures from grout, both documented in the emitted file:
 
   * keyed by **RetroBat system folder**, not by RomM slug. This file describes RetroBat's
     disk layout; the slug join is a separate mapping table and belongs with the platform
@@ -31,63 +31,6 @@ from probe2_static import inventory_saves, parse_savestates  # noqa: E402
 # Directories under saves/<system>/ that hold emulator state or config rather than battery
 # saves, so they must not be advertised as save locations.
 NON_SAVE_DIRS = {"SYSTEM", "Cheats", "PPSSPP_STATE", "artwork", "ctrlr", "cfg", "ini", "hash", "samples"}
-
-# Shape classifications that were confirmed by direct observation of a real install.
-# Anything not listed stays "unclassified" rather than being guessed at.
-CONFIRMED_SHAPES = {
-    "nes": ("A", "loose .srm per rom, libretro"),
-    "snes": ("A", "loose .srm per rom, libretro"),
-    "gb": ("A", "loose .srm per rom, libretro"),
-    "gbc": ("A", "loose .srm per rom, libretro"),
-    "gba": ("A", "loose .srm per rom, libretro"),
-    "megadrive": ("A", "loose .srm per rom, libretro"),
-    # Both driven under libretro genesis_plus_gx with no save key ever pressed, so the file
-    # that appeared was written by the emulator alone. RetroArch names the destination in
-    # its own log ("Redirecting save file to saves/<system>/<rom>.srm") even on a run that
-    # writes nothing, which is what classifies gamegear despite its cart staying untouched.
-    "mastersystem": ("A", "loose .srm per rom, libretro genesis_plus_gx; written at boot before any player save"),
-    "gamegear": ("A", "loose .srm per rom, libretro genesis_plus_gx; path declared by the emulator, cart untouched in the run"),
-    "n64": ("A", "loose .srm per rom, libretro"),
-    "pcengine": ("A", "loose .srm per rom, libretro"),
-    "pcenginecd": ("A", "loose .srm per rom, libretro"),
-    "sega32x": ("A", "loose .srm per rom, libretro"),
-    # Driven under both emulators with the same two-disc set. libretro names the .srm from the
-    # .m3u stem; DuckStation names the card from its gamedb saveName with the disc marker
-    # removed, and writes one per console slot rather than one per disc.
-    "psx": ("A", "loose .srm when libretro is selected; DuckStation instead writes memcards/<saveName minus disc>_<slot>.mcd, see shape_depends_on_emulator"),
-    "saturn": ("B", ".bcr and .bkr both written per rom"),
-    "megacd": ("BD", "per-rom .brm and .srm, plus a shared 4Mbit_cart.brm RAM cart"),
-    "mame": ("C", "nvram/<shortname>/ where shortname is the rom basename, so attribution is by filename"),
-    "psp": ("C", "SAVEDATA/<GAMEID>/ containing PARAM.SFO, keyed by game id not filename"),
-    "ps3": ("C", "rpcs3/dev_hdd0/**/savedata keyed by TITLEID; 32k+ files, hashing is expensive"),
-    "gamecube": ("C", "GCI folder under dolphin-emu/User/GC/<REGION>/, several .gci per game, .gci.deleted must be excluded"),
-    "wii": ("C", "NAND tree under dolphin-emu/User/Wii/title/, mixed with non-per-game system state"),
-    "dreamcast": ("D", "flycast/vmu/vmu_save_<PORT>1.bin shared by all games; convertible via flycast_vmupergame, port 1 only"),
-    "xbox": ("D", "eeprom.bin and xbox_hdd.qcow2, a whole disk image shared by every game"),
-    "ps2": ("D", "shared Mcd001.ps2 by default; convertible via pcsx2_slot1_memory=game"),
-}
-
-# Per-game conversion levers, read out of es_features.cfg on a real install.
-CONVERSIONS = {
-    # The one lever here that should not be pulled. Measured on a driven two-disc set: stock
-    # PerGameTitle produced a single card for the set, so converting to a filename-keyed mode
-    # splits it and the save disappears at the disc change.
-    "psx": {"option": "duckstation_memcardtype", "set_to": None, "apply": False,
-            "keys_by": "gamedb saveName with the disc marker removed, not the rom filename",
-            "note": "Stock PerGameTitle binds a multi-disc set through DuckStation's own database, "
-                    "with or without a .m3u: a foldered two-disc set and a loose three-disc set each "
-                    "produced one card, named '<saveName minus disc>_<slot>.mcd'. The slot suffix is not "
-                    "a disc number and how many slots appear depends on the game. "
-                    "Regions stay separate because saveName carries them; revisions share a serial and a card. "
-                    "Save states are keyed on the rom file instead, so they are per disc while the card is "
-                    "per set. Not measured: the 130 stems keeping a subtitle behind the disc marker"},
-    "ps2": {"option": "pcsx2_slot1_memory", "set_to": "game", "keys_by": "rom basename"},
-    "gamecube": {"option": "dolphin_slotA", "set_to": "8", "keys_by": "game code",
-                 "note": "already the stock default; still needs attribution because .gci names carry the game code, not the filename"},
-    "dreamcast": {"option": "flycast_vmupergame", "set_to": "on", "keys_by": "disc serial",
-                  "note": "driven: produces vmu/<SERIAL>_vmu_save_A1.bin (T40217N for Bangai-O), not a rom-named file, "
-                          "so it needs game-id attribution like class C. Port 1 only; ports B, C and D stay shared"},
-}
 
 # es_savestates.cfg's <directory> is not authoritative. These are the emulators whose
 # declared directory was checked by driving a real save state, and openmsx is the one it
@@ -147,7 +90,6 @@ def main() -> int:
         "_provenance": "observed = seen on disk; declared = from es_savestates.cfg or es_features.cfg, not yet seen written",
     }
 
-    # save_directories.json
     directories: dict[str, list[str]] = {}
     for system, info in sorted(observed.items()):
         entries = []
@@ -174,46 +116,11 @@ def main() -> int:
         "directories": directories,
     }
 
-    # save_shapes.json
-    shapes = {}
-    for system, (cls, why) in sorted(CONFIRMED_SHAPES.items()):
-        entry = {
-            "class": cls,
-            "evidence": why,
-            "provenance": "observed" if system in observed else "declared",
-        }
-        if system in CONVERSIONS:
-            entry["per_game_conversion"] = CONVERSIONS[system]
-        if system == "psx":
-            entry["shape_depends_on_emulator"] = True
-        shapes[system] = entry
-
-    unclassified = sorted(set(observed) - set(CONFIRMED_SHAPES))
-
-    save_shapes = {
-        **header,
-        "_classes": {
-            "A": "one file per game",
-            "B": "several files per game",
-            "C": "directory per game",
-            "D": "one container shared by many games",
-        },
-        "_unclassified": unclassified,
-        "_note": (
-            "Shape is a property of (system, emulator), not of system alone. psx is the "
-            "worked example: libretro writes class A .srm, DuckStation writes memcards."
-        ),
-        "shapes": shapes,
-    }
-
     out = Path("data/retrobat")
     out.mkdir(parents=True, exist_ok=True)
     (out / "save_directories.json").write_text(json.dumps(save_directories, indent=2) + "\n", encoding="utf-8")
-    (out / "save_shapes.json").write_text(json.dumps(save_shapes, indent=2) + "\n", encoding="utf-8")
 
     print(f"save_directories.json : {len(directories)} systems, {sum(len(v) for v in directories.values())} directories")
-    print(f"save_shapes.json      : {len(shapes)} classified, {len(unclassified)} unclassified")
-    print(f"unclassified          : {', '.join(unclassified)}")
     return 0
 
 
