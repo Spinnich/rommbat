@@ -6,10 +6,10 @@
     python tools/corpus.py [system ...] --apply    create a missing collection, add and remove
                                                    members to match
 
-Each system's games are one collection, "RomMBat corpus: <system>", owned by the approver
-account, which is the account the agent tree pairs as. --apply needs ROMMBAT_TEST_CORPUS_TOKEN,
-a token on that account with collections.write; a read-only check takes it, or the approver
-token when it is not set. A game is
+Each system's games are one collection, "RomMBat corpus: <system>", owned by the test
+account, which is the account the agent tree pairs as. ROMMBAT_TEST_DEV_TOKEN, the token on that
+account that holds every scope, reads and writes them; a read-only check falls back to the
+approver token when it is not set. A game is
 resolved by its file name on its RomM platform, since rom ids differ per server. A game the
 server lacks is reported as missing and one whose size or md5 moved as changed; neither stops
 the rest of the system, and neither is added.
@@ -123,12 +123,12 @@ class Server:
 
         localenv.apply()
         self.base = os.environ.get("ROMMBAT_TEST_SERVER", "").rstrip("/")
-        # The approver token stays narrow for the pairing tests, so writes need the corpus token.
-        self.token = os.environ.get("ROMMBAT_TEST_CORPUS_TOKEN", "")
+        # The approver token stays narrow for the pairing tests, so writes need the dev token.
+        self.token = os.environ.get("ROMMBAT_TEST_DEV_TOKEN", "")
         if not self.token and not writing:
             self.token = os.environ.get("ROMMBAT_TEST_APPROVER_TOKEN", "")
         if not self.base or not self.token:
-            needed = "ROMMBAT_TEST_CORPUS_TOKEN" if writing else "ROMMBAT_TEST_CORPUS_TOKEN or ROMMBAT_TEST_APPROVER_TOKEN"
+            needed = "ROMMBAT_TEST_DEV_TOKEN" if writing else "ROMMBAT_TEST_DEV_TOKEN or ROMMBAT_TEST_APPROVER_TOKEN"
             raise SystemExit(f"ROMMBAT_TEST_SERVER and {needed} are needed; see python tools/localenv.py.")
 
     def call(self, method: str, path: str, params: dict | None = None, body: bytes | None = None, content_type: str | None = None):
@@ -142,7 +142,7 @@ class Server:
                 raw = response.read()
         except urllib.error.HTTPError as error:
             # The path, never the URL: the host stays out of a transcript.
-            hint = " (ROMMBAT_TEST_CORPUS_TOKEN needs collections.write)" if error.code == 403 and method != "GET" else ""
+            hint = " (ROMMBAT_TEST_DEV_TOKEN needs collections.write)" if error.code == 403 and method != "GET" else ""
             raise SystemExit(f"{method} {path} answered {error.code}{hint}")
         except (urllib.error.URLError, TimeoutError) as error:
             raise SystemExit(f"The test server is unreachable: {type(error).__name__}")

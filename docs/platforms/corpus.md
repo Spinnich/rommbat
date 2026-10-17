@@ -17,7 +17,7 @@ and records the result here.
 
 Each system's games are one RomM collection on the test server, `RomMBat corpus: <system>`, owned
 by the approver account, which is the account the agent tree pairs as. `tools/corpus.py` keeps the
-collections matching the tables below, writing with `ROMMBAT_TEST_CORPUS_TOKEN`
+collections matching the tables below, writing with `ROMMBAT_TEST_DEV_TOKEN`
 ([local secrets](../contributing/local-secrets.md)), and the agent tree syncs one as an ordinary
 collection set:
 
