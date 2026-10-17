@@ -32,11 +32,12 @@ Verified: RetroBat 8.2.0, 2026-08-10, 8.2.1, 2026-09-27, and 8.3.0, 2026-10-14. 
 the `.menu` entries, and `mess` declares no path at all. `EsSystemsFile` filters on the resolved
 path, not on a list of names, and keeps the four as `NonRomSystems`, which nothing reads yet.
 
-## RB-70. `arcade` and `kodi` are inside XML comments
+## RB-70. `arcade`, `kodi` and `prboom` are inside XML comments
 
 Verified: RetroBat 8.3.1.1, 2026-10-17. How: counted `<system>` in the vendored `reference/es_systems.cfg` with a regex and with an XML parser, and listed the systems inside comments.
-A regex over `<system>` finds 246, including both. An XML parser finds 244 and neither, which is
-why `EsSystemsFile` loads the file with `XDocument`.
+A regex over `<system>` finds 246, including `arcade` and `kodi`, whose `<!--<system>` openers it
+matches. It misses `prboom`, which 8.3.1 commented out as `<!--system>`. An XML parser finds 244 and
+none of the three, which is why `EsSystemsFile` loads the file with `XDocument`.
 
 ## RB-173. A disc marker is always `(Disc N)`, and text can follow it
 
