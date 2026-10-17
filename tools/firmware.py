@@ -9,7 +9,7 @@
                                               [--region-order usa,europe,japan,world]
 
 rows and why work offline, over data/retrobat/bios.json and reference/retrobios/. gaps reads
-GET /api/platforms with ROMMBAT_TEST_SERVER and ROMMBAT_TEST_APPROVER_TOKEN through
+GET /api/platforms with ROMMBAT_TEST_SERVER and ROMMBAT_TEST_DEV_TOKEN through
 tools/localenv.py, and matches by md5 across the whole library, as a sync does.
 
 Nothing here downloads firmware. Agents get firmware bytes from the test server alone
@@ -185,9 +185,9 @@ def read_server_firmware() -> list[dict]:
 
     localenv.apply()
     server = os.environ.get("ROMMBAT_TEST_SERVER", "").rstrip("/")
-    token = os.environ.get("ROMMBAT_TEST_APPROVER_TOKEN", "")
+    token = os.environ.get("ROMMBAT_TEST_DEV_TOKEN", "")
     if not server or not token:
-        raise SystemExit("ROMMBAT_TEST_SERVER and ROMMBAT_TEST_APPROVER_TOKEN are needed; see python tools/localenv.py.")
+        raise SystemExit("ROMMBAT_TEST_SERVER and ROMMBAT_TEST_DEV_TOKEN are needed; see python tools/localenv.py.")
     request = urllib.request.Request(f"{server}/api/platforms", headers={"Authorization": f"Bearer {token}"})
     try:
         with urllib.request.urlopen(request, timeout=30) as response:

@@ -137,20 +137,17 @@ and `*.token`.
 The live tests pair headlessly through `tests/RomMBat.Tests/Support/ApprovingUser.cs`, which
 plays the approving user with a pre-made token. They skip unless both variables are set.
 
-1. On the account the tests will run as (a non-admin account at RomM's write level), create a
-   client token with `me.read` and `me.write` and nothing else. Why those two is in
-   [the testing doc](docs/contributing/testing.md#the-approver-token).
-2. Put both values in a `.env` at the repository root:
+1. On the account the tests will run as (a non-admin account at RomM's write level), create two
+   client tokens: the dev token, holding every scope the account can have, and the user token,
+   holding the eleven in [the guide's table](wiki/getting-started/pairing.md#which-permissions-to-grant)
+   and no others. Why each is in [the testing doc](docs/contributing/testing.md#the-test-tokens).
+2. Put the values in a `.env` at the repository root:
 
    ```bash
    ROMMBAT_TEST_SERVER=https://your-romm-instance
-   ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
+   ROMMBAT_TEST_DEV_TOKEN=rmm_...
+   ROMMBAT_TEST_USER_TOKEN=rmm_...
    ```
-
-   For hands-on passes, add `ROMMBAT_TEST_OWNER_TOKEN`, a token on the account an install is
-   paired as ([the owner token](docs/contributing/testing.md#the-owner-token)). To keep the
-   [test-game corpus](docs/platforms/corpus.md), add `ROMMBAT_TEST_DEV_TOKEN`, a second token
-   on the account the approver token belongs to, holding every scope that account can have.
 
 3. Nothing in .NET loads `.env`, so export the variables for the run. Do not `. ./.env` in bash:
    a Windows path in it loses its backslashes. [Local secrets](docs/contributing/local-secrets.md)
@@ -158,7 +155,7 @@ plays the approving user with a pre-made token. They skip unless both variables 
 
    ```powershell
    $env:ROMMBAT_TEST_SERVER = "https://your-romm-instance"
-   $env:ROMMBAT_TEST_APPROVER_TOKEN = "rmm_..."
+   $env:ROMMBAT_TEST_DEV_TOKEN = "rmm_..."
    dotnet test
    ```
 
@@ -223,7 +220,7 @@ RetroBat is portable, so a copy is disposable.
    [docs/architecture/writing-into-the-tree.md](docs/architecture/writing-into-the-tree.md#where-rommbats-files-live).
 
 The agent's own tree is one of these copies, kept rather than deleted, and paired as the
-approver account: [the hands-on kit](tools/handson/README.md#the-agent-tree) builds it and
+test account: [the hands-on kit](tools/handson/README.md#the-agent-tree) builds it and
 drives it.
 
 For the portable-move test, install to a USB stick, pair, sync a couple of games, change the

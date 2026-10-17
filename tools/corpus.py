@@ -8,9 +8,7 @@
 
 Each system's games are one collection, "RomMBat corpus: <system>", private and owned by the
 test account, which is the account the agent tree pairs as. ROMMBAT_TEST_DEV_TOKEN, the token on that
-account that holds every scope, reads and writes them; a read-only check falls back to the
-approver token when it is not set. A game is
-resolved by its file name on its RomM platform, since rom ids differ per server. A game the
+account that holds every scope, reads and writes them. A game is resolved by its file name on its RomM platform, since rom ids differ per server. A game the
 server lacks is reported as missing and one whose size or md5 moved as changed; neither stops
 the rest of the system, and neither is added.
 
@@ -119,19 +117,15 @@ def judge(entry: Entry, candidates: list[dict]) -> tuple[str, dict | None]:
 
 
 class Server:
-    def __init__(self, writing: bool) -> None:
+    def __init__(self) -> None:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import localenv
 
         localenv.apply()
         self.base = os.environ.get("ROMMBAT_TEST_SERVER", "").rstrip("/")
-        # The approver token stays narrow for the pairing tests, so writes need the dev token.
         self.token = os.environ.get("ROMMBAT_TEST_DEV_TOKEN", "")
-        if not self.token and not writing:
-            self.token = os.environ.get("ROMMBAT_TEST_APPROVER_TOKEN", "")
         if not self.base or not self.token:
-            needed = "ROMMBAT_TEST_DEV_TOKEN" if writing else "ROMMBAT_TEST_DEV_TOKEN or ROMMBAT_TEST_APPROVER_TOKEN"
-            raise SystemExit(f"ROMMBAT_TEST_SERVER and {needed} are needed; see python tools/localenv.py.")
+            raise SystemExit("ROMMBAT_TEST_SERVER and ROMMBAT_TEST_DEV_TOKEN are needed; see python tools/localenv.py.")
 
     def call(self, method: str, path: str, params: dict | None = None, body: bytes | None = None, content_type: str | None = None):
         url = f"{self.base}{path}" + (f"?{urllib.parse.urlencode(params, doseq=True)}" if params else "")
@@ -254,7 +248,7 @@ def main() -> int:
     if unknown:
         raise SystemExit(f"No corpus table for {', '.join(unknown)}; the page has {', '.join(corpus)}.")
 
-    server = Server(writing=args.apply)
+    server = Server()
     platforms = server.platforms()
     me = server.me()
     owned = {c["name"]: c for c in server.collections() if c.get("user_id") == me and c["name"].startswith(NAME_PREFIX)}

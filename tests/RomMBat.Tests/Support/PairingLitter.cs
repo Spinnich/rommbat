@@ -14,8 +14,8 @@ namespace RomMBat.Tests.Support;
 /// against, and they accumulate one set per run.
 /// <para>
 /// The ordering is forced by which credential holds what. Only the token a pairing just
-/// issued carries <c>devices.write</c>; the approver holds <c>me.read</c> and
-/// <c>me.write</c>, which is what revokes tokens. So token ids are captured first (while the
+/// issued carries <c>devices.write</c>; the approving dev token holds <c>me.write</c>,
+/// which is what revokes tokens. So token ids are captured first (while the
 /// bindings are still readable), devices are deleted second (while their tokens still work),
 /// and revocation happens last against the captured ids.
 /// </para>

@@ -259,7 +259,7 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    another account's token answers `200` with zero rows, and `?device_id=` given the local
    `client_device_identifier` rather than the id `status` prints on the `romm device` line does
    the same. Both read exactly like a session that was never written, which is why an empty
-   answer settles nothing either way. `docs/contributing/testing.md` covers the owner token, which
+   answer settles nothing either way. `docs/contributing/testing.md` covers the user token, which
    is the route where the paired token cannot be used.
 
 9. **Re-sync is a clean no-op**: zero uploads, zero downloads, no gamelist churn. This is

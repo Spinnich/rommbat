@@ -25,9 +25,8 @@ import sys
 LINE = re.compile(r"^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$")
 EXPECTED = {
     "ROMMBAT_TEST_SERVER": "the RomM instance the live tests and probes call",
-    "ROMMBAT_TEST_APPROVER_TOKEN": "approver account token: pairs, and what the probes use",
-    "ROMMBAT_TEST_OWNER_TOKEN": "owner account token, narrowly scoped: reads an install's play sessions",
-    "ROMMBAT_TEST_DEV_TOKEN": "dev token, every scope the test account can hold: writes the test-game corpus",
+    "ROMMBAT_TEST_DEV_TOKEN": "every scope the test account can hold: pairs, the live tests, probes and tools",
+    "ROMMBAT_TEST_USER_TOKEN": "the eleven device scopes on the test account: reads as an install would",
     "ROMMBAT_AGENT_ROOT": "the agent's RetroBat tree, for hands-on passes and /certify",
     "ROMMBAT_MAINTAINER_ROOT": "the maintainer's own tree, read only",
     "ROMMBAT_SCOUT_ROOT": "the scout tree, for a RetroBat prerelease",

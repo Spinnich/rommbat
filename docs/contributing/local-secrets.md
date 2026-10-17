@@ -15,21 +15,19 @@ as set or missing, never a value.
 
 ## The keys
 
-| Key                           | Is                                                              | Reach for it when                                                                                                  |
-| ----------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `ROMMBAT_TEST_SERVER`         | The RomM instance the live tests and probes call                | Any call to the server                                                                                             |
-| `ROMMBAT_TEST_APPROVER_TOKEN` | A token on the approver account: `me.read` and `me.write`, more | Pairing, the live tests, `tools/romm-5.3-probes/`, and reading the library or saves                                |
-| `ROMMBAT_TEST_OWNER_TOKEN`    | A token on the account an install is paired as, narrowly scoped | Reading an install's play sessions, or staging a second device's save (see below)                                  |
-| `ROMMBAT_TEST_DEV_TOKEN`      | A token on the test account holding every scope it can have     | Pairing the agent tree when set, and keeping the [test-game corpus](../platforms/corpus.md) with `tools/corpus.py` |
-| `ROMMBAT_AGENT_ROOT`          | The agent's own RetroBat tree                                   | Every hands-on pass and `/certify`, through `tools/handson/`                                                       |
-| `ROMMBAT_MAINTAINER_ROOT`     | The maintainer's own tree                                       | Read only, and only when the tree is mounted                                                                       |
-| `ROMMBAT_SCOUT_ROOT`          | The scout tree, which runs a RetroBat prerelease                | A scout pass, through `Use-ScoutTree`                                                                              |
+| Key                       | Is                                                               | Reach for it when                                                                                                                                                     |
+| ------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ROMMBAT_TEST_SERVER`     | The RomM instance the live tests and probes call                 | Any call to the server                                                                                                                                                |
+| `ROMMBAT_TEST_DEV_TOKEN`  | A token on the test account holding every scope it can have      | Pairing, the live tests, `tools/romm-5.3-probes/`, `tools/handson/`, `tools/firmware.py`, the [test-game corpus](../platforms/corpus.md), and any read of the library |
+| `ROMMBAT_TEST_USER_TOKEN` | A token on the test account holding the eleven a device is given | Reading or staging what an install would, such as play sessions or a second device's save                                                                             |
+| `ROMMBAT_AGENT_ROOT`      | The agent's own RetroBat tree                                    | Every hands-on pass and `/certify`, through `tools/handson/`                                                                                                          |
+| `ROMMBAT_MAINTAINER_ROOT` | The maintainer's own tree                                        | Read only, and only when the tree is mounted                                                                                                                          |
+| `ROMMBAT_SCOUT_ROOT`      | The scout tree, which runs a RetroBat prerelease                 | A scout pass, through `Use-ScoutTree`                                                                                                                                 |
 
-**The owner token answering `403` on `/api/users/me`, `/api/platforms` and `/api/saves` is
-correct, not a dead token.** Its scopes are only what a pass needs
-([the owner token](testing.md#the-owner-token)). Use the approver token for a general read of the
-test account's library, and remember that an install's saves, states and play sessions belong to
-the owner's account, so they look empty under the approver's.
+Both tokens are on the account the agent tree pairs as, so its saves, states and play sessions
+read back under either ([the test tokens](testing.md#the-test-tokens)). Under any other account
+they look empty, not forbidden. **The user token answering `403` is a scope a device is never
+given, not a dead token**; a dead token answers `401`.
 
 ## Reading them
 
@@ -59,5 +57,5 @@ python3 tools/localenv.py --powershell | Invoke-Expression
 - A key that is missing is the maintainer's to supply. Say which one and which pass it leaves
   unproven, and carry on with the rest.
 
-Setting up a new machine, including creating the approver token, is in
+Setting up a new machine, including creating the two tokens, is in
 [the developer setup](../../DEVELOPER_SETUP.md#the-live-tests).

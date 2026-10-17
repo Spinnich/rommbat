@@ -20,7 +20,7 @@ namespace RomMBat.Tests;
 /// The download path against a real RomM, which is where its measurements come from.
 /// </summary>
 /// <remarks>
-/// Skipped unless <c>ROMMBAT_TEST_SERVER</c> and <c>ROMMBAT_TEST_APPROVER_TOKEN</c> are set, so
+/// Skipped unless <c>ROMMBAT_TEST_SERVER</c> and <c>ROMMBAT_TEST_DEV_TOKEN</c> are set, so
 /// a clone with no server still runs green. Nothing here names an instance.
 /// <para>
 /// Every test picks the smallest ROM that answers its question and fetches nothing larger than a
@@ -35,7 +35,7 @@ namespace RomMBat.Tests;
 public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCatalogFixture>
 {
     private const string NotConfigured =
-        "Set ROMMBAT_TEST_SERVER and ROMMBAT_TEST_APPROVER_TOKEN to run the live tests.";
+        "Set ROMMBAT_TEST_SERVER and ROMMBAT_TEST_DEV_TOKEN to run the live tests.";
 
     private static bool IsConfigured => LiveCatalogFixture.IsConfigured;
 

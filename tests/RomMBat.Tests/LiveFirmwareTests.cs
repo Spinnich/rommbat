@@ -10,7 +10,7 @@ namespace RomMBat.Tests;
 /// The BIOS join against a real RomM, which is where its measurements come from.
 /// </summary>
 /// <remarks>
-/// Skipped unless <c>ROMMBAT_TEST_SERVER</c> and <c>ROMMBAT_TEST_APPROVER_TOKEN</c> are set, so
+/// Skipped unless <c>ROMMBAT_TEST_SERVER</c> and <c>ROMMBAT_TEST_DEV_TOKEN</c> are set, so
 /// a clone with no server still runs green. Nothing here names an instance, and nothing asserts
 /// a count that belongs to one library: what this suite pins is shape, which is what would
 /// break if the server changed its mind.
@@ -22,7 +22,7 @@ namespace RomMBat.Tests;
 public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveCatalogFixture>
 {
     private const string NotConfigured =
-        "Set ROMMBAT_TEST_SERVER and ROMMBAT_TEST_APPROVER_TOKEN to run the live tests.";
+        "Set ROMMBAT_TEST_SERVER and ROMMBAT_TEST_DEV_TOKEN to run the live tests.";
 
     private static bool IsConfigured => LiveCatalogFixture.IsConfigured;
 

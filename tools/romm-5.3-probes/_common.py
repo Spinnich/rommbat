@@ -5,7 +5,7 @@ ignores (`tools/localenv.py` finds it from any worktree), never from a file the 
 tracks, and never prints the host. It wants both of these:
 
     ROMMBAT_TEST_SERVER=https://your-romm-instance
-    ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
+    ROMMBAT_TEST_DEV_TOKEN=rmm_...
 
 Output goes to probe-output/, which is gitignored.
 """
@@ -38,9 +38,9 @@ def base_url() -> str:
 
 
 def token() -> str:
-    raw = os.environ.get("ROMMBAT_TEST_APPROVER_TOKEN", "").strip()
+    raw = os.environ.get("ROMMBAT_TEST_DEV_TOKEN", "").strip()
     if not raw:
-        raise SystemExit("ROMMBAT_TEST_APPROVER_TOKEN is not set")
+        raise SystemExit("ROMMBAT_TEST_DEV_TOKEN is not set")
     return raw
 
 

@@ -182,7 +182,7 @@ columns for that reason.
   with the **caller's** id and hides the caller's hidden roms, and `GET /api/collections/smart`
   lists every public collection as well as the caller's own. Per-user criteria are `favorite`,
   `statuses`, `has_saves`, `has_states` and `last_played`. Measured on 5.3.1 with
-  `tools/romm-5.3-probes/r6-smart-collections.py` (RM-16): all 29 collections the approver account can
+  `tools/romm-5.3-probes/r6-smart-collections.py` (RM-16): all 29 collections the test account can
   list are public, owned by another account and filter on `favorite`, advertise 6 to 594 roms,
   and page back 0. So never show or budget from `rom_count` on a smart collection; the picker
   shows no count, and the resolve's total is the real size. Not an upstream defect.

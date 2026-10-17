@@ -16,7 +16,7 @@ Test-HandsOnEnv -Gui        # one line per check, then ready or not ready
 and `/certify` use, and the kit touches no other but the scout tree below: the stop functions act
 only on processes running from the selected tree, and the ES calls refuse while an ES from anywhere
 else runs. The tree
-is paired as the approver test account, so what it uploads stays apart from the maintainer's own
+is paired as the test account, so what it uploads stays apart from the maintainer's own
 saves. The agent may deploy to it, pair, sync, reset and drive it without asking
 ([workflow](../../docs/contributing/workflow.md)), and the maintainer plays it over RDP during
 `/certify`.
@@ -58,7 +58,7 @@ before starting the other's.
 | `Test-HandsOnEnv [-Gui]`                      | Preflight: tree, floor, deployed build, pairing, server, and with `-Gui` the session and the screen |
 | `Publish-ToAgentTree`                         | `publish.ps1 -Deploy` into the tree, and records branch and sha in `emulators/rommbat/deployed.txt` |
 | `Invoke-Agent <args>`                         | The deployed `rommbat-agent.exe` with `--root` set                                                  |
-| `Connect-AgentTree [-Repair]`                 | Pairs headlessly, approving with the dev token (else the approver token) for the scopes requested   |
+| `Connect-AgentTree [-Repair]`                 | Pairs headlessly, approving with the dev token for the scopes requested                             |
 | `Start-ES`, `Stop-ES`                         | Start RetroBat and wait for ES's API; end any game, quit, wait for the process to exit              |
 | `Get-ESGames <system>`, `Start-Game <path>`   | List a system through ES, and launch through it so the hooks run as for a player                    |
 | `Start-EmulatorLauncher [-WithPad]`           | Boot one row through `emulatorLauncher` without ES, so no hooks: `-System -Emulator -Core -Rom`     |
