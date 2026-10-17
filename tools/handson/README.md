@@ -58,7 +58,7 @@ before starting the other's.
 | `Test-HandsOnEnv [-Gui]`                      | Preflight: tree, floor, deployed build, pairing, server, and with `-Gui` the session and the screen |
 | `Publish-ToAgentTree`                         | `publish.ps1 -Deploy` into the tree, and records branch and sha in `emulators/rommbat/deployed.txt` |
 | `Invoke-Agent <args>`                         | The deployed `rommbat-agent.exe` with `--root` set                                                  |
-| `Connect-AgentTree [-Repair]`                 | Pairs headlessly, approving with the approver token for exactly the scopes requested                |
+| `Connect-AgentTree [-Repair]`                 | Pairs headlessly, approving with the dev token (else the approver token) for the scopes requested   |
 | `Start-ES`, `Stop-ES`                         | Start RetroBat and wait for ES's API; end any game, quit, wait for the process to exit              |
 | `Get-ESGames <system>`, `Start-Game <path>`   | List a system through ES, and launch through it so the hooks run as for a player                    |
 | `Start-EmulatorLauncher [-WithPad]`           | Boot one row through `emulatorLauncher` without ES, so no hooks: `-System -Emulator -Core -Rom`     |

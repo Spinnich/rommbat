@@ -63,7 +63,9 @@ class Outcome:
 
     @property
     def to_remove(self) -> list[int]:
-        return sorted(set(self.members) - set(self.resolved))
+        # A changed game stays: the page owes the update, and the next pass uses the game as it is.
+        kept = set(self.resolved) | {rom["id"] for _, rom in self.changed}
+        return sorted(set(self.members) - kept)
 
     @property
     def matches(self) -> bool:

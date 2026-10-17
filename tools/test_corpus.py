@@ -89,6 +89,13 @@ class OutcomeTests(unittest.TestCase):
         outcome.members = {1: "in"}
         self.assertTrue(outcome.matches)
 
+    def test_a_changed_game_stays_in_its_collection(self):
+        # The page owes the update, not the collection: the next pass uses the game as it is.
+        outcome = corpus.Outcome("nes", changed=[(ResolveTests.entry, {"id": 4})])
+        outcome.collection = {"id": 9}
+        outcome.members = {4: "moved"}
+        self.assertEqual(outcome.to_remove, [])
+
 
 if __name__ == "__main__":
     unittest.main()

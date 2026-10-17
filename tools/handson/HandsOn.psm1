@@ -236,7 +236,8 @@ function Connect-AgentTree {
         Pairs the agent tree as the approver test account, headlessly, the way the live tests do.
     .DESCRIPTION
         Starts `pair`, reads the code it prints, and approves it with the approver token for
-        exactly the scopes the request asked for. device.id is kept, so a re-pair updates the
+        exactly the scopes the request asked for. The token is ROMMBAT_TEST_DEV_TOKEN when set and
+        ROMMBAT_TEST_APPROVER_TOKEN otherwise. device.id is kept, so a re-pair updates the
         same RomM device rather than collecting a new one (testing.md, "Re-pairing").
     #>
     [CmdletBinding()]
@@ -265,7 +266,7 @@ function Connect-AgentTree {
         }
         if (-not $code) { throw "pair printed no code. stderr: $(Get-Content -Raw $err)" }
 
-        # The dev token holds me.write, so it approves; the approver token is the older spelling.
+        # The dev token holds me.write, so it approves; the approver token does when no dev token is set.
         $approver = if ($envValues['ROMMBAT_TEST_DEV_TOKEN']) { $envValues['ROMMBAT_TEST_DEV_TOKEN'] } else { $envValues['ROMMBAT_TEST_APPROVER_TOKEN'] }
         $headers = @{ Authorization = "Bearer $approver" }
         $pending = Invoke-RestMethod -Uri "$server/api/auth/device/pending/$code" -Headers $headers
