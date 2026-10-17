@@ -20,9 +20,9 @@ namespace RomMBat.Tests;
 /// is always up by construction, and ES loads <c>es_settings.cfg</c> at startup and serializes
 /// its own model over anything written underneath. A key that appears afterwards is discarded,
 /// and merging and atomicity do not help: both were tried and the write still vanished
-/// (RB-178 and RB-179). Every change therefore goes through
-/// <see cref="PendingConfigStore"/> and is applied by <c>background quit</c> once the process
-/// is confirmed gone. <c>docs/architecture/projects.md</c> says "The UI can never write <c>es_settings.cfg</c>",
+/// (RB-178 and RB-179). The settings RomMBat writes are therefore written by
+/// <see cref="ForcedSettings"/> from <c>background quit</c> once the process is confirmed gone,
+/// and the UI reads what that pass will write through <see cref="PendingSettings"/>. <c>docs/architecture/projects.md</c> says "The UI can never write <c>es_settings.cfg</c>",
 /// and this is what makes that a fact about the build rather than an intention.
 /// </para>
 /// <para>
@@ -39,6 +39,7 @@ public class EsSettingsBoundaryTests
     [
         nameof(EsSettingsFile),
         nameof(EsSetting),
+        nameof(ForcedSettings),
     ];
 
     [Fact]
@@ -53,14 +54,14 @@ public class EsSettingsBoundaryTests
     }
 
     [Fact]
-    public void A_settings_change_from_the_UI_is_a_queued_row_and_the_queue_is_what_it_can_reach()
+    public void The_UI_reads_what_the_next_quit_will_write_through_the_read_only_type()
     {
         var referenced = TypeReferencesOf(UiAssemblyPath());
 
         // The other half of the same rule. Asserting only the absence above would pass for a UI
-        // that cannot change a setting at all, which is not what was built: it can, through the
-        // queue, and background quit applies it once EmulationStation is gone.
-        Assert.Contains(nameof(PendingConfigStore), referenced);
+        // that says nothing about settings at all, which is not what was built: it names the
+        // ones background quit will write, without a path to the writer.
+        Assert.Contains(nameof(PendingSettings), referenced);
     }
 
     [Fact]

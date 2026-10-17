@@ -111,6 +111,7 @@ server deduplicates what it has already seen.
 **Tree lock.** The lock file every writer of save files in the tree takes. A flush that cannot
 get it exits, because another process is doing the work. The UI never takes it.
 
-**Pending config.** An `es_settings.cfg` change queued in the store, because EmulationStation
-discards a write made while it runs. `background quit` applies it once ES has exited. The
-gamepad UI calls these **Pending settings**.
+**Forced setting.** A system-level `es_settings.cfg` value a save shape declares, such as
+`ps2.pcsx2_slot1_memory = folder`, which RomMBat writes so the emulator saves in a shape it syncs.
+`background quit` writes it once EmulationStation has exited, because ES discards a write made
+while it runs. The gamepad UI calls one not yet written a **Pending setting**.

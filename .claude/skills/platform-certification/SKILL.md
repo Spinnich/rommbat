@@ -227,7 +227,9 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    eight games are pinned to other rows. [Choosing test games](#choosing-test-games) covers the
    rest of the pick.
 
-6. Where class D applies, the per-game memory card option is verified via `es_settings.cfg`.
+6. Where a save option sets the shape, the value RomMBat forces or relies on is verified in
+   `es_settings.cfg` and on disk. On `ps2` that is `ps2.pcsx2_slot1_memory = folder` and a save
+   under `Mcdf01.ps2/`.
 7. A game launches from EmulationStation after sync, with art and metadata present.
 
    **Give the set a budget with real headroom, or step 7 fails for a reason that is not the

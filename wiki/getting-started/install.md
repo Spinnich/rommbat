@@ -42,7 +42,8 @@ Removing RomMBat is done from a terminal, with `rommbat-agent uninstall` (see
 1. Run `emulators\rommbat\rommbat-agent.exe uninstall` to see what it would take out. It writes
    nothing.
 2. Run it again with `--apply`. It removes RomMBat from EmulationStation's menu, removes the
-   hooks, and puts back every memory card setting RomMBat changed. Add `--content` to also
+   hooks. It leaves the PlayStation 2 memory card on FOLDER, because your saves are in those
+   folders. Add `--content` to also
    remove the games, artwork and game list entries RomMBat downloaded, and `--bios` to remove
    the firmware it fetched.
 3. Delete the `emulators\rommbat` folder.

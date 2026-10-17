@@ -840,152 +840,6 @@ public class SaveSyncTests
 
 
     [Fact]
-    public async Task A_converted_memory_card_comes_down_into_its_container_and_not_loose()
-    {
-        // The class D download case, which nothing exercised until this test and which was
-        // wrong. A converted PCSX2 card lives three levels down, in the container the shape
-        // declares; the derived target for a slot this device has never held builds
-        // saves/<folder>/<stem><ext>, which is right for class A and puts a memory card exactly
-        // where PCSX2 will never look for it.
-        //
-        // Not a loud failure either: the bytes land, the ack is sent, the flush reports success,
-        // and the game starts from an empty card anyway.
-        using var fixture = SyncFixture.Create();
-        fixture.AddGame(191723, "ps2", "Armored Core 3 (USA)", ".chd", ".unused", "not kept");
-
-        // A fresh device: the ROM is here and no card is.
-        File.Delete(fixture.Resolve("saves/ps2/Armored Core 3 (USA).unused"));
-        fixture.Scan();
-        Assert.Empty(fixture.Store.Saves.List());
-
-        fixture.SeedServerSave(191723, "pcsx2:battery", "Armored Core 3 (USA)", "ps2", "the other device's card");
-        fixture.Stub.UnsolicitedDownloads.Add((191723, "pcsx2:battery"));
-
-        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(1, outcome.Downloaded);
-        Assert.Equal(0, outcome.Failed);
-        Assert.Empty(outcome.Problems);
-
-        // Where PCSX2 actually reads it, measured on hardware.
-        Assert.Equal(
-            "the other device's card",
-            File.ReadAllText(fixture.Resolve("saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2")));
-
-        // And emphatically not loose under the system folder, which is where class A lives and
-        // where the old target would have put it.
-        Assert.False(File.Exists(fixture.Resolve("saves/ps2/Armored Core 3 (USA).ps2")));
-    }
-
-    [Fact]
-    public async Task A_restored_per_game_card_for_an_unconverted_game_is_said_to_need_converting()
-    {
-        // #336. The card lands where PCSX2 reads a per-game card, but PCSX2 only looks there for
-        // a game whose per-game setting is on. With it off the game reads the shared card and the
-        // player sees no save, while the flush reports everything in step.
-        using var fixture = SyncFixture.Create();
-        fixture.AddGame(191723, "ps2", "Armored Core 3 (USA)", ".chd", ".unused", "not kept");
-        File.Delete(fixture.Resolve("saves/ps2/Armored Core 3 (USA).unused"));
-        fixture.Scan();
-        fixture.SeedServerSave(191723, "pcsx2:battery", "Armored Core 3 (USA)", "ps2", "a card");
-        fixture.Stub.UnsolicitedDownloads.Add((191723, "pcsx2:battery"));
-
-        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(1, outcome.Downloaded);
-        Assert.Equal(0, outcome.Failed);
-        Assert.Equal(1, outcome.NeedsConverting);
-        Assert.Contains("saves convert", Assert.Single(outcome.Advisories), StringComparison.Ordinal);
-        Assert.Contains("191723", outcome.Advisories[0], StringComparison.Ordinal);
-        Assert.False(outcome.IsNoOp);
-
-        // And it stays said: the card is in step now, and the game still reads the other one.
-        var again = await fixture.SyncAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(1, again.NeedsConverting);
-    }
-
-    [Fact]
-    public async Task A_damaged_settings_file_does_not_stop_the_flush_from_finishing()
-    {
-        // R1.1: a half-written es_settings.cfg is read inside the flush, where a throw would
-        // leave the sync session open.
-        using var fixture = SyncFixture.Create();
-        fixture.AddGame(191723, "ps2", "Armored Core 3 (USA)", ".chd", ".unused", "not kept");
-        File.Delete(fixture.Resolve("saves/ps2/Armored Core 3 (USA).unused"));
-        fixture.Scan();
-        fixture.Write("emulationstation/.emulationstation/es_settings.cfg", "<config><string name=");
-        fixture.SeedServerSave(191723, "pcsx2:battery", "Armored Core 3 (USA)", "ps2", "a card");
-        fixture.Stub.UnsolicitedDownloads.Add((191723, "pcsx2:battery"));
-
-        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(1, outcome.Downloaded);
-        Assert.False(outcome.SessionLeftOpen);
-        Assert.Equal(0, outcome.NeedsConverting);
-    }
-
-    [Fact]
-    public async Task One_disc_of_a_set_is_not_told_to_convert_because_the_converter_refuses_it()
-    {
-        using var fixture = SyncFixture.Create();
-        fixture.AddGame(191723, "ps2", "Final Fantasy X (USA) (Disc 1)", ".chd", ".unused", "not kept");
-        File.Delete(fixture.Resolve("saves/ps2/Final Fantasy X (USA) (Disc 1).unused"));
-        fixture.Scan();
-        fixture.SeedServerSave(191723, "pcsx2:battery", "Final Fantasy X (USA) (Disc 1)", "ps2", "a card");
-        fixture.Stub.UnsolicitedDownloads.Add((191723, "pcsx2:battery"));
-
-        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(1, outcome.Downloaded);
-        Assert.Equal(0, outcome.NeedsConverting);
-    }
-
-    [Fact]
-    public async Task A_restored_per_game_card_for_a_converted_game_needs_nothing_said()
-    {
-        using var fixture = SyncFixture.Create();
-        fixture.AddGame(191723, "ps2", "Armored Core 3 (USA)", ".chd", ".unused", "not kept");
-        File.Delete(fixture.Resolve("saves/ps2/Armored Core 3 (USA).unused"));
-        fixture.Scan();
-
-        fixture.Write(
-            "emulationstation/.emulationstation/es_settings.cfg",
-            """<?xml version="1.0"?><config><string name="ps2[&quot;Armored Core 3 (USA).chd&quot;].pcsx2_slot1_memory" value="game" /></config>""");
-
-        fixture.SeedServerSave(191723, "pcsx2:battery", "Armored Core 3 (USA)", "ps2", "a card");
-        fixture.Stub.UnsolicitedDownloads.Add((191723, "pcsx2:battery"));
-
-        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(1, outcome.Downloaded);
-        Assert.Equal(0, outcome.NeedsConverting);
-        Assert.Empty(outcome.Advisories);
-    }
-
-    [Fact]
-    public async Task A_converted_card_is_not_refused_the_way_a_bundled_unit_is()
-    {
-        // The two class D and class C answers differ for opposite reasons and the code has to
-        // keep them apart. A class C unit cannot be placed on a device holding none, because the
-        // container and the key both come from a local unit that is not there. A converted class
-        // D container can: it is one file named after the ROM's stem and the shape declares
-        // where it goes, so a device that has never run the game can still be handed it.
-        using var fixture = SyncFixture.Create();
-        fixture.AddGame(191723, "ps2", "Armored Core 3 (USA)", ".chd", ".unused", "not kept");
-        File.Delete(fixture.Resolve("saves/ps2/Armored Core 3 (USA).unused"));
-        fixture.Scan();
-
-        fixture.SeedServerSave(191723, "pcsx2:battery", "Armored Core 3 (USA)", "ps2", "a card");
-        fixture.Stub.UnsolicitedDownloads.Add((191723, "pcsx2:battery"));
-
-        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(0, outcome.Failed);
-        Assert.DoesNotContain(outcome.Problems, problem => problem.Contains("directory save", StringComparison.Ordinal));
-    }
-
-    [Fact]
     public async Task A_save_for_a_game_this_device_has_not_synced_is_skipped_rather_than_failed()
     {
         // Negotiate is unscoped: it answers with a download for every save the device has no
@@ -1066,6 +920,188 @@ public class SaveSyncTests
         // Nothing was written, least of all an archive under a save's name.
         Assert.False(File.Exists(fixture.Resolve("saves/psp/3rd Birthday, The (Europe).zip")));
         Assert.False(File.Exists(fixture.Resolve("saves/psp/3rd Birthday, The (Europe).srm")));
+    }
+
+    [Fact]
+    public async Task A_folder_card_save_lands_on_a_device_that_has_never_held_it()
+    {
+        // The second-device restore. PCSX2 makes Mcdf01.ps2 the first time it runs a game, but
+        // only saving makes a game's directory, so "run the game once" never produces the unit
+        // a class C restore would otherwise need. The container is fixed, so the key the
+        // server's name carries is enough to place it.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(191929, "ps2", "Burnout 3 - Takedown (USA, Canada)", ".chd", ".unused", saveContents: null);
+        fixture.Write("saves/ps2/pcsx2/memcards/Mcdf01.ps2/_pcsx2_superblock", "superblock");
+        fixture.Write("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-20435S00/BASLUS-20435S00", "another game");
+        fixture.Scan();
+
+        fixture.SeedServerSave(
+            191929,
+            "pcsx2:memcard",
+            "BASLUS-21050",
+            "zip",
+            string.Empty,
+            emulator: "pcsx2",
+            bytes: FolderCardArchive());
+        fixture.Stub.UnsolicitedDownloads.Add((191929, "pcsx2:memcard"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Empty(outcome.Problems);
+
+        Assert.Equal("profile", File.ReadAllText(fixture.Resolve("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/BASLUS-21050")));
+        Assert.Equal("index", File.ReadAllText(fixture.Resolve("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/_pcsx2_index")));
+
+        // Beside what the card already held, which is not this unit's to touch.
+        Assert.Equal("superblock", File.ReadAllText(fixture.Resolve("saves/ps2/pcsx2/memcards/Mcdf01.ps2/_pcsx2_superblock")));
+        Assert.Equal("another game", File.ReadAllText(fixture.Resolve("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-20435S00/BASLUS-20435S00")));
+
+        // In step afterwards, so the next flush does not send it straight back.
+        var row = Assert.Single(fixture.Store.Saves.List(191929));
+        Assert.Equal("BASLUS-21050", row.UnitKey);
+        Assert.False(row.IsUnsent);
+        Assert.Contains(100, fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
+    public async Task A_folder_card_save_waits_for_a_card_the_emulator_has_not_made()
+    {
+        // No Mcdf01.ps2 means PCSX2 has never run here under the folder card, and the superblock
+        // it writes is its own to write, so nothing is placed.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(191929, "ps2", "Burnout 3 - Takedown (USA, Canada)", ".chd", ".unused", saveContents: null);
+        fixture.Scan();
+
+        fixture.SeedServerSave(
+            191929,
+            "pcsx2:memcard",
+            "BASLUS-21050",
+            "zip",
+            string.Empty,
+            emulator: "pcsx2",
+            bytes: FolderCardArchive());
+        fixture.Stub.UnsolicitedDownloads.Add((191929, "pcsx2:memcard"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(1, outcome.Failed);
+        Assert.Contains(outcome.Problems, problem => problem.Contains("not on this device yet", StringComparison.Ordinal));
+        Assert.False(Directory.Exists(fixture.Resolve("saves/ps2/pcsx2/memcards/Mcdf01.ps2")));
+    }
+
+    [Fact]
+    public async Task A_folder_card_save_never_overwrites_a_unit_already_on_disk_under_its_key()
+    {
+        // Two local ROMs can share a serial, so a unit under that key may be unattributed or
+        // bound to the other ROM. A save this device never held for this one must not land
+        // on it without a word (#205).
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(191929, "ps2", "Burnout 3 - Takedown (USA, Canada)", ".chd", ".unused", saveContents: null);
+        fixture.Write("saves/ps2/pcsx2/memcards/Mcdf01.ps2/_pcsx2_superblock", "superblock");
+        fixture.Write("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/BASLUS-21050", "played here");
+        fixture.Scan();
+
+        fixture.SeedServerSave(
+            191929,
+            "pcsx2:memcard",
+            "BASLUS-21050",
+            "zip",
+            string.Empty,
+            emulator: "pcsx2",
+            bytes: FolderCardArchive());
+        fixture.Stub.UnsolicitedDownloads.Add((191929, "pcsx2:memcard"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Downloaded);
+
+        // Told the truth: running the game cannot clear this, so the message must not say to.
+        Assert.Contains(outcome.Problems, problem => problem.Contains("saves bind", StringComparison.Ordinal));
+        Assert.DoesNotContain(outcome.Problems, problem => problem.Contains("Run the game", StringComparison.Ordinal));
+        Assert.Equal(
+            "played here",
+            File.ReadAllText(fixture.Resolve("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/BASLUS-21050")));
+        Assert.Empty(Directory.GetFiles(
+            fixture.Resolve("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050"),
+            "_pcsx2_index"));
+    }
+
+    [Fact]
+    public async Task A_folder_card_save_is_offered_for_restore_and_restored_by_its_key()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(191929, "ps2", "Burnout 3 - Takedown (USA, Canada)", ".chd", ".unused", saveContents: null);
+        fixture.Write("saves/ps2/pcsx2/memcards/Mcdf01.ps2/_pcsx2_superblock", "superblock");
+        fixture.Scan();
+
+        fixture.SeedServerSave(
+            191929,
+            "pcsx2:memcard",
+            "BASLUS-21050",
+            "zip",
+            string.Empty,
+            emulator: "pcsx2",
+            bytes: FolderCardArchive());
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+
+        Assert.Empty(findings.Unrestorable);
+        var pick = Assert.Single(findings.Restorable);
+        Assert.Equal("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050", pick.Destination.Value);
+
+        var restored = await fixture.RestoreAsync([pick], TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, restored.Restored);
+        Assert.Equal("profile", File.ReadAllText(fixture.Resolve("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/BASLUS-21050")));
+    }
+
+    [Fact]
+    public async Task A_slot_no_ps2_emulator_writes_is_left_on_the_server_rather_than_written_loose()
+    {
+        // Driven on the agent tree: the server still held Armored Core 3's per-game card under
+        // pcsx2:battery, and with no shape claiming that slot the class A path wrote an 8 MB card
+        // loose into saves/ps2/, where PCSX2 never looks. ps2 declares no loose save at all.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(191723, "ps2", "Armored Core 3 (USA)", ".chd", ".unused", saveContents: null);
+        fixture.Scan();
+
+        fixture.SeedServerSave(191723, "pcsx2:battery", "Armored Core 3 (USA)", "ps2", "a per-game card", emulator: "pcsx2");
+        fixture.Stub.UnsolicitedDownloads.Add((191723, "pcsx2:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(1, outcome.ForAnotherEmulator);
+        Assert.False(File.Exists(fixture.Resolve("saves/ps2/Armored Core 3 (USA).ps2")));
+        Assert.Empty(fixture.Stub.Acknowledged);
+
+        // Nor is it offered for restore, which would take the same path.
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        Assert.Empty(findings.Restorable);
+        Assert.Contains("no emulator of this system", Assert.Single(findings.Unrestorable).Reason, StringComparison.Ordinal);
+    }
+
+    /// <summary>A folder card unit as another device would have uploaded it.</summary>
+    private static byte[] FolderCardArchive()
+    {
+        using var buffer = new MemoryStream();
+
+        using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var (name, contents) in new[] { ("BASLUS-21050/BASLUS-21050", "profile"), ("BASLUS-21050/_pcsx2_index", "index") })
+            {
+                using var writer = new StreamWriter(archive.CreateEntry(name).Open());
+                writer.Write(contents);
+            }
+        }
+
+        return buffer.ToArray();
     }
 
     [Fact]
@@ -3808,9 +3844,10 @@ public class SaveSyncTests
             string contents,
             bool lieAboutHash = false,
             int id = 100,
-            string emulator = "libretro")
+            string emulator = "libretro",
+            byte[]? bytes = null)
         {
-            var bytes = System.Text.Encoding.UTF8.GetBytes(contents);
+            bytes ??= System.Text.Encoding.UTF8.GetBytes(contents);
 
             Stub.Saves[id] = new StubRomMServer.StubSave
             {

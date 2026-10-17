@@ -40,13 +40,19 @@ public sealed record Attribution(
 /// Works out which ROM a class C save unit belongs to.
 /// </summary>
 /// <remarks>
-/// <b>RomM stores no serial, title id or product code anywhere</b>, on the ROM model or in any
-/// response, so there is no API lookup and every route here is client-side. Three of them ship,
-/// and each covers what the others cannot:
+/// Five routes ship, and each covers what the others cannot:
 /// <list type="number">
 /// <item><b>The key is already a filename.</b> MAME's <c>nvram</c> short name <i>is</i> the ROM
 /// basename, so it resolves through the same <c>(folder, stem)</c> index class A uses and needs
 /// no binding at all: nothing was learned, so nothing is cached.</item>
+/// <item><b>RomM's save target.</b> RomM names where each identified ROM's save lives, and on
+/// PS2 that is the folder card's directory itself: <c>BASLUS-21050</c> for Burnout 3, all 4,426
+/// ROMs of the test instance's <c>ps2</c> platform carrying one. Keyed through the unit path's
+/// own rule, so it needs no play first. Asked beside the routes below and contested by any that
+/// names another game, but not cached when it binds, since it is a server fact the store already
+/// holds and a re-identified ROM should move with it. A key two ROMs here share answers nothing,
+/// because a revision pair and a misidentified ROM look the same from here (Namco Museum and
+/// Namco Museum 50th Anniversary both carry <c>SLUS-20273</c> on the test instance).</item>
 /// <item><b>The save-state sidecar.</b> RetroBat writes a <c>.txt</c> beside a state holding the
 /// emulator's native basename, and where that is identifier-keyed it is a Game ID already joined
 /// to a ROM filename. Measured: PPSSPP's <c>3rd Birthday, The (Europe).txt</c> holds
@@ -86,13 +92,17 @@ public sealed class GameIdAttributor
     private readonly IReadOnlyList<LaunchRecord> _launches;
     private readonly Dictionary<string, Dictionary<string, RouteAnswer>> _headers = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Dictionary<string, RouteAnswer>> _sidecars = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<(string System, string Emulator, string Slot), Dictionary<string, List<(long RomId, RelativePath Path)>>> _targets = [];
+    private readonly SaveShapes _shapes;
+    private IReadOnlyDictionary<long, string>? _saveTargets;
 
     public GameIdAttributor(
         RetroBatInstall install,
         LocalStore store,
         RomIndex roms,
         IReadOnlyList<LaunchRecord>? launches = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        SaveShapes? shapes = null)
     {
         ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(store);
@@ -103,6 +113,7 @@ public sealed class GameIdAttributor
         _roms = roms;
         _time = timeProvider ?? TimeProvider.System;
         _launches = launches ?? ReadLaunches(install);
+        _shapes = shapes ?? SaveShapes.Bundled;
     }
 
     /// <summary>Attributes one unit, using the cache when it already knows.</summary>
@@ -154,6 +165,26 @@ public sealed class GameIdAttributor
         }
 
         var now = _time.GetUtcNow();
+
+        // Asked with the others, so a route that names another game contests it rather than
+        // being outranked. Alone or agreed with, it binds uncached: it is a server fact the store
+        // re-reads each pass, and a ROM RomM re-identifies should take its save with it.
+        if (FromSaveTarget(unit) is { } target)
+        {
+            var detail = $"RomM's save target for {target.Path.Name} is {unit.Key}";
+
+            if (answers.FirstOrDefault(answer => answer.RomId != target.RomId) is not { } other)
+            {
+                return new Attribution(target.RomId, target.Path, null, detail);
+            }
+
+            var contested =
+                $"two routes disagree about {unit.Key}: {detail}; {other.Detail}. It is left alone "
+                    + "until `saves bind` settles it";
+
+            Remember(unit, null, null, BindingSource.Contested, contested, now);
+            return new Attribution(null, null, null, contested, AttributionOutcome.Contested);
+        }
 
         if (answers.Count == 0)
         {
@@ -218,6 +249,57 @@ public sealed class GameIdAttributor
             source,
             detail,
             now));
+
+    /// <summary>
+    /// The save-target route: the one ROM here whose RomM save target carries this unit's key.
+    /// </summary>
+    /// <remarks>
+    /// The target goes through the declared unit path's own <see cref="SaveUnitPath.KeyOf"/>, so
+    /// a target and a directory are compared by the rule that names the unit, prefix and all.
+    /// Only its last segment is read, which is the directory a <c>folder-split</c> target such as
+    /// Wii's <c>00010001/57453945</c> ends in. Built once per declared path.
+    /// </remarks>
+    private (long RomId, RelativePath Path)? FromSaveTarget(SaveUnit unit)
+    {
+        var lookup = (unit.System, unit.Emulator, unit.Slot);
+
+        if (!_targets.TryGetValue(lookup, out var byKey))
+        {
+            byKey = new Dictionary<string, List<(long, RelativePath)>>(StringComparer.OrdinalIgnoreCase);
+
+            var declared = _shapes.For(unit.System)?.UnitPaths.FirstOrDefault(path =>
+                string.Equals(path.Emulator, unit.Emulator, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(path.Slot, unit.Slot, StringComparison.OrdinalIgnoreCase));
+
+            if (declared is not null)
+            {
+                _saveTargets ??= _store.SyncSets.SaveTargets();
+
+                foreach (var (romId, romPath) in _roms.InFolder(unit.System))
+                {
+                    if (!_saveTargets.TryGetValue(romId, out var target)
+                        || declared.KeyOf(target.Split('/').Last()) is not { } key)
+                    {
+                        continue;
+                    }
+
+                    if (!byKey.TryGetValue(key, out var roms))
+                    {
+                        roms = [];
+                        byKey[key] = roms;
+                    }
+
+                    roms.Add((romId, romPath));
+                }
+            }
+
+            _targets[lookup] = byKey;
+        }
+
+        // Two ROMs here with one target is a revision pair or a misidentification, and RomM
+        // cannot say which owns the save, so this route stays silent rather than pick one.
+        return byKey.TryGetValue(unit.Key, out var owners) && owners.Count == 1 ? owners[0] : null;
+    }
 
     /// <summary>
     /// The save-state sidecar route: a ROM filename already joined to a native identifier.

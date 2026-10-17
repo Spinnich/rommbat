@@ -59,39 +59,23 @@ public sealed class UninstallCommandTests
     }
 
     [Fact]
-    public async Task Apply_says_what_a_reverted_conversion_leaves_in_its_own_card()
+    public async Task Removal_leaves_the_folder_card_setting_and_says_why()
     {
-        // The preview says it once for all of them; the report is where the user sees which game
-        // it happened to. It must not promise the syncing that the removal itself ends.
+        // Putting the stock card back would hide every PS2 save the folder card holds, so the
+        // setting outlives RomMBat and the user is told rather than surprised.
         using var tree = TempRetroBatTree.Create();
-        const string Key = "ps2[\"Frequency (USA).chd\"].pcsx2_slot1_memory";
+        const string Key = "ps2.pcsx2_slot1_memory";
 
         var settings = tree.Install().Resolve(EsSettingsFile.Location);
         var file = EsSettingsFile.Load(settings);
-        file.Set(Key, "game");
+        file.Set(Key, "folder");
         file.WriteIfChanged(settings);
-
-        using (var store = LocalStore.Open(tree.Install()))
-        {
-            store.SaveConversions.Record(new SaveConversion
-            {
-                RomId = 192693,
-                System = "ps2",
-                FsName = "Frequency (USA).chd",
-                SettingKey = "pcsx2_slot1_memory",
-                AppliedValue = "game",
-                PriorState = PriorSettingState.Absent,
-                ConvertedAtUtc = DateTimeOffset.UtcNow,
-            });
-        }
 
         var run = await AgentRunner.RunAsync(tree, "uninstall", "--apply");
 
         Assert.Equal(0, run.ExitCode);
-        Assert.True(run.Wrote($"removed {Key}"), run.Out);
-        Assert.True(run.Wrote("goes back to the shared memory card"), run.Out);
-        Assert.True(run.Wrote("no longer synced"), run.Out);
-        Assert.False(run.Wrote("keeps syncing"), run.Out);
+        Assert.True(run.Wrote($"{Key} stays folder"), run.Out);
+        Assert.Equal("folder", EsSettingsFile.Load(settings).Value(Key));
     }
 
     private static void InstallHooks(TempRetroBatTree tree)

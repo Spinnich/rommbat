@@ -1,6 +1,6 @@
 ---
 name: save-sync
-description: Saves, save states, slots, the four save shapes, ROM attribution and archive hashing. Use for anything touching save or state sync, conflict handling, or per-game memory cards.
+description: Saves, save states, slots, the four save shapes, ROM attribution and archive hashing. Use for anything touching save or state sync, conflict handling, or memory cards.
 ---
 
 # Save sync
@@ -67,16 +67,17 @@ On `saves restore --apply` a row the find could not place does not count, since 
 attempted it: such rows are mostly a standing property of the library, and on the measured `nes`
 install 18 states scoped by core pinned every restore at 7 with `failed 0`. They are printed and
 counted beside the result instead. The flush is different on one row and keeps it: an offered
-bundled slot with no local unit is `Failed`, because it has a remedy, run the game once.
+bundled slot with no local unit and no container on disk to place it in is `Failed`, because it
+has a remedy, run the game once.
 
 ## The four shapes
 
-| Class | Shape                          | Examples                                                                 | Handling                                          |
-| ----- | ------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------- |
-| A     | One file per game              | RetroArch `.srm`/`.sav`/`.eep`                                           | Direct 1:1. Slot `{emulator}:battery`             |
-| B     | Several files per game         | `.srm` + `.rtc`, ScummVM `.s00`-`.s99`                                   | Per-file slots when small and stable, else bundle |
-| C     | Directory per game             | PPSSPP `SAVEDATA/<GAMEID>/`, RPCS3, Cemu, Citra, Wii NAND, MAME `nvram/` | Bundle to one archive                             |
-| D     | Container shared by many games | PCSX2 `Mcd001.ps2`, Dreamcast VMU, megacd `4Mbit_cart.brm`, xbox HDD     | Convert to per-game, see below                    |
+| Class | Shape                          | Examples                                                                                | Handling                                                |
+| ----- | ------------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| A     | One file per game              | RetroArch `.srm`/`.sav`/`.eep`                                                          | Direct 1:1. Slot `{emulator}:battery`                   |
+| B     | Several files per game         | `.srm` + `.rtc`, ScummVM `.s00`-`.s99`                                                  | Per-file slots when small and stable, else bundle       |
+| C     | Directory per game             | PPSSPP `SAVEDATA/<GAMEID>/`, PCSX2 `Mcdf01.ps2/<save>/`, RPCS3, Wii NAND, MAME `nvram/` | Bundle to one archive                                   |
+| D     | Container shared by many games | PCSX2 `Mcd001.ps2`, Dreamcast VMU, megacd `4Mbit_cart.brm`, xbox HDD                    | Move the emulator off it where a setting can, see below |
 
 **The class says how many files move as a unit. It does not say how the key matches a name**,
 and those are two axes, not one. A `unit_paths` entry carries `key` (`title_id`, `hex_ascii`,
@@ -101,17 +102,20 @@ as needing the per-emulator answer rather than as an exception (RB-253).
 
 PS1 and GameCube are **already per-game in a stock RetroBat** (`duckstation_memcardtype`
 defaults to `PerGameTitle`; `dolphin_slotA` defaults to GCI folder), and both should be left
-that way. Only PCSX2 defaults to a shared card, and `pcsx2_slot1_memory=game` names the card
-after the ROM stem, which makes attribution trivial on a single-disc title. Its **FOLDER** choice
-sounds per-game and is not: `Mcdf01.ps2` is one directory every game writes to, split per save by
-PS2 serial, so it is declared a shared container and `saves` names it (RB-406).
+that way. Only PCSX2 defaults to a shared card, and **RomMBat moves it off rather than converting
+games one at a time**: `ps2` declares a `forced_setting` in `save_shapes.json`, and
+`ForcedSettings` writes `ps2.pcsx2_slot1_memory = folder` at system level, over any other value,
+from `background quit` once ES is gone, for an install holding a PS2 ROM. Under `folder`,
+`Mcdf01.ps2/` holds one directory per save named from the serial (RB-406), so `ps2` is class C:
+the unit is `B`, a region letter and the serial (`BASLUS-21050`), matched as a prefix, and
+`_pcsx2_superblock` is declared not a save. The other two values are why it is forced: `standard`
+is one card every game shares, and `game` names a card per disc, which loses a save at the disc
+change. `Mcd001.ps2` and `Mcd002.ps2` stay declared shared, and `saves` names them.
 
-**A per-game card is restored whether or not the game is converted here**, because it is a
-declared container and needs nothing local to place (#336). PCSX2 reads it only under
-`ps2["<rom>"].pcsx2_slot1_memory = game`, so `SaveSync.UnconvertedCards` reports each restored card
-whose per-game key is not set, on every flush that reaches the end of negotiation, as `SaveSyncOutcome.NeedsConverting` and
-`Advisories`. It reads the live `es_settings.cfg`, not `save_conversion`, and converts nothing
-itself: that is a setting in the player's own file, and the player's call.
+**Nothing records what the key held before, and removal leaves it.** The saves the folder card
+holds are the player's, and putting the stock card back would hide every one from PCSX2, so
+`uninstall` names the key as staying rather than reverting it. A per-game key outranks the system
+one and is left alone, since it is a setting the player made for that game.
 
 **GameCube can be moved the wrong way, and the menu makes it easy.** `dolphin_slotA` is
 labeled **SAVE FORMAT** with two choices: `8`, the GCI folder that is class C, and `1`, one

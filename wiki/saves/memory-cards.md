@@ -9,58 +9,40 @@ Some emulators, such as PPSSPP for the PSP, keep each game's save as a folder na
 game's own ID, such as `ULUS10057`, rather than the game's name. RomMBat sends the whole folder to
 RomM as one save and brings it back the same way.
 
-To know which game a folder belongs to, RomMBat reads the game's ID from the game file, from
-RetroBat's record of what you launched, or from a save state. If two of those disagree, it sends
-nothing rather than file one game's save under another, and `rommbat-agent saves` lists both
-candidates. `rommbat-agent saves bind` tells it which game is right, or makes it work the answer
-out again. See [Command line](../reference/cli.md).
+To know which game a folder belongs to, RomMBat asks RomM where the game's save lives, and reads
+the game's ID from the game file, from RetroBat's record of what you launched, or from a save
+state. If two of those disagree, it sends nothing rather than file one game's save under another,
+and `rommbat-agent saves` lists both candidates. `rommbat-agent saves bind` tells it which game is
+right, or makes it work the answer out again. See [Command line](../reference/cli.md).
 
-A device that has never held a folder save for a game cannot receive one yet: play the game once
-on this device first.
+A device receives a folder save once the emulator has made the folder it goes in. If it has not,
+the flush says so: play any game for that system once on this device, then flush again.
 
-## Giving a PlayStation 2 game its own memory card
+## PlayStation 2 memory cards
 
 A PlayStation 2 memory card holds saves for every game you have played on it, so there is no one
-game to sync it as. RomMBat does not sync a shared card. Instead, it can give one game a memory
-card of its own, which then syncs like any other save.
+game to sync it as. RomMBat sets PCSX2's memory card to RetroBat's **FOLDER** choice instead, which
+keeps each save in a folder of its own named after the game, such as `BASLUS-21050`. Each of those
+folders then syncs like any other folder save, and RomM already knows which game each one belongs
+to, so a save syncs the first time, before you have played the game on this computer.
 
-RetroBat's FOLDER choice for the PlayStation 2 memory card is still a shared card: every game
-writes into the one folder, `Mcdf01.ps2`, so RomMBat does not sync that either.
+RomMBat makes the change when you next quit EmulationStation, because EmulationStation overwrites
+RetroBat's settings with its own copy when it closes. Until then the change is listed under
+Pending settings on the This device screen, and `rommbat-agent saves` shows it too. It only does this on
+a computer with a PlayStation 2 game synced, and it sets FOLDER over the choice for the whole
+system. A game you gave its own card with the old `rommbat-agent saves convert` keeps that choice,
+because a setting for one game outranks the one for the system. It keeps writing to its own card,
+which no longer syncs. To bring it back, remove that game's memory card setting in
+EmulationStation's game options.
 
-This is done from a terminal in your RetroBat folder, with the game's RomM game number: the
-number at the end of the game's page address in RomM's web interface.
+**Saves on the old card stay on the old card.** A game you played before the change starts from an
+empty card, because PCSX2 no longer reads the old one. RomMBat does not move them, and
+`rommbat-agent saves` names the old card so you know it is there. The second memory card slot is
+not part of the change.
 
-1. Run `emulators\rommbat\rommbat-agent.exe saves convert <game number>`. It says what would
-   change, and writes nothing.
-2. With EmulationStation closed, run it again with `--apply` to make the change. With
-   EmulationStation open, use `--at-quit` instead, and RomMBat makes the change as
-   EmulationStation closes.
+Uninstalling RomMBat leaves the FOLDER choice in place, since your saves are in those folders and
+changing it back would hide them from PCSX2.
 
-RomMBat needs EmulationStation closed because it writes the change into RetroBat's own settings,
-and EmulationStation overwrites those with its own copy when it closes. A change made with
-`--at-quit` is listed under Pending settings on the main menu until then, where you can cancel it.
-
-## Before you give a game its own card
-
-**The game starts from an empty card.** Its saves on the shared card stay there, where it no longer
-looks. RomMBat does not move them. The one exception is a card another computer already gave this
-game: sync pulls it down even before you convert the game, and the game then starts from that card.
-Also:
-
-- A game on several discs is refused: each disc would get its own card, and the save would be
-  lost when you change disc.
-- A game that reads another game's save from the same card, such as a sequel importing a
-  prequel's, no longer finds it.
-- PlayStation (PS1) games are not offered. DuckStation's usual setting already keeps every disc
-  of a game on one card, and changing it is what would break that.
-
-To undo it, run `rommbat-agent saves convert <game number> --revert` with EmulationStation closed.
-It puts the setting back exactly as it was.
-
-## A card is here but the game does not use it
-
-If another computer gave a game its own card, sync downloads that card to this one. PCSX2 only reads
-it once this computer has done the same for the game, and until then the game reads the shared card
-and shows no save. The flush summary counts these as `per-game memory card(s) waiting on a game that
-is not converted`, and `rommbat-agent flush` names each game and the `saves convert <game number>
---apply` that fixes it. Nothing is lost: the card is on disk and the conversion is the whole fix.
+A game whose RomM entry was never identified, such as a fan translation, has no folder name on
+RomM. Its save syncs once you have played it on this computer, when RomMBat can tell from what you
+launched which game wrote it.

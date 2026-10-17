@@ -19,30 +19,28 @@ SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. The schema l
 version, and each script's header states what shape the schema before it could not carry. The
 tables, as the latest migration leaves them:
 
-| Table              | Holds                                                                                                                              |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `device`           | Singleton: the `client_device_identifier` GUID, server origin, RomM `device_id`, granted scopes, the token                         |
-| `local_sequence`   | Singleton: the monotonic counter the outbox and journal share                                                                      |
-| `local_file`       | Relative path, resolved folder, `rom_id`, **what kind of file it is**, size, md5, mtime, last verified, synced/adopted, stale flag |
-| `sync_set`         | Name, scope kind and parameters, policy (max games, max bytes, ordering, eviction)                                                 |
-| `sync_set_member`  | Resolved membership per set, with departed members kept so drift between runs is visible, and whether RomM serves each as one file |
-| `platform_map`     | Resolved folder per RomM platform, and **which layer resolved it**                                                                 |
-| `outbox`           | Pending saves, states and play sessions, with real local mtime, content hash and a monotonic sequence number                       |
-| `journal`          | Hook events, correlated later against `emulatorLauncher.log`                                                                       |
-| `launch_cursor`    | Singleton: how far `emulatorLauncher.log` has been read, as a timestamp rather than an offset, because the file rotates            |
-| `local_save`       | One row per save unit on disk, identified by `(relative_path, unit_key)`, with its logical content hash and the last uploaded one  |
-| `local_state`      | One row per save state, with its emulator, core, version, screenshot and the name it was uploaded under                            |
-| `save_slot`        | The server-side identity of each `(rom_id, slot)`: `save_id`, both filenames, the server hash, the uploading device                |
-| `save_conflict`    | Slots where both sides moved, outliving the flush that found them, until a person picks a side                                     |
-| `unsyncable`       | What was found under `saves/` and is not being synced, with a reason a user can act on. Rewritten every scan                       |
-| `game_id_binding`  | Learned Game ID to `rom_id` bindings for class C and D attribution, with the route that taught each one, or a recorded refusal     |
-| `rom_metadata`     | Per selected ROM: the gamelist fields, already converted, and where its media lives on the server                                  |
-| `setting`          | Install-wide values the sync-set definitions do not carry: the disk budget, the free-space floor, the media policy                 |
-| `content_download` | One interrupted transfer per ROM, or per member of a multi-file one: its `.part`, target, expected length and resume validator     |
-| `sync_cursor`      | Per-endpoint cursors and `updated_after` watermarks                                                                                |
-| `clock`            | Singleton: last observed server `Date`, measured skew, round trip, last successful contact                                         |
-| `save_conversion`  | Which `(system, rom)` RomMBat opted into a per-game save container, what it set, and **what was there before**                     |
-| `pending_config`   | Configuration changes waiting for EmulationStation to close, and how each one turned out once applied                              |
+| Table              | Holds                                                                                                                                                 |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `device`           | Singleton: the `client_device_identifier` GUID, server origin, RomM `device_id`, granted scopes, the token                                            |
+| `local_sequence`   | Singleton: the monotonic counter the outbox and journal share                                                                                         |
+| `local_file`       | Relative path, resolved folder, `rom_id`, **what kind of file it is**, size, md5, mtime, last verified, synced/adopted, stale flag                    |
+| `sync_set`         | Name, scope kind and parameters, policy (max games, max bytes, ordering, eviction)                                                                    |
+| `sync_set_member`  | Resolved membership per set, with departed members kept so drift between runs is visible, whether RomM serves each as one file, and its `save_target` |
+| `platform_map`     | Resolved folder per RomM platform, and **which layer resolved it**                                                                                    |
+| `outbox`           | Pending saves, states and play sessions, with real local mtime, content hash and a monotonic sequence number                                          |
+| `journal`          | Hook events, correlated later against `emulatorLauncher.log`                                                                                          |
+| `launch_cursor`    | Singleton: how far `emulatorLauncher.log` has been read, as a timestamp rather than an offset, because the file rotates                               |
+| `local_save`       | One row per save unit on disk, identified by `(relative_path, unit_key)`, with its logical content hash and the last uploaded one                     |
+| `local_state`      | One row per save state, with its emulator, core, version, screenshot and the name it was uploaded under                                               |
+| `save_slot`        | The server-side identity of each `(rom_id, slot)`: `save_id`, both filenames, the server hash, the uploading device                                   |
+| `save_conflict`    | Slots where both sides moved, outliving the flush that found them, until a person picks a side                                                        |
+| `unsyncable`       | What was found under `saves/` and is not being synced, with a reason a user can act on. Rewritten every scan                                          |
+| `game_id_binding`  | Learned Game ID to `rom_id` bindings for class C and D attribution, with the route that taught each one, or a recorded refusal                        |
+| `rom_metadata`     | Per selected ROM: the gamelist fields, already converted, and where its media lives on the server                                                     |
+| `setting`          | Install-wide values the sync-set definitions do not carry: the disk budget, the free-space floor, the media policy                                    |
+| `content_download` | One interrupted transfer per ROM, or per member of a multi-file one: its `.part`, target, expected length and resume validator                        |
+| `sync_cursor`      | Per-endpoint cursors and `updated_after` watermarks                                                                                                   |
+| `clock`            | Singleton: last observed server `Date`, measured skew, round trip, last successful contact                                                            |
 
 `local_save.relative_path` is under `saves/` apart from two folders where an emulator keeps a
 save RetroBat does not mirror: gopher64's `n64` battery saves in

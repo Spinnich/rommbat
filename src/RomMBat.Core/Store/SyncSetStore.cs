@@ -161,6 +161,16 @@ public sealed record SyncSetMember
     public string? Sha1Hash { get; init; }
 
     /// <summary>
+    /// RomM's name for where this ROM's save lives, or null where RomM has not identified it.
+    /// </summary>
+    /// <remarks>
+    /// <c>BASLUS-21050</c> for a PS2 game, which is the directory PCSX2's folder card names
+    /// after the serial, so it attributes a class C unit with no play first. Carried here for
+    /// the reason the hashes are: the flush that reads it may have no server.
+    /// </remarks>
+    public string? SaveTarget { get; init; }
+
+    /// <summary>
     /// Whether RomM serves this ROM as several files rather than one.
     /// </summary>
     /// <remarks>
@@ -214,7 +224,7 @@ public sealed class SyncSetStore
     private const string MemberColumns = """
         SELECT rom_id, state, folder, platform_slug, fs_name, fs_extension, size_bytes,
                display_name, sort_key, rom_updated_at, position, resolved_at,
-               md5_hash, sha1_hash, has_multiple_files
+               md5_hash, sha1_hash, has_multiple_files, save_target
         FROM sync_set_member
         """;
 
@@ -385,12 +395,12 @@ public sealed class SyncSetStore
             INSERT INTO sync_set_member (
               sync_set_id, rom_id, state, folder, platform_slug, fs_name, fs_extension,
               size_bytes, md5_hash, sha1_hash, display_name, sort_key, rom_updated_at,
-              position, resolved_at, has_multiple_files
+              position, resolved_at, has_multiple_files, save_target
             )
             VALUES (
               $setId, $romId, $state, $folder, $slug, $fsName, $extension,
               $size, $md5, $sha1, $displayName, $sortKey, $romUpdatedAt,
-              $position, $resolvedAt, $multiFile
+              $position, $resolvedAt, $multiFile, $saveTarget
             )
             ON CONFLICT (sync_set_id, rom_id) DO UPDATE SET
               state          = excluded.state,
@@ -406,7 +416,8 @@ public sealed class SyncSetStore
               rom_updated_at = excluded.rom_updated_at,
               position       = excluded.position,
               resolved_at    = excluded.resolved_at,
-              has_multiple_files = excluded.has_multiple_files;
+              has_multiple_files = excluded.has_multiple_files,
+              save_target    = excluded.save_target;
             """))
         {
             upsert.Transaction = transaction;
@@ -430,7 +441,8 @@ public sealed class SyncSetStore
                     .With("$romUpdatedAt", SqliteValues.ToTextOrNull(member.RomUpdatedAt))
                     .With("$position", SqliteValues.OrNull(member.Position))
                     .With("$resolvedAt", stamp)
-                    .With("$multiFile", member.IsMultiFile ? 1 : 0);
+                    .With("$multiFile", member.IsMultiFile ? 1 : 0)
+                    .With("$saveTarget", SqliteValues.OrNull(member.SaveTarget));
 
                 upsert.ExecuteNonQuery();
             }
@@ -507,6 +519,43 @@ public sealed class SyncSetStore
 
         using var reader = command.ExecuteReader();
         return ReadMembers(reader);
+    }
+
+    /// <summary>RomM's save target for every ROM any set has resolved with one, by rom id.</summary>
+    /// <remarks>
+    /// Across every set and every state, since a ROM on disk may sit in a set that has since
+    /// dropped it, and its save still needs a name. Two sets resolved at different times can
+    /// disagree after RomM re-identifies a ROM, and the newer resolve wins.
+    /// </remarks>
+    public IReadOnlyDictionary<long, string> SaveTargets()
+    {
+        using var command = _connection.Command(
+            """
+            SELECT rom_id, save_target FROM sync_set_member
+            ORDER BY resolved_at DESC;
+            """);
+
+        var targets = new Dictionary<long, string>();
+        var seen = new HashSet<long>();
+        using var reader = command.ExecuteReader();
+
+        while (reader.Read())
+        {
+            var romId = reader.GetInt64(0);
+
+            // The newest resolve decides, so a null in it hides an older target.
+            if (!seen.Add(romId))
+            {
+                continue;
+            }
+
+            if (!reader.IsDBNull(1) && reader.GetString(1) is { } target && target.Trim().Length > 0)
+            {
+                targets[romId] = target;
+            }
+        }
+
+        return targets;
     }
 
     /// <summary>What the set holds now: how many games and how many bytes.</summary>
@@ -662,6 +711,7 @@ public sealed class SyncSetStore
                 Md5Hash = reader.GetStringOrNull(12),
                 Sha1Hash = reader.GetStringOrNull(13),
                 IsMultiFile = reader.GetInt64(14) != 0,
+                SaveTarget = reader.GetStringOrNull(15),
             });
         }
 

@@ -19,8 +19,7 @@ namespace RomMBat.Tests;
 /// </remarks>
 public sealed class UninstallTests : IDisposable
 {
-    private const string Ps2Game = "Armored Core 3 (USA).chd";
-    private const string Ps2Key = "ps2[\"Armored Core 3 (USA).chd\"].pcsx2_slot1_memory";
+    private const string Ps2Key = "ps2.pcsx2_slot1_memory";
 
     private static readonly DateTimeOffset Now = new(2026, 9, 1, 12, 0, 0, TimeSpan.Zero);
 
@@ -41,7 +40,7 @@ public sealed class UninstallTests : IDisposable
     }
 
     [Fact]
-    public async Task The_default_scope_takes_out_hooks_menu_and_conversions_and_leaves_the_library()
+    public async Task The_default_scope_takes_out_hooks_and_menu_and_leaves_the_library()
     {
         InstallHooksAndMenu();
         Rom(7, "snes", "Chrono Trigger (USA).sfc", FileOrigin.Synced);
@@ -61,65 +60,27 @@ public sealed class UninstallTests : IDisposable
     }
 
     [Fact]
-    public async Task A_conversion_is_put_back_even_after_its_rom_was_evicted()
+    public async Task The_folder_card_setting_is_left_and_named()
     {
-        // Eviction takes the ROM row and leaves the conversion, so the key names a file that is
-        // gone. Reverting from the ROM refuses there; reverting from the record must not.
-        Convert(PriorSettingState.Absent, prior: null);
-
-        var applied = await Service().ApplyAsync(Service().Preview(new RemovalScope()), TestContext.Current.CancellationToken);
-
-        Assert.True(applied.Ok, applied.Refusal);
-        Assert.Equal(ConversionStatus.Reverted, Assert.Single(applied.Reverted!).Status);
-        Assert.Null(Settings().Value(Ps2Key));
-        Assert.Empty(_session.Store.SaveConversions.List());
-    }
-
-    [Fact]
-    public async Task A_conversion_over_a_prior_value_puts_that_value_back()
-    {
-        Convert(PriorSettingState.Present, prior: "shared");
-
-        await Service().ApplyAsync(Service().Preview(new RemovalScope()), TestContext.Current.CancellationToken);
-
-        Assert.Equal("shared", Settings().Value(Ps2Key));
-    }
-
-    [Fact]
-    public async Task A_conversion_somebody_changed_since_is_left_and_reported()
-    {
-        Convert(PriorSettingState.Absent, prior: null);
-        WriteSetting(Ps2Key, "theirs");
-
-        var applied = await Service().ApplyAsync(Service().Preview(new RemovalScope()), TestContext.Current.CancellationToken);
-
-        Assert.False(applied.Ok);
-        Assert.Equal(ConversionStatus.Refused, Assert.Single(applied.Reverted!).Status);
-        Assert.Equal("theirs", Settings().Value(Ps2Key));
-    }
-
-    [Fact]
-    public async Task A_queued_conversion_is_called_off()
-    {
-        _session.Store.PendingConfig.Queue(new PendingConfigRequest
-        {
-            RomId = 42,
-            System = "ps2",
-            FsName = Ps2Game,
-            SettingKey = "pcsx2_slot1_memory",
-            DesiredState = DesiredSettingState.Set,
-            DesiredValue = "game",
-            Reason = "a per-game memory card",
-            QueuedAtUtc = Now,
-        });
+        WriteSetting(Ps2Key, "folder");
 
         var report = Service().Preview(new RemovalScope());
-        Assert.Single(report.Queued);
+        Assert.Contains(report.Warnings ?? [], warning => warning.StartsWith($"{Ps2Key} stays folder", StringComparison.Ordinal));
 
         var applied = await Service().ApplyAsync(report, TestContext.Current.CancellationToken);
 
-        Assert.Equal(1, applied.Canceled);
-        Assert.Empty(_session.Store.PendingConfig.ListOutstanding());
+        Assert.True(applied.Ok, applied.Refusal);
+        Assert.Equal("folder", Settings().Value(Ps2Key));
+    }
+
+    [Fact]
+    public void A_setting_the_player_moved_off_folder_is_not_named()
+    {
+        WriteSetting(Ps2Key, "standard");
+
+        Assert.DoesNotContain(
+            Service().Preview(new RemovalScope()).Warnings ?? [],
+            warning => warning.Contains(Ps2Key, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -254,7 +215,6 @@ public sealed class UninstallTests : IDisposable
     public async Task Apply_refuses_while_EmulationStation_runs_and_changes_nothing()
     {
         InstallHooksAndMenu();
-        Convert(PriorSettingState.Absent, prior: null);
 
         var running = new RemovalService(
             _session,
@@ -264,7 +224,7 @@ public sealed class UninstallTests : IDisposable
 
         Assert.NotNull(applied.Refusal);
         Assert.True(new EsHooks(_session.Install).IsInstalled());
-        Assert.Equal("game", Settings().Value(Ps2Key));
+        Assert.True(new EsMenuEntry(_session.Install).IsInstalled());
     }
 
     [Fact]
@@ -386,23 +346,6 @@ public sealed class UninstallTests : IDisposable
 
         Assert.Equal(4, new EsHooks(_session.Install).Install(standIn).Installed);
         Assert.Equal(0, new EsMenuEntry(_session.Install).Install().Failed);
-    }
-
-    private void Convert(PriorSettingState state, string? prior)
-    {
-        WriteSetting(Ps2Key, "game");
-
-        _session.Store.SaveConversions.Record(new SaveConversion
-        {
-            RomId = 42,
-            System = "ps2",
-            FsName = Ps2Game,
-            SettingKey = "pcsx2_slot1_memory",
-            AppliedValue = "game",
-            PriorState = state,
-            PriorValue = prior,
-            ConvertedAtUtc = Now,
-        });
     }
 
     private EsSettingsFile Settings() =>

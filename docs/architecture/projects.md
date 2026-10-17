@@ -60,26 +60,26 @@ Console executable, published as `rommbat-agent.exe`. Short-lived: one pass, the
 There is no daemon, because a portable install cannot register a service or a scheduled
 task.
 
-| Subcommand   | Network       | Notes                                                                                                  |
-| ------------ | ------------- | ------------------------------------------------------------------------------------------------------ |
-| `pair`       | yes           | Device pairing from a terminal. The UI pairs through the same Core service                             |
-| `sets`       | yes           | `list`, `show` and `remove` are local; `add` pushes the definitions to RomM, `resolve` walks a scope   |
-| `platforms`  | yes           | `list` the RomM to RetroBat folder mapping, `map` or `unmap` an override. `--offline` lists local rows |
-| `sync`       | yes           | Flush first, then resolve sets, BIOS, then each game's ROMs and its artwork, gamelists, and scan saves |
-| `budget`     | **never**     | Show or set the disk cap and the free-space floor                                                      |
-| `evict`      | **never**     | What would go to get back inside the budget, and dead transfers; removes with `--apply`                |
-| `bios`       | only if asked | Report the firmware each system's emulators read, and fetch it with `--apply`                          |
-| `gamelist`   | **never**     | Rewrite `gamelist.xml` from local state and reload ES; `--media` sets which artwork a sync fetches     |
-| `hooks`      | **never**     | `status`, `install`, `uninstall` the four EmulationStation event hooks                                 |
-| `menu`       | **never**     | `status`, `install`, `uninstall` RomMBat's entry in the EmulationStation menu                          |
-| `uninstall`  | **never**     | Take hooks, menu entry and conversions back out; `--content`, `--bios` add synced files. `--apply`     |
-| `saves`      | only if asked | What is on disk, what went up, what cannot and why, and what is waiting on a decision                  |
-| `game-start` | **never**     | Append a start record and exit                                                                         |
-| `game-end`   | **never**     | Close the record. Read the launch facts from `emulatorLauncher.log`, exit                              |
-| `flush`      | yes           | One pass over everything waiting, then exit. The local half works with no server                       |
-| `outbox`     | **never**     | `list` or `drop` the entries not sent: `drop <id>`, `--all-failed` or `--all-pending`, with `--apply`  |
-| `background` | yes           | `start` or `quit`: the pass those two hooks spawn. Not a command anyone types                          |
-| `status`     | only if asked | Report local state; probes the server unless `--offline`. For support and for scripts                  |
+| Subcommand   | Network       | Notes                                                                                                      |
+| ------------ | ------------- | ---------------------------------------------------------------------------------------------------------- |
+| `pair`       | yes           | Device pairing from a terminal. The UI pairs through the same Core service                                 |
+| `sets`       | yes           | `list`, `show` and `remove` are local; `add` pushes the definitions to RomM, `resolve` walks a scope       |
+| `platforms`  | yes           | `list` the RomM to RetroBat folder mapping, `map` or `unmap` an override. `--offline` lists local rows     |
+| `sync`       | yes           | Flush first, then resolve sets, BIOS, then each game's ROMs and its artwork, gamelists, and scan saves     |
+| `budget`     | **never**     | Show or set the disk cap and the free-space floor                                                          |
+| `evict`      | **never**     | What would go to get back inside the budget, and dead transfers; removes with `--apply`                    |
+| `bios`       | only if asked | Report the firmware each system's emulators read, and fetch it with `--apply`                              |
+| `gamelist`   | **never**     | Rewrite `gamelist.xml` from local state and reload ES; `--media` sets which artwork a sync fetches         |
+| `hooks`      | **never**     | `status`, `install`, `uninstall` the four EmulationStation event hooks                                     |
+| `menu`       | **never**     | `status`, `install`, `uninstall` RomMBat's entry in the EmulationStation menu                              |
+| `uninstall`  | **never**     | Take hooks and menu entry out, leaving a forced setting; `--content`, `--bios` add synced files. `--apply` |
+| `saves`      | only if asked | What is on disk, what went up, what cannot and why, and what is waiting on a decision                      |
+| `game-start` | **never**     | Append a start record and exit                                                                             |
+| `game-end`   | **never**     | Close the record. Read the launch facts from `emulatorLauncher.log`, exit                                  |
+| `flush`      | yes           | One pass over everything waiting, then exit. The local half works with no server                           |
+| `outbox`     | **never**     | `list` or `drop` the entries not sent: `drop <id>`, `--all-failed` or `--all-pending`, with `--apply`      |
+| `background` | yes           | `start` or `quit`: the pass those two hooks spawn. Not a command anyone types                              |
+| `status`     | only if asked | Report local state; probes the server unless `--offline`. For support and for scripts                      |
 
 All of these are implemented. `game-start` and `game-end` are the hook's two launch-path
 events reachable by hand, for a test; EmulationStation runs `rommbat-hook.exe` instead, and these
@@ -259,7 +259,7 @@ so which of the two reaches the network.
 
 **A player reads plain words, and the code and the command line keep the design's.** The screens
 say Check for changes for a resolve, What it holds for a scope, Waiting to upload for the outbox
-and Pending settings for queued `es_settings.cfg` changes; the glossary
+and Pending settings for the forced `es_settings.cfg` settings the next quit writes; the glossary
 pairs each with its term. A conflict shows its slot through `SaveSlotLabel.Describe` ("Battery
 save", "Save state 3", "Memory card"), a refused play session shows none, and a set shows its scope
 kind through `SyncSetStore.ScopeLabel`, while the agent's listings of conflicts and restores print
@@ -374,8 +374,8 @@ See `EsInputMap` and `GamepadReader`, and RB-218, RB-225, RB-226 and RB-227.
 
 **The UI can never write `es_settings.cfg`.** It is launched from the ES menu, so it runs
 under a live EmulationStation every time, and ES discards a key written underneath it.
-Anything it wants to change there goes into `pending_config` and is applied by
-`background quit`.
+The settings RomMBat forces are written by `background quit` through `ForcedSettings`, and
+the UI reads what that pass will write through `PendingSettings`.
 
 **Both halves of that are asserted structurally, against the built assembly rather than the
 source**, so a helper in another namespace or a call through an interface is caught where a

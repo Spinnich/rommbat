@@ -134,19 +134,23 @@
       "provenance": "observed"
     },
     "ps2": {
-      "class": "D",
-      "evidence": "shared Mcd001.ps2 by default; convertible via pcsx2_slot1_memory=game",
+      "class": "C",
+      "evidence": "PCSX2's folder card Mcdf01.ps2/<save>/, one directory per save named from the serial; the stock shared Mcd001.ps2 is moved off by forcing pcsx2_slot1_memory=folder",
       "provenance": "observed",
-      "per_game_conversion": {
+      "forced_setting": {
         "option": "pcsx2_slot1_memory",
-        "set_to": "game",
-        "keys_by": "rom stem",
-        "container": "pcsx2/memcards",
-        "extension": ".ps2",
-        "emulator": "pcsx2",
-        "slot": "battery",
-        "note": "driven end to end on a real install: the card is '<rom stem>.ps2', so the extension is replaced and not appended, and it lands three levels deep under saves/ps2/pcsx2/memcards/ rather than loose. The stem is exactly the (folder, stem) key class A attribution already uses, so it needs no new route. The shared Mcd001.ps2 stops being written entirely, and console slot 2 stays shared. The third declared choice, 'folder', is still shared: one directory, Mcdf01.ps2, with a directory per save keyed by the PS2 serial, declared as a shared container (RB-406)."
-      }
+        "value": "folder",
+        "evidence": "RB-406: emulatorlauncher writes Slot1_Filename = Mcdf01.ps2 and PCSX2 makes it a directory with one subdirectory per save, so every game's save becomes its own unit. Forced at system level and over any other value, because 'standard' is one card every game shares and 'game' names a card per disc, which loses a save at the disc change"
+      },
+      "unit_paths": [
+        {
+          "container": "ps2/pcsx2/memcards/Mcdf01.ps2",
+          "emulator": "pcsx2",
+          "key": "ps2_save",
+          "slot": "memcard",
+          "evidence": "BASLUS-21050/ holds Burnout 3's profile beside _pcsx2_superblock (RB-406). The key is B, a region letter and the serial, which is RomM's save_target for the ROM, and it is a prefix: a game may name several directories after one serial. _pcsx2_superblock is a file and the members are directories, so it is never a unit"
+        }
+      ]
     },
     "ps3": {
       "class": "C",

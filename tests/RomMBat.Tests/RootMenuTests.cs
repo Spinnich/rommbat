@@ -49,7 +49,6 @@ public class RootMenuTests
                 OpenBudget = Stub,
                 OpenConflicts = Stub,
                 OpenPlatforms = Stub,
-                OpenQueued = Stub,
                 OpenOutbox = Stub,
             }));
 
@@ -146,10 +145,10 @@ public class RootMenuTests
         using var tree = TempRetroBatTree.Create();
         using var session = InstallSession.Open(tree.Root).Session!;
 
-        // The shape that overflows: paired, with a queue behind it. Four sections is the short
-        // form and fits, which is why this went unseen while status was the root screen.
-        Pair(session, DateTimeOffset.UtcNow.AddDays(90));
-        Queue(session, 12);
+        // The shape that overflows: paired, with every feature off for want of a scope. Four
+        // sections is the short form and fits, which is why this went unseen while status was
+        // the root screen.
+        Pair(session, DateTimeOffset.UtcNow.AddDays(90), scopes: []);
 
         var status = new StatusViewModel(session, NoPad);
 
@@ -191,8 +190,7 @@ public class RootMenuTests
         using var tree = TempRetroBatTree.Create();
         using var session = InstallSession.Open(tree.Root).Session!;
 
-        Pair(session, DateTimeOffset.UtcNow.AddDays(90));
-        Queue(session, 12);
+        Pair(session, DateTimeOffset.UtcNow.AddDays(90), scopes: []);
 
         var status = new StatusViewModel(session, NoPad);
 
@@ -217,7 +215,7 @@ public class RootMenuTests
         using var tree = TempRetroBatTree.Create();
         using var session = InstallSession.Open(tree.Root).Session!;
 
-        // Unpaired is the short form: four sections and no queue.
+        // Unpaired is the short form: four sections and nothing degraded.
         var status = new StatusViewModel(session, NoPad);
 
         Assert.True(Height(status) <= ListWindow.ContentBudget);
@@ -243,25 +241,7 @@ public class RootMenuTests
         return slice.Sum() + ((slice.Count - 1) * ListWindow.StatusLineSpacing);
     }
 
-    private static void Queue(InstallSession session, int count)
-    {
-        for (var index = 0; index < count; index++)
-        {
-            session.Store.PendingConfig.Queue(new PendingConfigRequest
-            {
-                RomId = index + 1,
-                System = "ps2",
-                FsName = $"Game {index}.iso",
-                SettingKey = "pcsx2_slot1_memory",
-                DesiredState = DesiredSettingState.Set,
-                DesiredValue = "per-game",
-                Reason = "So its saves can be told apart.",
-                QueuedAtUtc = DateTimeOffset.UtcNow,
-            });
-        }
-    }
-
-    private static void Pair(InstallSession session, DateTimeOffset expiresAt)
+    private static void Pair(InstallSession session, DateTimeOffset expiresAt, IReadOnlyList<string>? scopes = null)
     {
         session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(session.Install));
         session.Store.Device.SavePairing(
@@ -269,7 +249,7 @@ public class RootMenuTests
                 new Uri("https://romm.invalid"),
                 "device-9",
                 "Handheld",
-                new GrantedScopes(RomMScopes.Requested),
+                new GrantedScopes(scopes ?? RomMScopes.Requested),
                 TokenProtector.Protect("rmm_token", null, expiresAt)),
             DateTimeOffset.UtcNow);
     }

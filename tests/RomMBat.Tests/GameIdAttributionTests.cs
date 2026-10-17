@@ -400,6 +400,56 @@ public class GameIdAttributionTests
         Assert.Empty(fixture.Store.GameIdBindings.List());
     }
 
+    [Fact]
+    public void A_save_target_binds_with_no_play_and_learns_nothing()
+    {
+        using var fixture = new AttributionFixture();
+        fixture.AddRom("ps2", "Burnout 3 - Takedown (USA, Canada).chd", romId: 191929);
+        fixture.AddSaveTarget(191929, "BASLUS-21050");
+        fixture.WriteFile("saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/BASLUS-21050", "profile");
+
+        var unit = Assert.Single(new SaveUnitScanner(fixture.Install).Scan("ps2"));
+        var attributed = fixture.Attributor().Attribute(unit);
+
+        Assert.Equal(191929, attributed.RomId);
+        Assert.Contains("save target", attributed.Detail, StringComparison.Ordinal);
+        Assert.Empty(fixture.Store.GameIdBindings.List());
+    }
+
+    [Fact]
+    public void A_newer_resolve_with_no_save_target_hides_an_older_one()
+    {
+        // RomM un-identified the ROM after the first set resolved it.
+        using var fixture = new AttributionFixture();
+        fixture.AddRom("ps2", "Burnout 3 - Takedown (USA, Canada).chd", romId: 191929);
+        fixture.AddSaveTarget(191929, "BASLUS-21050", fixture.Now.AddDays(-2));
+        fixture.AddSaveTarget(191929, null, fixture.Now);
+
+        Assert.Empty(fixture.Store.SyncSets.SaveTargets());
+    }
+
+    [Fact]
+    public void A_save_target_a_launch_contradicts_is_refused_rather_than_outranking_it()
+    {
+        // Asked beside the other routes, so their agreement still means something: a launch of
+        // another game covering the write contests it, and nothing is uploaded under either.
+        using var fixture = new AttributionFixture();
+        fixture.AddRom("ps2", "Burnout 3 - Takedown (USA, Canada).chd", romId: 191929);
+        var other = fixture.AddRom("ps2", "Armored Core 3 (USA).chd", romId: 191723);
+        fixture.AddSaveTarget(191929, "BASLUS-21050");
+
+        var path = "saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/BASLUS-21050";
+        fixture.WriteFile(path, "profile");
+        File.SetLastWriteTimeUtc(fixture.Install.Resolve(path), fixture.Now.UtcDateTime);
+
+        var unit = Assert.Single(new SaveUnitScanner(fixture.Install).Scan("ps2"));
+        var attributed = fixture.Attributor(Launch(fixture.Now.AddMinutes(-5), "ps2", other.Value)).Attribute(unit);
+
+        Assert.Null(attributed.RomId);
+        Assert.Equal(AttributionOutcome.Contested, attributed.Outcome);
+        Assert.Equal(BindingSource.Contested, Assert.Single(fixture.Store.GameIdBindings.List()).LearnedFrom);
+    }
+
     /// <summary>An <c>.rvz</c> head: the magic, a format version, and a code at 0x58.</summary>
     private static byte[] Rvz(string code, uint version)
     {
@@ -459,6 +509,41 @@ public class GameIdAttributionTests
             });
 
             return path;
+        }
+
+        /// <summary>RomM's save target for a ROM, carried on a set member as a resolve writes it.</summary>
+        public void AddSaveTarget(int romId, string? saveTarget, DateTimeOffset? resolvedAt = null)
+        {
+            var set = Store.SyncSets.Add(
+                new SyncSetDefinition
+                {
+                    Name = $"set {romId} {resolvedAt?.UtcTicks}",
+                    Scope = RomM.Client.Catalog.CatalogScopeKind.Platform,
+                    ScopeValue = "130",
+                    Enabled = true,
+                },
+                Now);
+
+            Store.SyncSets.ReplaceMembers(
+                set.Id,
+                [
+                    new SyncSetMember
+                    {
+                        RomId = romId,
+                        State = MemberState.Member,
+                        Folder = "ps2",
+                        PlatformSlug = "ps2",
+                        FsName = $"{romId}.chd",
+                        FsExtension = "chd",
+                        SizeBytes = 9,
+                        DisplayName = $"{romId}",
+                        SortKey = $"{romId}",
+                        SaveTarget = saveTarget,
+                        ResolvedAt = resolvedAt ?? Now,
+                    },
+                ],
+                "1 game",
+                resolvedAt ?? Now);
         }
 
         public void AddStateSidecar(string system, RelativePath romPath, long romId, string native)

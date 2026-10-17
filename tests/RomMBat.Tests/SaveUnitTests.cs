@@ -93,6 +93,36 @@ public class SaveUnitTests
     }
 
     [Fact]
+    public void A_pcsx2_folder_card_save_is_keyed_on_its_region_and_serial_prefix()
+    {
+        // RB-406: BASLUS-21050/ is Burnout 3's profile, beside a superblock file. A game may add
+        // a suffix of its own after the serial, so the key is a prefix and both of Armored Core
+        // 3's directories are one unit.
+        using var tree = TempRetroBatTree.Create();
+
+        Write(tree, "saves/ps2/pcsx2/memcards/Mcdf01.ps2/_pcsx2_superblock", "superblock");
+        Write(tree, "saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/BASLUS-21050", "profile");
+        Write(tree, "saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/_pcsx2_index", "index");
+        Write(tree, "saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-20435S00/BASLUS-20435S00", "a");
+        Write(tree, "saves/ps2/pcsx2/memcards/Mcdf01.ps2/BASLUS-20435S01/BASLUS-20435S01", "b");
+        Write(tree, "saves/ps2/pcsx2/memcards/Mcdf01.ps2/BISLPM-65002/BISLPM-65002", "japan");
+
+        // The console's own settings carry no serial, so they are no game's save.
+        Write(tree, "saves/ps2/pcsx2/memcards/Mcdf01.ps2/BADATA-SYSTEM/history", "the console's");
+
+        var units = new SaveUnitScanner(tree.Install()).Scan("ps2");
+
+        Assert.Equal(["BASLUS-20435", "BASLUS-21050", "BISLPM-65002"], units.Select(unit => unit.Key));
+        Assert.All(units, unit => Assert.Equal("saves/ps2/pcsx2/memcards/Mcdf01.ps2", unit.Container.Value));
+        Assert.All(units, unit => Assert.Equal("pcsx2", unit.Emulator));
+        Assert.All(units, unit => Assert.Equal("memcard", unit.Slot));
+        Assert.Equal(2, units.Single(unit => unit.Key == "BASLUS-20435").Files.Count);
+        Assert.Equal(
+            ["BASLUS-21050/BASLUS-21050", "BASLUS-21050/_pcsx2_index"],
+            units.Single(unit => unit.Key == "BASLUS-21050").Files.Select(file => file.ArchivePath));
+    }
+
+    [Fact]
     public void A_soft_deleted_gci_is_excluded_and_several_gci_for_one_game_are_one_unit()
     {
         // Dolphin soft-deletes by appending .deleted and leaves the file in place, so a live
@@ -207,9 +237,9 @@ public class SaveUnitTests
 
         Assert.False(shapes.For("snes")!.HasUnitPaths);
         Assert.False(shapes.For("saturn")!.HasUnitPaths);
-        Assert.False(shapes.For("ps2")!.HasUnitPaths);
 
         Assert.True(shapes.For("psp")!.HasUnitPaths);
+        Assert.True(shapes.For("ps2")!.HasUnitPaths);
         Assert.True(shapes.For("ps3")!.HasUnitPaths);
         Assert.True(shapes.For("mame")!.HasUnitPaths);
         Assert.True(shapes.For("gamecube")!.HasUnitPaths);

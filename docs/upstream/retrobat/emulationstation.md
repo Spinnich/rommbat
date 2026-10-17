@@ -151,6 +151,6 @@ nothing, so `EmulationStationClient` sets a 400 ms `ConnectTimeout`.
 Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.0, 2026-10-14, neither ES diff touches the quit event or ES's exit; 8.3.0's Log.cpp change moves SIGTERM handling on Linux only. How: timed three sessions from the `quit` hook's stamp to the ES process exiting, then read the first real `background quit` pass.
 The process was gone 48.3, 52.4 and 68.2 ms after the hook stamped itself. The first real pass
 saw it gone at its first poll, 10 ms in. The hook fires while ES is still alive, and a key
-written while ES runs is discarded (RB-178), so `background quit` with queued config polls for
-the process before applying it, with a 30 s budget sized for a stalled shutdown rather than the
+written while ES runs is discarded (RB-178), so `background quit` with a forced setting to write polls for
+the process before writing it, with a 30 s budget sized for a stalled shutdown rather than the
 usual one.

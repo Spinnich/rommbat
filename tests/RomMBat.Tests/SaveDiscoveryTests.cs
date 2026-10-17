@@ -418,99 +418,6 @@ public class SaveDiscoveryTests
 
 
     [Fact]
-    public void A_converted_per_game_container_is_found_and_tied_to_its_rom()
-    {
-        // Driven on hardware before this was written: pcsx2_slot1_memory=game produced
-        // saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2 holding one game's saves, beside a
-        // shared Mcd001.ps2 holding eleven. Three levels deep, where class A discovery only
-        // reads files loose directly under saves/<system>/.
-        using var fixture = SaveTree.Create();
-
-        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
-        fixture.AddSave("ps2", "pcsx2/memcards/Armored Core 3 (USA).ps2", "one game's card");
-        fixture.AddSave("ps2", "pcsx2/memcards/Mcd001.ps2", "eleven games' saves");
-
-        var outcome = fixture.Scan();
-
-        var save = Assert.Single(fixture.Store.Saves.List());
-        Assert.Equal("saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2", save.Path.Value);
-        Assert.Equal(191723, save.RomId);
-        Assert.Equal("pcsx2", save.Emulator);
-        Assert.Equal("pcsx2:battery", save.Slot);
-
-        // Class D, not class A. The file is one-per-game in shape, but what it is is a class D
-        // system whose container was made per-game, and this row is the only place that stays
-        // true once the setting is out of sight.
-        Assert.Equal(SaveShapeClass.D, save.ShapeClass);
-        Assert.Equal(1, outcome.Attributed);
-
-        // And the shared card beside it is still reported as shared rather than swept up.
-        var shared = Assert.Single(
-            fixture.Store.Unsyncable.List(),
-            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.SharedContainer);
-        Assert.Equal(1, shared.FileCount);
-    }
-
-    [Fact]
-    public void The_converted_card_is_named_from_the_rom_stem_not_from_its_full_filename()
-    {
-        // The asymmetry that makes this work, and the one a reader will doubt. The es_settings.cfg
-        // key must carry the extension or it is ignored silently (RB-358, cases E and F); the card
-        // PCSX2 writes replaces it. So a card named after the full filename is NOT what the
-        // emulator produces, and must not resolve.
-        using var fixture = SaveTree.Create();
-
-        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
-        fixture.AddSave("ps2", "pcsx2/memcards/Armored Core 3 (USA).chd.ps2", "the wrong shape");
-
-        fixture.Scan();
-
-        var save = Assert.Single(fixture.Store.Saves.List());
-        Assert.Null(save.RomId);
-    }
-
-    [Fact]
-    public void A_converted_card_naming_no_rom_is_reported_rather_than_guessed()
-    {
-        using var fixture = SaveTree.Create();
-
-        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
-        fixture.AddSave("ps2", "pcsx2/memcards/Some Other Game (USA).ps2", "nobody's card");
-
-        fixture.Scan();
-
-        var save = Assert.Single(fixture.Store.Saves.List());
-        Assert.Null(save.RomId);
-
-        var reported = Assert.Single(
-            fixture.Store.Unsyncable.List(),
-            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.Unattributed);
-        Assert.Contains("Some Other Game (USA).ps2", reported.Detail, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Eviction_refuses_a_rom_whose_converted_card_has_never_been_uploaded()
-    {
-        // The data-loss seam, and the one the brief names. A converted card holds real progress
-        // that exists nowhere else until it goes up.
-        //
-        // Not reachable from the CLI on the install this was driven on, and that is worth
-        // knowing rather than hiding: the ROM there was adopted rather than downloaded, and an
-        // adopted file is the user's, so it never counts against the budget and eviction never
-        // considers it. The guard itself is what is asserted here.
-        using var fixture = SaveTree.Create();
-
-        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
-        fixture.AddSave("ps2", "pcsx2/memcards/Armored Core 3 (USA).ps2", "progress that is nowhere else");
-        fixture.Scan();
-
-        var verdict = new SaveGuard(fixture.Store).Check(191723, RelativePath.Create("roms/ps2/Armored Core 3 (USA).chd"));
-
-        Assert.False(verdict.CanRemove);
-        Assert.Contains("has not reached the server", verdict.Reason!, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void A_game_start_orphaned_before_the_last_front_end_start_stops_blocking_eviction()
     {
         // A power loss mid-game leaves a game-start with no game-end, and a flush never closes
@@ -531,101 +438,95 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
-    public void A_deleted_converted_card_stops_blocking_eviction()
+    public void A_pcsx2_folder_card_save_is_carried_as_a_unit_and_tied_to_its_rom_by_save_target()
     {
-        // Class D was "never forget" until this stage, because no class D row had ever existed.
-        // Now they do, and a row left behind for a card the user deleted would block eviction
-        // for that ROM forever. Third time this scanner has had to learn that a stale row is
-        // worse than no row.
+        // RB-406. pcsx2_slot1_memory=folder makes slot 1 one directory, Mcdf01.ps2, holding a
+        // directory per save named from the serial. RomM's save_target for the ROM is that
+        // name, so the save is attributed with no play first.
         using var fixture = SaveTree.Create();
 
-        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
-        fixture.AddSave("ps2", "pcsx2/memcards/Armored Core 3 (USA).ps2", "a card");
-        fixture.Scan();
-        Assert.Single(fixture.Store.Saves.List());
+        fixture.AddRom(191929, "ps2", "Burnout 3 - Takedown (USA, Canada).chd");
+        fixture.SetSaveTarget(191929, "BASLUS-21050");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/_pcsx2_superblock", "superblock");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/BASLUS-21050", "the profile");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-21050/_pcsx2_index", "its index");
 
-        File.Delete(fixture.Resolve(RelativePath.Create("saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2")));
         var outcome = fixture.Scan();
 
-        Assert.Equal(1, outcome.Forgotten);
-        Assert.Empty(fixture.Store.Saves.List());
-        Assert.True(new SaveGuard(fixture.Store).Check(191723).CanRemove);
+        Assert.Equal(1, outcome.Units);
+        Assert.Equal(1, outcome.UnitsAttributed);
+
+        var save = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal(191929, save.RomId);
+        Assert.Equal("pcsx2:memcard", save.Slot);
+        Assert.Equal(SaveShapeClass.C, save.ShapeClass);
+
+        // The superblock is the card's own, not part of any save, and not an unread file either.
+        Assert.DoesNotContain(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.NotInThisVersion);
+        Assert.DoesNotContain(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Detail.Contains("Mcdf01", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void The_shared_cards_are_never_uploaded_even_beside_a_converted_one()
+    public void A_save_target_two_roms_share_names_neither_of_them()
     {
-        // Both stock cards keep their names and both must stay out of local_save, or a card
-        // holding eleven games' saves goes up attributed to whichever ROM happened to match.
+        // Measured on the test instance: Namco Museum and Namco Museum 50th Anniversary both
+        // carry SLUS-20273, and RomM cannot say which owns the save, so this route stays silent.
         using var fixture = SaveTree.Create();
 
-        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
-        fixture.AddSave("ps2", "pcsx2/memcards/Armored Core 3 (USA).ps2", "one game");
-        fixture.AddSave("ps2", "pcsx2/memcards/Mcd001.ps2", "eleven games");
-        fixture.AddSave("ps2", "pcsx2/memcards/Mcd002.ps2", "a formatted empty card");
+        fixture.AddRom(1, "ps2", "Namco Museum (USA).chd");
+        fixture.AddRom(2, "ps2", "Namco Museum 50th Anniversary (USA).chd");
+        fixture.SetSaveTarget(1, "BASLUS-20273");
+        fixture.SetSaveTarget(2, "BASLUS-20273");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-20273/BASLUS-20273", "a save");
 
         fixture.Scan();
 
-        var recorded = fixture.Store.Saves.List();
-        Assert.Single(recorded);
-        Assert.DoesNotContain(recorded, save => save.Path.Value.Contains("Mcd", StringComparison.Ordinal));
+        Assert.Null(Assert.Single(fixture.Store.Saves.List()).RomId);
+    }
+
+    [Fact]
+    public void A_pcsx2_folder_card_save_with_no_save_target_waits_for_a_play_rather_than_guessing()
+    {
+        // The 81 translation patches on the test instance carry no save_target, and the unit is
+        // left unattributed until a launch window or a state names it.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(322300, "ps2", "Amagami (Japan) [T-En].chd");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BISLPM-66789/BISLPM-66789", "a save");
+
+        fixture.Scan();
+
+        Assert.Null(Assert.Single(fixture.Store.Saves.List()).RomId);
+        Assert.Contains(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.Unattributed);
+    }
+
+    [Fact]
+    public void The_stock_pcsx2_cards_are_still_named_beside_the_folder_card()
+    {
+        // Under FOLDER slot 2 stays the file Mcd002.ps2 (RB-406), and Mcd001.ps2 holds whatever
+        // was saved before the setting moved. Both are named and neither is uploaded.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcd001.ps2", "saves from before");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcd002.ps2", "a formatted empty card");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-20435S00/BASLUS-20435S00", "one game");
+
+        fixture.Scan();
+
+        Assert.DoesNotContain(fixture.Store.Saves.List(), save => save.Path.Value.Contains("Mcd00", StringComparison.Ordinal));
 
         var shared = Assert.Single(
             fixture.Store.Unsyncable.List(),
             entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.SharedContainer);
         Assert.Equal(2, shared.FileCount);
-    }
-
-    [Fact]
-    public void A_pcsx2_folder_card_is_named_as_shared_rather_than_counted_as_an_unread_subdirectory()
-    {
-        // RB-406. pcsx2_slot1_memory=folder makes slot 1 one directory, Mcdf01.ps2, holding a
-        // directory per save keyed by the PS2 serial, so every game still writes into it.
-        using var fixture = SaveTree.Create();
-
-        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
-        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/_pcsx2_superblock", "superblock");
-        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-20435S00/BASLUS-20435S00", "one game");
-        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-20435S00/_pcsx2_index", "its index");
-        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-20973/BASLUS-20973", "another game");
-
-        var outcome = fixture.Scan();
-
-        Assert.Equal(0, outcome.Found);
-        Assert.Empty(fixture.Store.Saves.List());
-
-        var shared = Assert.Single(
-            fixture.Store.Unsyncable.List(),
-            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.SharedContainer);
-        Assert.Equal(4, shared.FileCount);
-        Assert.Contains("folder", shared.Detail, StringComparison.Ordinal);
-
-        Assert.DoesNotContain(
-            fixture.Store.Unsyncable.List(),
-            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.NotInThisVersion);
-    }
-
-    [Fact]
-    public void A_pcsx2_folder_card_is_still_named_beside_the_slot_2_card()
-    {
-        // Under FOLDER slot 2 stays the file Mcd002.ps2 (RB-406), and both cards share one row,
-        // which has to name each card and carry each declaration.
-        using var fixture = SaveTree.Create();
-
-        fixture.AddSave("ps2", "pcsx2/memcards/Mcd002.ps2", "a formatted empty card");
-        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/_pcsx2_superblock", "superblock");
-        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-20435S00/BASLUS-20435S00", "one game");
-
-        fixture.Scan();
-
-        var shared = Assert.Single(
-            fixture.Store.Unsyncable.List(),
-            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.SharedContainer);
-        Assert.Equal(3, shared.FileCount);
-        Assert.Contains("the default shared memory card", shared.Detail, StringComparison.Ordinal);
-        Assert.Contains("RB-406", shared.Detail, StringComparison.Ordinal);
+        Assert.Contains("saves/ps2/pcsx2/memcards/Mcd001.ps2", shared.Detail, StringComparison.Ordinal);
         Assert.Contains("saves/ps2/pcsx2/memcards/Mcd002.ps2", shared.Detail, StringComparison.Ordinal);
-        Assert.Contains("saves/ps2/pcsx2/memcards/Mcdf01.ps2", shared.Detail, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1468,6 +1369,42 @@ public class SaveDiscoveryTests
                 FileName = fileName,
                 SizeBytes = 9,
             });
+        }
+
+        /// <summary>Records RomM's save target for a ROM, the way a set resolve carries it.</summary>
+        public void SetSaveTarget(int romId, string saveTarget)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var set = Store.SyncSets.Add(
+                new SyncSetDefinition
+                {
+                    Name = $"set {romId}",
+                    Scope = RomM.Client.Catalog.CatalogScopeKind.Platform,
+                    ScopeValue = "130",
+                    Enabled = true,
+                },
+                now);
+
+            Store.SyncSets.ReplaceMembers(
+                set.Id,
+                [
+                    new SyncSetMember
+                    {
+                        RomId = romId,
+                        State = MemberState.Member,
+                        Folder = "ps2",
+                        PlatformSlug = "ps2",
+                        FsName = $"{romId}.chd",
+                        FsExtension = "chd",
+                        SizeBytes = 9,
+                        DisplayName = $"{romId}",
+                        SortKey = $"{romId}",
+                        SaveTarget = saveTarget,
+                        ResolvedAt = now,
+                    },
+                ],
+                "1 game",
+                now);
         }
 
         public void AddSave(string system, string relative, string contents)

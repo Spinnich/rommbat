@@ -11,8 +11,8 @@ namespace RomMBat.UI.Screens;
 /// </summary>
 /// <remarks>
 /// <b>Every verb is a row, because there are more verbs than buttons.</b> Accept, Alternate
-/// and Extra hold three, Start is the menu, and conflicts, platforms, queued changes and the
-/// outbox are four more. A list grows by a row where a footer cannot grow by a button, and a row can say what it
+/// and Extra hold three, Start is the menu, and conflicts, platforms and the outbox are three
+/// more. A list grows by a row where a footer cannot grow by a button, and a row can say what it
 /// is for in words rather than in a glyph a person has to have learned.
 /// <para>
 /// <b>The count that motivates a verb belongs on its own row.</b> A number a user has to know
@@ -46,8 +46,6 @@ public static class RootScreens
         public Func<IScreen>? OpenConflicts { get; init; }
 
         public Func<IScreen>? OpenPlatforms { get; init; }
-
-        public Func<IScreen>? OpenQueued { get; init; }
 
         public Func<IScreen>? OpenOutbox { get; init; }
     }
@@ -84,7 +82,6 @@ public static class RootScreens
             var device = store.Device.Read();
             var conflicts = store.SaveConflicts.ListOpen().Count;
             var unmapped = store.PlatformMap.List().Count(row => row.Folder is null);
-            var queued = store.PendingConfig.ListOutstanding().Count;
             var outbox = store.Outbox.PendingCount();
             var refused = store.Outbox.FailedCount();
 
@@ -111,16 +108,6 @@ public static class RootScreens
                         ? "Where each RomM platform's games land in RetroBat."
                         : "Games on an unmapped platform have nowhere to go, so a sync skips them."),
                 routes.OpenPlatforms);
-
-            Add(
-                new ListRow(
-                    "Pending settings",
-                    // "3 waitings" for the same reason.
-                    queued == 0 ? "none" : Counted(queued, "waiting"),
-                    queued == 0
-                        ? "Settings RomMBat is holding until EmulationStation closes."
-                        : "Applied when you next quit EmulationStation, which cannot happen while it is running."),
-                routes.OpenQueued);
 
             Add(
                 new ListRow(
