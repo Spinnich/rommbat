@@ -732,7 +732,7 @@ public sealed class SaveSync
                     {
                         failed++;
                         problems.Add($"{NameSave(operation.RomId, operation.Slot)}: deleted on the "
-                            + $"server and not removed here, the file was left in place: {ex.Message}");
+                            + $"server and not removed here, the save was left as it was: {ex.Message}");
                     }
 
                     break;
@@ -2353,7 +2353,16 @@ public sealed class SaveSync
             return null;
         }
 
-        var aside = AsideDirectory.Combine($"{_time.GetUtcNow():yyyyMMddTHHmmss}-{target.Name}");
+        // Suffixed when the name is taken: two games sharing a file name (a NES and a GB
+        // `Pac-Man (USA).srm`) handled in the same second would otherwise overwrite one copy.
+        var stamp = $"{_time.GetUtcNow():yyyyMMddTHHmmss}";
+        var aside = AsideDirectory.Combine($"{stamp}-{target.Name}");
+
+        for (var n = 2; File.Exists(_install.Resolve(aside)); n++)
+        {
+            aside = AsideDirectory.Combine($"{stamp}-{n}-{target.Name}");
+        }
+
         var asidePath = _install.Resolve(aside);
 
         try
@@ -2362,7 +2371,7 @@ public sealed class SaveSync
 
             // Copy rather than move: if anything after this fails, the file the emulator reads
             // is still the one that was always there.
-            File.Copy(absolute, asidePath, overwrite: true);
+            File.Copy(absolute, asidePath, overwrite: false);
             return aside;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

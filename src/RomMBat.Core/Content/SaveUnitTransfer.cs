@@ -260,12 +260,35 @@ public static class SaveUnitTransfer
         }
 
         var emptied = new List<string>();
+        var deleted = new List<SaveUnitFile>();
 
-        foreach (var file in unit.Files)
+        try
         {
-            var absolute = install.Resolve(file.Path);
-            File.Delete(absolute);
-            emptied.Add(Path.GetDirectoryName(absolute)!);
+            foreach (var file in unit.Files)
+            {
+                var absolute = install.Resolve(file.Path);
+                File.Delete(absolute);
+                deleted.Add(file);
+                emptied.Add(Path.GetDirectoryName(absolute)!);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // A member locked part way would otherwise leave a partial unit that the next
+            // flush uploads as the slot's new head, so the members already gone come back.
+            foreach (var file in deleted)
+            {
+                var back = install.Resolve(file.Path);
+                Directory.CreateDirectory(Path.GetDirectoryName(back)!);
+                File.Copy(
+                    Path.Combine(
+                        install.Resolve(aside.Value),
+                        file.ArchivePath.Replace('/', Path.DirectorySeparatorChar)),
+                    back,
+                    overwrite: true);
+            }
+
+            throw;
         }
 
         PruneEmpty(install.Resolve(local.Path), emptied);
