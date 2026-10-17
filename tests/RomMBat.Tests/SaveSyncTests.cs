@@ -271,6 +271,51 @@ public class SaveSyncTests
         Assert.Contains("never sent", conflict.Reason, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task A_slot_the_server_emptied_is_taken_out_of_the_tree_with_a_copy_and_is_not_a_conflict()
+    {
+        // #481, RomM 5.4: a save deleted in the web UI answers `delete` with a null save_id.
+        // Treated as a conflict its only exits were a fetch of nothing and a re-upload that
+        // undid the deletion.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
+
+        fixture.Stub.Saves.Clear();
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "delete";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Removed);
+        Assert.Equal(0, outcome.Conflicts);
+        Assert.Equal(0, outcome.Failed);
+        Assert.False(File.Exists(fixture.Resolve("saves/snes/ActRaiser (USA).srm")));
+        Assert.Empty(fixture.Store.Saves.List());
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+
+        var copy = Assert.Single(Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value)));
+        Assert.Equal("progress", File.ReadAllText(copy));
+    }
+
+    [Fact]
+    public async Task A_slot_the_server_emptied_is_sent_again_when_the_local_save_changed_since()
+    {
+        // The server's own rule: a copy written after the loss answers upload. This is the
+        // client's half, for an edit the scan has not yet reported as a hash change.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played here offline, never sent");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "delete";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Removed);
+        Assert.Equal(1, outcome.Uploaded);
+        Assert.True(File.Exists(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
     [Theory]
     [InlineData(ConflictResolution.KeepLocal, "played here offline, never sent")]
     [InlineData(ConflictResolution.KeepServer, "played on the other device")]

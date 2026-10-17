@@ -234,6 +234,44 @@ public static class SaveUnitTransfer
         return CopyAside(install, Find(units, local), local, asideDirectory, now);
     }
 
+    /// <summary>
+    /// Takes a unit out of the tree, keeping a copy under <paramref name="asideDirectory"/>.
+    /// </summary>
+    /// <remarks>
+    /// The copy is complete before the first member is deleted, so a failure part way leaves the
+    /// copy and whatever members remain. The unit's own members only, never the container, which
+    /// other games share.
+    /// </remarks>
+    public static RelativePath? MoveAside(
+        RetroBatInstall install,
+        SaveUnitScanner units,
+        LocalSave local,
+        RelativePath asideDirectory,
+        DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(units);
+
+        var unit = Find(units, local);
+        var aside = CopyAside(install, unit, local, asideDirectory, now);
+
+        if (aside is null || unit is null)
+        {
+            return null;
+        }
+
+        var emptied = new List<string>();
+
+        foreach (var file in unit.Files)
+        {
+            var absolute = install.Resolve(file.Path);
+            File.Delete(absolute);
+            emptied.Add(Path.GetDirectoryName(absolute)!);
+        }
+
+        PruneEmpty(install.Resolve(local.Path), emptied);
+        return aside;
+    }
+
     private static RelativePath? CopyAside(
         RetroBatInstall install,
         SaveUnit? unit,

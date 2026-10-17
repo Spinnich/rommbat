@@ -21,6 +21,12 @@ public sealed record SaveSyncOutcome
     public int Failed { get; init; }
 
     /// <summary>
+    /// Saves taken out of the tree because the server emptied their slot, each with a line in
+    /// <see cref="Problems"/> naming the copy kept under <c>replaced/</c>.
+    /// </summary>
+    public int Removed { get; init; }
+
+    /// <summary>
     /// Downloads passed over because the ROM they belong to is not on this device.
     /// </summary>
     /// <remarks>
@@ -95,7 +101,7 @@ public sealed record SaveSyncOutcome
     /// <summary>Conflicts, with what the user has to choose between.</summary>
     public IReadOnlyList<SaveConflict> Unresolved { get; init; } = [];
 
-    public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0
+    public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Removed == 0 && Conflicts == 0 && Failed == 0
         && Skipped == 0 && Deferred == 0 && Rejected == 0 && Superseded == 0 && ForAnotherEmulator == 0
         && !SessionLeftOpen;
 
@@ -118,6 +124,11 @@ public sealed record SaveSyncOutcome
             if (Downloaded > 0)
             {
                 parts.Add($"{Downloaded} down ({ByteSize.Format(BytesTransferred)})");
+            }
+
+            if (Removed > 0)
+            {
+                parts.Add($"{Removed} removed, deleted on the server");
             }
 
             if (Conflicts > 0)
@@ -445,6 +456,7 @@ public sealed class SaveSync
         var uploaded = 0;
         var downloaded = 0;
         var noOps = 0;
+        var removed = 0;
         var deferred = 0;
         var rejected = 0;
         var otherEmulator = 0;
@@ -693,6 +705,38 @@ public sealed class SaveSync
                     conflicts.Add(RecordConflict(operation, local));
                     break;
 
+                // The server emptied a slot this device holds unchanged. A slot this device
+                // holds nothing in is already in step.
+                case SyncAction.Delete when local is null:
+                    noOps++;
+                    break;
+
+                case SyncAction.Delete:
+                    if (_inFlight.Check(operation.RomId, local!.Path) is { CanWrite: false } running)
+                    {
+                        deferred++;
+                        problems.Add($"{NameSave(operation.RomId, operation.Slot)}: not removed "
+                            + $"because {running.Reason}. The next flush removes it.");
+                        break;
+                    }
+
+                    try
+                    {
+                        var kept = RemoveLocal(local);
+                        removed++;
+                        problems.Add($"{NameSave(operation.RomId, operation.Slot)}: deleted on the "
+                            + "server, so it was taken out of the tree"
+                            + (kept is null ? "." : $" and a copy kept at {kept}."));
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        failed++;
+                        problems.Add($"{NameSave(operation.RomId, operation.Slot)}: deleted on the "
+                            + $"server and not removed here, the file was left in place: {ex.Message}");
+                    }
+
+                    break;
+
                 default:
                     failed++;
                     problems.Add(
@@ -713,7 +757,7 @@ public sealed class SaveSync
             var closed = await _connection
                 .CompleteSyncSessionAsync(
                     result.SessionId,
-                    uploaded + downloaded + noOps,
+                    uploaded + downloaded + removed + noOps,
                     failed + rejected + conflicts.Count,
                     null,
                     cancellationToken)
@@ -749,6 +793,7 @@ public sealed class SaveSync
             Failed = failed,
             Skipped = skipped,
             Superseded = superseded,
+            Removed = removed,
             Deferred = deferred,
             Rejected = rejected,
             ForAnotherEmulator = otherEmulator,
@@ -1356,6 +1401,13 @@ public sealed class SaveSync
         if (local is null)
         {
             return named;
+        }
+
+        // The server's own rule, kept here: a copy written after the loss answers upload, and an
+        // unsent edit is newer than whatever the server emptied.
+        if (named == SyncAction.Delete && (local.IsUnsent || local.HasChangedSinceUpload))
+        {
+            return SyncAction.Upload;
         }
 
         if (named == SyncAction.NoOp && (local.IsUnsent || local.HasChangedSinceUpload))
@@ -2265,6 +2317,31 @@ public sealed class SaveSync
             .FirstOrDefault(row =>
                 row.Path == destination
                 && !string.Equals(row.Slot, operation.Slot, StringComparison.Ordinal));
+
+    /// <summary>
+    /// Takes a save the server emptied out of the tree and stops tracking it, keeping a copy.
+    /// </summary>
+    /// <remarks>
+    /// The copy comes first and the delete second, so a failure leaves the save where the
+    /// emulator reads it and still tracked, and the next flush asks again.
+    /// </remarks>
+    private RelativePath? RemoveLocal(LocalSave local)
+    {
+        RelativePath? aside;
+
+        if (local.ShapeClass == SaveShapeClass.C)
+        {
+            aside = SaveUnitTransfer.MoveAside(_install, _units, local, AsideDirectory, _time.GetUtcNow());
+        }
+        else
+        {
+            aside = MoveAside(local.Path);
+            File.Delete(_install.Resolve(local.Path));
+        }
+
+        _store.Saves.Forget([(local.Path, local.UnitKey)]);
+        return aside;
+    }
 
     /// <summary>Copies whatever is there out of the way, and returns where it went.</summary>
     private RelativePath? MoveAside(RelativePath target)

@@ -73,6 +73,12 @@ public enum SyncAction
 
     /// <summary>Both sides moved. Never resolved silently.</summary>
     Conflict,
+
+    /// <summary>
+    /// The slot this device still holds was emptied on the server, typically by a save deleted
+    /// in RomM's web UI. Sent by RomM 5.4 and later with a null <c>save_id</c>.
+    /// </summary>
+    Delete,
 }
 
 /// <summary>One line of a negotiate answer.</summary>
@@ -100,6 +106,7 @@ public sealed record SyncOperation(
         "no_op" => SyncAction.NoOp,
         "upload" => SyncAction.Upload,
         "download" => SyncAction.Download,
+        "delete" => SyncAction.Delete,
         _ => SyncAction.Conflict,
     };
 }
