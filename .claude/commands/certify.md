@@ -56,7 +56,8 @@ Nothing here needs an emulator running or a person present.
 3. Run steps 1 and 3, and the inventory half of step 2, for the whole system now. Step 3 starts
    with `python3 tools/firmware.py rows SYSTEM` and `gaps SYSTEM`; batch what `gaps` asks for into
    the game question below, so the maintainer uploads once.
-4. Recommend the test games by `platform-certification`'s "Choosing test games". Research the
+4. Recommend the test games by `platform-certification`'s "Choosing test games", starting from the
+   system's corpus (`python3 tools/corpus.py SYSTEM`). Research the
    library and the web, build the coverage table, and put the set to the maintainer as one
    `AskUserQuestion` with the recommendation first. Never ask an open "which game?".
 5. Boot every row once, with the family's firmware out, and list what each writes where and which

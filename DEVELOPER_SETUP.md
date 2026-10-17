@@ -148,7 +148,9 @@ plays the approving user with a pre-made token. They skip unless both variables 
    ```
 
    For hands-on passes, add `ROMMBAT_TEST_OWNER_TOKEN`, a token on the account an install is
-   paired as ([the owner token](docs/contributing/testing.md#the-owner-token)).
+   paired as ([the owner token](docs/contributing/testing.md#the-owner-token)). To keep the
+   [test-game corpus](docs/platforms/corpus.md), add `ROMMBAT_TEST_DEV_TOKEN`, a second token
+   on the account the approver token belongs to, holding every scope that account can have.
 
 3. Nothing in .NET loads `.env`, so export the variables for the run. Do not `. ./.env` in bash:
    a Windows path in it loses its backslashes. [Local secrets](docs/contributing/local-secrets.md)

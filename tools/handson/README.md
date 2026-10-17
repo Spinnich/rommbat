@@ -28,9 +28,13 @@ Copy-Item -Recurse D:\retrobat-pristine D:\retrobat-agent    # then set ROMMBAT_
 Publish-ToAgentTree
 Connect-AgentTree
 Invoke-Agent hooks install; Invoke-Agent menu install
-Invoke-Agent sets add nes --scope platform --value nes --max-games 3
+Invoke-Agent sets add corpus-nes --scope collection --value <id> --folder nes
 Invoke-Agent sync
 ```
+
+The set is a system's [test-game corpus](../../docs/platforms/corpus.md), and
+`python3 tools/corpus.py nes` prints its collection id and the line above. A pass that needs
+another system adds that system's corpus set the same way.
 
 `Connect-AgentTree -Repair` re-pairs, keeping `device.id`, so RomM keeps one device for the tree.
 
@@ -54,7 +58,7 @@ before starting the other's.
 | `Test-HandsOnEnv [-Gui]`                      | Preflight: tree, floor, deployed build, pairing, server, and with `-Gui` the session and the screen |
 | `Publish-ToAgentTree`                         | `publish.ps1 -Deploy` into the tree, and records branch and sha in `emulators/rommbat/deployed.txt` |
 | `Invoke-Agent <args>`                         | The deployed `rommbat-agent.exe` with `--root` set                                                  |
-| `Connect-AgentTree [-Repair]`                 | Pairs headlessly, approving with the approver token for exactly the scopes requested                |
+| `Connect-AgentTree [-Repair]`                 | Pairs headlessly, approving with the dev token (else the approver token) for the scopes requested   |
 | `Start-ES`, `Stop-ES`                         | Start RetroBat and wait for ES's API; end any game, quit, wait for the process to exit              |
 | `Get-ESGames <system>`, `Start-Game <path>`   | List a system through ES, and launch through it so the hooks run as for a player                    |
 | `Start-EmulatorLauncher [-WithPad]`           | Boot one row through `emulatorLauncher` without ES, so no hooks: `-System -Emulator -Core -Rom`     |
