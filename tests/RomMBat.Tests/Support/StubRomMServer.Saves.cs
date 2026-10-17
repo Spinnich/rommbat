@@ -396,6 +396,17 @@ internal sealed partial class StubRomMServer
                 // Inside the !overwrite branch on purpose. The server guards this check with
                 // `not overwrite`, so an overwrite that re-sends unchanged bytes still makes a
                 // row rather than deduplicating into the one it matches. RB-160.
+                //
+                // The row it matches becomes the slot's newest: the server moves its updated_at
+                // past the head's, so negotiate speaks for it from then on. RB-308.
+                var head = NewestInSlot(romId, slot)!;
+
+                if (head.Id != identical.Id)
+                {
+                    identical = identical with { UpdatedAt = head.UpdatedAt.AddSeconds(1) };
+                    Saves[identical.Id] = identical;
+                }
+
                 return Json(HttpStatusCode.OK, Describe(identical));
             }
         }
