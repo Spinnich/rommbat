@@ -54,15 +54,15 @@ public sealed record MultiFileLayout(string System, IReadOnlyList<string> DiscEx
 }
 
 /// <summary>
-/// The systems whose multi-file RomM roms are synced, which is none until a certification says so.
+/// The systems whose multi-file RomM roms are synced, which is the systems a hands-on pass has unlocked.
 /// </summary>
 /// <remarks>
 /// <b>Unlocked per system, by a hands-on pass, never by default.</b> A multi-file rom is
 /// excluded everywhere else, because how RetroBat wants one laid out is a fact about each system's
 /// emulators and not about the files: on <c>psx</c> five rows read a playlist and both BizHawk
 /// rows are handed disc 1 by <c>emulatorLauncher</c>, and on <c>ps2</c> the launcher hands PCSX2
-/// the playlist's first disc while Play! cannot read one (RB-435). The table is <c>data/retrobat/multi_file.json</c>, and each entry carries the
-/// evidence that unlocked it.
+/// the playlist's first disc while Play! cannot read one (RB-435). The table is
+/// <c>data/retrobat/multi_file.json</c>, and each entry carries the evidence that unlocked it.
 /// </remarks>
 public sealed class MultiFileLayouts
 {

@@ -4,7 +4,7 @@
     "ps2": {
       "layout": "folder",
       "playlist": "m3u",
-      "disc_extensions": [".cue", ".chd", ".iso", ".cso", ".bin", ".mdf"],
+      "disc_extensions": [".cue", ".chd", ".iso", ".cso", ".mdf"],
       "evidence": "RB-434 and RB-435: RetroBat's EmulationStation lists roms/ps2/<fs_name>/<fs_name>.m3u as one game, emulatorLauncher hands both PCSX2 builds the playlist's first disc, and libretro:pcsx2 reads the playlist itself. Play! is handed the playlist and cannot read one."
     },
     "psx": {

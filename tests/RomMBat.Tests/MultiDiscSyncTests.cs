@@ -345,6 +345,11 @@ public sealed class MultiDiscSyncTests : IDisposable
 
         // A bin/cue set names the sheet, never the image it points at.
         Assert.Equal(["Game (Disc 1).cue"], ps2.DiscsOf(["Game (Disc 1).cue", "Game (Disc 1).bin"]));
+
+        // A multi-track sheet's raw tracks are not discs, so none sorts ahead of the sheet.
+        Assert.Equal(
+            ["Game (Disc 1).cue"],
+            ps2.DiscsOf(["Game (Disc 1).cue", "Game (Disc 1) (Track 1).bin", "Game (Disc 1) (Track 2).bin"]));
     }
 
     [Fact]
