@@ -151,7 +151,7 @@ function Test-HandsOnEnv {
     $scout = $script:TreeKey -eq 'ROMMBAT_SCOUT_ROOT'
 
     $results[".env has $script:TreeKey"] = [bool]$root
-    $results['.env has the server and an approving token'] = [bool]($envValues['ROMMBAT_TEST_SERVER'] -and ($envValues['ROMMBAT_TEST_DEV_TOKEN'] -or $envValues['ROMMBAT_TEST_APPROVER_TOKEN']))
+    $results['.env has the server and the dev token'] = [bool]($envValues['ROMMBAT_TEST_SERVER'] -and $envValues['ROMMBAT_TEST_DEV_TOKEN'])
     $results['agent tree exists'] = [bool]($root -and (Test-Path (Join-Path $root 'RetroBat.exe')) -and (Test-Path (Join-Path $root 'emulationstation')))
 
     $versionFile = if ($root) { Join-Path $root 'system\version.info' }
@@ -233,11 +233,10 @@ function Invoke-Agent {
 function Connect-AgentTree {
     <#
     .SYNOPSIS
-        Pairs the agent tree as the approver test account, headlessly, the way the live tests do.
+        Pairs the agent tree as the test account, headlessly, the way the live tests do.
     .DESCRIPTION
-        Starts `pair`, reads the code it prints, and approves it with the approver token for
-        exactly the scopes the request asked for. The token is ROMMBAT_TEST_DEV_TOKEN when set and
-        ROMMBAT_TEST_APPROVER_TOKEN otherwise. device.id is kept, so a re-pair updates the
+        Starts `pair`, reads the code it prints, and approves it with ROMMBAT_TEST_DEV_TOKEN for
+        exactly the scopes the request asked for. device.id is kept, so a re-pair updates the
         same RomM device rather than collecting a new one (testing.md, "Re-pairing").
     #>
     [CmdletBinding()]
@@ -266,9 +265,8 @@ function Connect-AgentTree {
         }
         if (-not $code) { throw "pair printed no code. stderr: $(Get-Content -Raw $err)" }
 
-        # The dev token holds me.write, so it approves; the approver token does when no dev token is set.
-        $approver = if ($envValues['ROMMBAT_TEST_DEV_TOKEN']) { $envValues['ROMMBAT_TEST_DEV_TOKEN'] } else { $envValues['ROMMBAT_TEST_APPROVER_TOKEN'] }
-        $headers = @{ Authorization = "Bearer $approver" }
+        # The dev token holds me.write, which /approve needs and no device is granted.
+        $headers = @{ Authorization = "Bearer $($envValues['ROMMBAT_TEST_DEV_TOKEN'])" }
         $pending = Invoke-RestMethod -Uri "$server/api/auth/device/pending/$code" -Headers $headers
         $body = @{ user_code = $code; approved_scopes = @($pending.requested_scopes); device_name = $DeviceName; expires_in = 'never' } |
             ConvertTo-Json
@@ -276,7 +274,7 @@ function Connect-AgentTree {
 
         if (-not $proc.WaitForExit(60000)) { throw 'pair did not finish within 60 s of approval' }
         if ($proc.ExitCode) { throw "pair exited $($proc.ExitCode): $(Get-Content -Raw $err)" }
-        Write-Host "Paired $root as the approver account, $($pending.requested_scopes.Count) scopes."
+        Write-Host "Paired $root as the test account, $($pending.requested_scopes.Count) scopes."
     }
     finally {
         if (-not $proc.HasExited) { $proc.Kill() }

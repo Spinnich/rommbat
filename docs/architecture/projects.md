@@ -460,4 +460,4 @@ into the shipped client would give it a second auth-adjacent surface, and the wh
 pairing being the only path is that there is exactly one.
 
 The token that harness holds is not a RomMBat token and needs other scopes than a device
-asks for; [the testing doc](../contributing/testing.md#the-approver-token) has which, and why.
+asks for; [the testing doc](../contributing/testing.md#the-test-tokens) has which, and why.

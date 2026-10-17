@@ -15,12 +15,12 @@ namespace RomMBat.Tests;
 /// The catalog reads against a real RomM, driven headlessly.
 /// </summary>
 /// <remarks>
-/// Skipped unless <c>ROMMBAT_TEST_SERVER</c> and <c>ROMMBAT_TEST_APPROVER_TOKEN</c> are both
+/// Skipped unless <c>ROMMBAT_TEST_SERVER</c> and <c>ROMMBAT_TEST_DEV_TOKEN</c> are both
 /// set, so a clone with no server still runs green. Nothing here names an instance.
 /// <para>
-/// A device token is needed rather than the approver's, because the approver holds only
-/// <c>me.read</c> and <c>me.write</c> and cannot read a library. So each test pairs, works,
-/// and deletes the device it created, the same way <see cref="LivePairingTests"/> does.
+/// A device token is used rather than the dev token, because the dev token holds more than
+/// RomMBat asks for and would hide a missing scope. So each test pairs, works, and deletes the
+/// device it created, the same way <see cref="LivePairingTests"/> does.
 /// </para>
 /// <para>
 /// Everything here is a read except the <c>sync_config</c> round trip, which writes to the
@@ -35,7 +35,7 @@ namespace RomMBat.Tests;
 public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCatalogFixture>
 {
     private const string NotConfigured =
-        "Set ROMMBAT_TEST_SERVER and ROMMBAT_TEST_APPROVER_TOKEN to run the live tests.";
+        "Set ROMMBAT_TEST_SERVER and ROMMBAT_TEST_DEV_TOKEN to run the live tests.";
 
     private static bool IsConfigured => LiveCatalogFixture.IsConfigured;
 

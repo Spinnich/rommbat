@@ -24,7 +24,7 @@ at a point the player picks.
 
 ## The install
 
-The agent tree at RetroBat 8.2.1, paired as the approver account, with this branch deployed. The
+The agent tree at RetroBat 8.2.1, paired as the test account, with this branch deployed. The
 `libretro` rows were launched through `emulatorLauncher` and driven by keyboard; the standalone
 rows through `emulatorLauncher` with ES's player-1 arguments and a virtual pad, since their
 keyboard maps did not reach the game. Each row was seeded from the file the row before it left, in

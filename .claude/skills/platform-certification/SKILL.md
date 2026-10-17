@@ -61,7 +61,7 @@ system are the set, and the agent picks an addition only for a case they leave u
 to the corpus with the reason once the pass shows it is the best test. It never asks the maintainer
 which game to use. Each game covers a case no other in the set does. Weigh candidates in this order:
 
-1. **In the library, unpinned, in English.** Page `GET /api/roms?platform_ids=<id>` with the owner
+1. **In the library, unpinned, in English.** Page `GET /api/roms?platform_ids=<id>` with the dev
    token in `.env`, check `gamelist.xml` for an `<emulator>` pin, and take USA or English releases,
    since the maintainer navigates them. A better game the library lacks goes under Wanted.
 2. **A fast save at a known point.** The first battery save should land within a minute or two of
@@ -259,7 +259,7 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    another account's token answers `200` with zero rows, and `?device_id=` given the local
    `client_device_identifier` rather than the id `status` prints on the `romm device` line does
    the same. Both read exactly like a session that was never written, which is why an empty
-   answer settles nothing either way. `docs/contributing/testing.md` covers the owner token, which
+   answer settles nothing either way. `docs/contributing/testing.md` covers the user token, which
    is the route where the paired token cannot be used.
 
 9. **Re-sync is a clean no-op**: zero uploads, zero downloads, no gamelist churn. This is

@@ -24,7 +24,7 @@ namespace RomMBat.Tests.Support;
 public sealed class LiveCatalogFixture : IAsyncLifetime
 {
     private const string ServerVariable = "ROMMBAT_TEST_SERVER";
-    private const string TokenVariable = "ROMMBAT_TEST_APPROVER_TOKEN";
+    private const string TokenVariable = "ROMMBAT_TEST_DEV_TOKEN";
 
     /// <summary>
     /// How long the class-wide pairing and its cleanup may take before they are abandoned.
@@ -44,11 +44,11 @@ public sealed class LiveCatalogFixture : IAsyncLifetime
 
     internal static string? Server => Environment.GetEnvironmentVariable(ServerVariable);
 
-    internal static string? ApproverToken => Environment.GetEnvironmentVariable(TokenVariable);
+    internal static string? DevToken => Environment.GetEnvironmentVariable(TokenVariable);
 
     /// <summary>True when both environment variables are set, so live tests can run.</summary>
     public static bool IsConfigured =>
-        !string.IsNullOrWhiteSpace(Server) && !string.IsNullOrWhiteSpace(ApproverToken);
+        !string.IsNullOrWhiteSpace(Server) && !string.IsNullOrWhiteSpace(DevToken);
 
     /// <summary>The paired install, its store, and a connection carrying its token.</summary>
     internal LiveSession Session =>
@@ -82,7 +82,7 @@ public sealed class LiveCatalogFixture : IAsyncLifetime
         var pairing = new PairingService(install, _store);
         var session = await pairing.BeginAsync(unauthenticated, "RomMBat catalog test", cancellationToken);
 
-        using var approver = new ApprovingUser(origin, ApproverToken!);
+        using var approver = new ApprovingUser(origin, DevToken!);
         var polling = pairing.CompleteAsync(unauthenticated, session, cancellationToken: cancellationToken);
         await approver.ApproveAsync(
             session.UserCode,
@@ -115,7 +115,7 @@ public sealed class LiveCatalogFixture : IAsyncLifetime
         }
 
         using var teardown = new CancellationTokenSource(SetupTimeout);
-        var problems = await _litter.CleanUpAsync(new Uri(Server!), ApproverToken!, teardown.Token);
+        var problems = await _litter.CleanUpAsync(new Uri(Server!), DevToken!, teardown.Token);
 
         Assert.True(
             problems.Count == 0,

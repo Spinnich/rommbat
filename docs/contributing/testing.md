@@ -54,11 +54,11 @@ stub at all.
 
 ## The live suite
 
-The live tests skip unless `ROMMBAT_TEST_SERVER` and `ROMMBAT_TEST_APPROVER_TOKEN` are set.
+The live tests skip unless `ROMMBAT_TEST_SERVER` and `ROMMBAT_TEST_DEV_TOKEN` are set.
 Setting them up is
 [the developer setup](../../DEVELOPER_SETUP.md#the-live-tests). Once they are exported, every `dotnet test`
-is a networked operation: 21 tests pair against the real server, minting and revoking real
-credentials on the approver's account, with no warning first.
+is a networked operation: the tests pair against the real server, minting and revoking real
+credentials on the test account, with no warning first.
 
 **Pairing is limited to 10 per minute per IP.** One run of all four `Live*` classes pairs about
 nine times, so two runs inside a minute share the budget and the server answers
@@ -76,54 +76,56 @@ web worker, and sixty looped runs of one took the server's container from 2 GB t
 A run that touches nothing unsets both:
 
 ```bash
-env -u ROMMBAT_TEST_SERVER -u ROMMBAT_TEST_APPROVER_TOKEN dotnet test
+env -u ROMMBAT_TEST_SERVER -u ROMMBAT_TEST_DEV_TOKEN dotnet test
 ```
 
-### The approver token
+### The test tokens
 
-It is a `ClientToken` on a dedicated non-admin account, so it expires on its `expires_in` and
-can be revoked from the RomM UI. **When the live tests start failing, check it first**: a lapsed
-or revoked token fails `ReadPendingAsync` with a 401, where a missing scope is a 403.
+Both are `ClientToken`s on one dedicated non-admin account, the test account, so each expires on
+its `expires_in` and can be revoked from the RomM UI. **When the live tests start failing, check
+the dev token first**: a lapsed or revoked token fails `ReadPendingAsync` with a 401, where a
+missing scope is a 403.
 
-It is not a RomMBat token, and
-[the guide's scopes table](../../wiki/getting-started/pairing.md#which-permissions-to-grant)
-does not apply to it. `/approve` and `/deny` are `[Scope.ME_WRITE]` routes, while
-`allowed_scopes` is computed from the account's permissions, so the two need different scopes:
+|                         | Scopes                                                                                                         | Is for                                                                                                      |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| The dev token           | Every scope the test account can hold                                                                          | Approving pairings, the live tests, the probes, `tools/handson/`, `tools/firmware.py` and `tools/corpus.py` |
+| The user token          | The eleven in [the guide's table](../../wiki/getting-started/pairing.md#which-permissions-to-grant), no others | Reading or writing as an install would, from outside one                                                    |
+| The test account itself | At least the eleven, and `me.write`                                                                            | Being what the agent tree and the live tests pair as                                                        |
 
-|                           | Scopes                                     |
-| ------------------------- | ------------------------------------------ |
-| The approver token        | `me.read` and `me.write`, and nothing else |
-| The account it belongs to | All eleven from the guide's table          |
+The dev token is not a RomMBat token. `/approve` and `/deny` are `[Scope.ME_WRITE]` routes, a
+scope no device is granted, while `allowed_scopes` is computed from the account's permissions,
+so the approving token needs `me.write` and its account needs the eleven. A token missing
+`me.write` fails with a bare 403 `Forbidden` before the code is looked up. A scope-subset
+rejection says `Approved scopes exceed what's allowed for this user` instead. An account short
+of the eleven fails later, on `Assert.Empty(completion.Scopes.Degradations)`. RomM's
+`WRITE_SCOPES` tier covers all eleven, so no admin account is needed.
 
-A token missing `me.write` fails with a bare 403 `Forbidden` before the code is looked up. A
-scope-subset rejection says `Approved scopes exceed what's allowed for this user` instead. An
-account short of the eleven fails later, on `Assert.Empty(completion.Scopes.Degradations)`.
-RomM's `WRITE_SCOPES` tier covers all eleven, so no admin account is needed.
+The live tests that read a library pair first and read with the device token they are issued,
+not the dev token, because the dev token holds more than RomMBat asks for and would hide a route
+that needs a scope a device is never granted.
 
 ### Cleanup
 
 `PairingLitter` tears down in `IAsyncLifetime.DisposeAsync`: each test deletes the devices it
 created and revokes the tokens bound to them, and fails if it cannot, since every approval mints
-a genuine `rmm_` credential whose local copy dies with the temp tree. The order is forced by who
-holds what: only the token a pairing just issued has `devices.write`, and only the approver can
-revoke tokens. So token ids are captured first, devices deleted second, revocation last.
+a genuine `rmm_` credential whose local copy dies with the temp tree. Each device is deleted with
+the token its own pairing issued, as an install would, and the dev token's `me.write` revokes
+tokens. So token ids are captured first, devices deleted second, revocation last.
 
-### The owner token
+### The user token
 
 Where it lives and how to read it: [local secrets](local-secrets.md).
 
-`ROMMBAT_TEST_OWNER_TOKEN` is a token on the account a real install is paired as, for
-hands-on passes. No test reads it. Reach for `rommbat-agent status` first, which reads
-`GET /api/play-sessions` back for this device and prints the newest ten (`--all-sessions` for
-up to 50); the owner token is for when the paired token cannot be used.
+`ROMMBAT_TEST_USER_TOKEN` holds what a paired device holds, on the test account the agent tree
+is paired as, for hands-on passes. No test reads it. Reach for `rommbat-agent status` first,
+which reads `GET /api/play-sessions` back for this device and prints the newest ten
+(`--all-sessions` for up to 50); the user token is for when the paired token cannot be used.
 
-- With `roms.user.read` it reads play sessions, the certification step 8 check.
-  `GET /api/roms/{id}` is `403` under that scope alone, so read the session row rather than
-  `last_played`.
-- With `roms.read` and `assets.write` as well it can stage a second device's save: a slotted
-  upload with no `device_id` into a slot the install has never synced, as the #211 pass in
-  [the nes conflicts record](../platforms/nes/conflicts.md) did.
-- It cannot read `GET /api/saves` without `assets.read`.
+- It reads play sessions, the certification step 8 check, and saves and states.
+- It can stage a second device's save: a slotted upload with no `device_id` into a slot the
+  install has never synced, as the #211 pass in [the nes conflicts record](../platforms/nes/conflicts.md)
+  did.
+- A route that answers it `403` is one a paired install cannot reach either.
 
 **Under any other account an install's data looks empty, not forbidden**, because saves, states
 and play sessions are per-user. `GET /api/states?rom_id=` and `GET /api/play-sessions?rom_id=`
@@ -134,15 +136,14 @@ id, the one `status` prints on its `romm device` line.
 So read what an install pushed as the install: `status`, `saves`, and a `saves restore` preview.
 Never read the token out of `rommbat.db` to call the API yourself; Claude Code's permission
 classifier refuses that as credential handling. When only a direct API read will answer, use the
-owner token or ask the maintainer to run it.
+user token or ask the maintainer to run it.
 
 ### The agent tree
 
 Hands-on passes run on a RetroBat tree of the agent's own, named by `ROMMBAT_AGENT_ROOT` and
-paired as the approver account, so its saves and play sessions never mix with the maintainer's.
-`tools/handson/` pairs it headlessly with the dev token when set and the approver token otherwise
-(`ApprovingUser` uses the approver token), and
-re-pairs it keeping `device.id`. [Its README](../../tools/handson/README.md) has the functions and
+paired as the test account, so its saves and play sessions never mix with the maintainer's.
+`tools/handson/` pairs it headlessly, approving with the dev token, and re-pairs it keeping
+`device.id`. [Its README](../../tools/handson/README.md) has the functions and
 how to rebuild the tree; what a change owes is in `pre-pr-verification`.
 
 ### Re-pairing a throwaway tree

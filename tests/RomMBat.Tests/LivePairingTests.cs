@@ -17,15 +17,16 @@ namespace RomMBat.Tests;
 /// environment and never from the repository.
 /// <code>
 /// ROMMBAT_TEST_SERVER=https://your-romm-instance
-/// ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
+/// ROMMBAT_TEST_DEV_TOKEN=rmm_...
 /// </code>
 /// <para>
-/// <b>The approver token is not a RomMBat token</b>, and the guide's scopes table does not
+/// <b>The dev token is not a RomMBat token</b>, and the guide's scopes table does not
 /// apply to it. That table is what a device requests; RomMBat never asks for
-/// <c>me.write</c>. The token here needs <c>me.read</c> and <c>me.write</c> and nothing
-/// else, because <c>/approve</c> and <c>/deny</c> are <c>[Scope.ME_WRITE]</c> routes. Its
-/// <b>account</b> separately needs every scope in that table, because <c>allowed_scopes</c>
-/// is computed from <c>request.user.oauth_scopes</c> and caps what can be granted.
+/// <c>me.write</c>. What approving needs from the token is <c>me.read</c> and
+/// <c>me.write</c>, because <c>/approve</c> and <c>/deny</c> are <c>[Scope.ME_WRITE]</c>
+/// routes. Its <b>account</b> separately needs every scope in that table, because
+/// <c>allowed_scopes</c> is computed from <c>request.user.oauth_scopes</c> and caps what can
+/// be granted.
 /// </para>
 /// <para>
 /// The two fail differently: a token without <c>me.write</c> gives a bare 403 before the
@@ -48,16 +49,16 @@ public sealed class LivePairingTests : IAsyncDisposable
     private readonly PairingLitter _litter = new();
 
     private const string ServerVariable = "ROMMBAT_TEST_SERVER";
-    private const string TokenVariable = "ROMMBAT_TEST_APPROVER_TOKEN";
+    private const string TokenVariable = "ROMMBAT_TEST_DEV_TOKEN";
 
     private static string? Server => Environment.GetEnvironmentVariable(ServerVariable);
 
-    private static string? ApproverToken => Environment.GetEnvironmentVariable(TokenVariable);
+    private static string? DevToken => Environment.GetEnvironmentVariable(TokenVariable);
 
     private const string NotConfigured =
-        "Set ROMMBAT_TEST_SERVER and ROMMBAT_TEST_APPROVER_TOKEN to run the live tests.";
+        "Set ROMMBAT_TEST_SERVER and ROMMBAT_TEST_DEV_TOKEN to run the live tests.";
 
-    private static bool IsConfigured => !string.IsNullOrWhiteSpace(Server) && !string.IsNullOrWhiteSpace(ApproverToken);
+    private static bool IsConfigured => !string.IsNullOrWhiteSpace(Server) && !string.IsNullOrWhiteSpace(DevToken);
 
     /// <summary>
     /// Deletes the devices and revokes the tokens this test created.
@@ -79,7 +80,7 @@ public sealed class LivePairingTests : IAsyncDisposable
         }
 
         using var teardown = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-        var problems = await _litter.CleanUpAsync(new Uri(Server!), ApproverToken!, teardown.Token);
+        var problems = await _litter.CleanUpAsync(new Uri(Server!), DevToken!, teardown.Token);
 
         Assert.True(
             problems.Count == 0,
@@ -317,7 +318,7 @@ public sealed class LivePairingTests : IAsyncDisposable
             "RomMBat integration test (declined)",
             TestContext.Current.CancellationToken);
 
-        using var approver = new ApprovingUser(origin, ApproverToken!);
+        using var approver = new ApprovingUser(origin, DevToken!);
         var pollTask = pairing.CompleteAsync(
             connection,
             session,
@@ -374,7 +375,7 @@ public sealed class LivePairingTests : IAsyncDisposable
         IEnumerable<string> approvedScopes,
         CancellationToken cancellationToken = default)
     {
-        using var approver = new ApprovingUser(new Uri(Server!), ApproverToken!);
+        using var approver = new ApprovingUser(new Uri(Server!), DevToken!);
 
         var pending = await approver.ReadPendingAsync(session.UserCode, cancellationToken);
         Assert.Equal(session.ClientDeviceIdentifier, pending.Client_device_identifier);
