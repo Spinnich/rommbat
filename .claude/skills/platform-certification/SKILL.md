@@ -61,7 +61,7 @@ system are the set, and the agent picks an addition only for a case they leave u
 to the corpus with the reason once the pass shows it is the best test. It never asks the maintainer
 which game to use. Each game covers a case no other in the set does. Weigh candidates in this order:
 
-1. **In the library, unpinned, in English.** Page `GET /api/roms?platform_ids=<id>` with the owner
+1. **In the library, unpinned, in English.** Page `GET /api/roms?platform_ids=<id>` with the dev
    token in `.env`, check `gamelist.xml` for an `<emulator>` pin, and take USA or English releases,
    since the maintainer navigates them. A better game the library lacks goes under Wanted.
 2. **A fast save at a known point.** The first battery save should land within a minute or two of
