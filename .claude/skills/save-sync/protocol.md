@@ -259,7 +259,9 @@ identical)`. M5 and M6, added at `5.3.0`, are the peer-row
     deleted** (#481, RM-29). `SaveSync` copies it under `replaced/`, removes it
     from the emulator's tree, forgets the `local_save` row, and counts it `Removed`; a class C
     unit goes the same way through `SaveUnitTransfer.MoveAside`, members only. A game being
-    played defers it like a download. An unsent save, or one changed since its upload, is
+    played defers it like a download, and a core that rewrites the same bytes on exit turns the
+    deferred `delete` into an `upload`, which `IsDeletedBytesRewritten` takes for the removal
+    (#583): no server row, a recorded `save_slot` id, and a hash equal to the uploaded one. An unsent save, or one changed since its upload, is
     uploaded instead, because the server's own rule is that a copy written after the loss
     answers `upload`. A `delete` for a slot this device holds nothing in is a no-op. Treating it
     as a conflict left "keep server" with nothing to fetch and "keep local" undoing the deletion.

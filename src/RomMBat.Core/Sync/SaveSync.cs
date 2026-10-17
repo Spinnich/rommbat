@@ -474,7 +474,14 @@ public sealed class SaveSync
             var key = ((long)operation.RomId, operation.Slot ?? string.Empty);
             byKey.TryGetValue(key, out var local);
 
-            switch (Decide(operation, local))
+            var action = Decide(operation, local);
+
+            if (action == SyncAction.Upload && local is not null && IsDeletedBytesRewritten(operation, local))
+            {
+                action = SyncAction.Delete;
+            }
+
+            switch (action)
             {
                 case SyncAction.NoOp:
                     if (local is not null && HoldsHead(operation, local)
@@ -1444,6 +1451,24 @@ public sealed class SaveSync
             && !local.HasChangedSinceUpload
             && local.ContentHash is { } held
             && string.Equals(held, offered, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// True when an <c>upload</c> offers the server nothing it has not already seen and then
+    /// deleted, so it is the removal arriving a second time.
+    /// </summary>
+    /// <remarks>
+    /// <b>A removal deferred for a running game comes back as an upload.</b> A libretro core
+    /// rewrites its SRAM on exit with the bytes it started with, which moves the mtime without
+    /// changing the hash, and the server answers a copy written after the loss with
+    /// <c>upload</c> (#583). The evidence is all in the store already: the server holds nothing
+    /// in the slot, this device last exchanged a row there, and the file still hashes to what
+    /// went up. New bytes fail the last test, so a played save is never taken for a removal.
+    /// </remarks>
+    private bool IsDeletedBytesRewritten(SyncOperation operation, LocalSave local) =>
+        operation.SaveId is null
+            && !local.IsUnsent
+            && !local.HasChangedSinceUpload
+            && _store.SaveSlots.Read(operation.RomId, operation.Slot ?? local.Slot)?.SaveId is not null;
 
     /// <summary>
     /// True when the head of the slot holds exactly the bytes on disk, so there is nothing to
