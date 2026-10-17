@@ -7,9 +7,9 @@ read-when: Before choosing games for a certification, a hands-on pass or any tes
 
 **A game is in the corpus because a record says what it is the best test of**: a save medium, a
 coprocessor, a clock, a firmware boot, a save behavior. A game used once, or picked without knowing
-its fit, stays out until a pass shows it is the best test of something, and then that pass adds it
-here with the reason. The corpus is not exhaustive. A system with no table has no game admitted yet,
-and its first pass picks by
+its fit, stays out until a pass shows it is the best test of something. A pass may put a candidate
+here to boot it, and takes it off again if the pass does not bear it out. The corpus is not
+exhaustive. A system with no table has no game admitted yet, and its first pass picks by
 [Choosing test games](../../.claude/skills/platform-certification/SKILL.md#choosing-test-games)
 and records the result here.
 

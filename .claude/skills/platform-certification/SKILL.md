@@ -85,8 +85,9 @@ coverage table, one row per edge case naming the game that covers it, or "none i
 suggested addition. Then ask one `AskUserQuestion` with the recommended set first.
 
 The games reach the agent tree as the system's corpus collection set (`tools/corpus.py`), so an
-addition joins the page and the collection before the pass; one the library lacks in the needed
-layout goes under the page's Wanted, for the maintainer to build in RomM.
+addition goes on the page and into the collection before the pass, as a candidate, and comes off
+if the pass does not show it is the best test; one the library lacks in the needed layout goes
+under the page's Wanted, for the maintainer to build in RomM.
 
 ## Checklist
 
