@@ -111,7 +111,8 @@ and must move, and some are the version a measurement was taken on and must not.
 4. Re-check every entry in `docs/upstream/issues.md`. A fix upstream changes what
    RomMBat should do; **no workaround comes out until a hands-on pass has seen the fixed
    behavior.** A changelog line is upstream's belief, not a measurement.
-5. Leave provenance alone. `data/retrobat/*.json`'s `_retrobat_version`, and a live capture under
+5. Leave provenance alone. `data/retrobat/*.json`'s `_retrobat_version`, a `save_shapes.json`
+   entry's own `retrobat_version`, and a live capture under
    `tests/.../fixtures/`, record the version something was **measured on**. Rewriting those to
    the new number silently reattributes a measurement to a build nobody ran it against.
 6. A RomM move also moves the pinned OpenAPI schema, which is the minimum version on purpose.

@@ -87,7 +87,11 @@ install; `declared` means it comes from `es_savestates.cfg` or `es_features.cfg`
 not yet been seen written. `save_directories.json` regenerates with
 `python tools/m0-probes/probe2-emit-data.py <retrobat-root>`. `save_shapes.json` has no
 generator: the PR that measures a shape edits its entry, citing the fact that records it in
-[save-locations](../docs/upstream/retrobat/save-locations.md).
+[save-locations](../docs/upstream/retrobat/save-locations.md). Its top-level `_retrobat_version`
+is the build an entry was measured on unless the entry names its own `retrobat_version`, and
+the measuring PR stamps that whenever its build differs from the default. An entry citing a
+fact names the build that fact's `Verified:` line does, which `SaveShapesProvenanceTests`
+asserts.
 
 **`_state_directory_templates` is copied from `es_savestates.cfg` and is not trustworthy on
 its own.** Four sibling keys qualify it: `_state_directory_verified` lists the eleven

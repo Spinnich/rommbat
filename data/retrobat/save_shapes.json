@@ -1,5 +1,5 @@
 {
-  "_comment": "Measured on a real RetroBat install and edited by hand, one shape at a time; no generator emits it. Shape follows grout cfw/*/data/save_directories.json. Keyed by RetroBat system folder, not RomM slug; the slug join lives in the platform map. Paths are relative to <retrobat root>/saves/ and contain no absolute component.",
+  "_comment": "Measured on a real RetroBat install and edited by hand, one shape at a time; no generator emits it. Shape follows grout cfw/*/data/save_directories.json. Keyed by RetroBat system folder, not RomM slug; the slug join lives in the platform map. Paths are relative to <retrobat root>/saves/ and contain no absolute component. _retrobat_version is the build an entry was measured on unless the entry names its own retrobat_version.",
   "_retrobat_version": "8.2.0-stable-win64",
   "_provenance": "observed = seen on disk; declared = from es_savestates.cfg or es_features.cfg, not yet seen written",
   "_classes": {
@@ -137,6 +137,7 @@
       "class": "C",
       "evidence": "PCSX2's folder card Mcdf01.ps2/<save>/, one directory per save named from the serial; the stock shared Mcd001.ps2 is moved off by forcing pcsx2_slot1_memory=folder",
       "provenance": "observed",
+      "retrobat_version": "8.3.0-stable-win64",
       "forced_setting": {
         "option": "pcsx2_slot1_memory",
         "value": "folder",
