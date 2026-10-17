@@ -13,11 +13,11 @@ namespace RomMBat.Tests.Support;
 /// suite that does not clean up leaves live credentials behind on whatever instance it ran
 /// against, and they accumulate one set per run.
 /// <para>
-/// The ordering is forced by which credential holds what. Only the token a pairing just
-/// issued carries <c>devices.write</c>; the approving dev token holds <c>me.write</c>,
-/// which is what revokes tokens. So token ids are captured first (while the
-/// bindings are still readable), devices are deleted second (while their tokens still work),
-/// and revocation happens last against the captured ids.
+/// The ordering follows from deleting each device with the token its own pairing issued,
+/// as an install would, while the dev token's <c>me.write</c> is what revokes tokens. So
+/// token ids are captured first (while the bindings are still readable), devices are
+/// deleted second (while their tokens still work), and revocation happens last against the
+/// captured ids.
 /// </para>
 /// </remarks>
 internal sealed class PairingLitter
@@ -84,13 +84,14 @@ internal sealed class PairingLitter
                 .Where(entry => string.Equals(entry.DeviceId, deviceId, StringComparison.Ordinal))
                 .ToList();
 
-            // Only a token granted devices.write can delete the device it belongs to. A test
-            // that deliberately pairs narrow has to re-pair wider before teardown can tidy up.
+            // Teardown deletes a device with a token its own pairing issued, and only one
+            // granted devices.write can. A test that deliberately pairs narrow has to re-pair
+            // wider before teardown can tidy up.
             var capable = forDevice.LastOrDefault(entry => entry.CanDeleteDevice);
             if (capable.AccessToken is null)
             {
                 problems.Add(
-                    $"device {deviceId}: no tracked token carries {RomMScopes.DevicesWrite}, so it cannot be deleted");
+                    $"device {deviceId}: no token its pairing issued carries {RomMScopes.DevicesWrite}, so teardown cannot delete it");
                 continue;
             }
 

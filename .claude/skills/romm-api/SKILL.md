@@ -105,8 +105,10 @@ CSRF does not apply when an `Authorization` header is present.
 | The **device** (what RomMBat requests) | `me.read`, `roms.read`, `platforms.read`, `collections.read`, `firmware.read`, `assets.read`, `assets.write`, `devices.read`, `devices.write`, `roms.user.*` |
 | The **approver** (test harness only)   | `me.write` above the device set; the dev token holds every scope. Its **account** needs the device set, since that is what caps `allowed_scopes`             |
 
-Never needed by either, and dangerous to grant: `users.read`, `users.write`, `roms.write`,
-`platforms.write`, `tasks.run`, `logs.read`.
+Never needed by the device, and dangerous to grant it: `users.read`, `users.write`, `roms.write`,
+`platforms.write`, `tasks.run`, `logs.read`. The dev token holds them only because the harness,
+probes and tools run from the maintainer's `.env`; never copy that grant to anything an install
+holds.
 
 **RomMBat calls neither `POST /api/export/gamelist-xml` nor `POST /api/export/pegasus`**, which
 need `platforms.write` (RM-8). `GamelistSync` writes RetroBat gamelists into the install

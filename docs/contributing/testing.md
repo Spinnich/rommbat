@@ -57,7 +57,7 @@ stub at all.
 The live tests skip unless `ROMMBAT_TEST_SERVER` and `ROMMBAT_TEST_DEV_TOKEN` are set.
 Setting them up is
 [the developer setup](../../DEVELOPER_SETUP.md#the-live-tests). Once they are exported, every `dotnet test`
-is a networked operation: 21 tests pair against the real server, minting and revoking real
+is a networked operation: the tests pair against the real server, minting and revoking real
 credentials on the test account, with no warning first.
 
 **Pairing is limited to 10 per minute per IP.** One run of all four `Live*` classes pairs about
@@ -108,9 +108,9 @@ that needs a scope a device is never granted.
 
 `PairingLitter` tears down in `IAsyncLifetime.DisposeAsync`: each test deletes the devices it
 created and revokes the tokens bound to them, and fails if it cannot, since every approval mints
-a genuine `rmm_` credential whose local copy dies with the temp tree. The order is forced by who
-holds what: only the token a pairing just issued has `devices.write`, and only the dev token can
-revoke tokens. So token ids are captured first, devices deleted second, revocation last.
+a genuine `rmm_` credential whose local copy dies with the temp tree. Each device is deleted with
+the token its own pairing issued, as an install would, and the dev token's `me.write` revokes
+tokens. So token ids are captured first, devices deleted second, revocation last.
 
 ### The user token
 
