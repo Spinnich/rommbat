@@ -210,7 +210,7 @@ runs, trims it. `sms` has no other EmulatorJS core, and a session's first write 
 newest slotted save's slot (RM-4). The next flush found the local `.srm` unchanged since it was last in step,
 downloaded the newer row, and kept the displaced file in `emulators/rommbat/replaced/`.
 
-## RB-438. Negotiate answers `delete`, with a null `save_id`, for a slot emptied in the web UI
+## RM-29. Negotiate answers `delete`, with a null `save_id`, for a slot emptied in the web UI
 
 Verified: RomM 5.4.0, 2026-10-17. How: on the agent tree uploaded each of nine `nes` rows' saves and the `ps2` folder card's unit, deleted the slot's saves with `POST /api/saves/delete` (200), and read what the next flush did with the negotiate answer.
 The answer is `delete`, with no `save_id`. A save written

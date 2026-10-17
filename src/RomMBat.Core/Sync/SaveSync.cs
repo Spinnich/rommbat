@@ -708,6 +708,7 @@ public sealed class SaveSync
                 // The server emptied a slot this device holds unchanged. A slot this device
                 // holds nothing in is already in step.
                 case SyncAction.Delete when local is null:
+                    CloseConflictOnEmptiedSlot(operation);
                     noOps++;
                     break;
 
@@ -724,14 +725,7 @@ public sealed class SaveSync
                     {
                         var kept = RemoveLocal(local);
                         removed++;
-
-                        // An open conflict on the slot has nothing left to keep on either side,
-                        // and no other route closes it (RB-276 is the same trap).
-                        _store.SaveConflicts.Resolve(
-                            operation.RomId,
-                            operation.Slot ?? string.Empty,
-                            ConflictResolution.KeepServer,
-                            _time.GetUtcNow());
+                        CloseConflictOnEmptiedSlot(operation);
                         problems.Add($"{NameSave(operation.RomId, operation.Slot)}: deleted on the "
                             + "server, so it was taken out of the tree"
                             + (kept is null ? "." : $" and a copy kept at {kept}."));
@@ -2349,6 +2343,23 @@ public sealed class SaveSync
 
         _store.Saves.Forget([(local.Path, local.UnitKey)]);
         return aside;
+    }
+
+    /// <summary>
+    /// Closes the slot's open conflict once the server has emptied the slot.
+    /// </summary>
+    /// <remarks>
+    /// Neither side has anything left to keep, and no other route closes it (RB-276 is the same
+    /// trap). The copy pointer goes too, so a conflict that reopens takes a copy of its own.
+    /// </remarks>
+    private void CloseConflictOnEmptiedSlot(SyncOperation operation)
+    {
+        var slot = operation.Slot ?? string.Empty;
+
+        if (_store.SaveConflicts.Resolve(operation.RomId, slot, ConflictResolution.KeepServer, _time.GetUtcNow()))
+        {
+            _store.SaveConflicts.ForgetCopy(operation.RomId, slot);
+        }
     }
 
     /// <summary>Copies whatever is there out of the way, and returns where it went.</summary>

@@ -369,6 +369,31 @@ public class SaveSyncTests
 
         Assert.Equal(1, outcome.Removed);
         Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+
+        // The copy pointer goes with it, so a conflict that reopens takes a copy of its own.
+        Assert.Null(Assert.Single(fixture.Store.SaveConflicts.List()).LocalCopyPath);
+    }
+
+    [Fact]
+    public async Task A_delete_for_a_slot_with_no_local_save_still_closes_its_open_conflict()
+    {
+        // The save file was removed by hand before the server emptied the slot: keep-local has
+        // no file and keep-server nothing to fetch, so the delete is the only way out.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played here");
+        fixture.Scan();
+        fixture.MarkSent();
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        var row = Assert.Single(fixture.Store.Saves.List());
+        fixture.Store.Saves.Forget([(row.Path, row.UnitKey)]);
+        fixture.Stub.NegotiateActions.Clear();
+        fixture.Stub.UnsolicitedDeletes.Add((7, "libretro:battery"));
+
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
     }
 
     [Fact]

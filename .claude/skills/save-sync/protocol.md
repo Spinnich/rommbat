@@ -256,7 +256,7 @@ identical)`. M5 and M6, added at `5.3.0`, are the peer-row
     changed since its upload, is evidence the server lacks. Identical bytes download as before.
     The restore find is untouched: it reaches the download only with no local save.
   - **A `delete` means the server emptied the slot, and the save is taken out of the tree, not
-    deleted** (#481, RB-438). `SaveSync` copies it under `replaced/`, removes it
+    deleted** (#481, RM-29). `SaveSync` copies it under `replaced/`, removes it
     from the emulator's tree, forgets the `local_save` row, and counts it `Removed`; a class C
     unit goes the same way through `SaveUnitTransfer.MoveAside`, members only. A game being
     played defers it like a download. An unsent save, or one changed since its upload, is

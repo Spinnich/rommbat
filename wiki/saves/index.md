@@ -29,6 +29,12 @@ comes down the next time you open it
 **Playing offline loses nothing.** Saves and playtime wait on this device and go up the next time
 it can reach RomM. The main menu's Waiting to upload row counts what is still waiting.
 
+## When a save is deleted in RomM
+
+Deleting a save in RomM takes it out of the emulator's folder on the next sync, and the sync summary
+says it was removed. A copy is kept in `emulators/rommbat/replaced/`, so nothing is lost for good.
+A save you changed here since it went up is sent again instead of removed.
+
 ## When both sides changed
 
 If a save changed here and on another device since they last agreed, RomMBat keeps both and asks
