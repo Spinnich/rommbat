@@ -225,7 +225,7 @@ EmulationStation and came back out through the hooks. The waves finish against a
 `(system, emulator, core)` and the checklist is nine points; a launch is one of them.
 
 **Every row `nes` declares is certified**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1 and carried
-to `5.3.0` and then the `5.3.1` floor, all
+to `5.3.0`, then `5.3.1`, and then the `5.4.0` floor, all
 three `libretro` cores first. `nestopia`, re-driven on 2026-09-20, was the first row anywhere to pass step 5, a save
 state round-tripping with its screenshot, which had been blocked on RomMBat's screenshot naming (RB-258)
 since the checklist was written. `fceumm` and `mesen` followed on 2026-09-21, and `fceumm` is the
@@ -291,8 +291,8 @@ start without the US/EU BIOS, which RetroBat lists without a hash and RomMBat fe
 retrobios's evidence gives it
 (RB-322).
 
-**All seventy-five are at the RomM `5.3.1` floor.** Steps 1 and 9 were re-run there on
-2026-09-24, and the other seven carry because 5.3.1 changes no route they exercise; #236 maps the
+**All seventy-five are at the RomM `5.4.0` floor.** Steps 4, 8 and 9 were re-driven there on
+2026-10-17, and the other six carry because the routes they exercise answered as before; #236 maps the
 steps, and each record's "Where each row stands" states the result.
 
 **Wave 2 has begun with `psx`: all seven of its rows certified at RomM `5.3.1`** on 2026-09-26, the three `libretro` cores, DuckStation, standalone mednafen and both BizHawk cores, with every memory card type the rows expose driven at step 6. Each non-`libretro` row needed code: a battery rule for DuckStation's per-port cards, mednafen's cards and BizHawk's `.SaveRAM`, a state declaration for mednafen, and attribution of a disc set's files to the set; the non-default card types added swanstation's and mednafen_psx_hw's other cards and eleven declared shared cards, five of them observed (RB-328 to RB-335). Six of the seven refuse to boot without `psxonpsp660.bin`, which RomMBat fetches; mednafen emulates no card at RetroBat's default (RB-330). [psx/](psx/index.md) is the record.

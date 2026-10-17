@@ -9,7 +9,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 
 ## RB-260. A play session's datetimes carry no zone, and `System.Text.Json` reads them as local
 
-Verified: RomM 5.3.1, 2026-09-29. How: read every datetime on ten `GET` routes and set `/api/play-sessions` against the response's `Date` header.
+Verified: RomM 5.3.1, 2026-09-29, and 5.4.0, 2026-10-17. How: read every datetime on ten `GET` routes and set `/api/play-sessions` against the response's `Date` header; on 5.4.0 read the datetimes on eight `GET` routes and set `/api/play-sessions` against the response's `Date` header.
 `/api/play-sessions` answers `start_time`, `end_time`, `created_at` and `updated_at` as
 `2026-08-29T14:03:11`, with no offset and no `Z`, while storing UTC. Saves, states, ROMs,
 platforms, devices, firmware and the user carry `+00:00`. `System.Text.Json` reads a zone-less

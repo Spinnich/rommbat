@@ -15,8 +15,8 @@ Two cases against one ROM and a throwaway slot, in the order they run:
   R2  a PUT refreshes the oldest surviving version, then one more upload prunes. Does the
       prune rank on updated_at, so the refreshed row survives and the next oldest goes?
 
-A slotted upload is named with a one-second timestamp and keyed on that name, so versions are
-spaced a little over a second apart or they collapse into one row. About 55 uploads.
+A slotted upload is named with a one-second timestamp, and the server appends a row whatever
+second it lands in (RB-160); the probe still spaces versions 1.1 s apart. About 55 uploads.
 
 Writes to the instance. Everything it creates is deleted before it exits: the save rows, their
 files and the device.

@@ -9,7 +9,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 
 ## RB-73. `PUT /api/devices/{id}` writes every field it is sent, nulls included
 
-Verified: RomM 5.1.1, 2026-08-10, and 5.3.1, 2026-09-28. How: on 5.1.1 sent both shapes to a throwaway device; on 5.3.1 read `update_device` and ran `LiveCatalogTests`' `sync_config` round trip.
+Verified: RomM 5.1.1, 2026-08-10, and 5.3.1, 2026-09-28, and 5.4.0, 2026-10-17. How: on 5.1.1 sent both shapes to a throwaway device; on 5.3.1 read `update_device` and ran `LiveCatalogTests`' `sync_config` round trip; on 5.4.0 sent the same two shapes to a throwaway device.
 The server applies `model_dump(exclude_unset=True)`, so a property sent as an explicit null is
 written. The generated `DeviceUpdatePayload` serializes every unset property that way, and
 `sync_enabled` and `sync_mode` are not nullable in the device table, so the full shape answers **500** with a
@@ -18,14 +18,14 @@ all `UpdateDeviceSyncConfigAsync` sends.
 
 ## RB-74. Pairing init allows 10 requests a minute per IP, and token polling 60
 
-Verified: RomM 5.1.1, 2026-08-10, and 5.3.1, 2026-09-28. How: on 5.1.1 hit the limit with the live suite; on 5.3.1 read `utils/device_auth.py`.
+Verified: RomM 5.1.1, 2026-08-10, and 5.3.1, 2026-09-28. Carried: RomM 5.4.0, 2026-10-17, the diff of `utils/device_auth.py` and `utils/rate_limit.py` only swaps Redis calls and moves the counter into `count_in_window`, and `AUTHORIZE_RATE_LIMIT` is still 10, `TOKEN_POLL_RATE_LIMIT` 60 and the window 60 s at the `5.4.0` tag. How: on 5.1.1 hit the limit with the live suite; on 5.3.1 read `utils/device_auth.py`.
 Over either limit the server answers 429. `POST /api/auth/device/init` is the one the live suite
 exhausts on its own: a pairing per test goes over it and reads as a pairing defect. Live catalog
 tests share one pairing per class, and `LivePairingTests`, which must pair per test, skips on the 429.
 
 ## RM-8. The export endpoints need `platforms.write`, which RomMBat never requests
 
-Verified: RomM 5.3.0, 2026-09-14, and 5.3.1, 2026-09-28. How: read `endpoints/export.py`, and grepped `src/`, `tests/` and `tools/` for both routes.
+Verified: RomM 5.3.0, 2026-09-14, and 5.3.1, 2026-09-28. Carried: RomM 5.4.0, 2026-10-17, `endpoints/export.py` is byte-identical between the `5.3.1` and `5.4.0` tags, and a grep of `src/`, `tests/` and `tools/` still finds neither route. How: read `endpoints/export.py`, and grepped `src/`, `tests/` and `tools/` for both routes.
 `POST /api/export/gamelist-xml` and `POST /api/export/pegasus` require the grant and 404 a platform
 hidden from the caller. No hand-written code names either route; the one hit is `pegasus_export`,
 a generated DTO property. `GamelistSync` writes RetroBat's gamelists itself, so the device scope
@@ -33,7 +33,7 @@ set does not carry the grant.
 
 ## RM-13. A bearer request that also carries a session cookie runs as the cookie's owner, CSRF-checked
 
-Verified: RomM 5.3.1 source, 2026-09-29. How: read `CSRFMiddleware` and `HybridAuthBackend`; grepped `src/` for `UseCookies`.
+Verified: RomM 5.3.1 source, 2026-09-29. Carried: RomM 5.4.0, 2026-10-17, `hybrid_auth.py` still authenticates the session before the `Authorization` header (the diff extracts `resolve_client_token` and turns Basic and JWT failures into an unauthenticated request), `csrf_middleware.py` changes only type annotations, and `RomMConnection` still builds its handler with `UseCookies = false`. How: read `CSRFMiddleware` and `HybridAuthBackend`; grepped `src/` for `UseCookies`.
 The session authenticates before the `Authorization` header, so a request carrying both runs as
 the cookie's user, and the CSRF middleware skips only a bearer or basic request that no session
 authenticated. RomMBat authenticates by token alone, and `RomMConnection` builds its one handler

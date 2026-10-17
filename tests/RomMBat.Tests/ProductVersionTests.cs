@@ -83,7 +83,7 @@ public class ProductVersionTests
     public void A_prerelease_suffix_on_a_supported_version_is_not_a_downgrade()
     {
         // The shape a prerelease instance reports. The suffix, not the number, is the trap.
-        var check = RomMServerVersion.Check("5.3.1-beta.1");
+        var check = RomMServerVersion.Check("5.4.0-beta.1");
 
         Assert.Equal(CompatibilityVerdict.Supported, check.Verdict);
         Assert.False(check.MustRefuse);
@@ -92,18 +92,18 @@ public class ProductVersionTests
     [Fact]
     public void The_previous_patch_and_every_prerelease_of_it_are_refused()
     {
-        // The floor is a patch release, so the stable it replaced is out of support rather than
-        // untested, and ProductVersion's suffix drop reads each 5.3.0 prerelease as 5.3.0.
+        // The stable the floor replaced is out of support rather than untested, and
+        // ProductVersion's suffix drop reads each 5.3.1 prerelease as 5.3.1.
+        Assert.Equal(CompatibilityVerdict.TooOld, RomMServerVersion.Check("5.3.1").Verdict);
+        Assert.Equal(CompatibilityVerdict.TooOld, RomMServerVersion.Check("5.3.1-beta.1").Verdict);
         Assert.Equal(CompatibilityVerdict.TooOld, RomMServerVersion.Check("5.3.0").Verdict);
-        Assert.Equal(CompatibilityVerdict.TooOld, RomMServerVersion.Check("5.3.0-beta.1").Verdict);
-        Assert.Equal(CompatibilityVerdict.TooOld, RomMServerVersion.Check("5.2.9").Verdict);
     }
 
     [Fact]
     public void The_stable_is_the_tested_row_and_the_next_patch_warns()
     {
-        Assert.Equal(CompatibilityVerdict.Supported, RomMServerVersion.Check("5.3.1").Verdict);
-        Assert.Equal(CompatibilityVerdict.Untested, RomMServerVersion.Check("5.3.2").Verdict);
+        Assert.Equal(CompatibilityVerdict.Supported, RomMServerVersion.Check("5.4.0").Verdict);
+        Assert.Equal(CompatibilityVerdict.Untested, RomMServerVersion.Check("5.4.1").Verdict);
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public class ProductVersionTests
         Assert.Equal(CompatibilityVerdict.TooOld, check.Verdict);
         Assert.True(check.MustRefuse);
         Assert.Contains("5.1.9", check.Message, StringComparison.Ordinal);
-        Assert.Contains("5.3.1", check.Message, StringComparison.Ordinal);
+        Assert.Contains("5.4.0", check.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -188,7 +188,7 @@ public class ProductVersionTests
     [Fact]
     public void The_declared_minimums_match_the_compatibility_table()
     {
-        Assert.Equal(ProductVersion.Parse("5.3.1"), RomMServerVersion.Minimum);
+        Assert.Equal(ProductVersion.Parse("5.4.0"), RomMServerVersion.Minimum);
         Assert.Equal(ProductVersion.Parse("8.3.0"), RetroBatVersion.Minimum);
         Assert.Equal(new Version(8, 3, 0), RetroBatRoot.MinimumVersion);
     }

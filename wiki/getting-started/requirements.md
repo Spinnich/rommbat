@@ -7,7 +7,7 @@ enough room on the drive for the games you want on it.
 | -------- | ---------------- | ------------------------------------------------------------ |
 | Windows  | 10 or 11, 64-bit | RetroBat's own requirement                                   |
 | RetroBat | 8.3.0 or newer   | Read from `system\version.info` in your RetroBat folder      |
-| RomM     | 5.3.1 or newer   | Your own server, reachable from this PC when you want a sync |
+| RomM     | 5.4.0 or newer   | Your own server, reachable from this PC when you want a sync |
 | .NET     | Not needed       | RomMBat brings everything it runs on                         |
 
 RomMBat checks both versions every time it starts. An older RetroBat or RomM is refused, with a

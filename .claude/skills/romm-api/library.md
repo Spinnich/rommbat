@@ -91,8 +91,8 @@ columns for that reason.
 - **`with_rom_id_index=false` under every scope, from `5.3.0`.** Under a
   scoping parameter (`platform_ids`, `collection_id`, `smart_collection_id`,
   `virtual_collection_id`) the index spans that scope, not the library, and is resent in full on
-  every page. **Measured on 5.3.1 at 250 a page (`r2-scoped-index-bandwidth.py`): 63 KiB
-  a page on a 9,194-ROM platform and 114 KiB on a 16,687-ROM virtual collection, with index off
+  every page. **Measured on 5.4.0 at 250 a page (`r2-scoped-index-bandwidth.py`): 63 KiB
+  a page on a 9,194-ROM platform and 114 KiB on a 16,705-ROM virtual collection, with index off
   inside the noise on both** (RM-9). Unscoped it is 657 KiB a 100-row page against 1.3x.
 - **`with_total=true` is what keeps `total` non-null with the index off.** The server nulls
   `total` when neither flag is set, and `RomPage.Total` is a non-nullable `int`. The count is
@@ -181,9 +181,9 @@ columns for that reason.
   user id, which its docstring states on purpose. `smart_collection_id` applies the criteria
   with the **caller's** id and hides the caller's hidden roms, and `GET /api/collections/smart`
   lists every public collection as well as the caller's own. Per-user criteria are `favorite`,
-  `statuses`, `has_saves`, `has_states` and `last_played`. Measured on 5.3.1 with
-  `tools/romm-5.3-probes/r6-smart-collections.py` (RM-16): all 29 collections the test account can
-  list are public, owned by another account and filter on `favorite`, advertise 6 to 594 roms,
+  `statuses`, `has_saves`, `has_states` and `last_played`. Measured on 5.4.0 with
+  `tools/romm-5.3-probes/r6-smart-collections.py` (RM-16): all 28 collections the test account can
+  list are public, owned by another account and filter on `favorite`, advertise 0 to 594 roms,
   and page back 0. So never show or budget from `rom_count` on a smart collection; the picker
   shows no count, and the resolve's total is the real size. Not an upstream defect.
 - **The paged read already carries the metadata; `GET /api/roms/{id}` does not add any.**

@@ -10,8 +10,8 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   2 seconds and round up**, so a save can be stamped 2 s in the future and several saves
   written together share one timestamp. Mtimes are not bit-stable across filesystems.
 - **`overwrite=true` does not replace a row in the slot, whatever it looks like.** A slotted
-  upload is renamed with a `[YYYY-MM-DD_HH-MM-SS]` tag and the row is keyed on that name, so the
-  clock decides: same second updates, a second later appends. `overwrite` only suppresses the 409
+  upload is renamed with a `[YYYY-MM-DD_HH-MM-SS]` tag and the row is keyed on that name; the
+  server reserves a name no other version holds, so every upload appends. `overwrite` only suppresses the 409
   checks and the identical-content dedup. So `--keep-local` appends, the server's copy stays one
   row down until something writes into it in place (see "Other writers on the same slots"), and `autocleanup_limit=10` is what bounds the slot rather than the resolution bounding
   it at one. Never tell a user their copy replaced the server's. RB-160.
@@ -166,9 +166,8 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   one standing, one second apart. Confirmed on a second shape, class A on `nes`: a keep-local sent
   save 212 and left 210 standing. The flag is what gets past the 409 an ordinary upload earns
   when this device's sync record is stale; it is not an instruction to the server to reuse the
-  row. Anything reasoning about how many rows a slot has after a resolution has to expect two,
-  subject to the one-second rule above: a decision taken later than the same second appends, and
-  one taken inside it updates the row in place.
+  row. Anything reasoning about how many rows a slot has after a resolution has to expect two:
+  every slotted upload appends (RB-160).
 
 - **`ConflictResolutionService` takes `TreeLock`, and refuses rather than treating a held lock
   as done.** It runs the same `SaveUnitTransfer.Restore` a flush does, so two of them at once, or
@@ -218,10 +217,10 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   mtime never decides whether a save changed, and this is the server applying that reasoning on
   the other side of the wire. `tools/romm-5.3-probes/s4-older-mtime.py` asks it directly, six
   cases, and is the instrument to re-run rather than reasoning from a flush (#206, RB-259).
-  At `beta.1`, `5.3.0` and the `5.3.1` floor alike: M1 `no_op (No changes since last sync)`, M2
+  At `beta.1`, `5.3.0`, `5.3.1` and the `5.4.0` floor alike: M1 `no_op (No changes since last sync)`, M2
   `upload`, M3 `download (Server save is newer (no sync history))`, M4 `no_op (Content is
-identical)`. M5 and M6, added at `5.3.0` and answering the same at `5.3.1`, are the peer-row
-  cases under "Hash contents, not the archive".
+identical)`. M5 and M6, added at `5.3.0`, are the peer-row
+  cases (at `5.4.0` they answer `no_op` on the head and let the next edit land, RB-308 and RB-309) under "Hash contents, not the archive".
   - **A `no_op` for a slot whose `content_hash` differs from `uploaded_content_hash` is
     uploaded, unless the offered `server_content_hash` equals the local `content_hash`.** That
     exception covers every shape, not only class C: the head already holds these bytes, so the

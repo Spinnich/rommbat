@@ -114,8 +114,8 @@ Three rules that are not obvious:
   server lacks: otherwise a save put back from a backup never goes up and the flush says nothing.
   The exception, for every shape, is a head that already holds the local bytes: that save is
   recorded as sent, and the head is acknowledged first when it is not the row this device last
-  exchanged, since the server refuses the next upload against a stale device record (RB-309,
-  probe case M6). RB-259 has the server's other answers, from `s4-older-mtime.py`. A second guard answers an
+  exchanged. Negotiate already records an identical head for the device, so that acknowledgment is a
+  no-cost guard (RB-309, probe case M6). RB-259 has the server's other answers, from `s4-older-mtime.py`. A second guard answers an
   `upload` of bytes the server already holds as a no-op; negotiate settles that case on the hash
   itself (probe case M4), so the guard is cheap defense against a silent upload on every
   flush. #206.
@@ -132,8 +132,8 @@ picks a side, with `saves resolve` or the UI's conflict screens. A conflict is k
 server row and not only on its digest, because a slot returning to contents it once held is a
 different row carrying a decided hash. Keeping the local side is the only thing that sends
 `overwrite=true`, which gets past the 409 and
-**appends** rather than replacing: row identity is the server's own datetime-tagged filename at
-one-second resolution, so no decision a person takes lands on the row it is overwriting. The
+**appends** rather than replacing: the server reserves a datetime-tagged name no other version
+holds, so no decision a person takes lands on the row it is overwriting (RB-160). The
 server's copy stays one row down, where negotiate no longer looks, since it pairs on the newest
 row per slot alone (measured, not inferred); `autocleanup_limit=10` bounds the slot. **Until
 something writes into it, or the row above it is deleted:** `PUT /api/saves/{id}` rewrites a row

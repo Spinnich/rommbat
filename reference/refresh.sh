@@ -79,6 +79,7 @@ fetch RetroBat-Official/emulatorlauncher "$launcher_ref" batocera-systems/Resour
 echo "RomM $romm_ref:"
 fetch rommapp/romm "$romm_ref" backend/models/fixtures/known_bios_files.json romm-known_bios_files.json
 fetch rommapp/romm "$romm_ref" backend/utils/gamelist_exporter.py romm-gamelist_exporter.py
+fetch rommapp/romm "$romm_ref" backend/utils/datetime.py romm-datetime.py
 fetch rommapp/romm "$romm_ref" backend/utils/platform_slugs.py romm-platform_slugs.py
 fetch rommapp/romm "$romm_ref" backend/utils/platform_aliases.py romm-platform_aliases.py
 fetch rommapp/romm "$romm_ref" LICENSE romm-LICENSE

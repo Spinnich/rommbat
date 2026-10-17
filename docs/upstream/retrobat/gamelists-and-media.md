@@ -113,7 +113,7 @@ RetroBat default is read from `system/templates/` and a fresh install, not from 
 
 ## RB-239. Three scraper options pick a source for a slot, and RomM exposes fourteen media paths
 
-Verified: RetroBat 8.2.1 and RomM 5.2.0, 2026-09-01; the schema half against RomM 5.3.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, GuiScraperSettings.cpp and MetaData.cpp are unchanged in 8.3.0's ES diff, whose scraper change is GuiScraperStart's remembered filters; the RomM half is stamped at the floor. How: read `GuiScraperSettings.cpp` and `MetaData.cpp` at `c686ca8b`, sampled 200 roms per platform on the live instance, and read `RomSSMetadata` in the pinned schema.
+Verified: RetroBat 8.2.1 and RomM 5.2.0, 2026-09-01; the schema half against RomM 5.4.0, 2026-10-17. Carried: RetroBat 8.3.0, 2026-10-14, GuiScraperSettings.cpp and MetaData.cpp are unchanged in 8.3.0's ES diff, whose scraper change is GuiScraperStart's remembered filters. How: read `GuiScraperSettings.cpp` and `MetaData.cpp` at `c686ca8b`, sampled 200 roms per platform on the live instance, and read `RomSSMetadata` in the pinned schema; on 5.4.0 counted `RomSSMetadata`'s `*_path` fields in the pinned schema.
 `ScrapperImageSrc` feeds `<image>`, `ScrapperThumbSrc` `<thumbnail>` and `ScrapperLogoSrc`
 `<marquee>`, taking `ss`, `sstitle`, `mixrbv1`, `mixrbv2`, `box-2D`, `box-3D`, `fanart`, `wheel`,
 `marquee`, or empty for none. `RomSSMetadata` has fourteen `*_path` fields. `ScrapeBoxBack` maps
@@ -124,7 +124,7 @@ the reverse. So coverage never decides which kinds RomMBat supports; an absent p
 
 ## RB-240. No media path carries a hash, and ES itself stops two slots taking one source
 
-Verified: RetroBat 8.2.1 and RomM 5.2.0, 2026-09-01; the schema half against RomM 5.3.1, 2026-09-28. Carried: RetroBat 8.3.0, 2026-10-14, GuiScraperSettings.cpp is unchanged in 8.3.0's ES diff; the RomM half is stamped at the floor. How: read `RomSSMetadata` and `RomGamelistMetadata` in the schema, and `GuiScraperSettings.cpp` at `c686ca8b`.
+Verified: RetroBat 8.2.1 and RomM 5.2.0, 2026-09-01; the schema half against RomM 5.4.0, 2026-10-17. Carried: RetroBat 8.3.0, 2026-10-14, GuiScraperSettings.cpp is unchanged in 8.3.0's ES diff. How: read `RomSSMetadata` and `RomGamelistMetadata` in the schema, and `GuiScraperSettings.cpp` at `c686ca8b`; on 5.4.0 read `RomSSMetadata` and `RomGamelistMetadata` in the pinned schema again.
 No `*_path` or `*_url` field carries a hash of its own, so a change of source is detectable only by
 recording which source filled a slot. ES removes Box 2D from the box source list (`ScrapperThumbSrc`)
 when the image source is `box-2D`, in `imageSource->setSelectedChangedCallback`, so the collision is

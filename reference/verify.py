@@ -273,11 +273,12 @@ def main():
 
     print("\nGamelist export")
     exporter = (HERE / "romm-gamelist_exporter.py").read_text(encoding="utf-8")
+    datetime_utils = (HERE / "romm-datetime.py").read_text(encoding="utf-8")
     # Behaviors rather than counts: M4 reads these off RomM's own exporter, and each is a
     # conversion that would be silently wrong if upstream changed it.
     check(
         "first_release_date is milliseconds",
-        "datetime.fromtimestamp(timestamp / 1000" in exporter,
+        "format_utc(timestamp," in exporter and "datetime.fromtimestamp(timestamp_ms / 1000" in datetime_utils,
         True,
     )
     check(

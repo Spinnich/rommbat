@@ -114,7 +114,7 @@ public class SaveSyncTests
         Assert.Equal(0, outcome.Failed);
         Assert.False(outcome.IsNoOp);
 
-        var stored = fixture.Stub.Saves.Values.Single(save => save.RomId == 42);
+        var stored = fixture.Stub.Saves.Values.Where(save => save.RomId == 42).MaxBy(save => save.Id)!;
         Assert.Equal("from the backup", System.Text.Encoding.UTF8.GetString(stored.Bytes));
 
         // And the slot settles, so the next pass has nothing to correct.
@@ -2224,8 +2224,9 @@ public class SaveSyncTests
     public async Task A_stale_upload_record_against_a_peer_row_holding_the_same_bytes_acknowledges_it()
     {
         // The head is a peer's row with this device's bytes, which the real server answers
-        // no_op (Content is identical) for (s4 M6). Uploading would meet a 409, since the
-        // server's record for the device is at the old row, so the head is acknowledged instead.
+        // no_op (Content is identical) for (s4 M6), recording the device as in step with it
+        // (RB-309). The head is still acknowledged, with no transfer, which costs a call and
+        // changes nothing.
         using var fixture = SyncFixture.Create();
         fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
 
@@ -2957,8 +2958,8 @@ public class SaveSyncTests
     public async Task A_peer_row_holding_this_devices_bytes_is_acknowledged_without_a_transfer()
     {
         // The skip above recognizes the bytes, and the head is no longer the row this device
-        // exchanged. Measured at 5.3.0 (s4 M6): left unacknowledged, the server's record for the
-        // device stays at the old row and the next edit's upload is refused 409.
+        // exchanged. Negotiate records the identical head itself (RB-309), so the acknowledgment
+        // costs a call and changes nothing.
         using var fixture = SyncFixture.Create();
         fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
         fixture.Scan();

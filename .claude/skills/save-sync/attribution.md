@@ -248,7 +248,7 @@ Class C is keyed by **Game ID** (`UCUS98751`, a PS3
 `TITLEID`, a GameCube disc ID). This design was built around **RomM storing no serial, title ID
 or product code anywhere**, so that no API lookup existed to ask.
 
-**That held at the 5.2.0 floor and stopped holding at 5.3.0**, and still does not hold at the 5.3.1 floor. RomM
+**That held at the 5.2.0 floor and stopped holding at 5.3.0**, and still does not hold at the 5.4.0 floor. RomM
 declares `title_id`, `save_target` and `save_target_layout` as ROM columns, and **measured on a
 live library it answers for the systems this repo reads 0% of**: 3 of 4 psx `.chd`, 4 of 4 ps2
 `.chd`, 4 of 4 psp `.cso`, 4 of 4 ps3, 3 of 3 each for 3ds, dreamcast, xbox and xbox360. The
@@ -386,12 +386,12 @@ the fold was a different function, so every class C `uploaded_content_hash` reco
 changed once, and negotiate answers `no_op` for it since the hash now matches. `SaveSync.HoldsHead`
 records it as sent rather than uploading, for every shape. When the head is not the row this
 device last exchanged, `SettleOnHeadAsync` acknowledges it first, with no transfer. **Skipping
-the acknowledgment breaks the next edit.** Measured at 5.3.0 (`s4-older-mtime.py` M6): with this
+the acknowledgment costs nothing** (`s4-older-mtime.py` M6, RB-309): with this
 device's row gone and a peer's row holding the same bytes, negotiate answers `no_op (Content is
-identical)`, the next edit's upload is refused 409 "Slot has a newer save since your last sync",
-and after `POST /api/saves/{id}/downloaded` for the peer's row the same upload lands. The
+identical)` and records the device as in step, so the next edit's upload lands. The acknowledgment
+is kept as a no-cost guard. The
 `AlreadyHeld` download skip settles the same way. A peer's upload of bytes a row in the slot
-already holds does not make a new row: it comes back as that row (M5), so this case needs the
+already holds does not make a new row: it comes back as that row, made the slot's newest (M5, RB-308), so this case needs the
 original row gone, which slot retention does (`s3-slot-retention.py`, RM-11).
 
 Defining `content_hash` as the MD5 of zip bytes is a trap: Go's `archive/zip` and .NET's

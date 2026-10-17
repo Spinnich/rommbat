@@ -64,11 +64,11 @@ one mtime, and a file can read up to 2 s ahead of the clock that wrote it, so mt
 tiebreak and `ClockSkew.FilesystemTimestampTolerance` is 2 s. Local time round-tripped across a
 DST boundary on FAT, so no hour shift is corrected for; this was measured in one timezone.
 
-## RB-86. About 3% of a real library is over FAT32's ceiling
+## RB-86. About 0.5% of a real library is over FAT32's ceiling
 
-Verified: RomM 5.1.1-beta.1, 2026-08-10. Carried: RomM 5.3.1, 2026-10-14, it counts the user's ROM sizes and `fs_name` lengths, which a RomM release does not change, and `fs_size_bytes` and `fs_name` are both in the pinned 5.3.1 schema. How: read 2,000 ROMs as twenty 100-row pages spread across an 83,131-ROM library.
-61 of the 2,000 (3.05%) exceed 4 GB, so the pre-flight of RB-48 fires on a real library. The
-longest `fs_name` is 174 characters, inside RB-109's limit, and none carries a character Windows
+Verified: RomM 5.1.1-beta.1, 2026-08-10, and RomM 5.4.0, 2026-10-17. How: read 2,000 ROMs as twenty 100-row pages spread across an 83,131-ROM library; on 5.4.0 walked all 95,975 rows and counted sizes and name lengths.
+495 of the 95,975 (0.52%) exceed 4 GiB, so the pre-flight of RB-48 fires on a real library. The
+longest `fs_name` is 182 characters, inside RB-109's limit, and none carries a character Windows
 refuses (RB-110).
 
 ## RB-109. A file name stops at 255 characters, and `\\?\` does not lift it
