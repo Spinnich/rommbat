@@ -443,6 +443,61 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_removal_deferred_for_a_running_game_still_lands_when_the_emulator_rewrote_the_same_bytes()
+    {
+        // #583: a libretro core rewrites its SRAM on exit with the bytes it started with, which
+        // moves the mtime and so turns the server's `delete` into an `upload` of nothing new.
+        // Sending it would take the deleted save back as a fresh row.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "nes", "Zelda (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
+
+        fixture.Stub.Saves.Clear();
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "delete";
+        fixture.Launch(42, "Zelda (USA)");
+
+        var deferred = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, deferred.Deferred);
+
+        fixture.EndLaunch();
+        fixture.Correlate();
+        File.WriteAllText(fixture.Resolve("saves/nes/Zelda (USA).srm"), "progress");
+        File.SetLastWriteTimeUtc(fixture.Resolve("saves/nes/Zelda (USA).srm"), DateTime.UtcNow.AddMinutes(5));
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Removed);
+        Assert.Equal(0, outcome.Uploaded);
+        Assert.Empty(fixture.Stub.Saves);
+        Assert.False(File.Exists(fixture.Resolve("saves/nes/Zelda (USA).srm")));
+    }
+
+    [Fact]
+    public async Task A_save_with_new_bytes_in_a_slot_the_server_emptied_is_still_uploaded()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "nes", "Zelda (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
+
+        fixture.Stub.Saves.Clear();
+        File.WriteAllText(fixture.Resolve("saves/nes/Zelda (USA).srm"), "more progress");
+        fixture.Scan();
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Uploaded);
+        Assert.Equal(0, outcome.Removed);
+        Assert.True(File.Exists(fixture.Resolve("saves/nes/Zelda (USA).srm")));
+    }
+
+    [Fact]
     public async Task A_delete_for_a_slot_this_device_holds_nothing_in_changes_nothing()
     {
         using var fixture = SyncFixture.Create();
