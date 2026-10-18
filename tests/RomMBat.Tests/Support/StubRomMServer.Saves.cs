@@ -107,6 +107,12 @@ internal sealed partial class StubRomMServer
     public HttpStatusCode? FailAcknowledge { get; set; }
 
     /// <summary>
+    /// When set, a content download answers 404 while the row stays in the listing, which is what
+    /// an unregistered device or a file gone from the server's disk does (RM-30).
+    /// </summary>
+    public bool ContentNotFoundWhileListed { get; set; }
+
+    /// <summary>
     /// Save ids fetched <b>without</b> <c>optimistic=false</c>.
     /// </summary>
     /// <remarks>
@@ -480,7 +486,7 @@ internal sealed partial class StubRomMServer
 
     private HttpResponseMessage SaveContent(HttpRequestMessage request, int saveId)
     {
-        if (!Saves.TryGetValue(saveId, out var save))
+        if (!Saves.TryGetValue(saveId, out var save) || ContentNotFoundWhileListed)
         {
             return Detail(HttpStatusCode.NotFound, "no such save");
         }
