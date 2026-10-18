@@ -86,6 +86,12 @@ public class DisplayNameSaveTests
         Assert.True(mednafen.RefusesPlainSave("gba", "mgba:battery"));
         Assert.False(mednafen.RefusesPlainSave("nes", "mesen:battery"));
         Assert.False(mednafen.RefusesPlainSave("gb", "mgba:battery"));
+
+        // gb is by size: MBC2's 256 B file stops it (RB-429), Yellow's 32,768 B one does not (RB-296).
+        Assert.True(mednafen.RefusesPlainBySize("gb", "mgba:battery"));
+        Assert.True(mednafen.RefusesPlainSave("gb", "mgba:battery", 256));
+        Assert.False(mednafen.RefusesPlainSave("gb", "mgba:battery", 32768));
+        Assert.False(mednafen.RefusesPlainBySize("gba", "mgba:battery"));
     }
 
     [Fact]

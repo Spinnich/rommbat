@@ -47,8 +47,8 @@ that row's own form, and then saved in game.
 The forms are in RB-428. Each row continued from the save the row before it left, given in its own
 form where it keeps its own file; the rows sharing a file read each other's form there. The one
 break is between the two rows sharing `<rom>.sav`: **`mednafen` refuses mGBA's 256 B file and the game does not
-start** (RB-429). On Yellow it reads that file, so `refuses_plain` stays off for `gb` and the case
-is tracked in #514 rather than held back.
+start** (RB-429). On Yellow it reads that file, so `gb` is keyed on the server file's size, not the system:
+`refuses_plain_at_size` holds back a 256 B `mgba:battery` download (#514).
 
 ## Pokemon Silver: the clock off the stock row
 

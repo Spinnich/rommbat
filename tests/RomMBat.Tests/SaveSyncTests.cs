@@ -1660,6 +1660,34 @@ public class SaveSyncTests
         Assert.False(File.Exists(fixture.Resolve($"saves/gba/{Rom}.sav")));
     }
 
+    [Theory]
+    [InlineData("mednafen", 256, 1, 0)]
+    [InlineData("mednafen", 32768, 0, 1)]
+    [InlineData("mgba", 256, 0, 1)]
+    public async Task An_mgba_gb_save_is_held_back_by_its_size_only_where_the_game_runs_under_mednafen(
+        string runsUnder,
+        int size,
+        int heldBack,
+        int downloaded)
+    {
+        // RB-429, #514: mednafen stops on mGBA's 256 B MBC2 file, and reads Yellow's 32,768 B one
+        // (RB-296), so the system cannot say which and the server file's size does.
+        using var fixture = SyncFixture.Create();
+        const string Rom = "Final Fantasy Adventure (USA)";
+        fixture.AddGame(46, "gb", Rom, ".zip", ".srm", null);
+        fixture.RunSystemUnder("gb", runsUnder);
+        fixture.Scan();
+
+        fixture.SeedServerSave(46, "mgba:battery", Rom, "sav", string.Empty, emulator: "mgba", bytes: new byte[size]);
+        fixture.Stub.UnsolicitedDownloads.Add((46, "mgba:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(heldBack, outcome.ForAnotherEmulator);
+        Assert.Equal(downloaded, outcome.Downloaded);
+        Assert.Equal(downloaded == 1, File.Exists(fixture.Resolve($"saves/gb/{Rom}.sav")));
+    }
+
     [Fact]
     public async Task A_mesen_save_downloads_where_this_device_runs_the_system_under_another_emulator()
     {
