@@ -338,7 +338,8 @@ public sealed class SaveConflictResolver
     /// keeping the server's refuses a copy that is not a save, so a conflict whose local file was
     /// removed against a server <c>null</c> was reported on every flush with no answer that
     /// worked (RB-276). The copy set aside when it was recorded is left where it is, since
-    /// it may be the only trace of the local side, and the message names it.
+    /// it may be the only trace of the local side, and the message names it. The pointer is cleared
+    /// all the same, so the slot's next conflict takes a copy of its own (#591).
     /// </remarks>
     private ConflictResolutionOutcome CloseWithNothingToKeep(
         SaveConflictRecord conflict,
@@ -346,6 +347,7 @@ public sealed class SaveConflictResolver
         string serverSide = "the server's copy is not a save")
     {
         _store.SaveConflicts.Resolve(conflict.RomId, conflict.Slot, resolution, _time.GetUtcNow());
+        _store.SaveConflicts.ForgetCopy(conflict.RomId, conflict.Slot);
 
         var copy = conflict.LocalCopyPath is { } kept && File.Exists(_install.Resolve(kept))
             ? $" The copy taken when it was recorded is still at {kept}."

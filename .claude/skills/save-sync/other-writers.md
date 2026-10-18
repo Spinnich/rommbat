@@ -255,7 +255,8 @@ the hash is the whole rule because no emulator writes a save of exactly those by
 **Unless the local side is gone too, and then either answer closes the conflict.** When the
 device holds no save for the conflict and the server's copy is not a save, keep-local and
 keep-server both close it with nothing written, and leave the copy taken when it was recorded
-where it is, since that may be the only trace of the local side. For class C "holds no save"
+where it is, since that may be the only trace of the local side, but clear the conflict's pointer
+to it so the slot's next conflict takes a copy of its own. For class C "holds no save"
 means the unit is gone, not the container, which is shared and outlives it. Keep-server also
 closes when only the downloaded bytes show the `null`, the recorded hash having been real,
 because keep-local cannot know that and sends the user to keep-server. Without this rule such a
