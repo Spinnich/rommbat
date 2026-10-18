@@ -264,10 +264,11 @@ measured on the test install with Bare Knuckle III's, reported on every flush af
 left the tree.
 
 **The same holds when the server's copy was deleted.** Keep-server on a conflict whose save row
-answers 404 on `/content` closes it with nothing written when the device holds no save, because
-a negotiate sends no operation for a slot the device synced and no longer lists (RB-151), so no
-flush ever would. While the device still holds a save it stays open and points at keep-local.
-Measured on `nes`, `fceumm`, RomM 5.4.0: the file removed by hand, then the slot's rows deleted.
+answers 404 on `/content` and is gone from the ROM's listing closes it with nothing written when
+the device holds no save (RM-30), because a negotiate sends no operation for a slot the device
+synced and no longer lists (RB-151), so no flush ever would. While the device still holds a save it stays open and points at keep-local.
+A 404 with the row still listed is a failed download and stays open. Measured on `nes`,
+`fceumm`, RomM 5.4.0: the file removed by hand, then the slot's rows deleted.
 
 **Memory card endpoints are not a save transport.** Measured with `s2-memory-card-record.py`: a
 card is scoped by `(user, emulator)` with **no ROM**, so it is a class D container by construction;

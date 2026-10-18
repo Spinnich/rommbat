@@ -357,6 +357,23 @@ public sealed class SaveConflictResolver
                 + $"{SaveSlotLabel.Describe(conflict.Slot)} for this game, and {serverSide}.{copy}");
     }
 
+    /// <summary>
+    /// True when the ROM's save listing no longer holds the row, which is what separates a deleted
+    /// save from the other 404s a content download answers: an unregistered device, a file gone
+    /// from the server's disk and a ROM hidden from the caller (RM-30).
+    /// </summary>
+    private async Task<bool> RowIsGoneAsync(
+        SaveConflictRecord conflict,
+        int saveId,
+        CancellationToken cancellationToken)
+    {
+        var listing = await _connection
+            .ListSavesAsync((int)conflict.RomId, _deviceId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return listing.IsSuccess && listing.Value is { } rows && rows.All(row => row.Id != saveId);
+    }
+
     private static ConflictResolutionOutcome NotASaveKept(string reason) =>
         ConflictResolutionOutcome.Failed(
             $"Nothing was written, because {reason} The conflict is still open, and keeping this "
@@ -417,11 +434,12 @@ public sealed class SaveConflictResolver
                     .DownloadSaveAsync(saveId, _deviceId, null, stream, cancellationToken)
                     .ConfigureAwait(false);
 
-                if (response.Status == RomMResponseStatus.NotFound)
+                if (response.Status == RomMResponseStatus.NotFound
+                    && await RowIsGoneAsync(conflict, saveId, cancellationToken).ConfigureAwait(false))
                 {
-                    // The server's rows for the slot were deleted after the conflict was
-                    // recorded. A negotiate sends no operation for a slot the device synced and
-                    // no longer lists (RB-151), so no flush will ever close it.
+                    // The server's row was deleted after the conflict was recorded. A negotiate
+                    // sends no operation for a slot the device synced and no longer lists
+                    // (RB-151), so no flush will ever close it.
                     return FindLocal(conflict) is { } held && IsOnDisk(held)
                         ? ConflictResolutionOutcome.Failed(
                             "The server's copy is no longer on the server, so there is nothing to "

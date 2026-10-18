@@ -469,7 +469,8 @@ public sealed partial class RomMConnection
                 detail ?? "The stored token was not granted the scope this needs."),
 
             // A save row deleted on the server answers 404 on its content, which a resolver needs
-            // to tell from a 500 because only the first means the row is not coming back.
+            // to tell from a 500. A 404 alone does not say the row is gone (RM-30), so a caller
+            // that closes on it checks the listing too.
             HttpStatusCode.NotFound => RomMResponse.Failure<T>(
                 RomMResponseStatus.NotFound,
                 detail ?? "The server does not have it."),

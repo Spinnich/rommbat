@@ -535,6 +535,27 @@ public class SaveConflictTests
     }
 
     [Fact]
+    public async Task A_content_404_while_the_row_is_still_listed_is_a_failed_download_not_a_deleted_save()
+    {
+        using var fixture = ConflictFixture.Create();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
+
+        // No local save, so a deleted row would close. This 404 is the unregistered-device or
+        // file-gone-from-disk kind: the server still holds the save, and closing would lose it.
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+        fixture.Store.Saves.Forget(fixture.Store.Saves.List(7).Select(row => (row.Path, row.UnitKey)).ToList());
+        fixture.Stub.ContentNotFoundWhileListed = true;
+
+        var outcome = await fixture.ResolveAsync(
+            ConflictResolution.KeepServer,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.False(outcome.Resolved);
+        Assert.Contains("The download failed", outcome.Message, StringComparison.Ordinal);
+        Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+    }
+
+    [Fact]
     public async Task Resolving_a_slot_that_is_not_conflicted_does_nothing_and_says_so()
     {
         using var fixture = ConflictFixture.Create();
