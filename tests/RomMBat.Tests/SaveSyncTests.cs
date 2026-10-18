@@ -760,6 +760,10 @@ public class SaveSyncTests
         // place the user is told where the copy is.
         Assert.True(File.Exists(fixture.Resolve(copy.Value)));
         Assert.Contains(copy.Value, outcome.Message, StringComparison.Ordinal);
+
+        // The pointer goes with the close, or the slot's next conflict inherits this copy in place
+        // of one of its own (#591).
+        Assert.Null(fixture.Store.SaveConflicts.Read(7, "libretro:battery")!.LocalCopyPath);
     }
 
     [Theory]
