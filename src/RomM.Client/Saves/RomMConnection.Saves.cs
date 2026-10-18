@@ -467,6 +467,12 @@ public sealed partial class RomMConnection
             HttpStatusCode.Forbidden => RomMResponse.Failure<T>(
                 RomMResponseStatus.Forbidden,
                 detail ?? "The stored token was not granted the scope this needs."),
+
+            // A save row deleted on the server answers 404 on its content, which a resolver needs
+            // to tell from a 500 because only the first means the row is not coming back.
+            HttpStatusCode.NotFound => RomMResponse.Failure<T>(
+                RomMResponseStatus.NotFound,
+                detail ?? "The server does not have it."),
             _ => RomMResponse.Failure<T>(
                 RomMResponseStatus.ServerError,
                 detail ?? $"The server answered {(int)response.StatusCode}."),

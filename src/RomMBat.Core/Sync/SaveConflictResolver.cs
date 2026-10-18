@@ -342,7 +342,8 @@ public sealed class SaveConflictResolver
     /// </remarks>
     private ConflictResolutionOutcome CloseWithNothingToKeep(
         SaveConflictRecord conflict,
-        ConflictResolution resolution)
+        ConflictResolution resolution,
+        string serverSide = "the server's copy is not a save")
     {
         _store.SaveConflicts.Resolve(conflict.RomId, conflict.Slot, resolution, _time.GetUtcNow());
 
@@ -353,8 +354,7 @@ public sealed class SaveConflictResolver
         return new ConflictResolutionOutcome(
             true,
             $"Closed the conflict with nothing written: this device no longer holds its "
-                + $"{SaveSlotLabel.Describe(conflict.Slot)} for this game, and the server's copy is "
-                + $"not a save.{copy}");
+                + $"{SaveSlotLabel.Describe(conflict.Slot)} for this game, and {serverSide}.{copy}");
     }
 
     private static ConflictResolutionOutcome NotASaveKept(string reason) =>
@@ -416,6 +416,22 @@ public sealed class SaveConflictResolver
                 var response = await _connection
                     .DownloadSaveAsync(saveId, _deviceId, null, stream, cancellationToken)
                     .ConfigureAwait(false);
+
+                if (response.Status == RomMResponseStatus.NotFound)
+                {
+                    // The server's rows for the slot were deleted after the conflict was
+                    // recorded. A negotiate sends no operation for a slot the device synced and
+                    // no longer lists (RB-151), so no flush will ever close it.
+                    return FindLocal(conflict) is { } held && IsOnDisk(held)
+                        ? ConflictResolutionOutcome.Failed(
+                            "The server's copy is no longer on the server, so there is nothing to "
+                                + "take. The conflict is still open, and keeping this device's copy "
+                                + "settles it.")
+                        : CloseWithNothingToKeep(
+                            conflict,
+                            ConflictResolution.KeepServer,
+                            "the server's copy is no longer on the server");
+                }
 
                 if (!response.IsSuccess)
                 {
