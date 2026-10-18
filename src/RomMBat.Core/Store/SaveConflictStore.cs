@@ -107,7 +107,12 @@ public sealed class SaveConflictStore
                     $saveId, $reason, $now, $now, NULL, NULL)
             ON CONFLICT (rom_id, slot) DO UPDATE SET
               local_path        = excluded.local_path,
-              local_copy_path   = COALESCE(excluded.local_copy_path, save_conflict.local_copy_path),
+              -- A reopened slot is a new conflict, so the copy of the one already decided is not its
+              -- copy. Kept, a build that closed a conflict without letting go of its copy handed the
+              -- next one a file that was never its local side, and a keep-local then removed it.
+              local_copy_path   = CASE WHEN save_conflict.resolved_at_utc IS NULL
+                                       THEN COALESCE(excluded.local_copy_path, save_conflict.local_copy_path)
+                                       ELSE excluded.local_copy_path END,
               local_hash        = excluded.local_hash,
               server_hash       = excluded.server_hash,
               server_updated_at = excluded.server_updated_at,

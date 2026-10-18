@@ -1637,4 +1637,47 @@ public class LocalStoreTests
             await reader.WaitAsync(TimeSpan.FromSeconds(10), token);
         }
     }
+
+    [Fact]
+    public void A_conflict_reopened_over_a_decided_one_does_not_inherit_its_copy_aside()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+        var now = DateTimeOffset.UtcNow;
+
+        SaveConflictRecord Conflict(int saveId) => new(
+            7,
+            "libretro:battery",
+            RelativePath.Create("saves/snes/Chrono Trigger.srm"),
+            null,
+            new string('a', 32),
+            new string('b', 32),
+            now,
+            saveId,
+            "Both sides changed since the last sync.",
+            now,
+            now,
+            null,
+            null);
+
+        store.SaveConflicts.Record(Conflict(42), now);
+        store.SaveConflicts.RecordCopy(7, "libretro:battery", RelativePath.Create("emulators/rommbat/replaced/first.srm"));
+
+        // A build that closed a conflict with nothing to keep left its pointer in the row.
+        Assert.True(store.SaveConflicts.Resolve(7, "libretro:battery", ConflictResolution.KeepLocal, now));
+
+        store.SaveConflicts.Record(Conflict(43), now.AddHours(1));
+
+        var reopened = store.SaveConflicts.Read(7, "libretro:battery")!;
+        Assert.True(reopened.IsOpen);
+        Assert.Null(reopened.LocalCopyPath);
+
+        // A standing conflict seen again keeps the copy taken when it was first recorded.
+        store.SaveConflicts.RecordCopy(7, "libretro:battery", RelativePath.Create("emulators/rommbat/replaced/second.srm"));
+        store.SaveConflicts.Record(Conflict(43), now.AddHours(2));
+
+        Assert.Equal(
+            "emulators/rommbat/replaced/second.srm",
+            store.SaveConflicts.Read(7, "libretro:battery")!.LocalCopyPath!.Value.Value);
+    }
 }
