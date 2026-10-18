@@ -362,3 +362,13 @@ Verified: RomM 5.2.0, 2026-08-25, and 5.3.1 source, 2026-09-29, and 5.4.0, 2026-
 body answers 422 naming the missing query field; `?device_id=` answers 204. It is the presence
 feed only, not `rom_user.now_playing`. RomMBat never posts it: `game-start` is on the launch
 path, so any heartbeat would belong to the `background` pass.
+
+## RM-30. A save's `/content` answers 404 for a deleted row and for other reasons
+
+Verified: RomM 5.4.0, 2026-10-18. How: uploaded a throwaway save, requested its `/content` and the ROM's `GET /api/saves` with a registered, then an unregistered, `device_id`, deleted it with `POST /api/saves/delete` and requested both again; read `download_save` at the `5.4.0` tag.
+A deleted row answers 404, `Save with ID <n> not found`, and the ROM's listing no longer holds it
+(a 200 with an empty array). An unregistered `device_id` answers 404 on the content and on the
+listing alike, "Device with ID ... not found" (RB-162). The source adds two more 404s on a row that
+still exists: a ROM hidden from the caller and a save file missing from the server's disk. So the
+status alone does not say the row is gone. Keep-server closes a conflict on it only when the
+listing answers and lacks the row.
