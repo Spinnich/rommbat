@@ -51,9 +51,9 @@ so one refuses the other's save or writes over it. Each system's page under
 [Platforms](../platforms/index.md) says which of its emulators share a save, and which clash.
 
 The standalone Mednafen opens a save under the game's plain file name before its own. Where it
-cannot read the save another emulator keeps under that name, Mesen's on the Master System, mGBA's
-on the Game Boy Advance and mGBA's on the Game Boy for a game with the smallest save chip, such as
-Final Fantasy Adventure, RomMBat leaves that save on the server for a game that runs under
+cannot read the save another emulator keeps under that name, Mesen's on the Master System and the
+PC Engine, mGBA's on the Game Boy Advance and mGBA's on the Game Boy for a game with the smallest
+save chip, such as Final Fantasy Adventure, RomMBat leaves that save on the server for a game that runs under
 Mednafen on this computer. The sync summary counts it as `left on the server, for an emulator
 other than the one this device runs`, and it arrives on the next sync after you switch the game to
 the emulator that wrote it.
