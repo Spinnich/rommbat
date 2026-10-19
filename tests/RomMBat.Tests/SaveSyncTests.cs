@@ -1689,6 +1689,27 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task An_mgba_gb_save_is_placed_when_its_size_cannot_be_listed()
+    {
+        // #514: a size unknown is not a refusal, and the download meets the same unreachable server.
+        using var fixture = SyncFixture.Create();
+        const string Rom = "Final Fantasy Adventure (USA)";
+        fixture.AddGame(46, "gb", Rom, ".zip", ".srm", null);
+        fixture.RunSystemUnder("gb", "mednafen");
+        fixture.Scan();
+
+        fixture.SeedServerSave(46, "mgba:battery", Rom, "sav", string.Empty, emulator: "mgba", bytes: new byte[256]);
+        fixture.Stub.UnsolicitedDownloads.Add((46, "mgba:battery"));
+        fixture.Stub.ListFailure = HttpStatusCode.InternalServerError;
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.ForAnotherEmulator);
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.True(File.Exists(fixture.Resolve($"saves/gb/{Rom}.sav")));
+    }
+
+    [Fact]
     public async Task A_mesen_save_downloads_where_this_device_runs_the_system_under_another_emulator()
     {
         // Only mednafen's plain-name-first rule holds a save back. libretro reads the .srm, so a

@@ -188,6 +188,9 @@ internal sealed partial class StubRomMServer
     /// </remarks>
     public string? RefuseUploadForSlot { get; set; }
 
+    /// <summary>Fails <c>GET /api/saves</c> with this status, as a link that drops after negotiate would.</summary>
+    public HttpStatusCode? ListFailure { get; set; }
+
     /// <summary>Sessions already seen, keyed the way the server dedups: truncated to the second.</summary>
     private HashSet<string> SeenPlaySessions { get; } = new(StringComparer.Ordinal);
 
@@ -240,7 +243,7 @@ internal sealed partial class StubRomMServer
             // Routing unconditionally to the upload handler answered a restore's GET with the
             // multipart parser.
             return request.Method == HttpMethod.Get
-                ? ListSaves()
+                ? ListFailure is { } failed ? Json(failed, new { detail = "refused by the test" }) : ListSaves()
                 : await UploadSaveAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
