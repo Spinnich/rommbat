@@ -397,6 +397,18 @@ OTHER_BATTERY_RULES = [
                 ),
             },
         },
+        "refuses_plain_at_size": {
+            "gb": {
+                "mgba:battery": {
+                    "bytes": [256],
+                    "note": (
+                        "RB-429: gb under mednafen on 8.2.1 opened the plain <rom>.sav mGBA "
+                        "standalone had written for an MBC2 cartridge, 256 B, and stopped with "
+                        "Unexpected EOF; Pokemon Yellow's 32,768 B file from mGBA it reads (RB-296)"
+                    ),
+                },
+            },
+        },
         "evidence": (
             "nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote a loose "
             "Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav, 8,192 B, the md5 being of "

@@ -40,7 +40,8 @@ name is free, so a plain `<rom>.sav` there is shared with mesen standalone and a
 write a hashed one it would shadow. The flush guards the other direction: for a game ES launches
 under mednafen, `RetroBat/LaunchEmulator` names it, a save this device has never held that would
 land on the plain name stays on the server when the rule's `refuses_plain` records mednafen refusing
-that slot's save on that system (#235). `libretro`/`mednafen_gba` on `gba` joins on **the zip, the
+that slot's save on that system, or at that server file size where `refuses_plain_at_size` keys
+on it, as for mGBA's 256 B MBC2 save on `gb` (#235, #514). `libretro`/`mednafen_gba` on `gba` joins on **the zip, the
 file inside it and that file's md5**, `<rom>.zip#<member>.<md5>.sav`, under
 `libretro:battery:sav`. Rules claiming one extension in one directory are asked narrowest first,
 archive member and hash, archive member, then hash, then plain, and two of one narrowness are refused.

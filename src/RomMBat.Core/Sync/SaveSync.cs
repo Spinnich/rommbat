@@ -78,7 +78,7 @@ public sealed record SaveSyncOutcome
     /// <b>Not a failure, and said by the summary alone, like <see cref="Skipped"/>.</b> It is a
     /// standing property of how this device is configured, so it recurs on every flush, and the
     /// save is intact on the server: launching the game with the save's own emulator here lands it
-    /// on the next flush. See <see cref="SaveSync"/>'s <c>OpenedFirstByLaunchEmulator</c> (#235).
+    /// on the next flush. See <see cref="SaveSync"/>'s <c>OpenedFirstByLaunchEmulatorAsync</c> (#235).
     /// </remarks>
     public int ForAnotherEmulator { get; init; }
 
@@ -630,7 +630,8 @@ public sealed class SaveSync
                     // A slot this device has never held, landing on the name the emulator this
                     // device runs the game with opens before its own (#235). Ahead of the holder
                     // check, because a save this device would never read is not a conflict.
-                    if (local is null && OpenedFirstByLaunchEmulator(operation, destination, launchEmulator))
+                    if (local is null
+                        && await OpenedFirstByLaunchEmulatorAsync(operation, saveId, destination, launchEmulator, cancellationToken).ConfigureAwait(false))
                     {
                         otherEmulator++;
                         break;
@@ -2104,34 +2105,76 @@ public sealed class SaveSync
     /// with "Unexpected EOF" (RB-324) and mGBA's 131,088 B <c>gba</c> save is refused for its size
     /// (RB-289), so the game does not load.
     /// <para>
-    /// <b>Only the measured refusals, from the rule's <see cref="BatteryRule.RefusesPlain"/>.</b>
-    /// Elsewhere mednafen reads and saves into the plain file, mesen's on <c>nes</c>, mGBA's on
-    /// <c>gb</c> but for an MBC2 cartridge's (RB-429) and libretro's <c>.srm</c> on <c>snes</c>, and
+    /// <b>Only the measured refusals, from the rule's <see cref="BatteryRule.RefusesPlain"/>
+    /// and <see cref="BatteryRule.RefusesPlainAtSize"/>.</b> The second is mGBA's 256 B MBC2 save
+    /// on <c>gb</c> (RB-429), which needs the server file's size and so a listing.
+    /// Elsewhere mednafen reads and saves into the plain file, mesen's on <c>nes</c>, mGBA's other
+    /// <c>gb</c> saves and libretro's <c>.srm</c> on <c>snes</c>, and
     /// that file goes up under its first owner's slot, so a guard on the naming alone would also
     /// stop two mednafen devices sharing.
     /// An unknown emulator or no ROM here answers false and the save is placed.
     /// </para>
     /// </remarks>
-    private bool OpenedFirstByLaunchEmulator(SyncOperation operation, RelativePath destination, LaunchEmulator launchEmulator)
+    private async Task<bool> OpenedFirstByLaunchEmulatorAsync(
+        SyncOperation operation,
+        int saveId,
+        RelativePath destination,
+        LaunchEmulator launchEmulator,
+        CancellationToken cancellationToken)
     {
         var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
 
         if (roms.Count == 0
             || roms[0].Folder is not { } folder
             || launchEmulator.For(folder, roms) is not { } emulator
-            || _shapes.BatteryRuleForSlot(folder, $"{emulator}:battery") is not { } rule
-            || !rule.RefusesPlainSave(folder, operation.Slot))
+            || _shapes.BatteryRuleForSlot(folder, $"{emulator}:battery") is not { } rule)
+        {
+            return false;
+        }
+
+        var bySystem = rule.RefusesPlainSave(folder, operation.Slot);
+
+        if (!bySystem && !rule.RefusesPlainBySize(folder, operation.Slot))
         {
             return false;
         }
 
         var extension = Path.GetExtension(destination.Name);
 
-        return rule.Carries(extension)
-            && string.Equals(
+        if (!rule.Carries(extension)
+            || !string.Equals(
                 destination.Value,
                 $"{rule.DirectoryFor(folder)}/{Path.GetFileNameWithoutExtension(roms[0].FileName)}{extension}",
-                StringComparison.OrdinalIgnoreCase);
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return bySystem || await ServerSizeIsRefusedAsync(operation, saveId, folder, rule, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// True when the server's file for this save is one of the sizes the rule records a refusal at.
+    /// </summary>
+    /// <remarks>
+    /// Negotiate carries no size, so the row is listed. A listing that fails or no longer holds
+    /// the row answers false: a size unknown is not a refusal, and the download that follows
+    /// meets the same unreachable server.
+    /// </remarks>
+    private async Task<bool> ServerSizeIsRefusedAsync(
+        SyncOperation operation,
+        int saveId,
+        string folder,
+        BatteryRule rule,
+        CancellationToken cancellationToken)
+    {
+        var listed = await _connection
+            .ListSavesAsync(operation.RomId, _deviceId, cancellationToken)
+            .ConfigureAwait(false);
+
+        return listed.IsSuccess
+            && listed.Value?.FirstOrDefault(row => row.Id == saveId) is { } row
+            && rule.RefusesPlainSave(folder, operation.Slot, row.FileSizeBytes);
     }
 
     /// <summary>What to tell a person whose save cannot be placed for a reason with a remedy.</summary>
