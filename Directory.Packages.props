@@ -16,7 +16,7 @@
     the e_sqlite3 native library, which single-file publish carries.
   -->
   <ItemGroup Label="Local store">
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
   </ItemGroup>
 
   <!--
