@@ -16,7 +16,7 @@
     the e_sqlite3 native library, which single-file publish carries.
   -->
   <ItemGroup Label="Local store">
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
   </ItemGroup>
 
   <!--
@@ -43,11 +43,11 @@
     generated output is committed, so nothing generates at build time.
   -->
   <ItemGroup Label="UI">
-    <PackageVersion Include="Avalonia" Version="12.1.4" />
-    <PackageVersion Include="Avalonia.Win32" Version="12.1.4" />
-    <PackageVersion Include="Avalonia.Skia" Version="12.1.4" />
-    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.4" />
-    <PackageVersion Include="Avalonia.HarfBuzz" Version="12.1.4" />
+    <PackageVersion Include="Avalonia" Version="12.1.5" />
+    <PackageVersion Include="Avalonia.Win32" Version="12.1.5" />
+    <PackageVersion Include="Avalonia.Skia" Version="12.1.5" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.5" />
+    <PackageVersion Include="Avalonia.HarfBuzz" Version="12.1.5" />
   </ItemGroup>
 
   <!--
