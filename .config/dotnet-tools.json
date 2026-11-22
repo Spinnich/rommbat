@@ -3,8 +3,10 @@
   "isRoot": true,
   "tools": {
     "nswag.consolecore": {
-      "version": "14.7.1",
-      "commands": ["nswag"],
+      "version": "14.8.0",
+      "commands": [
+        "nswag"
+      ],
       "rollForward": false
     }
   }
