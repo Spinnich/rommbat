@@ -1,7 +1,8 @@
 # RomMBat.Agent
 
-`rommbat-agent.exe`: a console process that does one pass and exits. There is no daemon,
-because a portable install cannot register a service. Each subcommand is a class under
+`rommbat-agent.exe`: a console process. Most commands do one pass and exit.
+`background start` stays for the EmulationStation session and retries uploads while idle.
+A portable install registers no service. Each subcommand is a class under
 `Commands/`, and `Program.DispatchAsync` routes to it and turns exceptions into an `ExitCode`.
 The subcommand table, with which ones reach the network, is in
 [docs/architecture/projects.md](../../docs/architecture/projects.md#srcrommbatagent).

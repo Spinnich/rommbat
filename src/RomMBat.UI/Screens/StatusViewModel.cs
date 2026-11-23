@@ -2,6 +2,7 @@ using System.Globalization;
 using RomMBat.Core;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 using RomMBat.UI.Input;
 using RomMBat.UI.Shell;
 
@@ -261,6 +262,11 @@ public sealed class StatusViewModel : IScreen
                     ? null
                     : "Applied when you next quit EmulationStation, which cannot happen while it is running."),
         };
+
+        if (BackgroundUpload.Read(_session.Install) is { } lastUpload)
+        {
+            rows.Insert(0, new StatusRow("Last in-session upload", Describe(lastUpload)));
+        }
 
         rows.AddRange(pending.Select(change => new StatusRow(
             "  waiting",

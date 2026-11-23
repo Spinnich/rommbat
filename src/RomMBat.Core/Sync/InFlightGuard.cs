@@ -119,6 +119,8 @@ public sealed class InFlightGuard
         }
     }
 
+    internal bool HasActiveGame() => InFlight().Count > 0;
+
     private InFlightVerdict Decide(int romId, RelativePath target)
     {
         var launches = InFlight();

@@ -7,7 +7,7 @@ using RomMBat.Core.Sync;
 namespace RomMBat.Agent.Commands;
 
 /// <summary>
-/// <c>background &lt;event&gt;</c>: the pass an EmulationStation hook spawns.
+/// <c>background &lt;event&gt;</c>: the worker or quit pass an EmulationStation hook spawns.
 /// </summary>
 /// <remarks>
 /// <b>This is what closes the loop.</b> The hooks write a spool file and exit, and without this
@@ -55,6 +55,21 @@ internal static class BackgroundCommand
             return exitCode;
         }
 
+        if (hookEvent == "start")
+        {
+            return await BackgroundSession.RunAsync(
+                context.Install,
+                () => EmulationStationProcess.Check(context.Install).IsRunning,
+                (sessionUpload, token) => RunPassAsync(context, hookEvent, sessionUpload, token),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        return await RunPassAsync(context, hookEvent, sessionUpload: false, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<int> RunPassAsync(
+        AgentContext context, string hookEvent, bool sessionUpload, CancellationToken cancellationToken)
+    {
         using var log = BackgroundLog.Open(context.Install, hookEvent);
 
         try
@@ -79,7 +94,14 @@ internal static class BackgroundCommand
             // The flush pass, quiet, in both cases. It never touches a file ES owns, so it is
             // safe whether or not the wait above found ES gone.
             var flush = await FlushCommand
-                .RunAsync(context, CommandLine.Parse(["flush", "--quiet"]), cancellationToken)
+                .RunAsync(
+                    context,
+                    CommandLine.Parse(["flush", "--quiet"]),
+                    cancellationToken,
+                    sessionUpload: sessionUpload,
+                    onReport: report => log.Write(report.Scanned
+                        ? $"flush {report.State}, queued {report.Queued}, conflicts {report.Conflicts.Count}"
+                        : $"flush {report.State}"))
                 .ConfigureAwait(false);
 
             log.Write($"background {hookEvent} finished, flush exit {flush}");

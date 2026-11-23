@@ -53,6 +53,58 @@ public sealed class SaveFlushServiceTests
     }
 
     [Fact]
+    public async Task Session_flush_waits_for_game_end_and_replays_after_a_restart()
+    {
+        using var fixture = FlushTree.Create();
+        fixture.Pair();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)");
+        var install = fixture.Session.Install;
+        var rom = install.Resolve(RelativePath.Create("roms/snes/ActRaiser (USA).zip"));
+        fixture.WantsUpload(42);
+        Spool.Write(install.RootPath, new SpoolRecord("game-start", Now, 1, [rom]));
+        var options = new FlushOptions { SessionUpload = true };
+        var token = TestContext.Current.CancellationToken;
+
+        var active = await new SaveFlushService(fixture.Session)
+            .RunAsync(options, fixture.Connect(), token);
+        Assert.Equal(FlushState.GameRunning, active.State);
+        Assert.False(active.Scanned);
+        Assert.Empty(fixture.Stub.Saves);
+
+        Spool.Write(install.RootPath, new SpoolRecord("game-end", Now.AddSeconds(1), 2, []));
+        var save = install.Resolve(RelativePath.Create("saves/snes/ActRaiser (USA).srm"));
+        using (File.Open(save, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            var busy = await new SaveFlushService(fixture.Session)
+                .RunAsync(options, fixture.Connect(), token);
+            Assert.True(busy.Scanned);
+            Assert.Equal(0, busy.SavesSent!.Uploaded);
+            Assert.Empty(fixture.Stub.Saves);
+        }
+
+        fixture.Stub.IsReachable = false;
+        var offline = await new SaveFlushService(fixture.Session)
+            .RunAsync(options, fixture.Connect(), token);
+        Assert.True(offline.Scanned);
+        Assert.Null(BackgroundUpload.Read(install));
+        Assert.Empty(fixture.Stub.Saves);
+
+        using var reopened = InstallSession.Open(install.RootPath).Session!;
+        fixture.Stub.IsReachable = true;
+        var worker = new SaveFlushService(reopened);
+        var retry = await worker.RunAsync(options, fixture.Connect(), token);
+        Assert.Equal(1, retry.SavesSent!.Uploaded);
+        Assert.Single(fixture.Stub.Saves);
+        Assert.NotNull(BackgroundUpload.Read(install));
+
+        fixture.StopWantingUpload(42);
+        Spool.Write(install.RootPath, new SpoolRecord("game-end", Now.AddSeconds(2), 3, []));
+        var replay = await worker.RunAsync(options, fixture.Connect(), token);
+        Assert.Equal(0, replay.SavesSent!.Uploaded);
+        Assert.Single(fixture.Stub.Saves);
+    }
+
+    [Fact]
     public async Task The_local_half_runs_with_the_server_unreachable_and_nothing_it_found_is_lost()
     {
         // Offline is a working state, not a failure. Draining, correlating and

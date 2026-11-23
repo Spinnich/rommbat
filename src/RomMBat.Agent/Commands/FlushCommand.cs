@@ -48,7 +48,9 @@ internal static class FlushCommand
     public static async Task<int> RunAsync(
         AgentContext context,
         CommandLine command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool sessionUpload = false,
+        Action<FlushReport>? onReport = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(command);
@@ -74,9 +76,10 @@ internal static class FlushCommand
             }
 
             var report = await new SaveFlushService(context.Session)
-                .RunAsync(new FlushOptions(offline), connection, cancellationToken)
+                .RunAsync(new FlushOptions(offline) { SessionUpload = sessionUpload }, connection, cancellationToken)
                 .ConfigureAwait(false);
 
+            onReport?.Invoke(report);
             return Show(report, quiet, exitCode, refusal.ToString());
         }
         finally
@@ -99,6 +102,11 @@ internal static class FlushCommand
     /// </param>
     private static int Show(FlushReport report, bool quiet, int authExitCode, string authRefusal)
     {
+        if (report.State == FlushState.GameRunning)
+        {
+            return ExitCode.Ok;
+        }
+
         if (report.State == FlushState.Skipped)
         {
             Console.WriteLine("Another flush is already running. Nothing to do.");

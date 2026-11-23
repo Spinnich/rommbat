@@ -380,7 +380,10 @@ public sealed class SaveSync
     /// device ever runs. They are one count in the summary instead.
     /// </para>
     /// </remarks>
-    public async Task<SaveSyncOutcome> RunAsync(CancellationToken cancellationToken = default)
+    public Task<SaveSyncOutcome> RunAsync(CancellationToken cancellationToken = default) =>
+        RunAsync(applyRemoteChanges: true, cancellationToken);
+
+    internal async Task<SaveSyncOutcome> RunAsync(bool applyRemoteChanges, CancellationToken cancellationToken)
     {
         var saves = _store.Saves.List()
             .Where(save => save.RomId is not null && save.ContentHash is not null)
@@ -667,6 +670,13 @@ public sealed class SaveSync
                         break;
                     }
 
+                    // A game can start during the download. The session worker leaves writes
+                    // and removals of live saves to the existing full-flush paths.
+                    if (!applyRemoteChanges)
+                    {
+                        break;
+                    }
+
                     var download = await DownloadAsync(
                             operation,
                             saveId,
@@ -718,6 +728,9 @@ public sealed class SaveSync
                 case SyncAction.Delete when local is null:
                     CloseConflictOnEmptiedSlot(operation);
                     noOps++;
+                    break;
+
+                case SyncAction.Delete when !applyRemoteChanges:
                     break;
 
                 case SyncAction.Delete:

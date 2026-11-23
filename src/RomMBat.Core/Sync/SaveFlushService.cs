@@ -32,11 +32,18 @@ public enum FlushState
 
     /// <summary>Sent, and something failed. The next pass tries it again.</summary>
     Partial,
+
+    /// <summary>The session worker will try again once the game closes.</summary>
+    GameRunning,
 }
 
 /// <summary>What a flush was asked to do.</summary>
 /// <param name="Offline">Do everything the local tree can answer, send nothing.</param>
-public sealed record FlushOptions(bool Offline = false);
+public sealed record FlushOptions(bool Offline = false)
+{
+    /// <summary>Wait for games to close and leave remote save writes for a full flush.</summary>
+    public bool SessionUpload { get; init; }
+}
 
 /// <summary>
 /// What one flush did, in the order it did it.
@@ -51,7 +58,7 @@ public sealed record FlushReport
 {
     public required FlushState State { get; init; }
 
-    /// <summary>The spool. Null only when the lock was held.</summary>
+    /// <summary>The spool. Null when the pass was skipped or deferred.</summary>
     public SpoolDrainOutcome? Drained { get; init; }
 
     public CorrelationOutcome? Correlated { get; init; }
@@ -92,7 +99,7 @@ public sealed record FlushReport
     /// <summary>True when the sending half ran, whether or not all of it worked.</summary>
     public bool Sent => Playtime is not null;
 
-    /// <summary>True when the local half ran, which is every state but <see cref="FlushState.Skipped"/>.</summary>
+    /// <summary>True when the local half ran.</summary>
     public bool Scanned => Saves is not null;
 }
 
@@ -105,12 +112,9 @@ public sealed record FlushReport
 /// <see cref="SaveScanner"/>, <see cref="OutboxFlush"/>, <see cref="SaveSync"/> and
 /// <see cref="StateSync"/>; none of them is reimplemented and none of them is touched.
 /// <para>
-/// <b>This is the whole of RomMBat's background work, and it has no daemon to live in.</b> A
-/// portable install cannot register a service or a scheduled task, so the design is one short
-/// pass that anything can invoke, then exit. The hooks write a spool file and start nothing,
-/// because <c>game-start</c> and <c>game-end</c> run inside the game-launch path; what drains
-/// the spool is a <c>sync</c>, a <c>flush</c>, or the detached <c>background</c> pass that
-/// <c>start</c> and <c>quit</c> spawn.
+/// Each call takes the tree lock for one pass. The EmulationStation session worker
+/// calls it again when spool events arrive or pending uploads need another attempt.
+/// The game hooks only write spool files.
 /// </para>
 /// <para>
 /// <b>Failing to take the lock is success.</b> Two of these overlap whenever a person runs a
@@ -177,6 +181,12 @@ public sealed class SaveFlushService
             };
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+        if (options.SessionUpload && new InFlightGuard(install, store).HasActiveGame())
+        {
+            return new FlushReport { State = FlushState.GameRunning };
+        }
+
         // 1. The hooks wrote spool files and nothing else. Turn them into journal rows.
         var drained = new SpoolDrain(install, store).Drain();
 
@@ -239,7 +249,7 @@ public sealed class SaveFlushService
                 .ConfigureAwait(false);
 
             var saves = await new SaveSync(install, store, connection, deviceId)
-                .RunAsync(cancellationToken)
+                .RunAsync(applyRemoteChanges: !options.SessionUpload, cancellationToken)
                 .ConfigureAwait(false);
 
             // States go last because they are the only part of this pass that cannot fail in a
@@ -252,6 +262,11 @@ public sealed class SaveFlushService
             // A session left open is a step this run attempted and failed, so it counts, even
             // though every transfer landed (#148).
             var failed = saves.Failed > 0 || saves.SessionLeftOpen || playtime.Failed > 0 || states.Failed > 0;
+
+            if (options.SessionUpload && (saves.Uploaded > 0 || states.Uploaded > 0))
+            {
+                BackgroundUpload.Record(install, (_time ?? TimeProvider.System).GetUtcNow());
+            }
 
             return local with
             {

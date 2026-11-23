@@ -15,8 +15,8 @@ account can carry on where you left off. You do not have to do anything for it t
 ## When it happens
 
 RomMBat syncs saves each time you open EmulationStation and each time you quit it, and again at
-the start of every sync. It runs in the background, with no window, and never while a game is
-starting. Nothing is sent while you play: it goes up the next time you quit EmulationStation.
+the start of every sync. After you close a game, RomMBat tries uploads in the background while
+EmulationStation stays open. If a save is still busy, RomMBat can pick it up on a later try.
 
 A save another device made comes down when you open EmulationStation. If you have already
 started that game by then, RomMBat does not write under it: the save waits and lands the next
@@ -27,7 +27,8 @@ comes down the next time you open it
 ## Away from the server
 
 **Playing offline loses nothing.** Saves and playtime wait on this device and go up the next time
-it can reach RomM. The main menu's Waiting to upload row counts what is still waiting.
+it can reach RomM. RomMBat retries while EmulationStation is idle. The main menu's Waiting to
+upload row shows queued items, and Status shows the most recent in-session upload.
 
 ## When a save is deleted in RomM
 

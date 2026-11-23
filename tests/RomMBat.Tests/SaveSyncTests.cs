@@ -219,6 +219,29 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task Session_upload_leaves_a_remote_save_for_the_full_flush()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "local, older");
+        fixture.Scan();
+        fixture.MarkSent();
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "newer from another device");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
+        var token = TestContext.Current.CancellationToken;
+        var destination = fixture.Resolve("saves/gb/Tetris (World).srm");
+
+        var duringSession = await fixture.SyncAsync(applyRemoteChanges: false, token);
+        Assert.Equal(0, duringSession.Downloaded);
+        Assert.Empty(fixture.Stub.Acknowledged);
+        Assert.Equal("local, older", File.ReadAllText(destination));
+
+        var full = await fixture.SyncAsync(token);
+        Assert.Equal(1, full.Downloaded);
+        Assert.Equal([100], fixture.Stub.Acknowledged);
+        Assert.Equal("newer from another device", File.ReadAllText(destination));
+    }
+
+    [Fact]
     public async Task A_download_asks_for_the_non_optimistic_form_and_acks_only_after_the_bytes_land()
     {
         using var fixture = SyncFixture.Create();
@@ -4284,7 +4307,10 @@ public class SaveSyncTests
         public CorrelationOutcome Correlate() => new PlaytimeCorrelator(Install, Store).Correlate();
 
         public Task<SaveSyncOutcome> SyncAsync(CancellationToken cancellationToken = default) =>
-            new SaveSync(Install, Store, _connection, DeviceId).RunAsync(cancellationToken);
+            SyncAsync(applyRemoteChanges: true, cancellationToken);
+
+        public Task<SaveSyncOutcome> SyncAsync(bool applyRemoteChanges, CancellationToken cancellationToken) =>
+            new SaveSync(Install, Store, _connection, DeviceId).RunAsync(applyRemoteChanges, cancellationToken);
 
         public Task<RomMResponse<SaveRestoreFindings>> FindRestorableAsync(
             CancellationToken cancellationToken = default) =>

@@ -5,6 +5,7 @@ using RomMBat.Core.RetroBat;
 using RomM.Client;
 using RomMBat.Core.Identity;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
 using RomMBat.UI.Input;
 using RomMBat.UI.Screens;
@@ -101,6 +102,21 @@ public class StatusScreenTests
         {
             Assert.False(named.IsMatch(text), $"names a button: \"{text}\"");
         }
+    }
+
+    [Fact]
+    public void Status_shows_the_last_in_session_upload_when_one_has_completed()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var model = Open(tree, out var session);
+        using var _ = session;
+
+        var at = new DateTimeOffset(2026, 11, 23, 12, 0, 0, TimeSpan.Zero);
+        BackgroundUpload.Record(session.Install, at);
+
+        var waiting = model.Sections().Single(section => section.Title == "Waiting");
+        var upload = Assert.Single(waiting.Rows, row => row.Label == "Last in-session upload");
+        Assert.Equal(at.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture), upload.Value);
     }
 
     [Fact]

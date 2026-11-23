@@ -32,8 +32,8 @@ the source of truth; the network is optional, probed with a short-timeout
 
 - **`game-start` and `game-end` are journal-only.** Those two run inside the game-launch
   path: append and exit in milliseconds, never open a socket, never start a process.
-  **`start` and `quit` are outside it** and each spawns a detached `background <event>`
-  agent pass. The set is `SpoolRecord.BackgroundEvents`, which the hook compiles rather than
+  **`start` and `quit` are outside it** and spawn the detached session worker and
+  quit pass, respectively. The set is `SpoolRecord.BackgroundEvents`, which the hook compiles rather than
   references, and a test asserts it.
 - **Everything produced offline goes to an outbox** with its real local mtime and content
   hash, never its sync time. A week offline is just a bigger negotiate payload; the protocol
@@ -71,8 +71,11 @@ the source of truth; the network is optional, probed with a short-timeout
   `Offline` only when every one of them was unreachable, which is `FailureCause` ranked worst
   first and mapped in `ExitCode.For`. Classify there rather than returning `Offline` from a
   failed `RomMResponse` (#143).
-- **No daemon exists.** A portable install cannot register a service or scheduled task, so
-  the flush is a short-lived process, guarded by a lock file in the tree. One pass, then exit.
+- **No daemon exists.** A portable install registers no service or scheduled task.
+  `background start` runs a full flush, then checks for upload work until EmulationStation
+  exits. It reads the spool and journal before a session upload and retries from durable
+  local state. An install-scoped handle keeps one worker alive at a time. Each pass
+  separately takes the tree lock so other commands can still flush between passes.
 
   **What invokes it: the `start` and `quit` hooks, `sync`, and a person typing `flush`.**
   The hook spawn is what makes an install nobody administers from a terminal work: without

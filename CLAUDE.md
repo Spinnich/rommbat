@@ -16,7 +16,7 @@ your task in the routing table below and load what it names, and nothing more.
 | Ships as    | Self-contained `win-x64`, no .NET install required             |
 | Local state | SQLite, inside the RetroBat tree                               |
 | UI          | Full-screen gamepad-navigable, launched from EmulationStation  |
-| Agent       | Short-lived console process invoked by ES hooks                |
+| Agent       | Console commands and an EmulationStation session worker        |
 | Lint        | Trunk (`trunk fmt && trunk check`), plus `tools/docs/check.py` |
 | License     | GPL-3.0                                                        |
 
@@ -77,7 +77,7 @@ unwind later. Code cites them by number, so the numbers do not change.
    `docs/design/decisions/firmware-from-emulator-evidence.md`.
 4. **The `game-start` and `game-end` hooks never touch the network.** Those two run inside
    the game-launch path: they write one spool file, exit, and start nothing. **`start`
-   and `quit` are outside that path** and each spawns a detached `background <event>` pass,
+   and `quit` are outside that path** and start the detached session worker and quit pass, respectively,
    which is what drains the spool on a machine where nobody opens a terminal. The set is
    `SpoolRecord.BackgroundEvents` and a test asserts it, because the hook itself cannot say
    which of the four it is serving until it reads the folder it was installed into.

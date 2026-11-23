@@ -56,9 +56,9 @@ the one with all the interesting invariants.
 
 ## `src/RomMBat.Agent`
 
-Console executable, published as `rommbat-agent.exe`. Short-lived: one pass, then exit.
-There is no daemon, because a portable install cannot register a service or a scheduled
-task.
+Console executable, published as `rommbat-agent.exe`. Most commands run one pass and
+exit. The worker started by EmulationStation lives for the session. A portable
+install registers no service or scheduled task.
 
 | Subcommand   | Network       | Notes                                                                                                      |
 | ------------ | ------------- | ---------------------------------------------------------------------------------------------------------- |
@@ -105,7 +105,14 @@ gives up rather than hanging. Measured: ES is gone 48 to 68 ms after the quit ho
 itself, and 10 ms after the pass starts looking on a real session. If it never exits, the
 configuration stays queued and the flush runs anyway, because the flush touches no file ES owns.
 
-`background start` flushes and nothing else. Config is impossible there for a measured reason:
+`background start` runs a full startup flush and keeps one worker per install while
+EmulationStation runs. The worker checks the spool every two seconds. It gives new events
+one poll to settle and retries uploads every 30 seconds while idle. The spool, saved files
+and outbox remain the retry sources after restart. Applying saves from another device still
+uses the full flush paths. The Status screen reads the time of the last in-session upload
+from `emulators/rommbat/last-upload.txt`.
+
+Config is impossible during the session for a measured reason:
 ES's launch write to `es_settings.cfg` lands 1.6 to 4.9 s **before** the `start` hook fires, so
 `start` is inside the discard window rather than outside it.
 
