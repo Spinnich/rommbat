@@ -51,6 +51,9 @@ public sealed record SaveSyncOutcome
     /// </remarks>
     public int Deferred { get; init; }
 
+    /// <summary>Newer remote SRAM versions left for the next game launch.</summary>
+    public int LeftForLaunch { get; init; }
+
     /// <summary>
     /// Downloads refused because what the server holds is not a save, each with a line in
     /// <see cref="Problems"/>.
@@ -104,7 +107,7 @@ public sealed record SaveSyncOutcome
     public IReadOnlyList<SaveConflict> Unresolved { get; init; } = [];
 
     public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Removed == 0 && Conflicts == 0 && Failed == 0
-        && Skipped == 0 && Deferred == 0 && Rejected == 0 && Superseded == 0 && ForAnotherEmulator == 0
+        && Skipped == 0 && Deferred == 0 && LeftForLaunch == 0 && Rejected == 0 && Superseded == 0 && ForAnotherEmulator == 0
         && !SessionLeftOpen;
 
     public string Summary
@@ -146,6 +149,11 @@ public sealed record SaveSyncOutcome
             if (Deferred > 0)
             {
                 parts.Add($"{Deferred} waiting on a running game");
+            }
+
+            if (LeftForLaunch > 0)
+            {
+                parts.Add($"{LeftForLaunch} left for game launch");
             }
 
             if (Rejected > 0)
@@ -468,6 +476,7 @@ public sealed class SaveSync
         var noOps = 0;
         var removed = 0;
         var deferred = 0;
+        var leftForLaunch = 0;
         var rejected = 0;
         var otherEmulator = 0;
         var bytes = 0L;
@@ -506,6 +515,40 @@ public sealed class SaveSync
                 || mode == FlushMode.InSessionReceive && !automaticNes)
             {
                 continue;
+            }
+
+            if (automaticNes
+                && local is { System: "nes", Emulator: "libretro", ShapeClass: SaveShapeClass.A, UnitKey: "" }
+                && operation.SaveId is > 0
+                && (action == SyncAction.Upload || operation.Action == "conflict"))
+            {
+                var exchanged = HasVerifiedNesBaseline(local, slot);
+                var validHead = operation.ServerContentHash is { Length: 32 } headHash
+                    && headHash.All(char.IsAsciiHexDigit);
+                var headIsBase = exchanged && validHead && operation.SaveId == slot!.SaveId
+                    && string.Equals(operation.ServerContentHash, slot.ServerContentHash, StringComparison.OrdinalIgnoreCase);
+                var hasOpenConflict = _store.SaveConflicts.Read(operation.RomId, NesBatterySlot) is { IsOpen: true };
+
+                if (exchanged && validHead && operation.SaveId > slot!.SaveId
+                    && !string.Equals(operation.ServerContentHash, slot.ServerContentHash, StringComparison.OrdinalIgnoreCase)
+                    && !local.HasChangedSinceUpload
+                    && !hasOpenConflict && MatchesOnDisk(local))
+                {
+                    // Nestopia can rewrite identical SRAM on exit. The server can read the
+                    // newer mtime as progress after losing sync history. Keep the exchanged
+                    // baseline so the next launch can verify and fetch the newer remote save.
+                    leftForLaunch++;
+                    problems.Add($"{Describe(local)}: local bytes unchanged; remote save {operation.SaveId} left for game launch.");
+                    continue;
+                }
+
+                if (action == SyncAction.Upload && (hasOpenConflict
+                    || !headIsBase && !(validHead && HoldsHead(operation, local) && MatchesOnDisk(local))))
+                {
+                    // An upload against an unproven or changed remote head must not get a
+                    // chance to displace it, even if RomM has no device history to return 409.
+                    action = SyncAction.Conflict;
+                }
             }
 
             switch (action)
@@ -854,6 +897,7 @@ public sealed class SaveSync
             Superseded = superseded,
             Removed = removed,
             Deferred = deferred,
+            LeftForLaunch = leftForLaunch,
             Rejected = rejected,
             ForAnotherEmulator = otherEmulator,
             SessionLeftOpen = leftOpen,
@@ -1549,6 +1593,11 @@ public sealed class SaveSync
 
         // A receive pass has no fresh scan. Only read the candidate whose acknowledgement
         // can change, rather than treating an old indexed hash as evidence of current bytes.
+        return MatchesOnDisk(local);
+    }
+
+    private bool MatchesOnDisk(LocalSave local)
+    {
         try
         {
             return string.Equals(
@@ -1913,6 +1962,11 @@ public sealed class SaveSync
         operation.Slot == NesBatterySlot
         && _store.Files.ForRom(operation.RomId, LocalFileKind.Rom).Any(rom => rom.Folder == "nes");
 
+    private static bool HasVerifiedNesBaseline(LocalSave local, SaveSlotRecord? slot) =>
+        slot is { SaveId: > 0, ServerContentHash: { Length: 32 } baseline }
+        && baseline.All(char.IsAsciiHexDigit)
+        && string.Equals(baseline, local.UploadedContentHash, StringComparison.OrdinalIgnoreCase);
+
     private string? AutomaticNesDeferral(
         SyncOperation operation, RelativePath destination, LocalSave? local, SaveSlotRecord? slot,
         RelativePath? launching = null)
@@ -1947,7 +2001,8 @@ public sealed class SaveSync
             }
         }
         else if (local.Path != destination || local.ShapeClass != SaveShapeClass.A
-            || local.IsUnsent || local.HasChangedSinceUpload || !File.Exists(_install.Resolve(destination)))
+            || !HasVerifiedNesBaseline(local, slot) || local.HasChangedSinceUpload
+            || !File.Exists(_install.Resolve(destination)))
         {
             return "the existing save has local changes or its sync history is unclear";
         }

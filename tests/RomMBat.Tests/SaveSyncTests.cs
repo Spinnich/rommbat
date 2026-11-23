@@ -240,6 +240,165 @@ public class SaveSyncTests
         Assert.Single(Directory.GetFiles(fixture.Install.Resolve(SpoolDrain.Directory), "*.hook"));
     }
 
+    [Theory]
+    [InlineData(false, "conflict")]
+    [InlineData(true, "conflict")]
+    [InlineData(false, "upload")]
+    public async Task Offline_launch_with_only_a_touched_SRAM_leaves_the_newer_save_for_the_next_launch(
+        bool priorDownload, string action)
+    {
+        using var fixture = SyncFixture.Create();
+        const string game = "Zelda II";
+        const string slot = "libretro:battery";
+        const string rom = "roms/nes/Zelda II.nes";
+        var token = TestContext.Current.CancellationToken;
+        fixture.AddGame(42, "nes", game, ".nes", ".srm", saveContents: null);
+        fixture.RunSystemUnder("nes", "libretro");
+        fixture.Scan();
+
+        var path = fixture.Resolve("saves/nes/Zelda II.srm");
+        fixture.SeedServerSave(42, slot, game, "srm", priorDownload ? "LLL" : "KKK", id: priorDownload ? 26 : 25);
+        Assert.Equal("incoming save ready", await fixture.PrepareLaunchAsync(rom, token));
+        if (!priorDownload)
+        {
+            File.WriteAllText(path, "LLL");
+            fixture.Scan();
+            fixture.Stub.NegotiateActions[(42, slot)] = "upload";
+            Assert.Equal(1, (await fixture.SyncAsync(FlushMode.InSessionUpload, token)).Uploaded);
+        }
+
+        var baseRow = fixture.Store.SaveSlots.Read(42, slot);
+        Assert.Equal(26, baseRow?.SaveId);
+        var before = File.ReadAllBytes(path);
+        fixture.Stub.ServerDate = new DateTimeOffset(2026, 11, 23, 12, 0, 0, TimeSpan.Zero);
+        fixture.SeedServerSave(42, slot, game, "srm", "MMM", id: 27);
+        fixture.Stub.IsReachable = false;
+        await Assert.ThrowsAsync<RomMUnreachableException>(() => fixture.PrepareLaunchAsync(rom, token));
+        fixture.Launch(42, game);
+        var previousTime = File.GetLastWriteTimeUtc(path);
+        File.SetLastWriteTimeUtc(path, previousTime.AddMinutes(5));
+        Assert.NotEqual(previousTime, File.GetLastWriteTimeUtc(path));
+        Assert.Equal(before, File.ReadAllBytes(path));
+        fixture.EndLaunch();
+        fixture.Scan();
+
+        fixture.Stub.IsReachable = true;
+        fixture.Stub.NegotiateActions[(42, slot)] = action;
+        fixture.Stub.NegotiateReason = "Client save is newer (no sync history)";
+        var acknowledgedBefore = fixture.Stub.Acknowledged.ToArray();
+        var end = await fixture.SyncAsync(FlushMode.InSessionUpload, token);
+
+        Assert.Equal(0, end.Conflicts);
+        Assert.Equal(1, end.LeftForLaunch);
+        Assert.Equal(0, end.Uploaded);
+        Assert.Equal(0, end.Downloaded);
+        Assert.Equal(baseRow, fixture.Store.SaveSlots.Read(42, slot));
+        Assert.Equal(acknowledgedBefore, fixture.Stub.Acknowledged);
+        Assert.Equal(before, File.ReadAllBytes(path));
+        Assert.Equal(priorDownload ? 2 : 3, fixture.Stub.Saves.Count);
+
+        var quit = await fixture.SyncAsync(FlushMode.Shutdown, token);
+        Assert.Equal(0, quit.Conflicts);
+        Assert.Equal(1, quit.LeftForLaunch);
+        Assert.Equal(before, File.ReadAllBytes(path));
+
+        Assert.Equal("incoming save ready", await fixture.PrepareLaunchAsync(rom, token));
+        Assert.Equal("MMM", File.ReadAllText(path));
+        Assert.Equal(27, fixture.Store.SaveSlots.Read(42, slot)?.SaveId);
+    }
+
+    [Theory]
+    [InlineData("local edit", "conflict")]
+    [InlineData("local edit", "upload")]
+    [InlineData("local edit", "no_op")]
+    [InlineData("edit after scan", "conflict")]
+    [InlineData("no exchanged row", "conflict")]
+    [InlineData("no exchanged row", "upload")]
+    [InlineData("older remote row", "conflict")]
+    [InlineData("missing remote hash", "conflict")]
+    [InlineData("open conflict", "conflict")]
+    [InlineData("open conflict", "upload")]
+    public async Task Game_end_keeps_a_conflict_when_NES_SRAM_has_no_safe_basis_to_defer(string circumstance, string action)
+    {
+        using var fixture = SyncFixture.Create();
+        const string game = "Zelda II";
+        const string slot = "libretro:battery";
+        const string rom = "roms/nes/Zelda II.nes";
+        var token = TestContext.Current.CancellationToken;
+        fixture.AddGame(42, "nes", game, ".nes", ".srm", circumstance == "no exchanged row" ? "LLL" : null);
+        fixture.RunSystemUnder("nes", "libretro");
+        fixture.Scan();
+        if (circumstance == "no exchanged row")
+        {
+            // An indexed upload hash by itself is not evidence of which remote row it came from.
+            fixture.MarkSent();
+        }
+        else
+        {
+            fixture.SeedServerSave(42, slot, game, "srm", "LLL", id: 26);
+            Assert.Equal("incoming save ready", await fixture.PrepareLaunchAsync(rom, token));
+        }
+
+        fixture.Stub.ServerDate = new DateTimeOffset(2026, 11, 23, 12, 0, 0, TimeSpan.Zero);
+        var remoteId = circumstance == "older remote row" ? 25 : 27;
+        fixture.SeedServerSave(42, slot, game, "srm", "MMM", id: remoteId);
+        var path = fixture.Resolve("saves/nes/Zelda II.srm");
+        if (circumstance is "local edit" or "open conflict")
+        {
+            File.WriteAllText(path, "new local progress");
+        }
+
+        fixture.Scan();
+        if (circumstance == "edit after scan")
+        {
+            File.WriteAllText(path, "new local progress");
+        }
+
+        fixture.Stub.NegotiateActions[(42, slot)] = action;
+        fixture.Stub.NegotiateReason = "Client save is newer (no sync history)";
+        fixture.Stub.OmitHash = circumstance == "missing remote hash";
+        if (circumstance == "open conflict")
+        {
+            Assert.Equal(1, (await fixture.SyncAsync(FlushMode.InSessionUpload, token)).Conflicts);
+            File.WriteAllText(path, "LLL");
+            fixture.Scan();
+        }
+
+        var before = File.ReadAllText(path);
+        var savedRows = fixture.Stub.Saves.Count;
+        var acknowledgedBefore = fixture.Stub.Acknowledged.ToArray();
+        var end = await fixture.SyncAsync(FlushMode.InSessionUpload, token);
+
+        Assert.Equal(1, end.Conflicts);
+        Assert.Equal(0, end.LeftForLaunch);
+        Assert.Equal(0, end.Uploaded);
+        Assert.Equal(0, end.Downloaded);
+        Assert.True(fixture.Store.SaveConflicts.Read(42, slot)?.IsOpen);
+        Assert.Equal(savedRows, fixture.Stub.Saves.Count);
+        Assert.Equal(acknowledgedBefore, fixture.Stub.Acknowledged);
+        Assert.StartsWith("local save retained:", await fixture.PrepareLaunchAsync(rom, token), StringComparison.Ordinal);
+        Assert.Equal(before, File.ReadAllText(path));
+    }
+
+    [Fact]
+    public async Task Prelaunch_preserves_existing_SRAM_when_the_index_has_no_shared_remote_row()
+    {
+        using var fixture = SyncFixture.Create();
+        const string game = "Zelda II";
+        const string rom = "roms/nes/Zelda II.nes";
+        fixture.AddGame(42, "nes", game, ".nes", ".srm", "LLL");
+        fixture.RunSystemUnder("nes", "libretro");
+        fixture.Scan();
+        fixture.MarkSent();
+        fixture.SeedServerSave(42, "libretro:battery", game, "srm", "MMM", id: 27);
+
+        var result = await fixture.PrepareLaunchAsync(rom, TestContext.Current.CancellationToken);
+
+        Assert.Contains("sync history is unclear", result, StringComparison.Ordinal);
+        Assert.Equal("LLL", File.ReadAllText(fixture.Resolve("saves/nes/Zelda II.srm")));
+        Assert.Empty(fixture.Stub.Acknowledged);
+    }
+
     [Fact]
     public async Task Prelaunch_checks_a_managed_non_NES_game_without_writing_and_skips_unmanaged_games()
     {
@@ -282,7 +441,7 @@ public class SaveSyncTests
         fixture.AddGame(42, "nes", "Zelda II", ".nes", ".srm", "existing progress");
         fixture.RunSystemUnder("nes", "libretro");
         fixture.Scan();
-        fixture.MarkSent();
+        fixture.RecordNesBaseline(42, saveId: 99);
         fixture.SeedServerSave(42, "libretro:battery", "Zelda II", "srm", "peer progress");
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         fixture.Stub.BeforeSaveContent = cancellation.Cancel;
@@ -371,7 +530,7 @@ public class SaveSyncTests
         const string rom = "Zelda II - The Adventure of Link (USA)";
         fixture.AddGame(42, "nes", rom, ".nes", ".srm", "known save");
         fixture.Scan();
-        fixture.MarkSent();
+        fixture.RecordNesBaseline(42, saveId: 99);
         fixture.SeedServerSave(42, "libretro:battery", rom, "srm", "remote progress");
         fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "download";
         var token = TestContext.Current.CancellationToken;
@@ -4515,6 +4674,13 @@ public class SaveSyncTests
                     Store.Saves.MarkUploaded(save.Path, save.UnitKey, hash, DateTimeOffset.UtcNow);
                 }
             }
+        }
+
+        public void RecordNesBaseline(int romId, int saveId)
+        {
+            MarkSent();
+            var local = Assert.Single(Store.Saves.List(romId));
+            Store.SaveSlots.RecordRestored(romId, local.Slot, saveId, local.ContentHash, null, DateTimeOffset.UtcNow);
         }
 
         public StateScanOutcome ScanStates() =>

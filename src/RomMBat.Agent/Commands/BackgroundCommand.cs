@@ -219,6 +219,10 @@ internal static class BackgroundCommand
                         serverReachable = report.ServerReachable;
                         log.Write($"flush {report.State}, queued {report.Queued}, conflicts {report.Conflicts.Count}"
                             + $", saves up {report.SavesSent?.Uploaded ?? 0}, down {report.SavesSent?.Downloaded ?? 0}");
+                        if (report.SavesSent is { LeftForLaunch: > 0 } saves)
+                        {
+                            log.Write($"saves left for game launch: {saves.LeftForLaunch}");
+                        }
                     })
                 .ConfigureAwait(false);
 

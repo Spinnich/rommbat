@@ -467,6 +467,7 @@ public sealed class LibrarySyncOrderTests : IDisposable
         new SaveScanner(install, _session.Store).Scan();
         var indexed = Assert.Single(_session.Store.Saves.List(42));
         _session.Store.Saves.MarkUploaded(indexed.Path, indexed.UnitKey, indexed.ContentHash!, Now);
+        _session.Store.SaveSlots.RecordRestored(42, indexed.Slot, 99, indexed.ContentHash, Now, Now);
         Set();
 
         var startup = StartupService().RunAtStartupAsync(

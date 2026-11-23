@@ -45,6 +45,8 @@ internal sealed partial class StubRomMServer
     public IDictionary<(int RomId, string Slot), string> NegotiateActions { get; } =
         new Dictionary<(int, string), string>();
 
+    public string? NegotiateReason { get; set; }
+
     /// <summary>Slots that answer 409, the way a stale device record makes the real server.</summary>
     public HashSet<(int RomId, string Slot)> ConflictOnUpload { get; } = [];
 
@@ -300,7 +302,7 @@ internal sealed partial class StubRomMServer
                 file_name = existing?.FileName,
                 slot,
                 emulator = save.GetProperty("emulator").GetString(),
-                reason = action == "conflict" ? "Both changed since the last sync" : "stub",
+                reason = NegotiateReason ?? (action == "conflict" ? "Both changed since the last sync" : "stub"),
                 server_updated_at = NaiveOrNull(existing?.UpdatedAt),
                 server_content_hash = OmitHash ? null : HashLie ?? existing?.ContentHash,
             });
