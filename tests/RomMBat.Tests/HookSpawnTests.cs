@@ -24,6 +24,57 @@ namespace RomMBat.Tests;
 /// </remarks>
 public sealed class HookSpawnTests
 {
+    [Fact]
+    public void Verified_hook_upgrade_adds_only_the_wait_copy_and_uninstall_removes_it()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+        var source = install.Resolve(EsHooks.SourcePath);
+        File.WriteAllText(source, "hook payload");
+        var settings = install.Resolve("emulationstation/.emulationstation/es_settings.cfg");
+        Directory.CreateDirectory(Path.GetDirectoryName(settings)!);
+        File.WriteAllText(settings, "preserve user settings");
+
+        var wait = install.Resolve(EsPrelaunchHook.Path);
+        Assert.Null(EsPrelaunchHook.Ensure(install, verified: false));
+        Assert.False(File.Exists(wait));
+        Assert.Equal(EsHookAction.Installed, EsPrelaunchHook.Ensure(install, verified: true)!.Action);
+        Assert.Equal("hook payload", File.ReadAllText(wait));
+        File.WriteAllText(source, "new payload");
+        Assert.Equal(EsHookAction.Updated, EsPrelaunchHook.Ensure(install, verified: true)!.Action);
+        Assert.Equal("new payload", File.ReadAllText(wait));
+        Assert.Equal("preserve user settings", File.ReadAllText(settings));
+
+        new EsHooks(install).Uninstall();
+        Assert.False(File.Exists(wait));
+    }
+
+    [Fact]
+    public void Replacing_the_verified_executable_invalidates_the_cached_wait_proof()
+    {
+        Assert.SkipUnless(OperatingSystem.IsWindows(), "The proof uses Windows file identity.");
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+        var es = install.Resolve("emulationstation/emulationstation.exe");
+        Directory.CreateDirectory(Path.GetDirectoryName(es)!);
+        var measured = "measured"u8.ToArray();
+        File.WriteAllBytes(es, measured);
+        var expected = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(measured));
+
+        Assert.True(EsPrelaunchHook.VerifyAndRemember(install, expected));
+        Assert.True(EsPrelaunchHook.IsVerified(install, expected));
+
+        var replacement = es + ".part";
+        File.WriteAllText(replacement, "changed!");
+        File.SetLastWriteTimeUtc(replacement, File.GetLastWriteTimeUtc(es));
+        File.SetCreationTimeUtc(replacement, File.GetCreationTimeUtc(es));
+        File.Move(replacement, es, overwrite: true);
+
+        Assert.False(EsPrelaunchHook.IsVerified(install, expected));
+    }
+
     [Theory]
     [InlineData("start", true)]
     [InlineData("quit", true)]

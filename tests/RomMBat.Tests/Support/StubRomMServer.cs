@@ -326,6 +326,8 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// <summary>Every content request, as <c>&lt;rom id&gt; &lt;range or "-"&gt;</c>.</summary>
     public IList<string> ContentRequests { get; } = [];
 
+    public Func<CancellationToken, Task>? BeforeRomContent { get; set; }
+
     /// <summary>
     /// Cuts the body off after this many bytes, once.
     /// </summary>
@@ -525,6 +527,11 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
 
         if (path.Contains("/content/", StringComparison.Ordinal))
         {
+            if (BeforeRomContent is not null)
+            {
+                await BeforeRomContent(cancellationToken).ConfigureAwait(false);
+            }
+
             return ContentResponse(request, path);
         }
 

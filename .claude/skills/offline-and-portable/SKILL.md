@@ -74,8 +74,10 @@ the source of truth; the network is optional, probed with a short-timeout
 - **No daemon exists.** A portable install registers no service or scheduled task.
   `background start` runs a full flush, then watches committed spool files until
   EmulationStation exits. A `game-end` triggers upload, with a bounded retry budget for pending
-  work. A separate receive pass runs every 30 seconds using the existing save index.
-  A connection recovery wakes known pending uploads after the short retry budget.
+  work. The startup library pass takes a separate lease. A verified synchronous
+  prelaunch callback replaces the NES SRAM receive timer on the measured Windows ES
+  build. Unverified installs keep the 30-second receive pass. A separate bounded
+  heartbeat wakes known pending uploads after the short retry budget.
   An install-scoped handle keeps one worker alive at a time. Each pass
   separately takes the tree lock so other commands can still flush between passes.
 

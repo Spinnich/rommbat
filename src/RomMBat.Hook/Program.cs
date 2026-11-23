@@ -35,6 +35,14 @@ try
         return 3;
     }
 
+    // An explicitly installed -wait copy is run synchronously by compatible ES builds.
+    // The ordinary hook alone writes the game-start record.
+    if (string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath),
+        "rommbat-prelaunch-wait", StringComparison.OrdinalIgnoreCase))
+    {
+        return hookEvent == "game-start" && args.Length > 0 ? PrepareLaunch(root, args[0]) : 0;
+    }
+
     // The record first, always. A spawn that fails must not cost the play session, and the
     // pass being started is the one that reads what was just written.
     Spool.Write(root, new SpoolRecord(hookEvent, DateTimeOffset.UtcNow, Environment.ProcessId, args));
@@ -85,4 +93,79 @@ static void StartBackgroundPass(string root, string hookEvent)
         // Nothing is owed here. The spool file is on disk, and the next start, quit or sync
         // drains it.
     }
+}
+
+static int PrepareLaunch(string root, string rom)
+{
+    if (!Path.IsPathFullyQualified(rom))
+    {
+        return 0;
+    }
+
+    var relative = Path.GetRelativePath(root, rom).Replace('\\', '/');
+    if (!relative.StartsWith("roms/", StringComparison.OrdinalIgnoreCase))
+    {
+        return 0;
+    }
+
+    var agent = Path.Combine(root, SpoolRecord.AgentRelativePath.Replace('/', Path.DirectorySeparatorChar));
+    try
+    {
+        using var preparation = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(agent)
+        {
+            ArgumentList = { "prepare-launch", "--rom", rom },
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WorkingDirectory = Path.GetDirectoryName(agent)!,
+        });
+
+        if (preparation is null)
+        {
+            return 1;
+        }
+
+        if (preparation.WaitForExit(5000))
+        {
+            return preparation.ExitCode == 0 ? 0
+                : PrelaunchFailure(root, $"preparation exited {preparation.ExitCode}. Starting with the local save.");
+        }
+
+        // ES ignores the result, but it must not be released while a timed-out agent can write.
+        try
+        {
+            preparation.Kill();
+        }
+        catch (InvalidOperationException)
+        {
+            // The child exited after the wait.
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            // Never release the launcher while the agent can still write.
+            PrelaunchFailure(root, $"termination was refused; waiting for preparation to exit: {ex.Message}");
+        }
+
+        preparation.WaitForExit();
+        return PrelaunchFailure(root, "preparation exceeded five seconds. Starting with the local save.");
+    }
+    catch (System.ComponentModel.Win32Exception ex)
+    {
+        return PrelaunchFailure(root, $"local save retained: {ex.Message}");
+    }
+}
+
+static int PrelaunchFailure(string root, string detail)
+{
+    try
+    {
+        var logs = Path.Combine(root, "emulators", "rommbat", "logs");
+        Directory.CreateDirectory(logs);
+        File.AppendAllText(Path.Combine(logs, "prelaunch.log"), $"{DateTimeOffset.UtcNow:u} {detail}{Environment.NewLine}");
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+    {
+        // The launch still proceeds on a read-only or removed drive.
+    }
+
+    return 1;
 }

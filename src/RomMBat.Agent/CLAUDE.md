@@ -2,7 +2,7 @@
 
 `rommbat-agent.exe`: a console process. Most commands do one pass and exit.
 `background start` stays for the EmulationStation session, watches for game-end uploads,
-and runs a receive pass every 30 seconds.
+and keeps the 30-second receive pass on installs without a verified prelaunch hook.
 A portable install registers no service. Each subcommand is a class under
 `Commands/`, and `Program.DispatchAsync` routes to it and turns exceptions into an `ExitCode`.
 The subcommand table, with which ones reach the network, is in

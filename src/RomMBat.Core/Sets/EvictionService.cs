@@ -1,6 +1,7 @@
 using RomMBat.Core.Content;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 
 namespace RomMBat.Core.Sets;
 
@@ -225,6 +226,12 @@ public sealed class EvictionService
         if (report.Plan.Selected.Count == 0)
         {
             return new EvictionApplied(swept, null, null);
+        }
+
+        using var library = TreeLock.TryAcquireLibrary(_session.Install);
+        if (library is null)
+        {
+            return new EvictionApplied(new PartialSweepOutcome { Skipped = true }, null, null);
         }
 
         var evicted = new EvictionPlanner(_session.Store).Apply(report.Plan, _session.Install);

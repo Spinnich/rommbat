@@ -81,6 +81,9 @@ unwind later. Code cites them by number, so the numbers do not change.
    which is what drains the spool on a machine where nobody opens a terminal. The set is
    `SpoolRecord.BackgroundEvents` and a test asserts it, because the hook itself cannot say
    which of the four it is serving until it reads the folder it was installed into.
+   The separately named verified Windows `rommbat-prelaunch-wait.exe` is the launch barrier
+   for one ROM's save check. It invokes the agent, joins it before returning, and writes
+   no journal record. Game-start and game-end journal hooks keep the original rule.
 5. **Set `SocketsHttpHandler.ConnectTimeout` on every handler.** Nothing sets it by default
    and an unreachable LAN host stalls for 21 s. Then classify the failure: a timeout and a
    user cancellation are both `TaskCanceledException` and differ only in the inner exception.

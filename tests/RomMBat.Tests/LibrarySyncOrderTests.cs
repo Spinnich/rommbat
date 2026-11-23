@@ -1,3 +1,5 @@
+using RomMBat.Core.Sync;
+using RomMBat.Core.Paths;
 using RomM.Client;
 using RomM.Client.Catalog;
 using RomM.Client.Content;
@@ -65,6 +67,102 @@ public sealed class LibrarySyncOrderTests : IDisposable
     {
         _session.Dispose();
         _tree.Dispose();
+    }
+
+    [Fact]
+    public async Task Startup_sync_resolves_enabled_sets_without_replacing_an_existing_ROM()
+    {
+        using var stub = Library(2);
+        using var connection = new RomMConnection(
+            new RomMClientOptions { Origin = new Uri("http://stub.invalid"), AccessToken = "rmm_test" }, stub);
+        var service = new LibrarySyncService(_session);
+        var progress = new Immediate<SyncEvent>(_ => { });
+        var token = TestContext.Current.CancellationToken;
+        _session.Store.SyncSets.Add(new SyncSetDefinition
+        {
+            Name = "disabled", Scope = CatalogScopeKind.Platform, ScopeValue = "1", Enabled = false,
+        }, Now);
+        Assert.Empty((await service.RunAtStartupAsync(connection, progress, token)).Ran);
+        Assert.Empty(stub.ContentRequests);
+
+        var enabled = Set(games: 3);
+        var existing = _session.Install.Resolve("roms/psx/Game 1.chd");
+        Directory.CreateDirectory(Path.GetDirectoryName(existing)!);
+        File.WriteAllText(existing, "existing local ROM");
+        var config = _session.Install.Resolve("emulationstation/.emulationstation/es_systems.cfg");
+        var original = File.ReadAllBytes(config);
+        var report = await service.RunAtStartupAsync(connection, progress, token);
+
+        Assert.Contains(SyncPass.Resolve, report.Ran);
+        Assert.Contains(SyncPass.Content, report.Ran);
+        Assert.DoesNotContain(SyncPass.Hooks, report.Ran);
+        Assert.Equal("existing local ROM", File.ReadAllText(existing));
+        Assert.True(File.Exists(_session.Install.Resolve("roms/psx/Game 2.chd")));
+        Assert.False(File.Exists(_session.Install.Resolve("roms/psx/Game 3.chd")));
+        Assert.Single(_session.Store.SyncSets.Members(enabled.Id, MemberState.Departed));
+        Assert.Equal(original, File.ReadAllBytes(config));
+    }
+
+    [Fact]
+    public async Task Immediate_game_launch_gets_fresh_SRAM_while_startup_ROM_download_is_paused()
+    {
+        using var stub = Library(1);
+        using var libraryConnection = new RomMConnection(
+            new RomMClientOptions { Origin = new Uri("http://stub.invalid"), AccessToken = "rmm_test" }, stub);
+        using var saveConnection = new RomMConnection(
+            new RomMClientOptions { Origin = new Uri("http://stub.invalid"), AccessToken = "rmm_test" }, stub);
+        var token = TestContext.Current.CancellationToken;
+        var downloading = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        stub.BeforeRomContent = async ct =>
+        {
+            downloading.TrySetResult();
+            await release.Task.WaitAsync(ct);
+        };
+
+        var install = _session.Install;
+        const string game = "Zelda II – Dönüş";
+        var rom = RelativePath.Create($"roms/nes/{game}.nes");
+        Directory.CreateDirectory(Path.GetDirectoryName(install.Resolve(rom))!);
+        File.WriteAllText(install.Resolve(rom), "existing NES ROM");
+        _session.Store.Files.Record(new LocalFile
+        {
+            Path = rom, Folder = "nes", RomId = 42, Kind = LocalFileKind.Rom, FileName = rom.Name, SizeBytes = 16,
+        });
+        var settings = install.Resolve("emulationstation/.emulationstation/es_settings.cfg");
+        File.WriteAllText(settings, """<config><string name="nes.emulator" value="libretro" /></config>""");
+        stub.Saves[100] = new StubRomMServer.StubSave
+        {
+            Id = 100, RomId = 42, Slot = "libretro:battery", Emulator = "libretro",
+            FileNameNoTags = game, FileExtension = "srm", Bytes = "fresh from RomM"u8.ToArray(),
+        };
+        var save = install.Resolve($"saves/nes/{game}.srm");
+        Directory.CreateDirectory(Path.GetDirectoryName(save)!);
+        File.WriteAllText(save, "previously synced");
+        new SaveScanner(install, _session.Store).Scan();
+        var indexed = Assert.Single(_session.Store.Saves.List(42));
+        _session.Store.Saves.MarkUploaded(indexed.Path, indexed.UnitKey, indexed.ContentHash!, Now);
+        Set();
+
+        var startup = new LibrarySyncService(_session).RunAtStartupAsync(
+            libraryConnection, new Immediate<SyncEvent>(_ => { }), token);
+        try
+        {
+            await downloading.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
+            Spool.Write(install.RootPath, new SpoolRecord("game-start", Now, 1, [install.Resolve(rom)]));
+            using var launched = InstallSession.Open(_tree.Root).Session!;
+            var ready = await new SaveSync(install, launched.Store, saveConnection, "receiver")
+                .PrepareLaunchAsync(rom, token);
+            Assert.Equal("incoming save ready", ready);
+            Assert.Equal("fresh from RomM", File.ReadAllText(save));
+            Assert.False(startup.IsCompleted);
+            Assert.Equal([100], stub.Acknowledged);
+        }
+        finally
+        {
+            release.TrySetResult();
+            await startup;
+        }
     }
 
     [Fact]

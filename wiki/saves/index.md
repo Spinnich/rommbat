@@ -14,23 +14,24 @@ account can carry on where you left off. You do not have to do anything for it t
 
 ## When it happens
 
-RomMBat sends pending work when you open or quit EmulationStation, when you close a game,
-and when you check for changes. After a game closes, the background worker uploads while EmulationStation
-stays open. It retries briefly if a file is still busy or RomM is temporarily unreachable.
+When EmulationStation opens, RomMBat syncs the sets enabled on this device and
+sends pending saves. The startup sync adds missing single-file ROMs and keeps existing
+ROMs and BIOS files in place. Closing a game or quitting EmulationStation also sends
+pending work.
 
-While EmulationStation is open, RomMBat also looks for incoming plain NES Libretro saves
-about every 30 seconds while idle. It waits if a game is running. A previously removed save
-stays removed. To bring it back, start with `rommbat-agent saves restore` to preview the
-restore. RomMBat keeps the old copy when it replaces a synced file with an incoming save.
-Other incoming save formats use the usual
-sync at startup, shutdown or when you check for changes.
+On the verified Windows EmulationStation build, RomMBat checks the selected managed
+game's saves before the emulator opens it. Plain NES Libretro saves can be restored
+then. If the server is unavailable or the check times out, the game opens with its
+local save. Other installations keep the 30-second background check for plain NES
+Libretro saves. A previously removed save stays removed. To bring it back, start with
+`rommbat-agent saves restore` to preview the restore.
 
 ## Away from the server
 
-Saves and playtime stay on this device while RomM is unreachable. If the short retries
-run out, RomMBat resumes pending uploads when the next receive check reaches RomM.
-Closing a game, restarting EmulationStation, or checking for changes also picks up pending work. The main menu's Waiting to upload row shows queued items, and Status shows the most
-recent in-session upload and download.
+Saves and playtime stay on this device while RomM is unreachable. If short retries
+run out, RomMBat checks for reconnection while pending work remains and sends it when
+it can reach RomM again. The main menu's Waiting to upload row shows queued items,
+and Status shows the most recent in-session upload and download.
 
 ## When a save is deleted in RomM
 

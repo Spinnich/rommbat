@@ -40,6 +40,7 @@ internal static class Program
         "game-start", // journal only, no network
         "game-end",   // journal only, no network
         "background", // the pass an ES start or quit hook spawns
+        "prepare-launch", // bounded SRAM check for the optional synchronous NES hook
         "flush",      // drain the outbox if the server is reachable
         "outbox",     // list or drop the entries the server refused
         "status",     // report local state
@@ -108,6 +109,7 @@ internal static class Program
                 "uninstall" => await UninstallCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "saves" => await SavesCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "game-start" or "game-end" => await GameEventCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "prepare-launch" => await PrepareLaunchCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "background" => await BackgroundCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "flush" => await FlushCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "outbox" => await OutboxCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),

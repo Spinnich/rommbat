@@ -95,10 +95,7 @@ one by hand.
 
 **The `start` and `quit` hooks invoke a pass, as do `sync` and a person typing `flush`**, so an
 install nobody opens a terminal on still drains its journal. Spawning the agent costs the launch
-contention, not latency: ES spawns hooks fire-and-forget and starts emulatorlauncher without waiting, and the
-75.9 MB agent reaches `Main` in 34 ms, against 49 ms for a whole invocation of the trimmed,
-ReadyToRun hook (RB-195, RB-197).
-Which hooks may spawn it is the hook's to decide; see [`src/RomMBat.Hook`](#srcrommbathook).
+contention, not latency: the journal hooks are asynchronous (RB-195, RB-197).
 
 `background quit` waits for the ES process to exit before applying queued configuration, and
 gives up rather than hanging. Measured: ES is gone 48 to 68 ms after the quit hook stamps
@@ -106,23 +103,50 @@ itself, and 10 ms after the pass starts looking on a real session. If it never e
 configuration stays queued and the final flush runs anyway, because it touches no file ES owns.
 The detached quit pass waits up to 30 seconds for another flush to release the tree lock.
 
-`background start` runs a full startup flush and keeps one worker per install while
-EmulationStation runs. An atomic spool rename wakes the worker. A committed `game-end`
-causes an upload pass. Pending sends get up to four retries, after 2, 5, 10 and 30 seconds
-respectively. If the short retry budget runs out during an outage, the next successful
-receive after the outage wakes known pending uploads. The spool, saved files and outbox
-remain the retry sources after restart. The 30-second receive pass uses the existing save index and discovers plain NES Libretro SRAM.
-It performs no upload or whole-tree save or state scan. The worker verifies the download,
-rechecks for a launch and replaces
-only an unchanged synced file, keeping its previous bytes. The Status screen reads the
-last in-session transfer times from `emulators/rommbat/last-upload.txt` and `last-download.txt`.
+`background start` scans supported local saves and recovers pending sends. In the same
+session it calls the library sync service with this install's enabled sets. The library
+lease is separate from the save lease. The startup library pass adds missing single-file
+games, selected media and missing firmware. Existing ROMs and BIOS are kept in place
+while ES can launch them. Multi-file and multi-disc ROM work and replacement of
+existing ROMs or BIOS remain available through explicit sync.
+
+A committed `game-end` causes an upload pass. Pending sends get up to four retries after
+2, 5, 10 and 30 seconds. After an outage exhausts those retries, a separate 15-second
+heartbeat runs only while a known upload is waiting for RomM. The spool, save files
+and outbox are the retry sources after restart.
+
+### Synchronous prelaunch save preparation
+
+The regular `zz-rommbat-hook.exe` still writes one `game-start` record. On the measured
+Windows ES build, RomMBat installs `game-start/rommbat-prelaunch-wait.exe` before the next
+launch. ES waits for it before invoking the unchanged system command.
+The gate is enabled for the tested RetroBat 8.3.1.1-stable-win64 executable
+(ES file version 42.2026.1017.0811, SHA-256
+`0366AA3A20B15745F35109A6C68D5FF281E099DEA5CC304F28C3758B071E4F2A`).
+Installation and ES startup verify the hash. The prelaunch process checks the
+cached proof against the Windows file identity and write time. Replacing the
+executable invalidates the proof.
+[EmulationStation's Windows scripting source](https://github.com/RetroBat-Official/emulationstation/blob/45f37fd74819ee07118ca2e7680a907b25733ac5/es-core/src/Scripting.cpp#L119-L136).
+
+The hook waits for `rommbat-agent.exe prepare-launch --rom <absolute ROM path>`.
+The agent has four seconds overall and up to 1.25 seconds for the save lease. The hook
+terminates a child still running at five seconds and waits for it to stop. A failed check
+leaves the local save available. See `logs/background.log` for the outcome and duration
+and `logs/prelaunch.log` for the outer timeout. A normal game-start cancels the initial
+save flush so it can yield to the gate while the separate library sync continues.
+
+Prelaunch lists saves for the selected managed ROM only, with a quick local check for
+unmanaged ROMs. Automatic prelaunch writes cover plain NES Libretro SRAM. For other
+managed systems, prelaunch can report whether remote slots changed and leaves their
+normal sync path in place. The safe restore keeps changed local files, conflicts and
+known deletions, and rechecks the emulator and file before commit. The measured gate
+replaces the 30-second idle receiver for the NES SRAM scope only. Unverified installs
+or a missing wait hook keep the existing 30-second receiver. Verified idle sessions
+wait on file notifications and ES exit. A changed ES executable or hook restores fallback.
 
 Config is impossible during the session for a measured reason:
 ES's launch write to `es_settings.cfg` lands 1.6 to 4.9 s **before** the `start` hook fires, so
 `start` is inside the discard window rather than outside it.
-
-The pass writes what it did to `emulators/rommbat/logs/background.log`. It runs with no window,
-so nothing it prints reaches a person otherwise.
 
 Concurrent invocations are safe: the flush takes a lock file in the tree and a second
 process exits rather than queueing. The lock is mandatory, not defensive, because concurrent

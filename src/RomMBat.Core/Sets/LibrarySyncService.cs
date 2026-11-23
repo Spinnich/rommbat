@@ -98,7 +98,10 @@ public sealed record SyncOptions(
     bool DryRun = false,
     bool Offline = false,
     bool NoResolve = false,
-    string? Passphrase = null);
+    string? Passphrase = null)
+{
+    internal bool AtStartup { get; init; }
+}
 
 /// <summary>How a sync ended.</summary>
 public enum SyncState
@@ -238,6 +241,17 @@ public sealed class LibrarySyncService
         SyncPass.Budget,
     ];
 
+    /// <summary>Syncs this install's enabled sets while EmulationStation can launch existing games.</summary>
+    public async Task<SyncReport> RunAtStartupAsync(
+        RomMConnection connection, IProgress<SyncEvent> progress, CancellationToken cancellationToken = default)
+    {
+        var sets = _session.Store.SyncSets.List().Where(set => set.Enabled).ToArray();
+        return sets.Length == 0
+            ? new SyncReport(SyncState.Done, [])
+            : await RunAsync(sets, new SyncOptions { AtStartup = true }, connection, progress,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>Runs a sync, reporting each pass as it happens.</summary>
     /// <param name="flush">
     /// The saves flush. Skipped on a dry run, which writes nothing by definition.
@@ -256,7 +270,7 @@ public sealed class LibrarySyncService
 
         var ran = new List<SyncPass>();
 
-        if (!options.DryRun)
+        if (!options.DryRun && !options.AtStartup)
         {
             ran.Add(SyncPass.Hooks);
             var hooks = new EsHooks(_session.Install);
@@ -283,6 +297,14 @@ public sealed class LibrarySyncService
             {
                 await flush(cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        // ROM/media partials use their own lease. A slow library download cannot own the
+        // save tree's lease while a game is waiting for SRAM.
+        using var library = options.DryRun ? null : TreeLock.TryAcquireLibrary(_session.Install);
+        if (!options.DryRun && library is null)
+        {
+            return new SyncReport(SyncState.Refused, ran);
         }
 
         ran.Add(SyncPass.Filesystem);
@@ -346,7 +368,13 @@ public sealed class LibrarySyncService
         foreach (var set in current)
         {
             var members = _session.Store.SyncSets.Members(set.Id);
-            var plan = planner.Plan(set, members);
+            // Defer groups whose ordinary failure path can remove a partly published game.
+            if (options.AtStartup)
+            {
+                members = [.. members.Where(member => !member.IsMultiFile && DiscSet.Parse(member.FsName) is null)];
+            }
+
+            var plan = planner.PlanCore(set, members, preserveExisting: options.AtStartup);
 
             progress.Report(new SetPlanned(set, plan));
 
@@ -372,7 +400,7 @@ public sealed class LibrarySyncService
             // One game at a time, artwork included, because a run that stops has to leave every
             // game either wholly present or wholly absent. GameSync owns that sentence.
             var outcome = await new GameSync(_session.Install, _session.Store, connection, limits)
-                .ApplyAsync(plan, progress, cancellationToken)
+                .ApplyAsync(plan, progress, preserveExisting: options.AtStartup, cancellationToken)
                 .ConfigureAwait(false);
 
             progress.Report(new SetSynced(set, outcome.Content));
@@ -500,6 +528,11 @@ public sealed class LibrarySyncService
         }
 
         var plan = new BiosPlanner(_session.Install, _session.Store, limits: limits).Plan(wanted, candidates);
+
+        if (options.AtStartup)
+        {
+            plan = plan with { Steps = [.. plan.Steps.Where(step => step.Action != BiosAction.Upgrade)] };
+        }
 
         if (plan.Steps.Count == 0)
         {

@@ -191,10 +191,14 @@ public sealed class GameSync
     }
 
     /// <summary>Carries out a plan, one whole game at a time.</summary>
-    public async Task<GameSyncOutcome> ApplyAsync(
+    public Task<GameSyncOutcome> ApplyAsync(
         ContentPlan plan,
         IProgress<SyncEvent> progress,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ApplyAsync(plan, progress, preserveExisting: false, cancellationToken);
+
+    internal async Task<GameSyncOutcome> ApplyAsync(
+        ContentPlan plan, IProgress<SyncEvent> progress, bool preserveExisting, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(progress);
@@ -207,7 +211,10 @@ public sealed class GameSync
         var rejected = false;
         var walked = 0;
 
-        var roms = new ContentSync(_install, _store, _connection, _time);
+        var roms = new ContentSync(_install, _store, _connection, _time)
+        {
+            PreserveExisting = preserveExisting,
+        };
         var artwork = new MediaSync(_install, _store, _connection, _limits, _time);
 
         var games = Group(plan);
@@ -234,7 +241,10 @@ public sealed class GameSync
                 // Stopped inside this game's transfer, so this game is the one that goes.
                 // Returned rather than rethrown: everything the pass already did is real, and
                 // throwing would discard that work, as a canceled resolve's would.
-                RollBack(game, progress, problems, ref rolledBack, Resume.Discard);
+                if (!preserveExisting)
+                {
+                    RollBack(game, progress, problems, ref rolledBack, Resume.Discard);
+                }
                 stopped = true;
                 break;
             }
@@ -246,7 +256,10 @@ public sealed class GameSync
                 // A failure is not a cancellation, and the difference is the partial. The whole
                 // game still comes off disk, so the invariant holds, but what the next run would
                 // continue from is left alone.
-                RollBack(game, progress, problems, ref rolledBack, Resume.Keep);
+                if (!preserveExisting)
+                {
+                    RollBack(game, progress, problems, ref rolledBack, Resume.Keep);
+                }
 
                 if (landed.Rejected)
                 {

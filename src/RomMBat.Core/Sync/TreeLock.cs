@@ -48,11 +48,16 @@ public sealed class TreeLock : IDisposable
     /// Takes the lock if it is free.
     /// </summary>
     /// <returns>Null when another process holds it, which is an ordinary outcome.</returns>
-    public static TreeLock? TryAcquire(RetroBatInstall install)
+    public static TreeLock? TryAcquire(RetroBatInstall install) => TryAcquire(install, Path);
+
+    internal static TreeLock? TryAcquireLibrary(RetroBatInstall install) =>
+        TryAcquire(install, RetroBatInstall.AppDirectory.Combine("library.lock"));
+
+    private static TreeLock? TryAcquire(RetroBatInstall install, RelativePath lockPath)
     {
         ArgumentNullException.ThrowIfNull(install);
 
-        var path = install.Resolve(Path);
+        var path = install.Resolve(lockPath);
 
         try
         {
@@ -83,11 +88,17 @@ public sealed class TreeLock : IDisposable
         }
     }
 
-    internal static async Task<TreeLock?> TryAcquireForShutdownAsync(
-        RetroBatInstall install, CancellationToken cancellationToken)
+    internal static Task<TreeLock?> TryAcquireForLaunchAsync(
+        RetroBatInstall install, CancellationToken cancellationToken) =>
+        WaitForLockAsync(install, TimeSpan.FromMilliseconds(1250), cancellationToken);
+
+    internal static Task<TreeLock?> TryAcquireForShutdownAsync(
+        RetroBatInstall install, CancellationToken cancellationToken) =>
+        WaitForLockAsync(install, TimeSpan.FromSeconds(30), cancellationToken);
+
+    private static async Task<TreeLock?> WaitForLockAsync(
+        RetroBatInstall install, TimeSpan budget, CancellationToken cancellationToken)
     {
-        // The quit agent is detached. An in-flight receive pass may hold the lock even
-        // though it cannot send the final game, so give it time to release the handle.
         var started = Stopwatch.GetTimestamp();
         do
         {
@@ -99,7 +110,7 @@ public sealed class TreeLock : IDisposable
 
             await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
         }
-        while (Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(30));
+        while (Stopwatch.GetElapsedTime(started) < budget);
 
         return null;
     }

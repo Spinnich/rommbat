@@ -12,6 +12,7 @@ internal readonly record struct BackgroundPassResult(
 internal static class BackgroundSession
 {
     private static readonly TimeSpan ReceiveInterval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan ReconnectInterval = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan[] RetryDelays =
         [TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30)];
 
@@ -21,7 +22,12 @@ internal static class BackgroundSession
         Func<FlushMode, CancellationToken, Task<BackgroundPassResult>> flush,
         CancellationToken cancellationToken,
         Func<TimeSpan, CancellationToken, Task<bool>>? wait = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        Func<CancellationToken, Task<bool>>? probe = null,
+        Func<CancellationToken, Task>? syncLibrary = null,
+        bool periodicReceive = true,
+        Func<Action, IDisposable>? watchPrelaunch = null,
+        Func<CancellationToken, Task>? waitForEsExit = null)
     {
         using var lease = TryOwnSession(install);
         if (lease is null)
@@ -31,21 +37,40 @@ internal static class BackgroundSession
 
         timeProvider ??= TimeProvider.System;
         var spool = install.Resolve(SpoolDrain.Directory);
-        using var wakeup = new SpoolWakeup(spool, timeProvider);
+        using var startup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var libraryLifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var watchingStartup = 1;
+        using var wakeup = new SpoolWakeup(spool, timeProvider, path =>
+        {
+            if (Volatile.Read(ref watchingStartup) != 0 && IsGameStart(path))
+            {
+                startup.Cancel();
+            }
+        });
         wait ??= wakeup.WaitAsync;
+        var fallback = 0;
+        using var prelaunchWatcher = !periodicReceive && watchPrelaunch is not null
+            ? watchPrelaunch(UseFallback)
+            : null;
+        var exitWatcher = waitForEsExit is null ? null : WakeOnExitAsync(waitForEsExit, libraryLifetime.Token);
         var origin = timeProvider.GetTimestamp();
         var retries = 0;
-        var pendingUpload = false;
         var disconnected = false;
         TimeSpan? nextUpload = null;
+        TimeSpan? nextProbe = null;
+        Task? libraryWork = null;
 
         try
         {
             // Subscribe before the recovery pass so an event arriving during startup wakes us.
-            var initial = await RunPassAsync(FlushMode.Background).ConfigureAwait(false);
+            var initial = await RunPassAsync(FlushMode.Background, startup.Token).ConfigureAwait(false);
+            Interlocked.Exchange(ref watchingStartup, 0);
             var exitCode = initial.ExitCode;
-            ScheduleRetry(initial);
-            var nextReceive = timeProvider.GetElapsedTime(origin) + ReceiveInterval;
+            ScheduleRetry(startup.IsCancellationRequested && !cancellationToken.IsCancellationRequested
+                ? initial with { RetryUpload = true }
+                : initial);
+            libraryWork = syncLibrary?.Invoke(libraryLifetime.Token);
+            TimeSpan? nextReceive = periodicReceive ? timeProvider.GetElapsedTime(origin) + ReceiveInterval : null;
 
             // Check once after recovery, including events that were already present before
             // the watcher was enabled or appeared while a different pass held the tree lock.
@@ -64,39 +89,47 @@ internal static class BackgroundSession
                     }
 
                     nextUpload = now;
+                    nextProbe = null;
+                }
+
+                if (nextProbe <= now)
+                {
+                    if (await probe!(cancellationToken).ConfigureAwait(false))
+                    {
+                        disconnected = false;
+                        retries = 0;
+                        nextProbe = null;
+                        nextUpload = now;
+                    }
+                    else
+                    {
+                        nextProbe = timeProvider.GetElapsedTime(origin) + ReconnectInterval;
+                    }
                 }
 
                 if (nextUpload <= now)
                 {
-                    var upload = await RunPassAsync(FlushMode.InSessionUpload).ConfigureAwait(false);
+                    var upload = await RunPassAsync(FlushMode.InSessionUpload, cancellationToken).ConfigureAwait(false);
                     exitCode = upload.ExitCode;
                     ScheduleRetry(upload);
                 }
 
                 now = timeProvider.GetElapsedTime(origin);
-                if (nextReceive <= now)
+                if (nextReceive is null && Volatile.Read(ref fallback) != 0)
                 {
-                    var receive = await RunPassAsync(FlushMode.InSessionReceive).ConfigureAwait(false);
-                    exitCode = receive.ExitCode;
-                    now = timeProvider.GetElapsedTime(origin);
-                    nextReceive = now + ReceiveInterval;
-                    if (pendingUpload && receive.ServerReachable is { } reachable)
-                    {
-                        // Reuse the receive's connectivity result. A transition can wake
-                        // known work even after the short upload retry budget ran out.
-                        if (reachable && disconnected)
-                        {
-                            retries = 0;
-                            nextUpload = now;
-                        }
-
-                        disconnected = !reachable;
-                    }
+                    nextReceive = now;
                 }
 
-                var next = nextUpload is { } uploadDue && uploadDue < nextReceive ? uploadDue : nextReceive;
-                var delay = next - timeProvider.GetElapsedTime(origin);
-                spoolChanged = await wait(delay > TimeSpan.Zero ? delay : TimeSpan.Zero, cancellationToken)
+                if (nextReceive <= now)
+                {
+                    var receive = await RunPassAsync(FlushMode.InSessionReceive, cancellationToken).ConfigureAwait(false);
+                    exitCode = receive.ExitCode;
+                    nextReceive = timeProvider.GetElapsedTime(origin) + ReceiveInterval;
+                }
+
+                var next = Earlier(Earlier(nextUpload, nextProbe), nextReceive);
+                var delay = next is { } due ? due - timeProvider.GetElapsedTime(origin) : Timeout.InfiniteTimeSpan;
+                spoolChanged = await wait(next is not null && delay < TimeSpan.Zero ? TimeSpan.Zero : delay, cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -107,20 +140,68 @@ internal static class BackgroundSession
             return ExitCode.Canceled;
         }
 
-        void ScheduleRetry(BackgroundPassResult pass)
+        finally
         {
-            pendingUpload = pass.RetryUpload;
-            disconnected = pendingUpload && (pass.ServerReachable is { } reachable ? !reachable : disconnected);
-            nextUpload = pendingUpload && retries < RetryDelays.Length
-                ? timeProvider.GetElapsedTime(origin) + RetryDelays[retries++]
-                : null;
+            Interlocked.Exchange(ref watchingStartup, 0);
+            await libraryLifetime.CancelAsync().ConfigureAwait(false);
+            if (exitWatcher is not null)
+            {
+                await exitWatcher.ConfigureAwait(false);
+            }
+
+            if (libraryWork is not null)
+            {
+                try
+                {
+                    await libraryWork.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (libraryLifetime.IsCancellationRequested)
+                {
+                    // The joined library sync was stopped with the session.
+                }
+            }
         }
 
-        async Task<BackgroundPassResult> RunPassAsync(FlushMode mode)
+        void UseFallback()
+        {
+            Interlocked.Exchange(ref fallback, 1);
+            wakeup.Wake();
+        }
+
+        async Task WakeOnExitAsync(Func<CancellationToken, Task> observeExit, CancellationToken token)
         {
             try
             {
-                return await flush(mode, cancellationToken).ConfigureAwait(false);
+                await observeExit(token).ConfigureAwait(false);
+                wakeup.Wake();
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                // Session shutdown is already processing.
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+                UseFallback();
+            }
+        }
+
+        void ScheduleRetry(BackgroundPassResult pass)
+        {
+            var now = timeProvider.GetElapsedTime(origin);
+            disconnected = pass.RetryUpload && (pass.ServerReachable is { } reachable ? !reachable : disconnected);
+            nextUpload = pass.RetryUpload && retries < RetryDelays.Length ? now + RetryDelays[retries++] : null;
+            nextProbe = nextUpload is null && disconnected && probe is not null ? now + ReconnectInterval : null;
+        }
+
+        async Task<BackgroundPassResult> RunPassAsync(FlushMode mode, CancellationToken token)
+        {
+            try
+            {
+                return await flush(mode, token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                return new BackgroundPassResult(ExitCode.Canceled, RetryUpload: mode != FlushMode.InSessionReceive);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
             {
@@ -128,6 +209,21 @@ internal static class BackgroundSession
                 log.Write($"session flush interrupted: {ex.Message}");
                 return new BackgroundPassResult(ExitCode.ServerError, RetryUpload: mode != FlushMode.InSessionReceive);
             }
+        }
+    }
+
+    private static TimeSpan? Earlier(TimeSpan? left, TimeSpan? right) =>
+        left is { } due && (right is null || due < right) ? left : right;
+
+    private static bool IsGameStart(string path)
+    {
+        try
+        {
+            return SpoolRecord.Parse(File.ReadAllText(path))?.Event == "game-start";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 
@@ -183,17 +279,25 @@ internal sealed class SpoolWakeup : IDisposable
     private readonly FileSystemWatcher _watcher;
     private readonly TimeProvider _time;
 
-    public SpoolWakeup(string spool, TimeProvider time)
+    public SpoolWakeup(string spool, TimeProvider time, Action<string>? onCommitted = null)
     {
         _time = time;
         Directory.CreateDirectory(spool);
         _watcher = new FileSystemWatcher(spool, "*" + Spool.Extension) { NotifyFilter = NotifyFilters.FileName };
-        _watcher.Created += (_, _) => _changed.Writer.TryWrite(true);
-        _watcher.Renamed += (_, _) => _changed.Writer.TryWrite(true);
+        _watcher.Created += (_, args) => Committed(args.FullPath);
+        _watcher.Renamed += (_, args) => Committed(args.FullPath);
         // On overflow, rescan committed records once instead of depending on event order.
         _watcher.Error += (_, _) => _changed.Writer.TryWrite(true);
         _watcher.EnableRaisingEvents = true;
+
+        void Committed(string path)
+        {
+            onCommitted?.Invoke(path);
+            _changed.Writer.TryWrite(true);
+        }
     }
+
+    public void Wake() => _changed.Writer.TryWrite(true);
 
     public async Task<bool> WaitAsync(TimeSpan delay, CancellationToken cancellationToken)
     {
@@ -205,6 +309,11 @@ internal sealed class SpoolWakeup : IDisposable
         if (delay == TimeSpan.Zero)
         {
             return false;
+        }
+
+        if (delay == Timeout.InfiniteTimeSpan)
+        {
+            return await _changed.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
         }
 
         using var deadline = new CancellationTokenSource(delay, _time);

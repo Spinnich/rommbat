@@ -175,6 +175,8 @@ public sealed class ContentSync
         _layouts = layouts ?? MultiFileLayouts.Bundled;
     }
 
+    internal bool PreserveExisting { get; init; }
+
     /// <summary>Carries out a plan.</summary>
     public async Task<ContentSyncOutcome> ApplyAsync(
         ContentPlan plan,
@@ -556,7 +558,7 @@ public sealed class ContentSync
     /// <summary>Moves a verified file into place and records it, so neither can outlive the other.</summary>
     private void Commit(FileTransfer transfer, string partAbsolute, string targetAbsolute, ContentFingerprint fingerprint)
     {
-        File.Move(partAbsolute, targetAbsolute, overwrite: true);
+        File.Move(partAbsolute, targetAbsolute, overwrite: !PreserveExisting);
 
         var info = new FileInfo(targetAbsolute);
 

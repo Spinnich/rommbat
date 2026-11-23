@@ -73,6 +73,32 @@ public static class EmulationStationProcess
     public static EsRunningVerdict Check(RetroBatInstall install) =>
         CheckNamed(install, ProcessName, "EmulationStation");
 
+    /// <summary>Opens the process for this install so the session can await its exit.</summary>
+    public static Process? FindForInstall(RetroBatInstall install)
+    {
+        Process? match = null;
+        try
+        {
+            foreach (var process in Process.GetProcessesByName(ProcessName))
+            {
+                if (match is null && PathOf(process) is { } path && install.Contains(path))
+                {
+                    match = process;
+                }
+                else
+                {
+                    process.Dispose();
+                }
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Without an observable process, the caller keeps periodic liveness and receive.
+        }
+
+        return match;
+    }
+
     internal static bool MayBeLaunchingLibretro(RetroBatInstall install) =>
         CheckNamed(install, "emulatorLauncher", "EmulatorLauncher").IsRunning
         || CheckNamed(install, "retroarch", "RetroArch").IsRunning;

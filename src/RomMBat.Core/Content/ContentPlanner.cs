@@ -205,7 +205,11 @@ public sealed class ContentPlanner
                 $"{romId.ToString(CultureInfo.InvariantCulture)}-{fileId.ToString(CultureInfo.InvariantCulture)}.part");
 
     /// <summary>Works out what syncing this set would do.</summary>
-    public ContentPlan Plan(SyncSetDefinition set, IReadOnlyList<SyncSetMember> members)
+    public ContentPlan Plan(SyncSetDefinition set, IReadOnlyList<SyncSetMember> members) =>
+        PlanCore(set, members, preserveExisting: false);
+
+    internal ContentPlan PlanCore(
+        SyncSetDefinition set, IReadOnlyList<SyncSetMember> members, bool preserveExisting)
     {
         ArgumentNullException.ThrowIfNull(set);
         ArgumentNullException.ThrowIfNull(members);
@@ -229,6 +233,17 @@ public sealed class ContentPlanner
 
             if (step.Action is ContentAction.Download or ContentAction.Resume)
             {
+                if (preserveExisting && File.Exists(_install.Resolve(step.TargetPath)))
+                {
+                    steps.Add(step with
+                    {
+                        Action = ContentAction.Blocked,
+                        BytesToTransfer = 0,
+                        Reason = "the existing ROM is left for an explicit sync",
+                    });
+                    continue;
+                }
+
                 var wouldAdd = member.SizeBytes;
 
                 if (budget is { } cap && projectedManaged + wouldAdd > cap)

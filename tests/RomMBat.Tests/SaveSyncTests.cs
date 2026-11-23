@@ -219,6 +219,81 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task Prelaunch_fetches_only_the_requested_NES_ROM_and_accepts_its_own_spool_record()
+    {
+        using var fixture = SyncFixture.Create();
+        const string target = "Zelda II – Dönüş";
+        fixture.AddGame(42, "nes", target, ".nes", ".srm", saveContents: null);
+        fixture.AddGame(43, "nes", "Another game", ".nes", ".srm", saveContents: null);
+        fixture.RunSystemUnder("nes", "libretro");
+        fixture.SeedServerSave(42, "libretro:battery", target, "srm", "peer progress");
+        fixture.SeedServerSave(43, "libretro:battery", "Another game", "srm", "other progress", id: 101);
+        var rom = $"roms/nes/{target}.nes";
+        Spool.Write(fixture.Install.RootPath, new SpoolRecord("game-start", DateTimeOffset.UtcNow, 1, [fixture.Resolve(rom)]));
+
+        Assert.Equal("incoming save ready",
+            await fixture.PrepareLaunchAsync(rom, TestContext.Current.CancellationToken));
+        Assert.Equal("peer progress", File.ReadAllText(fixture.Resolve($"saves/nes/{target}.srm")));
+        Assert.False(File.Exists(fixture.Resolve("saves/nes/Another game.srm")));
+        Assert.Equal([100], fixture.Stub.Acknowledged);
+        Assert.Empty(fixture.Stub.NegotiatedHashes);
+        Assert.Single(Directory.GetFiles(fixture.Install.Resolve(SpoolDrain.Directory), "*.hook"));
+    }
+
+    [Fact]
+    public async Task Prelaunch_checks_a_managed_non_NES_game_without_writing_and_skips_unmanaged_games()
+    {
+        using var fixture = SyncFixture.Create();
+        var token = TestContext.Current.CancellationToken;
+        Assert.Equal("unmanaged ROM; no save check", await fixture.PrepareLaunchAsync("roms/snes/Other.sfc", token));
+        Assert.Empty(fixture.Stub.RequestLog);
+
+        fixture.AddGame(43, "snes", "Managed", ".sfc", ".srm", saveContents: null);
+        fixture.SeedServerSave(43, "libretro:battery", "Managed", "srm", "remote progress");
+        var detail = await fixture.PrepareLaunchAsync("roms/snes/Managed.sfc", token);
+
+        Assert.Contains("1 remote slot(s) differ", detail, StringComparison.Ordinal);
+        Assert.False(File.Exists(fixture.Resolve("saves/snes/Managed.srm")));
+        Assert.Empty(fixture.Stub.Acknowledged);
+        Assert.Single(fixture.Stub.RequestLog);
+    }
+
+    [Fact]
+    public async Task Busy_save_tree_falls_back_before_contacting_RomM()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "nes", "Zelda II", ".nes", ".srm", "local");
+        using var held = TreeLock.TryAcquire(fixture.Install);
+        Assert.NotNull(held);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(4));
+
+        var detail = await fixture.PrepareLaunchAsync("roms/nes/Zelda II.nes", deadline.Token);
+
+        Assert.Contains("save tree still busy after", detail, StringComparison.Ordinal);
+        Assert.Empty(fixture.Stub.RequestLog);
+        Assert.Equal("local", File.ReadAllText(fixture.Resolve("saves/nes/Zelda II.srm")));
+    }
+
+    [Fact]
+    public async Task A_cancelled_prelaunch_does_not_commit_or_acknowledge_a_download()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "nes", "Zelda II", ".nes", ".srm", "existing progress");
+        fixture.RunSystemUnder("nes", "libretro");
+        fixture.Scan();
+        fixture.MarkSent();
+        fixture.SeedServerSave(42, "libretro:battery", "Zelda II", "srm", "peer progress");
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        fixture.Stub.BeforeSaveContent = cancellation.Cancel;
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            fixture.PrepareLaunchAsync("roms/nes/Zelda II.nes", cancellation.Token));
+        Assert.Equal("existing progress", File.ReadAllText(fixture.Resolve("saves/nes/Zelda II.srm")));
+        Assert.Empty(fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
     public async Task Session_worker_discovers_Zelda_II_on_an_idle_receiver_once()
     {
         using var fixture = SyncFixture.Create();
@@ -4446,6 +4521,10 @@ public class SaveSyncTests
             new StateScanner(Install, Store, Fixtures.LoadSaveStatesAsLoaded()).Scan();
 
         public CorrelationOutcome Correlate() => new PlaytimeCorrelator(Install, Store).Correlate();
+
+        public Task<string> PrepareLaunchAsync(string path, CancellationToken cancellationToken) =>
+            new SaveSync(Install, Store, _connection, DeviceId)
+                .PrepareLaunchAsync(RelativePath.Create(path), cancellationToken);
 
         public Task<SaveSyncOutcome> SyncAsync(CancellationToken cancellationToken = default) =>
             SyncAsync(FlushMode.Manual, cancellationToken);

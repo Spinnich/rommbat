@@ -1,5 +1,7 @@
 using System.Security.AccessControl;
 using System.Text;
+using RomM.Client;
+using RomMBat.Core.Sets;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
@@ -57,15 +59,84 @@ internal static class BackgroundCommand
 
         if (hookEvent == "start")
         {
+            var prelaunch = EsPrelaunchHook.Ensure(context.Install);
+            using var es = prelaunch is { Action: not EsHookAction.Failed }
+                ? EmulationStationProcess.FindForInstall(context.Install)
+                : null;
+            if (prelaunch is { Action: EsHookAction.Failed })
+            {
+                using var log = BackgroundLog.Open(context.Install, "start");
+                log.Write($"using periodic save receive: prelaunch install failed: {prelaunch.Problem}");
+            }
+
             return await BackgroundSession.RunAsync(
                 context.Install,
-                () => EmulationStationProcess.Check(context.Install).IsRunning,
+                () => es is null ? EmulationStationProcess.Check(context.Install).IsRunning : !es.HasExited,
                 (mode, token) => RunPassAsync(context, hookEvent, mode, token),
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                probe: token => ProbeAsync(context, token),
+                syncLibrary: token => SyncLibraryAsync(context, token),
+                periodicReceive: es is null,
+                watchPrelaunch: invalidate => EsPrelaunchHook.WatchChanges(context.Install, invalidate),
+                waitForEsExit: es is null ? null : es.WaitForExitAsync)
+                .ConfigureAwait(false);
         }
 
         var shutdown = await RunPassAsync(context, hookEvent, FlushMode.Shutdown, cancellationToken).ConfigureAwait(false);
         return shutdown.ExitCode;
+    }
+
+    private static async Task<bool> ProbeAsync(AgentContext context, CancellationToken cancellationToken)
+    {
+        if (context.Store.Device.Read()?.ServerOrigin is not { } origin)
+        {
+            return false;
+        }
+
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(3));
+        using var connection = AgentContext.Connect(origin);
+        try
+        {
+            await connection.ProbeAsync(deadline.Token).ConfigureAwait(false);
+            return true;
+        }
+        catch (Exception ex) when (ex is RomMUnreachableException or RomMApiException
+            || ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+    }
+
+    private static async Task SyncLibraryAsync(AgentContext context, CancellationToken cancellationToken)
+    {
+        if (!context.Store.SyncSets.List().Any(set => set.Enabled))
+        {
+            return;
+        }
+
+        using var log = BackgroundLog.Open(context.Install, "start");
+        try
+        {
+            // The session worker can receive game-end while library requests are in flight.
+            using var library = AgentContext.Open(CommandLine.Parse(["sync", "--root", context.Install.RootPath]),
+                TextWriter.Null, out _);
+            using var connection = library?.Authenticate(CommandLine.Parse(["sync"]), TextWriter.Null, out _);
+            if (connection is null)
+            {
+                return;
+            }
+
+            var report = await new LibrarySyncService(library!.Session)
+                .RunAtStartupAsync(connection, new Immediate<SyncEvent>(SyncCommand.Printer.Show), cancellationToken)
+                .ConfigureAwait(false);
+            log.Write($"startup library sync {report.State}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+            or Microsoft.Data.Sqlite.SqliteException or RomMUnreachableException or RomMApiException)
+        {
+            log.Write($"startup library sync interrupted: {ex.Message}");
+        }
     }
 
     private static async Task<BackgroundPassResult> RunPassAsync(

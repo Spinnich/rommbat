@@ -702,7 +702,7 @@ public sealed class SaveSync
                         break;
                     }
 
-                    if (mode == FlushMode.InSessionUpload)
+                    if (mode == FlushMode.InSessionUpload || mode == FlushMode.Background && !automaticNes)
                     {
                         break;
                     }
@@ -764,7 +764,7 @@ public sealed class SaveSync
                     noOps++;
                     break;
 
-                case SyncAction.Delete when inSession || automaticNes:
+                case SyncAction.Delete when inSession || mode == FlushMode.Background || automaticNes:
                     break;
 
                 case SyncAction.Delete:
@@ -1750,12 +1750,13 @@ public sealed class SaveSync
         RelativePath destination,
         int? sessionId,
         CancellationToken cancellationToken,
-        bool automaticNes = false)
+        bool automaticNes = false,
+        RelativePath? launching = null)
     {
         // Before the transfer, not before the write, so a deferral costs nothing on the wire
         // either. Every route that writes a save into the tree comes through here, which is what
         // makes this the one place the question has to be asked.
-        if (_inFlight.Check(operation.RomId, destination) is { CanWrite: false } verdict)
+        if (launching is null && _inFlight.Check(operation.RomId, destination) is { CanWrite: false } verdict)
         {
             return (0, null, verdict.Reason, null);
         }
@@ -1847,12 +1848,12 @@ public sealed class SaveSync
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var slot = _store.SaveSlots.Read(operation.RomId, NesBatterySlot);
-                if (AutomaticNesDeferral(operation, destination, local, slot) is { } blocked)
+                if (AutomaticNesDeferral(operation, destination, local, slot, launching) is { } blocked)
                 {
                     return (0, null, blocked, null);
                 }
 
-                if (CommitNesDownload(part, destination, local) is { } changed)
+                if (CommitNesDownload(part, destination, local, launching, cancellationToken) is { } changed)
                 {
                     return (0, null, changed, null);
                 }
@@ -1913,7 +1914,8 @@ public sealed class SaveSync
         && _store.Files.ForRom(operation.RomId, LocalFileKind.Rom).Any(rom => rom.Folder == "nes");
 
     private string? AutomaticNesDeferral(
-        SyncOperation operation, RelativePath destination, LocalSave? local, SaveSlotRecord? slot)
+        SyncOperation operation, RelativePath destination, LocalSave? local, SaveSlotRecord? slot,
+        RelativePath? launching = null)
     {
         var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
         if (roms is not [{ Folder: "nes" } rom]
@@ -1950,20 +1952,23 @@ public sealed class SaveSync
             return "the existing save has local changes or its sync history is unclear";
         }
 
-        return NesSaveInUse();
+        return NesSaveInUse(launching);
     }
 
-    private string? NesSaveInUse() =>
-        _inFlight.HasActiveGame() || EmulationStationProcess.MayBeLaunchingLibretro(_install)
+    private string? NesSaveInUse(RelativePath? launching) =>
+        (launching is { } current ? _inFlight.HasOtherLaunch(current) : _inFlight.HasActiveGame())
+            || EmulationStationProcess.MayBeLaunchingLibretro(_install)
             ? "a game or emulator launch may still be in progress"
             : null;
 
-    private string? CommitNesDownload(string part, RelativePath destination, LocalSave? local)
+    private string? CommitNesDownload(
+        string part, RelativePath destination, LocalSave? local, RelativePath? launching, CancellationToken cancellationToken)
     {
         var absolute = _install.Resolve(destination);
         if (local is null)
         {
             // A save appearing since the scan may be a new local game. The move is create-only.
+            cancellationToken.ThrowIfCancellationRequested();
             File.Move(part, absolute, overwrite: false);
             return null;
         }
@@ -1978,13 +1983,95 @@ public sealed class SaveSync
 
         var aside = NextAsidePath(destination);
         Directory.CreateDirectory(Path.GetDirectoryName(aside)!);
-        if (NesSaveInUse() is { } running)
+        if (NesSaveInUse(launching) is { } running)
         {
             return running;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         File.Replace(part, absolute, aside);
         return null;
+    }
+
+    /// <summary>Checks one managed ROM while its caller owns the launch.</summary>
+    /// <remarks>The caller must wait for this operation before starting the original launcher.</remarks>
+    public async Task<string> PrepareLaunchAsync(RelativePath romPath, CancellationToken cancellationToken)
+    {
+        if (_store.Files.Find(romPath) is not { Stale: false, Kind: LocalFileKind.Rom, RomId: { } romId } rom
+            || !File.Exists(_install.Resolve(romPath)))
+        {
+            return "unmanaged ROM; no save check";
+        }
+
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        using var held = await TreeLock.TryAcquireForLaunchAsync(_install, cancellationToken).ConfigureAwait(false);
+        if (held is null)
+        {
+            var waited = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            return $"local save retained: save tree still busy after {waited:F0} ms";
+        }
+
+        if (NesSaveInUse(romPath) is { } running)
+        {
+            return $"local save retained: {running}";
+        }
+
+        var listed = await _connection.ListSavesAsync(romId, _deviceId, cancellationToken).ConfigureAwait(false);
+        if (!listed.IsSuccess || listed.Value is not { } rows)
+        {
+            return $"local save retained: {listed.Message ?? "the ROM save list was unavailable"}";
+        }
+
+        var heads = rows.Where(row => row.RomId == romId && !string.IsNullOrEmpty(row.Slot))
+            .GroupBy(row => row.Slot!, StringComparer.Ordinal)
+            .Select(slot => slot.OrderByDescending(row => row.UpdatedAt).ThenByDescending(row => row.Id).First())
+            .ToArray();
+        if (rom.Folder != "nes"
+            || new LaunchEmulator(_install).For("nes", _store.Files.ForRom(romId, LocalFileKind.Rom)) != "libretro")
+        {
+            var differing = heads.Count(row =>
+            {
+                var seen = _store.SaveSlots.Read(romId, row.Slot!);
+                return seen?.SaveId != row.Id || seen.ServerContentHash != row.ContentHash;
+            });
+            return $"local save retained: {differing} remote slot(s) differ from the last sync; automatic prelaunch restore is limited to NES Libretro SRAM";
+        }
+
+        var head = heads.SingleOrDefault(row => row.Slot == NesBatterySlot);
+        if (head is not { FileExtension: "srm", Id: > 0 })
+        {
+            return "local save retained: no supported remote save";
+        }
+
+        var operation = new SyncOperation("download", romId, head.Id, head.FileName, head.Slot,
+            head.Emulator, null, head.UpdatedAt, head.ContentHash);
+        var slot = _store.SaveSlots.Read(romId, NesBatterySlot);
+        var local = _store.Saves.List(romId).FirstOrDefault(save => save.Slot == NesBatterySlot);
+        var (target, _) = ResolveTarget(operation, local);
+        if (target is not { } destination || slot?.SaveId > head.Id)
+        {
+            return "local save retained: the remote save is stale or has no supported destination";
+        }
+
+        if (AutomaticNesDeferral(operation, destination, local, slot, romPath) is { } deferred)
+        {
+            return $"local save retained: {deferred}";
+        }
+
+        if (string.Equals(local?.ContentHash, head.ContentHash, StringComparison.OrdinalIgnoreCase))
+        {
+            return "local save retained: already up to date";
+        }
+
+        var download = await DownloadAsync(operation, head.Id, local, destination, null, cancellationToken,
+            automaticNes: true, launching: romPath).ConfigureAwait(false);
+        if ((download.Problem ?? download.Deferred ?? download.Rejected) is { } problem)
+        {
+            return $"local save retained: {problem}";
+        }
+
+        BackgroundTransfer.Record(_install, _time.GetUtcNow(), download: true);
+        return "incoming save ready";
     }
 
     /// <summary>The four bytes RomM 5.2.0's browser player uploaded when it had no save to send.</summary>

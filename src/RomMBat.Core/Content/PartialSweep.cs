@@ -223,7 +223,9 @@ public sealed class PartialSweep
 
         using var held = TreeLock.TryAcquire(_install);
 
-        if (held is null)
+        using var library = TreeLock.TryAcquireLibrary(_install);
+
+        if (held is null || library is null)
         {
             // Ordinary, not an error, the same way a second flush is. Reclaiming disk is never
             // urgent enough to race a save being put back.
