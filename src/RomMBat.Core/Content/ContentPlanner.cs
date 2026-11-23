@@ -229,22 +229,37 @@ public sealed class ContentPlanner
 
         foreach (var member in members.Where(member => !string.IsNullOrWhiteSpace(member.Folder)))
         {
-            var step = Inspect(member);
+            ContentStep step;
+            try
+            {
+                step = Inspect(member, preserveExisting);
+            }
+            catch (Exception ex) when (preserveExisting && ex is IOException or UnauthorizedAccessException)
+            {
+                steps.Add(new ContentStep
+                {
+                    Member = member,
+                    Action = ContentAction.Blocked,
+                    TargetPath = TargetFor(member),
+                    Reason = $"could not inspect the existing ROM; review it with the emulator closed ({ex.Message})",
+                });
+                continue;
+            }
 
             if (step.Action is ContentAction.Download or ContentAction.Resume)
             {
-                if (preserveExisting && File.Exists(_install.Resolve(step.TargetPath)))
+                if (preserveExisting && !member.IsMultiFile && Path.Exists(_install.Resolve(step.TargetPath)))
                 {
                     steps.Add(step with
                     {
                         Action = ContentAction.Blocked,
                         BytesToTransfer = 0,
-                        Reason = "the existing ROM is left for an explicit sync",
+                        Reason = "existing ROM left in place; review it before running sync with the emulator closed",
                     });
                     continue;
                 }
 
-                var wouldAdd = member.SizeBytes;
+                var wouldAdd = preserveExisting && member.IsMultiFile ? step.BytesToTransfer : member.SizeBytes;
 
                 if (budget is { } cap && projectedManaged + wouldAdd > cap)
                 {
@@ -315,7 +330,7 @@ public sealed class ContentPlanner
     /// asks, so anything short of that is a download and the transfer skips the members already
     /// there. The bytes counted are what is still missing, so the budget is not charged twice.
     /// </remarks>
-    private ContentStep InspectSet(SyncSetMember member)
+    private ContentStep InspectSet(SyncSetMember member, bool preserveExisting)
     {
         var target = TargetFor(member);
         var step = new ContentStep
@@ -334,13 +349,16 @@ public sealed class ContentPlanner
             .Where(file =>
             {
                 var info = new FileInfo(_install.Resolve(file.Path));
-                return info.Exists && info.Length == file.SizeBytes;
+                return info.Exists && info.Length == file.SizeBytes
+                    && (!preserveExisting || (!file.Stale && info.LastWriteTimeUtc == file.ModifiedUtc));
             })
             .ToList();
 
         var playlist = onDisk.Any(file => file.Kind == LocalFileKind.Rom && file.Path.Equals(target));
 
-        if (playlist && onDisk.Count == rows.Count && EveryDiscNamedIsHere(target, onDisk))
+        var current = !preserveExisting || member.RomUpdatedAt is not { } updated
+            || onDisk.All(file => file.VerifiedAt >= updated);
+        if (playlist && current && onDisk.Count == rows.Count && EveryDiscNamedIsHere(target, onDisk))
         {
             return step with { Action = ContentAction.AlreadyPresent, BytesToTransfer = 0 };
         }
@@ -383,11 +401,11 @@ public sealed class ContentPlanner
     }
 
     /// <summary>Decides what one member needs, doing the least I/O that can answer.</summary>
-    private ContentStep Inspect(SyncSetMember member)
+    private ContentStep Inspect(SyncSetMember member, bool preserveExisting)
     {
         if (member.IsMultiFile)
         {
-            return InspectSet(member);
+            return InspectSet(member, preserveExisting);
         }
 
         var target = TargetFor(member);
@@ -432,6 +450,9 @@ public sealed class ContentPlanner
             && !known.Stale
             && known.SizeBytes == info.Length
             && known.VerifiedBy != VerifiedBy.None
+            && (!preserveExisting || (known.SizeBytes == member.SizeBytes
+                && (string.IsNullOrWhiteSpace(member.Md5Hash) || known.VerifiedBy == VerifiedBy.Size
+                    || ContentHasher.Matches(known.Md5Hash, member.Md5Hash))))
             && (known.ModifiedUtc is not { } recordedTime
                 || _limits.AreTimestampsEquivalent(recordedTime, info.LastWriteTimeUtc)))
         {

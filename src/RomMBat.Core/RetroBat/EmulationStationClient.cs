@@ -101,6 +101,22 @@ public sealed class EmulationStationClient : IDisposable
         return result;
     }
 
+    internal static async Task<EsCallResult> ReloadAtStartupAsync(
+        Func<CancellationToken, Task<EsCallResult>> reload,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        var result = await reload(cancellationToken).ConfigureAwait(false);
+        if (result != EsCallResult.NotRunning)
+        {
+            return result;
+        }
+
+        // Startup sync can beat ES to opening the loopback port. Give it one more chance.
+        await Task.Delay(TimeSpan.FromSeconds(3), timeProvider, cancellationToken).ConfigureAwait(false);
+        return await reload(cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// Whether EmulationStation is running, and what it reports.
     /// </summary>

@@ -1096,6 +1096,20 @@ public sealed class BiosSyncTests : IDisposable
         Assert.Equal(BiosAction.Upgrade, Assert.Single(plan.Steps).Action);
 
         using var connection = Connect(stub);
+        var (candidates, problem) = await BiosCandidates.ReadAsync(connection, TestContext.Current.CancellationToken);
+        Assert.Null(problem);
+        var startupPlan = new BiosPlanner(_tree.Install(), store, manifest)
+        {
+            PreserveExisting = true,
+        }.Plan(["dreamcast"], candidates);
+        var deferred = Assert.Single(startupPlan.Steps);
+        Assert.Equal(BiosAction.Blocked, deferred.Action);
+        Assert.Contains("replacement deferred", deferred.Reason, StringComparison.Ordinal);
+        var startup = await new BiosSync(_tree.Install(), store, connection)
+            .ApplyAsync(startupPlan, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(0, startup.Upgraded);
+        Assert.Equal(older, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "dc", "dc_boot.bin")));
+
         var outcome = await new BiosSync(_tree.Install(), store, connection)
             .ApplyAsync(plan, cancellationToken: TestContext.Current.CancellationToken);
 

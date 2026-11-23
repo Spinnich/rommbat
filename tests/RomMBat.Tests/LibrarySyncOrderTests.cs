@@ -6,6 +6,7 @@ using RomM.Client.Content;
 using RomMBat.Core;
 using RomMBat.Core.Content;
 using RomMBat.Core.Metadata;
+using RomMBat.Core.RetroBat;
 using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
 using RomMBat.Tests.Support;
@@ -75,7 +76,7 @@ public sealed class LibrarySyncOrderTests : IDisposable
         using var stub = Library(2);
         using var connection = new RomMConnection(
             new RomMClientOptions { Origin = new Uri("http://stub.invalid"), AccessToken = "rmm_test" }, stub);
-        var service = new LibrarySyncService(_session);
+        var service = StartupService();
         var progress = new Immediate<SyncEvent>(_ => { });
         var token = TestContext.Current.CancellationToken;
         _session.Store.SyncSets.Add(new SyncSetDefinition
@@ -104,9 +105,330 @@ public sealed class LibrarySyncOrderTests : IDisposable
     }
 
     [Fact]
-    public async Task Immediate_game_launch_gets_fresh_SRAM_while_startup_ROM_download_is_paused()
+    public async Task Startup_sync_installs_a_multifile_PlayStation_member()
+    {
+        using var stub = PlayStationSet();
+        using var connection = Connect(stub);
+        Set(games: 1);
+
+        var report = await StartupService().RunAtStartupAsync(
+            connection, new Immediate<SyncEvent>(_ => { }), TestContext.Current.CancellationToken);
+
+        Assert.Equal(SyncState.Done, report.State);
+        Assert.Equal(2, stub.ContentRequests.Count);
+        Assert.Equal("Disc 1.chd\nDisc 2.chd", File.ReadAllText(PlayStationFile("Game 1.m3u")));
+        Assert.Contains("Game 1/Game 1.m3u", File.ReadAllText(_session.Install.Resolve("roms/psx/gamelist.xml")));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Startup_keeps_interrupted_game_groups_out_of_the_menu_until_complete(bool flatDiscs)
+    {
+        using var stub = PlayStationSet(flatDiscs);
+        using var connection = Connect(stub);
+        var token = TestContext.Current.CancellationToken;
+        Set();
+        if (flatDiscs)
+        {
+            var requests = 0;
+            stub.BeforeRomContent = _ =>
+            {
+                if (++requests == 2)
+                {
+                    stub.DropContentAfterBytes = 1500;
+                }
+
+                return Task.CompletedTask;
+            };
+        }
+        else
+        {
+            stub.DropMemberAfterBytes = (12, 1500);
+        }
+
+        var events = new List<SyncEvent>();
+        var progress = new Immediate<SyncEvent>(events.Add);
+        var service = StartupService();
+        var first = await service.RunAtStartupAsync(connection, progress, token);
+        Assert.Equal(SyncState.Incomplete, first.State);
+        Assert.Equal(0, Assert.Single(events.OfType<SetSynced>()).Outcome.Downloaded);
+        Assert.Empty(_session.Store.Files.List("psx", LocalFileKind.Rom));
+        var folder = _session.Install.Resolve("roms/psx");
+        Assert.False(Directory.Exists(folder) && Directory.EnumerateFiles(folder, "*.chd", SearchOption.AllDirectories).Any());
+        Assert.False(File.Exists(PlayStationFile("Game 1.m3u")));
+
+        var second = await service.RunAtStartupAsync(connection, progress, token);
+        Assert.Equal(SyncState.Done, second.State);
+        Assert.Equal(3, stub.ContentRequests.Count);
+        Assert.Contains("bytes=1500-", stub.ContentRequests[^1], StringComparison.Ordinal);
+        Assert.Equal(2, Directory.EnumerateFiles(folder, "*.chd", SearchOption.AllDirectories).Count());
+        Assert.Equal(flatDiscs ? 2 : 1, _session.Store.Files.List("psx", LocalFileKind.Rom).Count);
+
+        await service.RunAtStartupAsync(connection, progress, token);
+        Assert.Equal(3, stub.ContentRequests.Count);
+    }
+
+    [Fact]
+    public async Task Startup_does_not_publish_a_server_playlist_that_references_an_absent_disc()
+    {
+        using var stub = PlayStationSet();
+        var rom = stub.Library[0];
+        var playlist = "Disc 1.chd\nMissing disc.chd"u8.ToArray();
+        stub.Library[0] = rom with
+        {
+            Files = [.. rom.Files, new StubRomFile(13, "Game 1.m3u", playlist)],
+            SizeBytes = rom.SizeBytes + playlist.Length,
+        };
+        using var connection = Connect(stub);
+        Set();
+
+        var report = await StartupService().RunAtStartupAsync(
+            connection, new Immediate<SyncEvent>(_ => { }), TestContext.Current.CancellationToken);
+
+        Assert.Equal(SyncState.Incomplete, report.State);
+        Assert.Equal(3, stub.ContentRequests.Count);
+        Assert.False(File.Exists(PlayStationFile("Disc 1.chd")));
+        Assert.False(File.Exists(PlayStationFile("Game 1.m3u")));
+    }
+
+    [Fact]
+    public async Task Startup_defers_a_conflicting_group_and_keeps_the_personal_disc_and_playlist()
+    {
+        using var stub = PlayStationSet();
+        using var connection = Connect(stub);
+        var personalDisc = PlayStationFile("Disc 1.chd");
+        var personalPlaylist = PlayStationFile("Game 1.m3u");
+        Directory.CreateDirectory(Path.GetDirectoryName(personalDisc)!);
+        var editedDisc = new byte[5000];
+        File.WriteAllBytes(personalDisc, editedDisc);
+        File.WriteAllText(personalPlaylist, "locally curated playlist");
+        Set();
+
+        // Even a live handle that denies writes must never be waited on or replaced.
+        using var opened = File.Open(personalDisc, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var events = new List<SyncEvent>();
+        var report = await StartupService().RunAtStartupAsync(
+            connection, new Immediate<SyncEvent>(events.Add), TestContext.Current.CancellationToken);
+
+        Assert.Equal(SyncState.Blocked, report.State);
+        Assert.Contains("Disc 1.chd", Assert.Single(Assert.Single(events.OfType<SetSynced>()).Outcome.Problems));
+        Assert.Equal(editedDisc, File.ReadAllBytes(personalDisc));
+        Assert.Equal("locally curated playlist", File.ReadAllText(personalPlaylist));
+        Assert.False(File.Exists(PlayStationFile("Disc 2.chd")));
+        Assert.Empty(_session.Store.Files.List("psx", LocalFileKind.Rom));
+    }
+
+    [Fact]
+    public async Task Startup_preserves_a_disc_that_appears_during_download_and_installs_the_next_game()
+    {
+        using var stub = PlayStationSet();
+        using var connection = Connect(stub);
+        var personal = PlayStationFile("Disc 2.chd");
+        var unrelated = _session.Install.Resolve("roms/psx/Game 2.chd");
+        stub.Library.Add(new StubRom(2, 1, "psx", "psx", "Game 2", "Game 2.chd", "chd", 1024));
+        stub.Content[2] = new byte[1024];
+        Set(games: 2);
+        stub.BeforeRomContent = _ =>
+        {
+            if (stub.ContentRequests.Count == 1)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(personal)!);
+                File.WriteAllText(personal, "personal disc");
+            }
+
+            return Task.CompletedTask;
+        };
+
+        var progress = new List<SyncEvent>();
+        var report = await StartupService().RunAtStartupAsync(
+            connection, new Immediate<SyncEvent>(progress.Add), TestContext.Current.CancellationToken);
+
+        Assert.Equal(SyncState.Blocked, report.State);
+        Assert.Contains("appeared during the transfer", Assert.Single(Assert.Single(progress.OfType<SetSynced>()).Outcome.Problems));
+        Assert.Equal("personal disc", File.ReadAllText(personal));
+        Assert.False(File.Exists(PlayStationFile("Disc 1.chd")));
+        Assert.False(File.Exists(PlayStationFile("Game 1.m3u")));
+        Assert.True(File.Exists(unrelated));
+        var gamelist = File.ReadAllText(_session.Install.Resolve("roms/psx/gamelist.xml"));
+        Assert.DoesNotContain("Game 1.m3u", gamelist, StringComparison.Ordinal);
+        Assert.Contains("Game 2.chd", gamelist, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Startup_reports_existing_BIOS_without_replacing_it_or_stalling_ROM_work()
     {
         using var stub = Library(1);
+        using var connection = Connect(stub);
+        Set();
+        var bios = _session.Install.Resolve("bios/scph5501.bin");
+        Directory.CreateDirectory(Path.GetDirectoryName(bios)!);
+        File.WriteAllText(bios, "existing local firmware");
+        var events = new List<SyncEvent>();
+
+        using var openBios = File.Open(bios, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var report = await StartupService().RunAtStartupAsync(
+            connection, new Immediate<SyncEvent>(events.Add), TestContext.Current.CancellationToken);
+
+        Assert.Equal(SyncState.Blocked, report.State);
+        Assert.Contains(events.OfType<BiosProblem>(), problem => problem.Message.Contains("scph5501.bin", StringComparison.Ordinal));
+        Assert.Equal("existing local firmware", File.ReadAllText(bios));
+        Assert.True(File.Exists(_session.Install.Resolve("roms/psx/Game 1.chd")));
+    }
+
+    [Fact]
+    public async Task Startup_reports_a_new_remote_disc_version_without_replacing_the_installed_copy()
+    {
+        using var stub = PlayStationSet();
+        using var connection = Connect(stub);
+        var service = StartupService();
+        var token = TestContext.Current.CancellationToken;
+        var events = new List<SyncEvent>();
+        var progress = new Immediate<SyncEvent>(events.Add);
+        Set();
+        await service.RunAtStartupAsync(connection, progress, token);
+        var installed = PlayStationFile("Disc 2.chd");
+        var original = File.ReadAllBytes(installed);
+
+        var first = stub.Library[0];
+        stub.Library[0] = first with
+        {
+            UpdatedAt = DateTimeOffset.UtcNow.AddDays(1).ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+            Files = [first.Files[0], new StubRomFile(12, "Disc 2.chd", new byte[original.Length])],
+        };
+        events.Clear();
+
+        var report = await service.RunAtStartupAsync(connection, progress, token);
+
+        Assert.Equal(SyncState.Blocked, report.State);
+        Assert.Contains("Disc 2.chd", Assert.Single(Assert.Single(events.OfType<SetSynced>()).Outcome.Problems));
+        Assert.Equal(original, File.ReadAllBytes(installed));
+        Assert.Equal(2, stub.ContentRequests.Count);
+    }
+
+    [Fact]
+    public async Task Startup_repairs_a_missing_disc_without_replacing_the_existing_disc_or_playlist()
+    {
+        using var stub = PlayStationSet();
+        using var connection = Connect(stub);
+        var service = StartupService();
+        var progress = new Immediate<SyncEvent>(_ => { });
+        var token = TestContext.Current.CancellationToken;
+        Set();
+
+        await service.RunAtStartupAsync(connection, progress, token);
+        var playlist = PlayStationFile("Game 1.m3u");
+        var kept = PlayStationFile("Disc 1.chd");
+        var missing = PlayStationFile("Disc 2.chd");
+        var playlistTime = File.GetLastWriteTimeUtc(playlist);
+        var keptTime = File.GetLastWriteTimeUtc(kept);
+        File.Delete(missing);
+
+        var report = await service.RunAtStartupAsync(connection, progress, token);
+
+        Assert.Equal(SyncState.Done, report.State);
+        Assert.Equal(3, stub.ContentRequests.Count);
+        Assert.StartsWith("1#12 ", stub.ContentRequests[^1], StringComparison.Ordinal);
+        Assert.True(File.Exists(missing));
+        Assert.Equal(playlistTime, File.GetLastWriteTimeUtc(playlist));
+        Assert.Equal(keptTime, File.GetLastWriteTimeUtc(kept));
+    }
+
+    [Theory]
+    [InlineData(EsCallResult.Answered, EsCallResult.Answered, 1, 0)]
+    [InlineData(EsCallResult.Failed, EsCallResult.Failed, 1, 0)]
+    [InlineData(EsCallResult.NotRunning, EsCallResult.Answered, 2, 3)]
+    [InlineData(EsCallResult.NotRunning, EsCallResult.NotRunning, 2, 3)]
+    public async Task Startup_menu_reload_retries_an_absent_listener_once(
+        EsCallResult first, EsCallResult last, int expectedCalls, int elapsedSeconds)
+    {
+        var clock = new TestTimeProvider(Now);
+        var calls = 0;
+
+        var result = await EmulationStationClient.ReloadAtStartupAsync(
+            _ => Task.FromResult(++calls == 1 ? first : last), clock, TestContext.Current.CancellationToken);
+
+        Assert.Equal(last, result);
+        Assert.Equal(expectedCalls, calls);
+        Assert.Equal(Now.AddSeconds(elapsedSeconds), clock.GetUtcNow());
+    }
+
+    [Fact]
+    public async Task Startup_reloads_after_installing_the_first_ROM_even_if_the_gamelist_is_already_current()
+    {
+        using var stub = Library(1);
+        using var connection = Connect(stub);
+        Set();
+        var calls = 0;
+        var existing = _session.Install.Resolve("roms/psx/Game 1.chd");
+        var service = new LibrarySyncService(_session, _ =>
+        {
+            calls++;
+            Assert.True(File.Exists(existing));
+            return Task.FromResult(EsCallResult.Answered);
+        });
+        var events = new List<SyncEvent>();
+        var progress = new Immediate<SyncEvent>(events.Add);
+        var token = TestContext.Current.CancellationToken;
+
+        await service.RunAtStartupAsync(connection, progress, token);
+        events.Clear();
+        File.Delete(existing);
+        await service.RunAtStartupAsync(connection, progress, token);
+
+        var last = Assert.Single(events.OfType<GamelistsWritten>()).Outcome;
+        Assert.Equal(0, last.Written);
+        Assert.True(last.ReloadRequested);
+        Assert.Equal(2, calls);
+
+        await service.RunAtStartupAsync(connection, progress, token);
+        Assert.Equal(2, calls);
+    }
+
+    private LibrarySyncService StartupService() =>
+        new(_session, _ => Task.FromResult(EsCallResult.Answered));
+
+    private string PlayStationFile(string name) => _session.Install.Resolve($"roms/psx/Game 1/{name}");
+
+    private static StubRomMServer PlayStationSet(bool flatDiscs = false)
+    {
+        var stub = Library(flatDiscs ? 2 : 1);
+        if (flatDiscs)
+        {
+            for (var disc = 1; disc <= 2; disc++)
+            {
+                stub.Library[disc - 1] = stub.Library[disc - 1] with
+                {
+                    FsName = $"Game 1 (Disc {disc}).chd",
+                    SizeBytes = 5000,
+                };
+                stub.Content[disc] = Enumerable.Repeat((byte)disc, 5000).ToArray();
+            }
+
+            return stub;
+        }
+
+        stub.Library[0] = stub.Library[0] with
+        {
+            FsName = "Game 1",
+            Extension = string.Empty,
+            HasMultipleFiles = true,
+            SizeBytes = 10000,
+            Files = [new StubRomFile(11, "Disc 1.chd", Enumerable.Repeat((byte)1, 5000).ToArray()),
+                new StubRomFile(12, "Disc 2.chd", Enumerable.Repeat((byte)2, 5000).ToArray())],
+        };
+        return stub;
+    }
+
+    private static RomMConnection Connect(StubRomMServer stub) =>
+        new(new RomMClientOptions { Origin = new Uri("http://stub.invalid"), AccessToken = "rmm_test" }, stub);
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Immediate_game_launch_gets_fresh_SRAM_while_startup_ROM_download_is_paused(bool multiFile)
+    {
+        using var stub = multiFile ? PlayStationSet() : Library(1);
         using var libraryConnection = new RomMConnection(
             new RomMClientOptions { Origin = new Uri("http://stub.invalid"), AccessToken = "rmm_test" }, stub);
         using var saveConnection = new RomMConnection(
@@ -116,8 +438,11 @@ public sealed class LibrarySyncOrderTests : IDisposable
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         stub.BeforeRomContent = async ct =>
         {
-            downloading.TrySetResult();
-            await release.Task.WaitAsync(ct);
+            if (!multiFile || stub.ContentRequests.Count == 1)
+            {
+                downloading.TrySetResult();
+                await release.Task.WaitAsync(ct);
+            }
         };
 
         var install = _session.Install;
@@ -144,11 +469,17 @@ public sealed class LibrarySyncOrderTests : IDisposable
         _session.Store.Saves.MarkUploaded(indexed.Path, indexed.UnitKey, indexed.ContentHash!, Now);
         Set();
 
-        var startup = new LibrarySyncService(_session).RunAtStartupAsync(
+        var startup = StartupService().RunAtStartupAsync(
             libraryConnection, new Immediate<SyncEvent>(_ => { }), token);
         try
         {
             await downloading.Task.WaitAsync(TimeSpan.FromSeconds(5), token);
+            if (multiFile)
+            {
+                Assert.False(File.Exists(PlayStationFile("Disc 1.chd")));
+                Assert.False(File.Exists(PlayStationFile("Game 1.m3u")));
+            }
+
             Spool.Write(install.RootPath, new SpoolRecord("game-start", Now, 1, [install.Resolve(rom)]));
             using var launched = InstallSession.Open(_tree.Root).Session!;
             var ready = await new SaveSync(install, launched.Store, saveConnection, "receiver")

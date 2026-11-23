@@ -39,6 +39,8 @@ public sealed record GameSyncOutcome
 
     public required MediaSyncOutcome Media { get; init; }
 
+    internal IReadOnlyList<int> UnpublishedRomIds { get; init; } = [];
+
     /// <summary>Games removed because they did not land whole.</summary>
     public int RolledBack { get; init; }
 
@@ -207,6 +209,7 @@ public sealed class GameSync
         var media = new MediaSyncOutcome();
         var rolledBack = 0;
         var problems = new List<string>();
+        var unpublished = new List<int>();
         var stopped = false;
         var rejected = false;
         var walked = 0;
@@ -215,7 +218,10 @@ public sealed class GameSync
         {
             PreserveExisting = preserveExisting,
         };
-        var artwork = new MediaSync(_install, _store, _connection, _limits, _time);
+        var artwork = new MediaSync(_install, _store, _connection, _limits, _time)
+        {
+            PreserveExisting = preserveExisting,
+        };
 
         var games = Group(plan);
 
@@ -229,11 +235,12 @@ public sealed class GameSync
 
             try
             {
-                landed = await roms
-                    .ApplyAsync(
-                        plan with { Steps = game.Steps },
-                        Renumbered(progress, offset, plan.Steps.Count),
-                        cancellationToken)
+                var gamePlan = plan with { Steps = game.Steps };
+                var gameProgress = Renumbered(progress, offset, plan.Steps.Count);
+                var isGroup = game.Steps.Count > 1 || game.Steps[0].Member.IsMultiFile;
+                landed = await (preserveExisting && isGroup
+                        ? roms.ApplyStartupGroupAsync(gamePlan, gameProgress, cancellationToken)
+                        : roms.ApplyAsync(gamePlan, gameProgress, cancellationToken))
                     .ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -245,11 +252,22 @@ public sealed class GameSync
                 {
                     RollBack(game, progress, problems, ref rolledBack, Resume.Discard);
                 }
+                else
+                {
+                    // Neither the interrupted game nor the games ahead were published.
+                    unpublished.AddRange(games.Skip(index).SelectMany(remaining => remaining.RomIds));
+                }
+
                 stopped = true;
                 break;
             }
 
             content = ContentSyncOutcome.Merge(content, landed);
+
+            if (preserveExisting && (landed.Failed > 0 || landed.Blocked > 0))
+            {
+                unpublished.AddRange(game.RomIds);
+            }
 
             if (landed.Failed > 0)
             {
@@ -266,10 +284,19 @@ public sealed class GameSync
                     // The server refused this device rather than this request, so every game
                     // after it would send the same token and be refused identically. One
                     // expired pairing must not become forty problems.
+                    if (preserveExisting)
+                    {
+                        unpublished.AddRange(games.Skip(index + 1).SelectMany(remaining => remaining.RomIds));
+                    }
                     rejected = true;
                     break;
                 }
 
+                continue;
+            }
+
+            if (preserveExisting && landed.Blocked > 0)
+            {
                 continue;
             }
 
@@ -302,6 +329,10 @@ public sealed class GameSync
                 // it escape skipped the caller's gamelist pass, so a stop during artwork left
                 // every finished game on disk and invisible to EmulationStation. That is the
                 // same defect a hands-on pass found on the ROM path, in the place beside it.
+                if (preserveExisting)
+                {
+                    unpublished.AddRange(games.Skip(index + 1).SelectMany(remaining => remaining.RomIds));
+                }
                 stopped = true;
                 break;
             }
@@ -313,6 +344,7 @@ public sealed class GameSync
         {
             Content = content,
             Media = media,
+            UnpublishedRomIds = unpublished,
             RolledBack = rolledBack,
             RollbackProblems = problems,
             Stopped = stopped,

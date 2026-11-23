@@ -252,6 +252,8 @@ public sealed class BiosPlanner
         _limits = limits ?? FilesystemLimits.Inspect(install.RootPath);
     }
 
+    internal bool PreserveExisting { get; init; }
+
     /// <summary>Where an in-flight firmware transfer is kept.</summary>
     /// <remarks>
     /// Under the app's own directory, never beside the target, so an interrupted write cannot
@@ -357,7 +359,30 @@ public sealed class BiosPlanner
         {
             foreach (var requirement in _manifest.For(folder))
             {
-                var step = Inspect(requirement, candidates, order);
+                BiosStep step;
+                try
+                {
+                    step = Inspect(requirement, candidates, order);
+                }
+                catch (Exception ex) when (PreserveExisting && ex is IOException or UnauthorizedAccessException)
+                {
+                    step = new BiosStep
+                    {
+                        Requirement = requirement,
+                        Action = BiosAction.Blocked,
+                        Reason = $"firmware inspection deferred; review it with the emulator closed ({ex.Message})",
+                    };
+                }
+
+                if (PreserveExisting && step.Action == BiosAction.Upgrade)
+                {
+                    step = step with
+                    {
+                        Action = BiosAction.Blocked,
+                        BytesToTransfer = 0,
+                        Reason = "replacement deferred; run sync with the emulator closed",
+                    };
+                }
 
                 if (step.Transfers)
                 {

@@ -159,6 +159,8 @@ public sealed class MediaSync
         _time = timeProvider ?? TimeProvider.System;
     }
 
+    internal bool PreserveExisting { get; init; }
+
     /// <summary>Where one kind of media for one game belongs.</summary>
     public static RelativePath TargetFor(string folder, string romFileName, MediaKind kind, string extension)
     {
@@ -257,7 +259,7 @@ public sealed class MediaSync
             // half-written es_settings.cfg reads exactly like one where both switches were
             // turned off, so acting on it would sweep the artwork of an install that never said
             // anything. Fetching on a guess costs a re-fetch; deleting on one costs the files.
-            if (preference.FromInstall)
+            if (preference.FromInstall && !PreserveExisting)
             {
                 removed += Discard(romId, kinds);
             }
@@ -512,7 +514,7 @@ public sealed class MediaSync
 
             // Renamed only once the whole body has landed, so EmulationStation never sees a
             // half-written image and caches a broken texture for it.
-            File.Move(partial, absolute, overwrite: true);
+            File.Move(partial, absolute, overwrite: !PreserveExisting);
             return (response.Value!.BytesWritten, null, false);
         }
         catch (RomMUnreachableException ex)

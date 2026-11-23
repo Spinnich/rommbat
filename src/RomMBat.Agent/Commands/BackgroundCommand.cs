@@ -128,7 +128,49 @@ internal static class BackgroundCommand
             }
 
             var report = await new LibrarySyncService(library!.Session)
-                .RunAtStartupAsync(connection, new Immediate<SyncEvent>(SyncCommand.Printer.Show), cancellationToken)
+                .RunAtStartupAsync(connection, new Immediate<SyncEvent>(update =>
+                {
+                    SyncCommand.Printer.Show(update);
+                    switch (update)
+                    {
+                        case BiosProblem bios:
+                            log.Write($"startup library sync BIOS: {bios.Message}");
+                            break;
+
+                        case BiosApplied bios:
+                            foreach (var problem in bios.Outcome.Problems)
+                            {
+                                log.Write($"startup library sync BIOS: {problem}");
+                            }
+                            break;
+
+                        case MediaApplied media:
+                            foreach (var problem in media.Outcome.Problems)
+                            {
+                                log.Write($"startup library sync media: {problem}");
+                            }
+                            break;
+
+                        case GamelistsWritten menus:
+                            if (menus.Outcome.ReloadRequested)
+                            {
+                                log.Write($"startup menu reload: {menus.Outcome.Reload}");
+                            }
+
+                            foreach (var folder in menus.Outcome.Folders.Where(folder => folder.Problem is not null))
+                            {
+                                log.Write($"startup library sync {folder.Folder}: {folder.Problem}");
+                            }
+                            break;
+
+                        case SetSynced set:
+                            foreach (var problem in set.Outcome.Problems)
+                            {
+                                log.Write($"startup library sync {set.Set.Name}: {problem}");
+                            }
+                            break;
+                    }
+                }), cancellationToken)
                 .ConfigureAwait(false);
             log.Write($"startup library sync {report.State}");
         }

@@ -126,7 +126,7 @@ public enum SyncState
     Rejected,
 
     /// <summary>
-    /// The disk budget stopped it. Nothing failed and nothing more will fit.
+    /// Some work was deferred to honor disk limits or preserve existing files.
     /// </summary>
     /// <remarks>
     /// <b>A fourth state rather than reusing <see cref="Incomplete"/>.</b> A blocked ROM is not a
@@ -213,11 +213,15 @@ public sealed record SyncReport(SyncState State, IReadOnlyList<SyncPass> Ran, Fa
 public sealed class LibrarySyncService
 {
     private readonly InstallSession _session;
+    private readonly Func<CancellationToken, Task<EsCallResult>>? _startupReload;
 
-    public LibrarySyncService(InstallSession session)
+    public LibrarySyncService(InstallSession session) : this(session, startupReload: null) { }
+
+    internal LibrarySyncService(InstallSession session, Func<CancellationToken, Task<EsCallResult>>? startupReload)
     {
         ArgumentNullException.ThrowIfNull(session);
         _session = session;
+        _startupReload = startupReload;
     }
 
     /// <summary>
@@ -355,25 +359,26 @@ public sealed class LibrarySyncService
         // platforms can resolve to one folder, and writing per set would have the second
         // set's write clobber the first's.
         var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var unpublished = new HashSet<int>();
+        var published = new HashSet<int>();
 
         ran.Add(SyncPass.Bios);
-        await FetchBiosAsync(current, connection, limits, options, progress, cancellationToken)
+        var bios = await FetchBiosAsync(current, connection, limits, options, progress, cancellationToken)
             .ConfigureAwait(false);
+        if (options.AtStartup)
+        {
+            worst = bios;
+        }
 
         ran.Add(SyncPass.Content);
         var planner = new ContentPlanner(_session.Install, _session.Store, limits);
         var artwork = new MediaSyncOutcome();
         var fetchedArtwork = false;
+        var publishedRoms = false;
 
         foreach (var set in current)
         {
             var members = _session.Store.SyncSets.Members(set.Id);
-            // Defer groups whose ordinary failure path can remove a partly published game.
-            if (options.AtStartup)
-            {
-                members = [.. members.Where(member => !member.IsMultiFile && DiscSet.Parse(member.FsName) is null)];
-            }
-
             var plan = planner.PlanCore(set, members, preserveExisting: options.AtStartup);
 
             progress.Report(new SetPlanned(set, plan));
@@ -404,6 +409,12 @@ public sealed class LibrarySyncService
                 .ConfigureAwait(false);
 
             progress.Report(new SetSynced(set, outcome.Content));
+            if (options.AtStartup)
+            {
+                unpublished.UnionWith(outcome.UnpublishedRomIds);
+                published.UnionWith(plan.Steps.Select(step => step.Member.RomId).Except(outcome.UnpublishedRomIds));
+            }
+            publishedRoms |= outcome.Content.Downloaded > 0 || outcome.Content.Resumed > 0;
 
             artwork = MediaSyncOutcome.Merge(artwork, outcome.Media);
             fetchedArtwork = true;
@@ -443,6 +454,17 @@ public sealed class LibrarySyncService
         {
             ran.Add(SyncPass.Media);
             progress.Report(new MediaApplied(artwork));
+            if (options.AtStartup && worst is SyncState.Done or SyncState.Blocked)
+            {
+                if (artwork.Failed > 0)
+                {
+                    worst = SyncState.Incomplete;
+                }
+                else if (artwork.Blocked > 0)
+                {
+                    worst = SyncState.Blocked;
+                }
+            }
         }
 
         // Written even on a dry run's opposite, an offline run: the gamelist comes from local
@@ -464,9 +486,33 @@ public sealed class LibrarySyncService
             // Bounded rather than unbounded: the write is local and the reload has a 400 ms
             // connect timeout, so a screen being disposed waits for two file writes and one
             // refused socket at most.
-            progress.Report(new GamelistsWritten(await new GamelistSync(_session.Install, _session.Store)
-                .ApplyAsync(folders, emulationStation, CancellationToken.None)
-                .ConfigureAwait(false)));
+            var gamelists = new GamelistSync(_session.Install, _session.Store);
+            unpublished.ExceptWith(published);
+            var outcome = await gamelists
+                .ApplyCoreAsync(folders, options.AtStartup ? null : emulationStation, unpublished, CancellationToken.None)
+                .ConfigureAwait(false);
+            if (options.AtStartup && (publishedRoms || outcome.Written > 0) && !cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    var reload = await EmulationStationClient.ReloadAtStartupAsync(
+                        _startupReload ?? emulationStation.ReloadGamesAsync, TimeProvider.System, cancellationToken)
+                        .ConfigureAwait(false);
+                    outcome = outcome with { Reload = reload, ReloadRequested = true };
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    worst = SyncState.Stopped;
+                }
+            }
+
+            if (options.AtStartup && worst is SyncState.Done or SyncState.Blocked
+                && outcome.Folders.Any(folder => folder.Problem is not null))
+            {
+                worst = SyncState.Incomplete;
+            }
+
+            progress.Report(new GamelistsWritten(outcome));
         }
 
         if (_session.Store.Settings.GetInt64(SettingStore.ContentMaxBytes) is { } cap)
@@ -491,7 +537,7 @@ public sealed class LibrarySyncService
     /// games are all present still needs its BIOS to be.
     /// </para>
     /// </remarks>
-    private async Task FetchBiosAsync(
+    private async Task<SyncState> FetchBiosAsync(
         IReadOnlyList<SyncSetDefinition> sets,
         RomMConnection? connection,
         FilesystemLimits limits,
@@ -508,11 +554,12 @@ public sealed class LibrarySyncService
 
         if (wanted.Count == 0)
         {
-            return;
+            return SyncState.Done;
         }
 
         IReadOnlyDictionary<string, FirmwareRow>? candidates = null;
 
+        var state = SyncState.Done;
         if (connection is not null)
         {
             var (index, problem) = await BiosCandidates
@@ -522,21 +569,33 @@ public sealed class LibrarySyncService
             if (problem is not null)
             {
                 progress.Report(new BiosProblem(problem));
+                state = SyncState.Incomplete;
             }
 
             candidates = index;
         }
 
-        var plan = new BiosPlanner(_session.Install, _session.Store, limits: limits).Plan(wanted, candidates);
+        var plan = new BiosPlanner(_session.Install, _session.Store, limits: limits)
+        {
+            PreserveExisting = options.AtStartup,
+        }.Plan(wanted, candidates);
 
         if (options.AtStartup)
         {
-            plan = plan with { Steps = [.. plan.Steps.Where(step => step.Action != BiosAction.Upgrade)] };
+            foreach (var step in plan.Steps.Where(step => step.Action is BiosAction.Blocked or BiosAction.Mismatch
+                or BiosAction.ContentsMismatch or BiosAction.Ambiguous))
+            {
+                progress.Report(new BiosProblem($"{step.Path}: {step.Reason}"));
+                if (state == SyncState.Done)
+                {
+                    state = SyncState.Blocked;
+                }
+            }
         }
 
         if (plan.Steps.Count == 0)
         {
-            return;
+            return state;
         }
 
         progress.Report(new BiosPlanned(plan));
@@ -545,12 +604,14 @@ public sealed class LibrarySyncService
         // and an offline pass can adopt without a connection.
         if (options.DryRun || plan.IsNoOp)
         {
-            return;
+            return state;
         }
 
-        progress.Report(new BiosApplied(await new BiosSync(_session.Install, _session.Store, connection)
+        var outcome = await new BiosSync(_session.Install, _session.Store, connection)
             .ApplyAsync(plan, cancellationToken: cancellationToken)
-            .ConfigureAwait(false)));
+            .ConfigureAwait(false);
+        progress.Report(new BiosApplied(outcome));
+        return outcome.Failed > 0 ? SyncState.Incomplete : state;
     }
 }
 

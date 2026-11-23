@@ -118,7 +118,7 @@ public sealed record ContentSyncOutcome
 
             if (Blocked > 0)
             {
-                parts.Add($"{Blocked} blocked by the budget");
+                parts.Add($"{Blocked} blocked");
             }
 
             if (Failed > 0)
@@ -177,6 +177,69 @@ public sealed class ContentSync
 
     internal bool PreserveExisting { get; init; }
 
+    private StartupRomGroup? StartupGroup { get; init; }
+
+    internal async Task<ContentSyncOutcome> ApplyStartupGroupAsync(
+        ContentPlan plan, IProgress<ContentSyncProgress> progress, CancellationToken cancellationToken)
+    {
+        // A blocked disc makes the entire game ineligible for this pass.
+        var blocked = plan.Steps.Where(step => step.Action == ContentAction.Blocked).ToArray();
+        if (blocked.Length != 0)
+        {
+            return await ApplyAsync(plan with { Steps = blocked }, progress, cancellationToken).ConfigureAwait(false);
+        }
+
+        var group = new StartupRomGroup(_install, _store, plan.Steps);
+        var staged = new ContentSync(_install, _store, _connection, _time, _layouts)
+        {
+            PreserveExisting = true,
+            StartupGroup = group,
+        };
+        ContentSyncOutcome outcome;
+        try
+        {
+            outcome = await staged.ApplyAsync(plan, progress, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new ContentSyncOutcome
+            {
+                Blocked = 1,
+                Problems = [$"{plan.Steps[0].Member.DisplayName}: group deferred: {ex.Message}"],
+            };
+        }
+
+        if (outcome.Failed != 0)
+        {
+            return outcome with
+            {
+                Downloaded = 0,
+                Resumed = 0,
+                Adopted = 0,
+                Blocked = group.Deferred ? outcome.Failed : 0,
+                Failed = group.Deferred ? 0 : outcome.Failed,
+            };
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            group.Publish();
+            return outcome;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return outcome with
+            {
+                Downloaded = 0,
+                Resumed = 0,
+                Adopted = 0,
+                Blocked = 1,
+                Problems = [$"{plan.Steps[0].Member.DisplayName}: group publication deferred: {ex.Message}"],
+            };
+        }
+    }
+
     /// <summary>Carries out a plan.</summary>
     public async Task<ContentSyncOutcome> ApplyAsync(
         ContentPlan plan,
@@ -215,8 +278,27 @@ public sealed class ContentSync
                     break;
 
                 case ContentAction.Adopt:
-                    Adopt(step);
-                    adopted++;
+                    try
+                    {
+                        Adopt(step);
+                        adopted++;
+                    }
+                    catch (Exception ex) when (PreserveExisting && ex is IOException or UnauthorizedAccessException)
+                    {
+                        var adoptionProblem = $"could not verify the existing ROM ({ex.Message})";
+                        if (StartupGroup is { } group)
+                        {
+                            failed++;
+                            adoptionProblem = group.Defer(step.TargetPath.Name, ex.Message);
+                        }
+                        else
+                        {
+                            blocked++;
+                        }
+
+                        problems.Add($"{step.Member.DisplayName}: {adoptionProblem}");
+                    }
+
                     break;
 
                 case ContentAction.Download:
@@ -253,6 +335,11 @@ public sealed class ContentSync
                 default:
                     break;
             }
+
+            if (StartupGroup is not null && failed > 0)
+            {
+                break;
+            }
         }
 
         return new ContentSyncOutcome
@@ -286,7 +373,7 @@ public sealed class ContentSync
             ? FileOrigin.Synced
             : FileOrigin.Adopted;
 
-        _store.Files.Record(new LocalFile
+        var file = new LocalFile
         {
             Path = step.TargetPath,
             Folder = step.Member.Folder!,
@@ -302,7 +389,15 @@ public sealed class ContentSync
             // Adopted unless RomMBat already owned the path. An adopted file is the user's, it
             // does not count against the budget, and eviction must never delete it.
             Origin = origin,
-        });
+        };
+        if (StartupGroup is { } group)
+        {
+            group.Keep(file);
+        }
+        else
+        {
+            _store.Files.Record(file);
+        }
     }
 
     private Task<(long Bytes, string? Problem, bool Rejected, FailureCause Cause)> TransferAsync(
@@ -341,7 +436,10 @@ public sealed class ContentSync
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(partAbsolute)!);
-            Directory.CreateDirectory(Path.GetDirectoryName(targetAbsolute)!);
+            if (StartupGroup is null)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(targetAbsolute)!);
+            }
 
             var existing = transfer.Resume ? new FileInfo(partAbsolute) : null;
             var resumeFrom = existing is { Exists: true } ? existing.Length : 0;
@@ -558,28 +656,38 @@ public sealed class ContentSync
     /// <summary>Moves a verified file into place and records it, so neither can outlive the other.</summary>
     private void Commit(FileTransfer transfer, string partAbsolute, string targetAbsolute, ContentFingerprint fingerprint)
     {
-        File.Move(partAbsolute, targetAbsolute, overwrite: !PreserveExisting);
+        if (StartupGroup is null)
+        {
+            File.Move(partAbsolute, targetAbsolute, overwrite: !PreserveExisting);
+        }
 
-        var info = new FileInfo(targetAbsolute);
+        var info = new FileInfo(StartupGroup is null ? targetAbsolute : partAbsolute);
+        var file = new LocalFile
+        {
+            Path = transfer.TargetPath,
+            Folder = transfer.Folder,
+            RomId = transfer.RomId,
+            Kind = transfer.Kind,
+            FileName = transfer.FileName,
+            SizeBytes = info.Length,
+            Md5Hash = fingerprint.Md5,
+            HashScope = fingerprint.Scope,
+            ModifiedUtc = info.LastWriteTimeUtc,
+            VerifiedAt = _time.GetUtcNow(),
+            VerifiedBy = VerificationOf(transfer.Md5Hash, fingerprint),
+            Origin = FileOrigin.Synced,
+        };
+
+        if (StartupGroup is { } group)
+        {
+            group.Add(file, partAbsolute, transfer.FileId);
+            return;
+        }
 
         _store.InTransaction(() =>
         {
             _store.Downloads.Remove(transfer.RomId, transfer.FileId);
-            _store.Files.Record(new LocalFile
-            {
-                Path = transfer.TargetPath,
-                Folder = transfer.Folder,
-                RomId = transfer.RomId,
-                Kind = transfer.Kind,
-                FileName = transfer.FileName,
-                SizeBytes = info.Length,
-                Md5Hash = fingerprint.Md5,
-                HashScope = fingerprint.Scope,
-                ModifiedUtc = info.LastWriteTimeUtc,
-                VerifiedAt = _time.GetUtcNow(),
-                VerifiedBy = VerificationOf(transfer.Md5Hash, fingerprint),
-                Origin = FileOrigin.Synced,
-            });
+            _store.Files.Record(file);
         });
     }
 
@@ -658,7 +766,10 @@ public sealed class ContentSync
 
         try
         {
-            Directory.CreateDirectory(_install.Resolve(folder));
+            if (StartupGroup is null)
+            {
+                Directory.CreateDirectory(_install.Resolve(folder));
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -690,6 +801,14 @@ public sealed class ContentSync
             var result = await FetchMemberAsync(
                     step, served, folder, LocalFileKind.Rom, index, total, progress, cancellationToken)
                 .ConfigureAwait(false);
+
+            if (result.Problem is null && StartupGroup is { } group
+                && !group.PlaylistIsComplete(folder, served.FileName,
+                    members.Where(file => !ReferenceEquals(file, served)).Select(file => file.FileName)))
+            {
+                return (bytes + result.Bytes, "its playlist names files outside the verified game group",
+                    false, FailureCause.Failed);
+            }
 
             return result with { Bytes = bytes + result.Bytes };
         }
@@ -723,6 +842,36 @@ public sealed class ContentSync
         var absolute = _install.Resolve(target);
         var info = new FileInfo(absolute);
         var known = _store.Files.Find(target);
+
+        if (StartupGroup is { } group && (info.Exists || Directory.Exists(absolute)))
+        {
+            try
+            {
+                if (info.Exists && info.Length == file.SizeBytes)
+                {
+                    if (known is not null && known.RomId == step.Member.RomId && !known.Stale
+                        && known.SizeBytes == info.Length && known.ModifiedUtc == info.LastWriteTimeUtc
+                        && known.VerifiedBy != VerifiedBy.None
+                        && (file.Md5 is null || ContentHasher.Matches(known.Md5Hash, file.Md5)))
+                    {
+                        group.Keep(known with { VerifiedAt = _time.GetUtcNow() });
+                        return (0, null, false, FailureCause.None);
+                    }
+
+                    if (ContentHasher.Matches(ContentHasher.Compute(absolute).Md5, file.Md5))
+                    {
+                        group.Keep(GroupMember(step.Member, target, kind, info, file.Md5!, FileOrigin.Adopted));
+                        return (0, null, false, FailureCause.None);
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return (0, group.Defer(file.FileName, ex.Message), false, FailureCause.Failed);
+            }
+
+            return (0, group.Defer(file.FileName), false, FailureCause.Failed);
+        }
 
         if (info.Exists
             && known is not null
@@ -769,12 +918,46 @@ public sealed class ContentSync
     {
         var target = folder.Combine(playlistName);
         var absolute = _install.Resolve(target);
+        var bytes = Encoding.UTF8.GetBytes(string.Join(PlaylistSeparator, discs));
+        if (StartupGroup is { } group)
+        {
+            try
+            {
+                if (Directory.Exists(absolute))
+                {
+                    return group.Defer(playlistName);
+                }
+
+                if (File.Exists(absolute))
+                {
+                    var current = new FileInfo(absolute);
+                    if (current.Length != bytes.Length || !File.ReadAllBytes(absolute).AsSpan().SequenceEqual(bytes))
+                    {
+                        return group.Defer(playlistName);
+                    }
+
+                    group.Keep(_store.Files.Find(target) is { } known && known.RomId == member.RomId
+                        && known.ModifiedUtc == current.LastWriteTimeUtc ? known with { VerifiedAt = _time.GetUtcNow() }
+                        : GroupMember(member, target, LocalFileKind.Rom, current, ContentHasher.Compute(absolute).Md5!, FileOrigin.Adopted));
+                }
+                else
+                {
+                    group.AddPlaylist(member, target, bytes, _time.GetUtcNow());
+                }
+
+                return null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return group.Defer(playlistName, ex.Message);
+            }
+        }
+
         var temporary = absolute + ".tmp";
 
         try
         {
-            var text = string.Join(PlaylistSeparator, discs);
-            File.WriteAllBytes(temporary, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(text));
+            File.WriteAllBytes(temporary, bytes);
             File.Move(temporary, absolute, overwrite: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -807,6 +990,22 @@ public sealed class ContentSync
 
         return null;
     }
+
+    private LocalFile GroupMember(SyncSetMember member, RelativePath target, LocalFileKind kind,
+        FileInfo info, string md5, FileOrigin origin) => new()
+    {
+        Path = target,
+        Folder = member.Folder!,
+        RomId = member.RomId,
+        Kind = kind,
+        FileName = target.Name,
+        SizeBytes = info.Length,
+        Md5Hash = md5,
+        ModifiedUtc = info.LastWriteTimeUtc,
+        VerifiedAt = _time.GetUtcNow(),
+        VerifiedBy = VerifiedBy.Md5,
+        Origin = origin,
+    };
 
     /// <summary>A member RomM files as part of the game, rather than an update, DLC or a manual.</summary>
     private static bool IsGameFile(RomFileRow file) =>

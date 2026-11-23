@@ -105,10 +105,11 @@ The detached quit pass waits up to 30 seconds for another flush to release the t
 
 `background start` scans supported local saves and recovers pending sends. In the same
 session it calls the library sync service with this install's enabled sets. The library
-lease is separate from the save lease. The startup library pass adds missing single-file
-games, selected media and missing firmware. Existing ROMs and BIOS are kept in place
-while ES can launch them. Multi-file and multi-disc ROM work and replacement of
-existing ROMs or BIOS remain available through explicit sync.
+lease is separate from the save lease. Startup fetches missing supported games, selected
+media and firmware. Multi-file and multi-disc games verify all components off-menu
+before publication. Startup reports existing ROM or BIOS replacements as deferred.
+Review existing files before explicit sync with the emulator closed. After library
+changes, ES gets one menu reload request and one retry after three seconds if absent.
 
 A committed `game-end` causes an upload pass. Pending sends get up to four retries after
 2, 5, 10 and 30 seconds. After an outage exhausts those retries, a separate 15-second
