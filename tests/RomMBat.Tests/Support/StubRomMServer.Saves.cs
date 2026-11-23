@@ -166,6 +166,8 @@ internal sealed partial class StubRomMServer
     /// <summary>Cut a save download off after this many bytes, which is a link dropping.</summary>
     public int? TruncateSaveDownloadAfter { get; set; }
 
+    public Action? BeforeSaveContent { get; set; }
+
     /// <summary>
     /// Report this content hash on negotiate instead of the real one.
     /// </summary>
@@ -499,6 +501,7 @@ internal sealed partial class StubRomMServer
             OptimisticDownloads.Add(saveId);
         }
 
+        BeforeSaveContent?.Invoke();
         Stream body = TruncateSaveDownloadAfter is { } cut && cut < save.Bytes.Length
             ? new TruncatingStream(save.Bytes, cut)
             : new MemoryStream(save.Bytes);

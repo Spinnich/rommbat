@@ -260,7 +260,8 @@ public sealed class LocalStore : IDisposable
     /// </summary>
     internal static readonly IReadOnlyList<string> ServerKeyedTables =
     [
-        "save_slot", "save_conflict", "local_save", "local_state", "game_id_binding",
+        // Clear removed_nes_save after local_save, whose delete trigger records removals.
+        "save_slot", "save_conflict", "local_save", "removed_nes_save", "local_state", "game_id_binding",
         "content_download", "rom_metadata", "sync_set_member",
     ];
 

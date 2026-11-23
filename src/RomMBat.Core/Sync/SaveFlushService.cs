@@ -37,12 +37,19 @@ public enum FlushState
     GameRunning,
 }
 
+/// <summary>Where the flush runs and which remote changes it can apply.</summary>
+public enum FlushMode
+{
+    Manual,
+    Background,
+    InSession,
+}
+
 /// <summary>What a flush was asked to do.</summary>
 /// <param name="Offline">Do everything the local tree can answer, send nothing.</param>
 public sealed record FlushOptions(bool Offline = false)
 {
-    /// <summary>Wait for games to close and leave remote save writes for a full flush.</summary>
-    public bool SessionUpload { get; init; }
+    public FlushMode Mode { get; init; }
 }
 
 /// <summary>
@@ -182,7 +189,7 @@ public sealed class SaveFlushService
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        if (options.SessionUpload && new InFlightGuard(install, store).HasActiveGame())
+        if (options.Mode == FlushMode.InSession && new InFlightGuard(install, store).HasActiveGame())
         {
             return new FlushReport { State = FlushState.GameRunning };
         }
@@ -249,7 +256,7 @@ public sealed class SaveFlushService
                 .ConfigureAwait(false);
 
             var saves = await new SaveSync(install, store, connection, deviceId)
-                .RunAsync(applyRemoteChanges: !options.SessionUpload, cancellationToken)
+                .RunAsync(options.Mode, cancellationToken)
                 .ConfigureAwait(false);
 
             // States go last because they are the only part of this pass that cannot fail in a
@@ -263,9 +270,18 @@ public sealed class SaveFlushService
             // though every transfer landed (#148).
             var failed = saves.Failed > 0 || saves.SessionLeftOpen || playtime.Failed > 0 || states.Failed > 0;
 
-            if (options.SessionUpload && (saves.Uploaded > 0 || states.Uploaded > 0))
+            if (options.Mode == FlushMode.InSession)
             {
-                BackgroundUpload.Record(install, (_time ?? TimeProvider.System).GetUtcNow());
+                var now = (_time ?? TimeProvider.System).GetUtcNow();
+                if (saves.Uploaded > 0 || states.Uploaded > 0)
+                {
+                    BackgroundTransfer.Record(install, now);
+                }
+
+                if (saves.Downloaded > 0)
+                {
+                    BackgroundTransfer.Record(install, now, download: true);
+                }
             }
 
             return local with

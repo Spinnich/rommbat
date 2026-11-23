@@ -263,9 +263,14 @@ public sealed class StatusViewModel : IScreen
                     : "Applied when you next quit EmulationStation, which cannot happen while it is running."),
         };
 
-        if (BackgroundUpload.Read(_session.Install) is { } lastUpload)
+        if (BackgroundTransfer.Read(_session.Install) is { } lastUpload)
         {
             rows.Insert(0, new StatusRow("Last in-session upload", Describe(lastUpload)));
+        }
+
+        if (BackgroundTransfer.Read(_session.Install, download: true) is { } lastDownload)
+        {
+            rows.Insert(0, new StatusRow("Last in-session download", Describe(lastDownload)));
         }
 
         rows.AddRange(pending.Select(change => new StatusRow(

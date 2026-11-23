@@ -49,7 +49,7 @@ internal static class FlushCommand
         AgentContext context,
         CommandLine command,
         CancellationToken cancellationToken,
-        bool sessionUpload = false,
+        FlushMode mode = FlushMode.Manual,
         Action<FlushReport>? onReport = null)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -76,7 +76,7 @@ internal static class FlushCommand
             }
 
             var report = await new SaveFlushService(context.Session)
-                .RunAsync(new FlushOptions(offline) { SessionUpload = sessionUpload }, connection, cancellationToken)
+                .RunAsync(new FlushOptions(offline) { Mode = mode }, connection, cancellationToken)
                 .ConfigureAwait(false);
 
             onReport?.Invoke(report);

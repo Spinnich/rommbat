@@ -169,6 +169,14 @@ public sealed class LocalSaveStore
         """,
         command => command.With("$romId", SqliteValues.OrNull(romId)));
 
+    internal bool WasNesSaveRemoved(int romId)
+    {
+        using var command = _connection
+            .Command("SELECT EXISTS (SELECT 1 FROM removed_nes_save WHERE rom_id = $romId);")
+            .With("$romId", romId);
+        return (long)command.ExecuteScalar()! != 0;
+    }
+
     /// <summary>Forgets saves whose files are gone, so a deleted save stops blocking eviction.</summary>
     /// <remarks>
     /// By unit, not by path. A class C container outlives every unit in it, so deleting by path

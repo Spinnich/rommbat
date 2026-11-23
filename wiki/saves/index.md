@@ -18,17 +18,18 @@ RomMBat syncs saves each time you open EmulationStation and each time you quit i
 the start of every sync. After you close a game, RomMBat tries uploads in the background while
 EmulationStation stays open. If a save is still busy, RomMBat can pick it up on a later try.
 
-A save another device made comes down when you open EmulationStation. If you have already
-started that game by then, RomMBat does not write under it: the save waits and lands the next
-time you quit EmulationStation. A save that reaches RomM while EmulationStation is sitting open
-comes down the next time you open it
-([#155](https://github.com/Spinnich/rommbat/issues/155)).
+While EmulationStation is open, RomMBat also looks for incoming plain NES Libretro saves
+about every 30 seconds while idle. It waits if a game is running. A previously removed save
+stays removed. To bring it back, start with `rommbat-agent saves restore` to preview the
+restore. RomMBat keeps the old copy when it replaces a synced file with an incoming save.
+Other incoming save formats use the usual
+sync at startup, shutdown or when you check for changes.
 
 ## Away from the server
 
 **Playing offline loses nothing.** Saves and playtime wait on this device and go up the next time
 it can reach RomM. RomMBat retries while EmulationStation is idle. The main menu's Waiting to
-upload row shows queued items, and Status shows the most recent in-session upload.
+upload row shows queued items, and Status shows the most recent in-session upload and download.
 
 ## When a save is deleted in RomM
 

@@ -62,7 +62,7 @@ public sealed class SaveFlushServiceTests
         var rom = install.Resolve(RelativePath.Create("roms/snes/ActRaiser (USA).zip"));
         fixture.WantsUpload(42);
         Spool.Write(install.RootPath, new SpoolRecord("game-start", Now, 1, [rom]));
-        var options = new FlushOptions { SessionUpload = true };
+        var options = new FlushOptions { Mode = FlushMode.InSession };
         var token = TestContext.Current.CancellationToken;
 
         var active = await new SaveFlushService(fixture.Session)
@@ -86,7 +86,7 @@ public sealed class SaveFlushServiceTests
         var offline = await new SaveFlushService(fixture.Session)
             .RunAsync(options, fixture.Connect(), token);
         Assert.True(offline.Scanned);
-        Assert.Null(BackgroundUpload.Read(install));
+        Assert.Null(BackgroundTransfer.Read(install));
         Assert.Empty(fixture.Stub.Saves);
 
         using var reopened = InstallSession.Open(install.RootPath).Session!;
@@ -95,13 +95,54 @@ public sealed class SaveFlushServiceTests
         var retry = await worker.RunAsync(options, fixture.Connect(), token);
         Assert.Equal(1, retry.SavesSent!.Uploaded);
         Assert.Single(fixture.Stub.Saves);
-        Assert.NotNull(BackgroundUpload.Read(install));
+        Assert.NotNull(BackgroundTransfer.Read(install));
 
         fixture.StopWantingUpload(42);
         Spool.Write(install.RootPath, new SpoolRecord("game-end", Now.AddSeconds(2), 3, []));
         var replay = await worker.RunAsync(options, fixture.Connect(), token);
         Assert.Equal(0, replay.SavesSent!.Uploaded);
         Assert.Single(fixture.Stub.Saves);
+    }
+
+    [Fact]
+    public async Task In_session_flush_downloads_Zelda_II_after_the_game_ends()
+    {
+        using var fixture = FlushTree.Create();
+        fixture.Pair();
+        const string rom = "Zelda II - The Adventure of Link (USA)";
+        fixture.AddRom(42, "nes", $"{rom}.nes");
+        fixture.Stub.Saves.Add(100, new StubRomMServer.StubSave
+        {
+            Id = 100,
+            RomId = 42,
+            Slot = "libretro:battery",
+            Emulator = "libretro",
+            FileNameNoTags = rom,
+            FileExtension = "srm",
+            Bytes = "progress from A"u8.ToArray(),
+            OriginDeviceId = "peer-device",
+            UpdatedAt = Now,
+        });
+        fixture.Stub.UnsolicitedDownloads.Add((42, "libretro:battery"));
+
+        var install = fixture.Session.Install;
+        var path = install.Resolve(RelativePath.Create($"roms/nes/{rom}.nes"));
+        var destination = install.Resolve(RelativePath.Create($"saves/nes/{rom}.srm"));
+        var options = new FlushOptions { Mode = FlushMode.InSession };
+        var token = TestContext.Current.CancellationToken;
+        var flush = new SaveFlushService(fixture.Session);
+        Spool.Write(install.RootPath, new SpoolRecord("game-start", Now, 1, [path]));
+
+        Assert.Equal(FlushState.GameRunning, (await flush.RunAsync(options, fixture.Connect(), token)).State);
+        Assert.False(File.Exists(destination));
+        Assert.Null(BackgroundTransfer.Read(install, download: true));
+
+        Spool.Write(install.RootPath, new SpoolRecord("game-end", Now.AddSeconds(1), 2, []));
+        var closed = await flush.RunAsync(options, fixture.Connect(), token);
+        Assert.Equal(1, closed.SavesSent!.Downloaded);
+        Assert.Equal("progress from A", File.ReadAllText(destination));
+        Assert.Equal([100], fixture.Stub.Acknowledged);
+        Assert.NotNull(BackgroundTransfer.Read(install, download: true));
     }
 
     [Fact]

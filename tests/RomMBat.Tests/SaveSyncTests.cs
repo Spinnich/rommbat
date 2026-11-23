@@ -219,26 +219,166 @@ public class SaveSyncTests
     }
 
     [Fact]
-    public async Task Session_upload_leaves_a_remote_save_for_the_full_flush()
+    public async Task Session_worker_discovers_Zelda_II_on_an_idle_receiver_once()
     {
         using var fixture = SyncFixture.Create();
-        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "local, older");
+        const string rom = "Zelda II - The Adventure of Link (USA)";
+        fixture.AddGame(42, "nes", rom, ".nes", ".srm", saveContents: null);
+        fixture.Scan();
+        fixture.SeedServerSave(42, "libretro:battery", rom, "srm", "progress from A");
+        fixture.Stub.UnsolicitedDownloads.Add((42, "libretro:battery"));
+        var token = TestContext.Current.CancellationToken;
+        var destination = fixture.Resolve($"saves/nes/{rom}.srm");
+
+        var first = await fixture.SyncAsync(FlushMode.InSession, token);
+        Assert.Equal(1, first.Downloaded);
+        Assert.Equal([100], fixture.Stub.Acknowledged);
+        Assert.Equal("progress from A", File.ReadAllText(destination));
+
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "download";
+        var replay = await fixture.SyncAsync(FlushMode.InSession, token);
+        Assert.Equal(0, replay.Downloaded);
+        Assert.Equal([100], fixture.Stub.Acknowledged);
+        Assert.False(Directory.Exists(fixture.Install.Resolve(SaveSync.AsideDirectory)));
+    }
+
+    [Fact]
+    public async Task Zelda_II_session_retries_interrupted_content_and_ack_without_duplicate_backups()
+    {
+        using var fixture = SyncFixture.Create();
+        const string rom = "Zelda II - The Adventure of Link (USA)";
+        fixture.AddGame(42, "nes", rom, ".nes", ".srm", saveContents: null);
+        fixture.SeedServerSave(42, "libretro:battery", rom, "srm", "progress from A");
+        fixture.Stub.UnsolicitedDownloads.Add((42, "libretro:battery"));
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "download";
+        var token = TestContext.Current.CancellationToken;
+        var destination = fixture.Resolve($"saves/nes/{rom}.srm");
+        var aside = fixture.Install.Resolve(SaveSync.AsideDirectory);
+
+        fixture.Stub.IsReachable = false;
+        await fixture.SyncAsync(FlushMode.InSession, token);
+        Assert.False(File.Exists(destination));
+        Assert.Empty(fixture.Stub.Acknowledged);
+        fixture.Stub.IsReachable = true;
+        Assert.Equal(1, (await fixture.SyncAsync(FlushMode.InSession, token)).Downloaded);
+
+        var next = new string('b', 4096);
+        fixture.SeedServerSave(42, "libretro:battery", rom, "srm", next, id: 101);
+        fixture.Stub.TruncateSaveDownloadAfter = 512;
+        Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSession, token)).Downloaded);
+        Assert.Equal([100], fixture.Stub.Acknowledged);
+        Assert.Equal("progress from A", File.ReadAllText(destination));
+        Assert.False(Directory.Exists(aside));
+
+        fixture.Stub.TruncateSaveDownloadAfter = null;
+        fixture.Stub.FailAcknowledge = HttpStatusCode.ServiceUnavailable;
+        await fixture.SyncAsync(FlushMode.InSession, token);
+        Assert.Equal(next, File.ReadAllText(destination));
+        Assert.Equal("progress from A", File.ReadAllText(Assert.Single(Directory.GetFiles(aside))));
+        Assert.Equal([100], fixture.Stub.Acknowledged);
+
+        fixture.Scan();
+        fixture.Stub.FailAcknowledge = null;
+        fixture.Stub.BeforeSaveContent = () => throw new InvalidOperationException("Identical save downloaded again.");
+        Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSession, token)).Downloaded);
+        Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSession, token)).Downloaded);
+        Assert.Equal([100, 101], fixture.Stub.Acknowledged);
+        Assert.Empty(fixture.Stub.OptimisticDownloads);
+        Assert.Single(Directory.GetFiles(aside));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Zelda_II_session_rechecks_the_game_and_local_bytes_after_the_transfer(bool gameStarts)
+    {
+        using var fixture = SyncFixture.Create();
+        const string rom = "Zelda II - The Adventure of Link (USA)";
+        fixture.AddGame(42, "nes", rom, ".nes", ".srm", "known save");
         fixture.Scan();
         fixture.MarkSent();
-        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "newer from another device");
-        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
+        fixture.SeedServerSave(42, "libretro:battery", rom, "srm", "remote progress");
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "download";
         var token = TestContext.Current.CancellationToken;
-        var destination = fixture.Resolve("saves/gb/Tetris (World).srm");
+        var destination = fixture.Resolve($"saves/nes/{rom}.srm");
 
-        var duringSession = await fixture.SyncAsync(applyRemoteChanges: false, token);
-        Assert.Equal(0, duringSession.Downloaded);
+        fixture.Stub.BeforeSaveContent = () =>
+        {
+            if (gameStarts)
+            {
+                var game = fixture.Resolve($"roms/nes/{rom}.nes");
+                Spool.Write(fixture.Install.RootPath, new SpoolRecord("game-start", DateTimeOffset.UtcNow, 1, [game]));
+            }
+            else
+            {
+                File.WriteAllText(destination, "new offline progress");
+            }
+        };
+
+        var rejected = await fixture.SyncAsync(FlushMode.InSession, token);
+        Assert.Equal(1, rejected.Deferred);
         Assert.Empty(fixture.Stub.Acknowledged);
-        Assert.Equal("local, older", File.ReadAllText(destination));
+        Assert.Equal(gameStarts ? "known save" : "new offline progress", File.ReadAllText(destination));
+        Assert.False(Directory.Exists(fixture.Install.Resolve(SaveSync.AsideDirectory)));
 
-        var full = await fixture.SyncAsync(token);
-        Assert.Equal(1, full.Downloaded);
-        Assert.Equal([100], fixture.Stub.Acknowledged);
-        Assert.Equal("newer from another device", File.ReadAllText(destination));
+        fixture.Stub.BeforeSaveContent = null;
+        if (gameStarts)
+        {
+            Spool.Write(fixture.Install.RootPath, new SpoolRecord("game-end", DateTimeOffset.UtcNow.AddSeconds(1), 2, []));
+            Assert.Equal(1, (await fixture.SyncAsync(FlushMode.InSession, token)).Downloaded);
+        }
+        else
+        {
+            fixture.Scan();
+            Assert.Equal(1, (await fixture.SyncAsync(FlushMode.InSession, token)).Conflicts);
+            Assert.True(fixture.Store.SaveConflicts.Read(42, "libretro:battery")!.IsOpen);
+            fixture.MarkSent();
+            Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSession, token)).Downloaded);
+            Assert.Empty(fixture.Stub.Acknowledged);
+            Assert.Equal("new offline progress", File.ReadAllText(destination));
+            Assert.Single(Directory.GetFiles(fixture.Install.Resolve(SaveSync.AsideDirectory)));
+        }
+    }
+
+    [Fact]
+    public async Task Zelda_II_session_preserves_a_known_deletion_on_either_side()
+    {
+        using var fixture = SyncFixture.Create();
+        const string rom = "Zelda II - The Adventure of Link (USA)";
+        fixture.AddGame(42, "nes", rom, ".nes", ".srm", "never uploaded");
+        fixture.Scan();
+        var token = TestContext.Current.CancellationToken;
+        var destination = fixture.Resolve($"saves/nes/{rom}.srm");
+
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "delete";
+        Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSession, token)).Uploaded);
+        Assert.Equal("never uploaded", File.ReadAllText(destination));
+        Assert.Empty(fixture.Stub.Saves);
+
+        File.Delete(destination);
+        fixture.Scan();
+        Assert.Empty(fixture.Store.Saves.List(42));
+        Assert.Null(fixture.Store.SaveSlots.Read(42, "libretro:battery"));
+        using (var reopened = LocalStore.Open(fixture.Install))
+        {
+            Assert.True(reopened.Saves.WasNesSaveRemoved(42));
+        }
+
+        fixture.SeedServerSave(42, "libretro:battery", rom, "srm", "old copy on A");
+        fixture.Stub.UnsolicitedDownloads.Add((42, "libretro:battery"));
+        foreach (var mode in new[] { FlushMode.InSession, FlushMode.Background })
+        {
+            Assert.Equal(0, (await fixture.SyncAsync(mode, token)).Downloaded);
+        }
+
+        Assert.False(File.Exists(destination));
+        Assert.Empty(fixture.Stub.Acknowledged);
+
+        fixture.Write($"saves/nes/{rom}.srm", "new save");
+        fixture.Scan();
+        fixture.Store.InTransaction(fixture.Store.ForgetServerKeyedRows);
+        Assert.False(fixture.Store.Saves.WasNesSaveRemoved(42));
     }
 
     [Fact]
@@ -4307,10 +4447,10 @@ public class SaveSyncTests
         public CorrelationOutcome Correlate() => new PlaytimeCorrelator(Install, Store).Correlate();
 
         public Task<SaveSyncOutcome> SyncAsync(CancellationToken cancellationToken = default) =>
-            SyncAsync(applyRemoteChanges: true, cancellationToken);
+            SyncAsync(FlushMode.Manual, cancellationToken);
 
-        public Task<SaveSyncOutcome> SyncAsync(bool applyRemoteChanges, CancellationToken cancellationToken) =>
-            new SaveSync(Install, Store, _connection, DeviceId).RunAsync(applyRemoteChanges, cancellationToken);
+        public Task<SaveSyncOutcome> SyncAsync(FlushMode mode, CancellationToken cancellationToken) =>
+            new SaveSync(Install, Store, _connection, DeviceId).RunAsync(mode, cancellationToken);
 
         public Task<RomMResponse<SaveRestoreFindings>> FindRestorableAsync(
             CancellationToken cancellationToken = default) =>

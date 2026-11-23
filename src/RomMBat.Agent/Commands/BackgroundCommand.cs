@@ -98,9 +98,10 @@ internal static class BackgroundCommand
                     context,
                     CommandLine.Parse(["flush", "--quiet"]),
                     cancellationToken,
-                    sessionUpload: sessionUpload,
+                    mode: sessionUpload ? FlushMode.InSession : FlushMode.Background,
                     onReport: report => log.Write(report.Scanned
                         ? $"flush {report.State}, queued {report.Queued}, conflicts {report.Conflicts.Count}"
+                            + $", saves up {report.SavesSent?.Uploaded ?? 0}, down {report.SavesSent?.Downloaded ?? 0}"
                         : $"flush {report.State}"))
                 .ConfigureAwait(false);
 

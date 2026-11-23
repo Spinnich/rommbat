@@ -3,19 +3,20 @@ using RomMBat.Core.Paths;
 
 namespace RomMBat.Core.Sync;
 
-/// <summary>The time the most recent in-session save or state upload completed.</summary>
-public static class BackgroundUpload
+/// <summary>The time the most recent in-session transfer completed.</summary>
+public static class BackgroundTransfer
 {
-    private static RelativePath Location { get; } = RetroBatInstall.AppDirectory.Combine("last-upload.txt");
+    private static RelativePath Location(bool download) =>
+        RetroBatInstall.AppDirectory.Combine(download ? "last-download.txt" : "last-upload.txt");
 
-    public static DateTimeOffset? Read(RetroBatInstall install)
+    public static DateTimeOffset? Read(RetroBatInstall install, bool download = false)
     {
         ArgumentNullException.ThrowIfNull(install);
 
         try
         {
             using var stream = new FileStream(
-                install.Resolve(Location), FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+                install.Resolve(Location(download)), FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
             using var reader = new StreamReader(stream);
             return DateTimeOffset.TryParseExact(
                 reader.ReadLine(), "O", CultureInfo.InvariantCulture, DateTimeStyles.None, out var at)
@@ -28,11 +29,11 @@ public static class BackgroundUpload
         }
     }
 
-    internal static void Record(RetroBatInstall install, DateTimeOffset at)
+    internal static void Record(RetroBatInstall install, DateTimeOffset at, bool download = false)
     {
         ArgumentNullException.ThrowIfNull(install);
 
-        var path = install.Resolve(Location);
+        var path = install.Resolve(Location(download));
         var temporary = path + ".part";
         try
         {
@@ -41,7 +42,7 @@ public static class BackgroundUpload
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // A status write must not turn a completed upload into a failed pass.
+            // A status write must not turn a completed transfer into a failed pass.
         }
     }
 }

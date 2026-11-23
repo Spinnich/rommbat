@@ -107,10 +107,11 @@ configuration stays queued and the flush runs anyway, because the flush touches 
 
 `background start` runs a full startup flush and keeps one worker per install while
 EmulationStation runs. The worker checks the spool every two seconds. It gives new events
-one poll to settle and retries uploads every 30 seconds while idle. The spool, saved files
-and outbox remain the retry sources after restart. Applying saves from another device still
-uses the full flush paths. The Status screen reads the time of the last in-session upload
-from `emulators/rommbat/last-upload.txt`.
+one poll to settle and retries every 30 seconds while idle. The spool, saved files
+and outbox remain the retry sources after restart. In-session downloads cover plain NES
+Libretro SRAM only. The worker verifies the download, rechecks for a launch and replaces
+only an unchanged synced file, keeping its previous bytes. The Status screen reads the
+last in-session transfer times from `emulators/rommbat/last-upload.txt` and `last-download.txt`.
 
 Config is impossible during the session for a measured reason:
 ES's launch write to `es_settings.cfg` lands 1.6 to 4.9 s **before** the `start` hook fires, so

@@ -105,18 +105,21 @@ public class StatusScreenTests
     }
 
     [Fact]
-    public void Status_shows_the_last_in_session_upload_when_one_has_completed()
+    public void Status_shows_the_last_in_session_transfers_when_they_have_completed()
     {
         using var tree = TempRetroBatTree.Create();
         var model = Open(tree, out var session);
         using var _ = session;
 
         var at = new DateTimeOffset(2026, 11, 23, 12, 0, 0, TimeSpan.Zero);
-        BackgroundUpload.Record(session.Install, at);
+        BackgroundTransfer.Record(session.Install, at);
+        BackgroundTransfer.Record(session.Install, at.AddMinutes(1), download: true);
 
         var waiting = model.Sections().Single(section => section.Title == "Waiting");
         var upload = Assert.Single(waiting.Rows, row => row.Label == "Last in-session upload");
         Assert.Equal(at.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture), upload.Value);
+        var download = Assert.Single(waiting.Rows, row => row.Label == "Last in-session download");
+        Assert.Equal(at.AddMinutes(1).ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture), download.Value);
     }
 
     [Fact]

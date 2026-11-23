@@ -381,9 +381,9 @@ public sealed class SaveSync
     /// </para>
     /// </remarks>
     public Task<SaveSyncOutcome> RunAsync(CancellationToken cancellationToken = default) =>
-        RunAsync(applyRemoteChanges: true, cancellationToken);
+        RunAsync(FlushMode.Manual, cancellationToken);
 
-    internal async Task<SaveSyncOutcome> RunAsync(bool applyRemoteChanges, CancellationToken cancellationToken)
+    internal async Task<SaveSyncOutcome> RunAsync(FlushMode mode, CancellationToken cancellationToken)
     {
         var saves = _store.Saves.List()
             .Where(save => save.RomId is not null && save.ContentHash is not null)
@@ -477,7 +477,17 @@ public sealed class SaveSync
             var key = ((long)operation.RomId, operation.Slot ?? string.Empty);
             byKey.TryGetValue(key, out var local);
 
+            var automaticNes = mode != FlushMode.Manual && IsNesBattery(operation);
+            var slot = automaticNes ? _store.SaveSlots.Read(operation.RomId, NesBatterySlot) : null;
             var action = Decide(operation, local);
+
+            // A server-side deletion is a decision too. The worker must neither remove the
+            // local file nor put an old copy back on RomM.
+            if (automaticNes && (operation.Parsed == SyncAction.Delete
+                || action == SyncAction.Upload && operation.SaveId is null && slot?.SaveId is not null))
+            {
+                continue;
+            }
 
             if (action == SyncAction.Upload && local is not null && IsDeletedBytesRewritten(operation, local))
             {
@@ -531,7 +541,12 @@ public sealed class SaveSync
                     break;
 
                 case SyncAction.Download when operation.SaveId is { } saveId:
-                    if (AlreadyHeld(operation, local))
+                    if (automaticNes && _store.SaveConflicts.Read(operation.RomId, NesBatterySlot) is { IsOpen: true })
+                    {
+                        break;
+                    }
+
+                    if (AlreadyHeld(operation, local) || automaticNes && local is not null && HoldsHead(operation, local))
                     {
                         if (await SettleOnHeadAsync(operation, local!, cancellationToken).ConfigureAwait(false) is { } heldUntold)
                         {
@@ -670,10 +685,15 @@ public sealed class SaveSync
                         break;
                     }
 
-                    // A game can start during the download. The session worker leaves writes
-                    // and removals of live saves to the existing full-flush paths.
-                    if (!applyRemoteChanges)
+                    if (mode == FlushMode.InSession && !automaticNes)
                     {
+                        break;
+                    }
+
+                    if (automaticNes && AutomaticNesDeferral(operation, destination, local, slot) is { } hold)
+                    {
+                        deferred++;
+                        problems.Add($"{destination}: {hold}");
                         break;
                     }
 
@@ -683,18 +703,15 @@ public sealed class SaveSync
                             local,
                             destination,
                             result.SessionId,
-                            cancellationToken)
+                            cancellationToken,
+                            automaticNes)
                         .ConfigureAwait(false);
 
                     if (download.Deferred is { } waiting)
                     {
-                        // Counted and said once, never as a failure: the save is intact on the
-                        // server, nothing was acknowledged, and the pass the quit hook spawns
-                        // lands it. Reported per operation rather than as a bare count because
-                        // the answer to "why is my save not here" is which game was running.
                         deferred++;
-                        problems.Add($"{NameSave(operation.RomId, operation.Slot)}: not written "
-                            + $"because {waiting}. The next flush writes it.");
+                        problems.Add($"{NameSave(operation.RomId, operation.Slot)}: not written because {waiting}."
+                            + (automaticNes ? string.Empty : " The next flush writes it."));
                     }
                     else if (download.Rejected is { } notASave)
                     {
@@ -730,7 +747,7 @@ public sealed class SaveSync
                     noOps++;
                     break;
 
-                case SyncAction.Delete when !applyRemoteChanges:
+                case SyncAction.Delete when mode == FlushMode.InSession || automaticNes:
                     break;
 
                 case SyncAction.Delete:
@@ -1690,7 +1707,8 @@ public sealed class SaveSync
         LocalSave? local,
         RelativePath destination,
         int? sessionId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool automaticNes = false)
     {
         // Before the transfer, not before the write, so a deferral costs nothing on the wire
         // either. Every route that writes a save into the tree comes through here, which is what
@@ -1783,8 +1801,25 @@ public sealed class SaveSync
             var absolute = _install.Resolve(destination);
             Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
 
-            MoveAside(destination);
-            File.Move(part, absolute, overwrite: true);
+            if (automaticNes)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var slot = _store.SaveSlots.Read(operation.RomId, NesBatterySlot);
+                if (AutomaticNesDeferral(operation, destination, local, slot) is { } blocked)
+                {
+                    return (0, null, blocked, null);
+                }
+
+                if (CommitNesDownload(part, destination, local) is { } changed)
+                {
+                    return (0, null, changed, null);
+                }
+            }
+            else
+            {
+                MoveAside(destination);
+                File.Move(part, absolute, overwrite: true);
+            }
 
             // Only now, with the bytes on disk and checked. Before this the server still
             // believes the device does not have the save, which is the recoverable state.
@@ -1798,19 +1833,102 @@ public sealed class SaveSync
                 return (written, $"{destination}: written, but the server was not told: {ack.Message}", null, null);
             }
 
-            RecordRestored(operation, destination, local);
+            RecordRestored(operation, destination, local, automaticNes ? operation.ServerContentHash : null);
             return (written, null, null, null);
         }
         catch (RomMUnreachableException ex)
         {
-            SafeDelete(part);
             return (0, $"{destination}: {ex.Message}", null, null);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            SafeDelete(part);
             return (0, $"{destination}: it could not be written: {ex.Message}", null, null);
         }
+        finally
+        {
+            SafeDelete(part);
+        }
+    }
+
+    private const string NesBatterySlot = "libretro:battery";
+
+    private bool IsNesBattery(SyncOperation operation) =>
+        operation.Slot == NesBatterySlot
+        && _store.Files.ForRom(operation.RomId, LocalFileKind.Rom).Any(rom => rom.Folder == "nes");
+
+    private string? AutomaticNesDeferral(
+        SyncOperation operation, RelativePath destination, LocalSave? local, SaveSlotRecord? slot)
+    {
+        var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
+        if (roms is not [{ Folder: "nes" } rom]
+            || !File.Exists(_install.Resolve(rom.Path))
+            || !string.Equals(destination.Value, $"saves/nes/{Path.GetFileNameWithoutExtension(rom.FileName)}.srm",
+                StringComparison.OrdinalIgnoreCase)
+            || operation.ServerContentHash is not { Length: 32 } hash
+            || !hash.All(char.IsAsciiHexDigit)
+            || new LaunchEmulator(_install).For("nes", roms) is { } emulator && emulator != "libretro")
+        {
+            return "the automatic restore needs one installed NES ROM, a Libretro SRAM path and a verifiable server hash";
+        }
+
+        if (_store.SaveConflicts.Read(operation.RomId, NesBatterySlot) is { IsOpen: true })
+        {
+            return "the save has a conflict waiting for a decision";
+        }
+
+        if (local is null)
+        {
+            if (File.Exists(_install.Resolve(destination)))
+            {
+                return "the save file is present but could not be identified as a synced local copy";
+            }
+
+            if (slot is not null || _store.Saves.WasNesSaveRemoved(operation.RomId))
+            {
+                return "a previously known local save is missing. Use saves restore to bring it back";
+            }
+        }
+        else if (local.Path != destination || local.ShapeClass != SaveShapeClass.A
+            || local.IsUnsent || local.HasChangedSinceUpload)
+        {
+            return "the existing save has local changes or its sync history is unclear";
+        }
+
+        return NesSaveInUse();
+    }
+
+    private string? NesSaveInUse() =>
+        _inFlight.HasActiveGame() || EmulationStationProcess.MayBeLaunchingLibretro(_install)
+            ? "a game or emulator launch may still be in progress"
+            : null;
+
+    private string? CommitNesDownload(string part, RelativePath destination, LocalSave? local)
+    {
+        var absolute = _install.Resolve(destination);
+        if (local is null)
+        {
+            // A save appearing since the scan may be a new local game. The move is create-only.
+            File.Move(part, absolute, overwrite: false);
+            return null;
+        }
+
+        // Deny new writers while checking the old bytes and replacing the file, and allow the
+        // replace operation's delete access. The old contents are kept as part of the replace.
+        using var held = File.Open(absolute, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+        if (!string.Equals(LogicalContentHash.OfStream(held), local.UploadedContentHash, StringComparison.OrdinalIgnoreCase))
+        {
+            return "the local save changed while the download was running";
+        }
+
+        var aside = NextAsidePath(destination);
+        Directory.CreateDirectory(Path.GetDirectoryName(aside)!);
+        if (NesSaveInUse() is { } running)
+        {
+            return running;
+        }
+
+        File.Replace(part, absolute, aside);
+        return null;
     }
 
     /// <summary>The four bytes RomM 5.2.0's browser player uploaded when it had no save to send.</summary>
@@ -2453,6 +2571,29 @@ public sealed class SaveSync
             return null;
         }
 
+        var asidePath = NextAsidePath(target);
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(asidePath)!);
+
+            // Copy rather than move: if anything after this fails, the file the emulator reads
+            // is still the one that was always there.
+            File.Copy(absolute, asidePath, overwrite: false);
+            return _install.Relativize(asidePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Reported by the caller failing rather than swallowed: an overwrite with no copy
+            // aside is exactly what principle 1 forbids.
+            throw new IOException(
+                $"the existing save at {target} could not be copied aside, so it was not replaced: {ex.Message}",
+                ex);
+        }
+    }
+
+    private string NextAsidePath(RelativePath target)
+    {
         // Suffixed when the name is taken: two games sharing a file name (a NES and a GB
         // `Pac-Man (USA).srm`) handled in the same second would otherwise overwrite one copy.
         var stamp = $"{_time.GetUtcNow():yyyyMMddTHHmmss}";
@@ -2463,25 +2604,7 @@ public sealed class SaveSync
             aside = AsideDirectory.Combine($"{stamp}-{n}-{target.Name}");
         }
 
-        var asidePath = _install.Resolve(aside);
-
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(asidePath)!);
-
-            // Copy rather than move: if anything after this fails, the file the emulator reads
-            // is still the one that was always there.
-            File.Copy(absolute, asidePath, overwrite: false);
-            return aside;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Reported by the caller failing rather than swallowed: an overwrite with no copy
-            // aside is exactly what principle 1 forbids.
-            throw new IOException(
-                $"the existing save at {target} could not be copied aside, so it was not replaced: {ex.Message}",
-                ex);
-        }
+        return _install.Resolve(aside);
     }
 
     /// <summary>
@@ -2582,12 +2705,13 @@ public sealed class SaveSync
     /// sides hold the same bytes: without that the next scan would read the file as unsent and
     /// offer it straight back up, and eviction would refuse the game forever.
     /// </remarks>
-    private void RecordRestored(SyncOperation operation, RelativePath destination, LocalSave? previous)
+    private void RecordRestored(
+        SyncOperation operation, RelativePath destination, LocalSave? previous, string? verifiedHash = null)
     {
         var now = _time.GetUtcNow();
         var absolute = _install.Resolve(destination);
         var info = new FileInfo(absolute);
-        var hash = LogicalContentHash.OfFile(absolute);
+        var hash = verifiedHash ?? LogicalContentHash.OfFile(absolute);
 
         // Blank rather than null on both of these, because the CHECKs they answer to refuse the
         // empty string and whitespace exactly as they refuse null, and SaveScanner.SlotFor
