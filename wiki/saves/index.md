@@ -14,9 +14,9 @@ account can carry on where you left off. You do not have to do anything for it t
 
 ## When it happens
 
-RomMBat syncs saves each time you open EmulationStation and each time you quit it, and again at
-the start of every sync. After you close a game, RomMBat tries uploads in the background while
-EmulationStation stays open. If a save is still busy, RomMBat can pick it up on a later try.
+RomMBat sends pending work when you open or quit EmulationStation, when you close a game,
+and when you check for changes. After a game closes, the background worker uploads while EmulationStation
+stays open. It retries briefly if a file is still busy or RomM is temporarily unreachable.
 
 While EmulationStation is open, RomMBat also looks for incoming plain NES Libretro saves
 about every 30 seconds while idle. It waits if a game is running. A previously removed save
@@ -27,9 +27,10 @@ sync at startup, shutdown or when you check for changes.
 
 ## Away from the server
 
-**Playing offline loses nothing.** Saves and playtime wait on this device and go up the next time
-it can reach RomM. RomMBat retries while EmulationStation is idle. The main menu's Waiting to
-upload row shows queued items, and Status shows the most recent in-session upload and download.
+Saves and playtime stay on this device while RomM is unreachable. If the short retries
+run out, RomMBat resumes pending uploads when the next receive check reaches RomM.
+Closing a game, restarting EmulationStation, or checking for changes also picks up pending work. The main menu's Waiting to upload row shows queued items, and Status shows the most
+recent in-session upload and download.
 
 ## When a save is deleted in RomM
 

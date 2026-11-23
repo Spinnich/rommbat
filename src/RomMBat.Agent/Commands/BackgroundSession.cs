@@ -1,21 +1,26 @@
+using System.Threading.Channels;
 using Microsoft.Data.Sqlite;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Sync;
 
 namespace RomMBat.Agent.Commands;
 
-/// <summary>Runs one upload worker per install for as long as EmulationStation is present.</summary>
+internal readonly record struct BackgroundPassResult(
+    int ExitCode, bool RetryUpload = false, bool? ServerReachable = null);
+
+/// <summary>Runs one worker per install for as long as EmulationStation is present.</summary>
 internal static class BackgroundSession
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan RetryInterval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan ReceiveInterval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan[] RetryDelays =
+        [TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30)];
 
     public static async Task<int> RunAsync(
         RetroBatInstall install,
         Func<bool> isRunning,
-        Func<bool, CancellationToken, Task<int>> flush,
+        Func<FlushMode, CancellationToken, Task<BackgroundPassResult>> flush,
         CancellationToken cancellationToken,
-        Func<CancellationToken, Task>? wait = null,
+        Func<TimeSpan, CancellationToken, Task<bool>>? wait = null,
         TimeProvider? timeProvider = null)
     {
         using var lease = TryOwnSession(install);
@@ -25,37 +30,74 @@ internal static class BackgroundSession
         }
 
         timeProvider ??= TimeProvider.System;
-        wait ??= token => Task.Delay(PollInterval, timeProvider, token);
+        var spool = install.Resolve(SpoolDrain.Directory);
+        using var wakeup = new SpoolWakeup(spool, timeProvider);
+        wait ??= wakeup.WaitAsync;
+        var origin = timeProvider.GetTimestamp();
+        var retries = 0;
+        var pendingUpload = false;
+        var disconnected = false;
+        TimeSpan? nextUpload = null;
 
         try
         {
-            // Preserve the full startup pass, including saves offered by another install.
-            var exitCode = await RunPassAsync(sessionUpload: false).ConfigureAwait(false);
-            var previous = NewestEvent(install);
-            string? attempted = null;
-            var lastAttempt = timeProvider.GetTimestamp();
+            // Subscribe before the recovery pass so an event arriving during startup wakes us.
+            var initial = await RunPassAsync(FlushMode.Background).ConfigureAwait(false);
+            var exitCode = initial.ExitCode;
+            ScheduleRetry(initial);
+            var nextReceive = timeProvider.GetElapsedTime(origin) + ReceiveInterval;
 
+            // Check once after recovery, including events that were already present before
+            // the watcher was enabled or appeared while a different pass held the tree lock.
+            var spoolChanged = true;
             while (isRunning())
             {
-                await wait(cancellationToken).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!isRunning())
+                var now = timeProvider.GetElapsedTime(origin);
+                if (spoolChanged && HasGameEnd(spool))
                 {
-                    return exitCode;
+                    // Preserve the retry budget when another notification refers to the same
+                    // still-queued work, but let a fresh game end wake a delayed retry.
+                    if (nextUpload is null)
+                    {
+                        retries = 0;
+                    }
+
+                    nextUpload = now;
                 }
 
-                // Let a new hook batch settle for one poll. The guard inside the flush reads the
-                // spool again under TreeLock, and retries also cover files that are still busy.
-                var newest = NewestEvent(install);
-                var eventArrived = newest is not null && newest != attempted;
-                if (newest == previous && (eventArrived || timeProvider.GetElapsedTime(lastAttempt) >= RetryInterval))
+                if (nextUpload <= now)
                 {
-                    exitCode = await RunPassAsync(sessionUpload: true).ConfigureAwait(false);
-                    lastAttempt = timeProvider.GetTimestamp();
-                    attempted = newest;
+                    var upload = await RunPassAsync(FlushMode.InSessionUpload).ConfigureAwait(false);
+                    exitCode = upload.ExitCode;
+                    ScheduleRetry(upload);
                 }
 
-                previous = newest;
+                now = timeProvider.GetElapsedTime(origin);
+                if (nextReceive <= now)
+                {
+                    var receive = await RunPassAsync(FlushMode.InSessionReceive).ConfigureAwait(false);
+                    exitCode = receive.ExitCode;
+                    now = timeProvider.GetElapsedTime(origin);
+                    nextReceive = now + ReceiveInterval;
+                    if (pendingUpload && receive.ServerReachable is { } reachable)
+                    {
+                        // Reuse the receive's connectivity result. A transition can wake
+                        // known work even after the short upload retry budget ran out.
+                        if (reachable && disconnected)
+                        {
+                            retries = 0;
+                            nextUpload = now;
+                        }
+
+                        disconnected = !reachable;
+                    }
+                }
+
+                var next = nextUpload is { } uploadDue && uploadDue < nextReceive ? uploadDue : nextReceive;
+                var delay = next - timeProvider.GetElapsedTime(origin);
+                spoolChanged = await wait(delay > TimeSpan.Zero ? delay : TimeSpan.Zero, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             return exitCode;
@@ -65,44 +107,62 @@ internal static class BackgroundSession
             return ExitCode.Canceled;
         }
 
-        async Task<int> RunPassAsync(bool sessionUpload)
+        void ScheduleRetry(BackgroundPassResult pass)
+        {
+            pendingUpload = pass.RetryUpload;
+            disconnected = pendingUpload && (pass.ServerReachable is { } reachable ? !reachable : disconnected);
+            nextUpload = pendingUpload && retries < RetryDelays.Length
+                ? timeProvider.GetElapsedTime(origin) + RetryDelays[retries++]
+                : null;
+        }
+
+        async Task<BackgroundPassResult> RunPassAsync(FlushMode mode)
         {
             try
             {
-                return await flush(sessionUpload, cancellationToken).ConfigureAwait(false);
+                return await flush(mode, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
             {
                 using var log = BackgroundLog.Open(install, "start");
                 log.Write($"session flush interrupted: {ex.Message}");
-                return ExitCode.ServerError;
+                return new BackgroundPassResult(ExitCode.ServerError, RetryUpload: mode != FlushMode.InSessionReceive);
             }
         }
     }
 
-    private static string? NewestEvent(RetroBatInstall install)
+    private static bool HasGameEnd(string spool)
     {
         try
         {
-            return Directory.EnumerateFiles(install.Resolve(SpoolDrain.Directory), "*" + SpoolDrain.Extension)
-                .Max(StringComparer.Ordinal);
+            foreach (var file in Directory.EnumerateFiles(spool, "*" + Spool.Extension))
+            {
+                try
+                {
+                    if (SpoolRecord.Parse(File.ReadAllText(file))?.Event == "game-end")
+                    {
+                        return true;
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A concurrent flush may have removed it. Other events still matter.
+                }
+            }
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return null;
+            // A removed portable drive may be reopened by the next session.
         }
-        catch (UnauthorizedAccessException)
-        {
-            return null;
-        }
+
+        return false;
     }
 
     private static FileStream? TryOwnSession(RetroBatInstall install)
     {
         try
         {
-            // This is separate from TreeLock so UI and CLI flushes can run between worker passes.
-            // The OS releases the handle when the process dies, even if the file stays behind.
+            // Independent of TreeLock so UI and CLI flushes can run between passes.
             return new FileStream(
                 Path.Combine(install.AppDirectoryPath, "session.lock"),
                 FileMode.OpenOrCreate,
@@ -114,4 +174,50 @@ internal static class BackgroundSession
             return null;
         }
     }
+}
+
+/// <summary>Coalesces notifications for committed spool records. The files remain the queue.</summary>
+internal sealed class SpoolWakeup : IDisposable
+{
+    private readonly Channel<bool> _changed = Channel.CreateBounded<bool>(1);
+    private readonly FileSystemWatcher _watcher;
+    private readonly TimeProvider _time;
+
+    public SpoolWakeup(string spool, TimeProvider time)
+    {
+        _time = time;
+        Directory.CreateDirectory(spool);
+        _watcher = new FileSystemWatcher(spool, "*" + Spool.Extension) { NotifyFilter = NotifyFilters.FileName };
+        _watcher.Created += (_, _) => _changed.Writer.TryWrite(true);
+        _watcher.Renamed += (_, _) => _changed.Writer.TryWrite(true);
+        // On overflow, rescan committed records once instead of depending on event order.
+        _watcher.Error += (_, _) => _changed.Writer.TryWrite(true);
+        _watcher.EnableRaisingEvents = true;
+    }
+
+    public async Task<bool> WaitAsync(TimeSpan delay, CancellationToken cancellationToken)
+    {
+        if (_changed.Reader.TryRead(out _))
+        {
+            return true;
+        }
+
+        if (delay == TimeSpan.Zero)
+        {
+            return false;
+        }
+
+        using var deadline = new CancellationTokenSource(delay, _time);
+        using var wait = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        try
+        {
+            return await _changed.Reader.ReadAsync(wait.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+    }
+
+    public void Dispose() => _watcher.Dispose();
 }

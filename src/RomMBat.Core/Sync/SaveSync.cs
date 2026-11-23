@@ -10,6 +10,8 @@ namespace RomMBat.Core.Sync;
 /// <summary>What a save sync did.</summary>
 public sealed record SaveSyncOutcome
 {
+    internal bool? ServerReachable { get; init; }
+
     public int Uploaded { get; init; }
 
     public int Downloaded { get; init; }
@@ -385,8 +387,11 @@ public sealed class SaveSync
 
     internal async Task<SaveSyncOutcome> RunAsync(FlushMode mode, CancellationToken cancellationToken)
     {
+        var inSession = mode is FlushMode.InSessionReceive or FlushMode.InSessionUpload;
+        var receiveOnly = mode == FlushMode.InSessionReceive;
         var saves = _store.Saves.List()
-            .Where(save => save.RomId is not null && save.ContentHash is not null)
+            .Where(save => save.RomId is not null && save.ContentHash is not null
+                && (mode != FlushMode.InSessionReceive || save is { System: "nes", Slot: NesBatterySlot }))
             .ToList();
 
         // Slots are the pairing key, so two rows on one (rom_id, slot) have nothing to
@@ -422,17 +427,19 @@ public sealed class SaveSync
 
         var request = new NegotiateRequest(
             _deviceId,
-            [.. byKey.Values.Select(save => new NegotiateSave(
-                (int)save.RomId!.Value,
-                NameFor(save),
-                save.Slot,
-                save.Emulator,
-                save.ContentHash,
+            [.. byKey.Values
+                .Where(save => !receiveOnly || !save.IsUnsent && !save.HasChangedSinceUpload)
+                .Select(save => new NegotiateSave(
+                    (int)save.RomId!.Value,
+                    NameFor(save),
+                    save.Slot,
+                    save.Emulator,
+                    save.ContentHash,
 
-                // The file's real mtime, never the sync time. Sending the sync time makes
-                // every offline edit lose every conflict it is in.
-                save.FileMtimeUtc ?? DateTimeOffset.UnixEpoch,
-                save.SizeBytes))]);
+                    // The file's real mtime, never the sync time. Sending the sync time makes
+                    // every offline edit lose every conflict it is in.
+                    save.FileMtimeUtc ?? DateTimeOffset.UnixEpoch,
+                    save.SizeBytes))]);
 
         RomMResponse<NegotiateResult> negotiated;
 
@@ -447,7 +454,7 @@ public sealed class SaveSync
             // next flush negotiates the same set. This is the whole of "operations complete or
             // queue" at the point where the network first enters the picture.
             problems.Add(ex.Message);
-            return new SaveSyncOutcome { Failed = failed + byKey.Count, Problems = problems };
+            return new SaveSyncOutcome { Failed = failed + byKey.Count, Problems = problems, ServerReachable = false };
         }
 
         if (!negotiated.IsSuccess || negotiated.Value is not { } result)
@@ -469,6 +476,7 @@ public sealed class SaveSync
 
         // What each upload did, so siblings of one save can be reported together below.
         var sent = new List<(long RomId, string Slot, bool Ok)>();
+        var serverReachable = true;
 
         foreach (var operation in result.Operations)
         {
@@ -494,10 +502,17 @@ public sealed class SaveSync
                 action = SyncAction.Delete;
             }
 
+            if (receiveOnly && action == SyncAction.Upload
+                || mode == FlushMode.InSessionReceive && !automaticNes)
+            {
+                continue;
+            }
+
             switch (action)
             {
                 case SyncAction.NoOp:
                     if (local is not null && HoldsHead(operation, local)
+                        && (mode != FlushMode.InSessionReceive || CanSettleIndexedHead(operation, local))
                         && await SettleOnHeadAsync(operation, local, cancellationToken).ConfigureAwait(false) is { } untold)
                     {
                         problems.Add(untold);
@@ -510,6 +525,7 @@ public sealed class SaveSync
                     var attempt = await UploadAsync(local, result.SessionId, cancellationToken)
                         .ConfigureAwait(false);
 
+                    serverReachable &= !attempt.Unreachable;
                     if (attempt.Conflicted)
                     {
                         // <b>A 409 is a conflict, not a failure, and this is where the two
@@ -548,7 +564,8 @@ public sealed class SaveSync
 
                     if (AlreadyHeld(operation, local) || automaticNes && local is not null && HoldsHead(operation, local))
                     {
-                        if (await SettleOnHeadAsync(operation, local!, cancellationToken).ConfigureAwait(false) is { } heldUntold)
+                        if ((mode != FlushMode.InSessionReceive || CanSettleIndexedHead(operation, local!))
+                            && await SettleOnHeadAsync(operation, local!, cancellationToken).ConfigureAwait(false) is { } heldUntold)
                         {
                             problems.Add(heldUntold);
                         }
@@ -685,7 +702,7 @@ public sealed class SaveSync
                         break;
                     }
 
-                    if (mode == FlushMode.InSession && !automaticNes)
+                    if (mode == FlushMode.InSessionUpload)
                     {
                         break;
                     }
@@ -747,7 +764,7 @@ public sealed class SaveSync
                     noOps++;
                     break;
 
-                case SyncAction.Delete when mode == FlushMode.InSession || automaticNes:
+                case SyncAction.Delete when inSession || automaticNes:
                     break;
 
                 case SyncAction.Delete:
@@ -821,12 +838,14 @@ public sealed class SaveSync
             // The link dropped after the transfers. Everything that landed still landed, and a
             // session left open costs the server a stale row rather than costing anyone a save.
             leftOpen = true;
+            serverReachable = false;
             problems.Add($"the sync session could not be closed: {ex.Message}");
         }
 
         return new SaveSyncOutcome
         {
             Uploaded = uploaded,
+            ServerReachable = serverReachable,
             Downloaded = downloaded,
             Conflicts = conflicts.Count,
             NoOps = noOps,
@@ -1311,7 +1330,7 @@ public sealed class SaveSync
     /// flush and costs nothing; a conflict needs a person to choose a side, so it is persisted
     /// and reported rather than retried, and <c>saves resolve</c> is the only thing that ends it.
     /// </remarks>
-    private async Task<(bool Conflicted, string? Problem)> UploadAsync(
+    private async Task<(bool Conflicted, string? Problem, bool Unreachable)> UploadAsync(
         LocalSave save,
         int sessionId,
         CancellationToken cancellationToken)
@@ -1321,7 +1340,7 @@ public sealed class SaveSync
 
         if (isUnit ? !Directory.Exists(path) : !File.Exists(path))
         {
-            return (false, $"{Describe(save)}: it is gone since the scan.");
+            return (false, $"{Describe(save)}: it is gone since the scan.", false);
         }
 
         string? bundle = null;
@@ -1339,7 +1358,7 @@ public sealed class SaveSync
 
                 if (unit is null)
                 {
-                    return (false, $"{Describe(save)}: it is gone since the scan.");
+                    return (false, $"{Describe(save)}: it is gone since the scan.", false);
                 }
 
                 bundle = SaveUnitTransfer.Pack(_install, unit, _install.Resolve(PartialDirectory));
@@ -1365,7 +1384,7 @@ public sealed class SaveSync
 
             if (!response.IsSuccess || response.Value is not { } result)
             {
-                return (false, $"{Describe(save)}: {response.Message}");
+                return (false, $"{Describe(save)}: {response.Message}", false);
             }
 
             if (result.Conflict)
@@ -1373,7 +1392,7 @@ public sealed class SaveSync
                 // The server refused because this device's record is stale. Never retried with
                 // overwrite here, which would discard whatever moved; the caller records it as a
                 // conflict and `saves resolve --keep-local` is the only caller of overwrite.
-                return (true, null);
+                return (true, null, false);
             }
 
             if (result.Save is { } row)
@@ -1385,15 +1404,15 @@ public sealed class SaveSync
             // The value a later scan compares the tree against. For every shape it is also the
             // server's content_hash for what was sent.
             _store.Saves.MarkUploaded(save.Path, save.UnitKey, save.ContentHash!, _time.GetUtcNow());
-            return (false, null);
+            return (false, null, false);
         }
         catch (RomMUnreachableException ex)
         {
-            return (false, $"{Describe(save)}: {ex.Message}");
+            return (false, $"{Describe(save)}: {ex.Message}", true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return (false, $"{Describe(save)}: it could not be read: {ex.Message}");
+            return (false, $"{Describe(save)}: it could not be read: {ex.Message}", false);
         }
         finally
         {
@@ -1519,6 +1538,29 @@ public sealed class SaveSync
             && operation.ServerContentHash is { } offered
             && local.ContentHash is { } held
             && string.Equals(held, offered, StringComparison.OrdinalIgnoreCase);
+
+    private bool CanSettleIndexedHead(SyncOperation operation, LocalSave local)
+    {
+        if (!local.IsUnsent && !local.HasChangedSinceUpload
+            && _store.SaveSlots.Read(operation.RomId, local.Slot)?.SaveId == operation.SaveId)
+        {
+            return true;
+        }
+
+        // A receive pass has no fresh scan. Only read the candidate whose acknowledgement
+        // can change, rather than treating an old indexed hash as evidence of current bytes.
+        try
+        {
+            return string.Equals(
+                LogicalContentHash.OfFile(_install.Resolve(local.Path)),
+                local.ContentHash,
+                StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
 
     /// <summary>
     /// Records a save whose bytes the head of its slot already holds as in step with that head,
@@ -1821,6 +1863,13 @@ public sealed class SaveSync
                 File.Move(part, absolute, overwrite: true);
             }
 
+            // Keep verified bytes in the local index even if the acknowledgement is interrupted.
+            // The next receiver negotiates from that index without walking the save tree.
+            if (automaticNes)
+            {
+                RecordRestored(operation, destination, local, operation.ServerContentHash, recordSlot: false);
+            }
+
             // Only now, with the bytes on disk and checked. Before this the server still
             // believes the device does not have the save, which is the recoverable state.
             var ack = await _connection.AcknowledgeSaveAsync(saveId, _deviceId, cancellationToken).ConfigureAwait(false);
@@ -1833,7 +1882,14 @@ public sealed class SaveSync
                 return (written, $"{destination}: written, but the server was not told: {ack.Message}", null, null);
             }
 
-            RecordRestored(operation, destination, local, automaticNes ? operation.ServerContentHash : null);
+            if (automaticNes)
+            {
+                RecordRestoredSlot(operation, _time.GetUtcNow());
+            }
+            else
+            {
+                RecordRestored(operation, destination, local);
+            }
             return (written, null, null, null);
         }
         catch (RomMUnreachableException ex)
@@ -1889,7 +1945,7 @@ public sealed class SaveSync
             }
         }
         else if (local.Path != destination || local.ShapeClass != SaveShapeClass.A
-            || local.IsUnsent || local.HasChangedSinceUpload)
+            || local.IsUnsent || local.HasChangedSinceUpload || !File.Exists(_install.Resolve(destination)))
         {
             return "the existing save has local changes or its sync history is unclear";
         }
@@ -2706,7 +2762,8 @@ public sealed class SaveSync
     /// offer it straight back up, and eviction would refuse the game forever.
     /// </remarks>
     private void RecordRestored(
-        SyncOperation operation, RelativePath destination, LocalSave? previous, string? verifiedHash = null)
+        SyncOperation operation, RelativePath destination, LocalSave? previous,
+        string? verifiedHash = null, bool recordSlot = true)
     {
         var now = _time.GetUtcNow();
         var absolute = _install.Resolve(destination);
@@ -2755,6 +2812,14 @@ public sealed class SaveSync
             },
             now);
 
+        if (recordSlot)
+        {
+            RecordRestoredSlot(operation, now);
+        }
+    }
+
+    private void RecordRestoredSlot(SyncOperation operation, DateTimeOffset now)
+    {
         // The slot's server identity moves with the bytes, as it does for a class C restore, or
         // save_slot goes on naming the save this download replaced and nothing ever corrects it,
         // since the file is then in step and the slot is not negotiated again (#157). A save the

@@ -42,7 +42,9 @@ public enum FlushMode
 {
     Manual,
     Background,
-    InSession,
+    InSessionReceive,
+    InSessionUpload,
+    Shutdown,
 }
 
 /// <summary>What a flush was asked to do.</summary>
@@ -108,6 +110,12 @@ public sealed record FlushReport
 
     /// <summary>True when the local half ran.</summary>
     public bool Scanned => Saves is not null;
+
+    /// <summary>An upload pass has existing work that can be retried.</summary>
+    public bool RetryUpload { get; init; }
+
+    /// <summary>Whether this pass reached RomM, when it could establish reachability.</summary>
+    public bool? ServerReachable { get; init; }
 }
 
 /// <summary>
@@ -176,7 +184,12 @@ public sealed class SaveFlushService
         var install = _session.Install;
         var store = _session.Store;
 
-        using var held = TreeLock.TryAcquire(install);
+        var inSession = options.Mode is FlushMode.InSessionReceive or FlushMode.InSessionUpload;
+        var receiveOnly = options.Mode == FlushMode.InSessionReceive;
+
+        using var held = options.Mode == FlushMode.Shutdown
+            ? await TreeLock.TryAcquireForShutdownAsync(install, cancellationToken).ConfigureAwait(false)
+            : TreeLock.TryAcquire(install);
 
         if (held is null)
         {
@@ -184,38 +197,47 @@ public sealed class SaveFlushService
             return new FlushReport
             {
                 State = FlushState.Skipped,
+                RetryUpload = !receiveOnly,
                 Problem = "Another flush is already running.",
             };
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        if (options.Mode == FlushMode.InSession && new InFlightGuard(install, store).HasActiveGame())
+        if (inSession && new InFlightGuard(install, store).HasActiveGame())
         {
-            return new FlushReport { State = FlushState.GameRunning };
+            return new FlushReport { State = FlushState.GameRunning, RetryUpload = !receiveOnly };
         }
 
-        // 1. The hooks wrote spool files and nothing else. Turn them into journal rows.
-        var drained = new SpoolDrain(install, store).Drain();
+        SpoolDrainOutcome? drained = null;
+        CorrelationOutcome? correlated = null;
+        StateScanOutcome? scannedStates = null;
+        SaveScanOutcome? scanned = null;
 
-        // 2. Pair each game-end with its launch, and queue what that produces.
-        var correlated = new PlaytimeCorrelator(install, store).Correlate();
+        if (options.Mode != FlushMode.InSessionReceive)
+        {
+            // 1. The hooks wrote spool files and nothing else. Turn them into journal rows.
+            drained = new SpoolDrain(install, store).Drain();
 
-        // 3. Work out what is on disk. Local, and the thing eviction depends on.
-        //
-        // The state schema goes into both passes: the save scan needs it so it does not report
-        // a state as unsyncable in the same run that uploads it.
-        //
-        // The state scan runs first. The sidecar attribution route reads local_state and
-        // SaveScanner is what runs it, so scanning saves first left the route reading an empty
-        // table on the first flush after an install is set up, and the class C saves it would
-        // have attributed went up on the second flush instead (#64).
-        var schema = StateScanner.LoadSchema(install);
+            // 2. Pair each game-end with its launch, and queue what that produces.
+            correlated = new PlaytimeCorrelator(install, store).Correlate();
 
-        var scannedStates = schema is null
-            ? null
-            : new StateScanner(install, store, schema, _time).Scan();
+            // 3. Work out what is on disk. Local, and the thing eviction depends on.
+            //
+            // The state schema goes into both passes: the save scan needs it so it does not report
+            // a state as unsyncable in the same run that uploads it.
+            //
+            // The state scan runs first. The sidecar attribution route reads local_state and
+            // SaveScanner is what runs it, so scanning saves first left the route reading an empty
+            // table on the first flush after an install is set up, and the class C saves it would
+            // have attributed went up on the second flush instead (#64).
+            var schema = StateScanner.LoadSchema(install);
 
-        var scanned = new SaveScanner(install, store, states: schema, timeProvider: _time).Scan();
+            scannedStates = schema is null
+                ? null
+                : new StateScanner(install, store, schema, _time).Scan();
+
+            scanned = new SaveScanner(install, store, states: schema, timeProvider: _time).Scan();
+        }
 
         var local = new FlushReport
         {
@@ -251,7 +273,7 @@ public sealed class SaveFlushService
 
         try
         {
-            var playtime = await new OutboxFlush(store, connection, deviceId)
+            var playtime = receiveOnly ? null : await new OutboxFlush(store, connection, deviceId)
                 .FlushPlaySessionsAsync(cancellationToken)
                 .ConfigureAwait(false);
 
@@ -262,18 +284,19 @@ public sealed class SaveFlushService
             // States go last because they are the only part of this pass that cannot fail in a
             // way anyone has to act on: nothing negotiates, nothing conflicts, and an unsent
             // state is simply sent again next time.
-            var states = await new StateSync(install, store, connection)
+            var states = receiveOnly ? null : await new StateSync(install, store, connection)
                 .RunAsync(cancellationToken)
                 .ConfigureAwait(false);
 
             // A session left open is a step this run attempted and failed, so it counts, even
             // though every transfer landed (#148).
-            var failed = saves.Failed > 0 || saves.SessionLeftOpen || playtime.Failed > 0 || states.Failed > 0;
+            var failed = saves.Failed > 0 || saves.SessionLeftOpen || playtime?.Failed > 0 || states?.Failed > 0;
+            var queued = store.Outbox.PendingCount();
 
-            if (options.Mode == FlushMode.InSession)
+            if (inSession)
             {
                 var now = (_time ?? TimeProvider.System).GetUtcNow();
-                if (saves.Uploaded > 0 || states.Uploaded > 0)
+                if (saves.Uploaded > 0 || states?.Uploaded > 0)
                 {
                     BackgroundTransfer.Record(install, now);
                 }
@@ -294,7 +317,11 @@ public sealed class SaveFlushService
                 // Re-read after sending: a conflict this pass just found belongs in the report,
                 // and the count queued has moved.
                 Conflicts = store.SaveConflicts.ListOpen(),
-                Queued = store.Outbox.PendingCount(),
+                Queued = queued,
+                RetryUpload = !receiveOnly && (queued > 0 || HasPendingUploads(store, saves.Failed > 0, states?.Failed > 0)),
+                ServerReachable = playtime?.Unreachable == true || states?.Unreachable == true
+                    ? false
+                    : saves.ServerReachable,
             };
         }
         catch (RomMUnreachableException ex)
@@ -304,9 +331,17 @@ public sealed class SaveFlushService
             return local with
             {
                 State = FlushState.Unreachable,
+                ServerReachable = false,
+                RetryUpload = !receiveOnly && (local.Queued > 0 || HasPendingUploads(store, savesFailed: true, statesFailed: true)),
                 Problem = $"The server is not reachable: {ex.Message}",
                 Queued = store.Outbox.PendingCount(),
             };
         }
     }
+
+    private static bool HasPendingUploads(LocalStore store, bool savesFailed, bool statesFailed) =>
+        store.Saves.List().Any(save => save.RomId is not null
+            && (save.ContentHash is null || savesFailed && (save.IsUnsent || save.HasChangedSinceUpload)))
+        || store.States.List().Any(state => state.RomId is not null
+            && (state.ContentHash is null || statesFailed && (state.IsUnsent || state.HasChangedSinceUpload)));
 }

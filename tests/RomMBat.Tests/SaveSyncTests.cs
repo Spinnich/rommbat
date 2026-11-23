@@ -230,14 +230,14 @@ public class SaveSyncTests
         var token = TestContext.Current.CancellationToken;
         var destination = fixture.Resolve($"saves/nes/{rom}.srm");
 
-        var first = await fixture.SyncAsync(FlushMode.InSession, token);
+        var first = await fixture.SyncAsync(FlushMode.InSessionReceive, token);
         Assert.Equal(1, first.Downloaded);
         Assert.Equal([100], fixture.Stub.Acknowledged);
         Assert.Equal("progress from A", File.ReadAllText(destination));
 
         fixture.Scan();
         fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "download";
-        var replay = await fixture.SyncAsync(FlushMode.InSession, token);
+        var replay = await fixture.SyncAsync(FlushMode.InSessionReceive, token);
         Assert.Equal(0, replay.Downloaded);
         Assert.Equal([100], fixture.Stub.Acknowledged);
         Assert.False(Directory.Exists(fixture.Install.Resolve(SaveSync.AsideDirectory)));
@@ -257,32 +257,31 @@ public class SaveSyncTests
         var aside = fixture.Install.Resolve(SaveSync.AsideDirectory);
 
         fixture.Stub.IsReachable = false;
-        await fixture.SyncAsync(FlushMode.InSession, token);
+        await fixture.SyncAsync(FlushMode.InSessionReceive, token);
         Assert.False(File.Exists(destination));
         Assert.Empty(fixture.Stub.Acknowledged);
         fixture.Stub.IsReachable = true;
-        Assert.Equal(1, (await fixture.SyncAsync(FlushMode.InSession, token)).Downloaded);
+        Assert.Equal(1, (await fixture.SyncAsync(FlushMode.InSessionReceive, token)).Downloaded);
 
         var next = new string('b', 4096);
         fixture.SeedServerSave(42, "libretro:battery", rom, "srm", next, id: 101);
         fixture.Stub.TruncateSaveDownloadAfter = 512;
-        Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSession, token)).Downloaded);
+        Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSessionReceive, token)).Downloaded);
         Assert.Equal([100], fixture.Stub.Acknowledged);
         Assert.Equal("progress from A", File.ReadAllText(destination));
         Assert.False(Directory.Exists(aside));
 
         fixture.Stub.TruncateSaveDownloadAfter = null;
         fixture.Stub.FailAcknowledge = HttpStatusCode.ServiceUnavailable;
-        await fixture.SyncAsync(FlushMode.InSession, token);
+        await fixture.SyncAsync(FlushMode.InSessionReceive, token);
         Assert.Equal(next, File.ReadAllText(destination));
         Assert.Equal("progress from A", File.ReadAllText(Assert.Single(Directory.GetFiles(aside))));
         Assert.Equal([100], fixture.Stub.Acknowledged);
 
-        fixture.Scan();
         fixture.Stub.FailAcknowledge = null;
         fixture.Stub.BeforeSaveContent = () => throw new InvalidOperationException("Identical save downloaded again.");
-        Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSession, token)).Downloaded);
-        Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSession, token)).Downloaded);
+        Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSessionReceive, token)).Downloaded);
+        Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSessionReceive, token)).Downloaded);
         Assert.Equal([100, 101], fixture.Stub.Acknowledged);
         Assert.Empty(fixture.Stub.OptimisticDownloads);
         Assert.Single(Directory.GetFiles(aside));
@@ -316,7 +315,7 @@ public class SaveSyncTests
             }
         };
 
-        var rejected = await fixture.SyncAsync(FlushMode.InSession, token);
+        var rejected = await fixture.SyncAsync(FlushMode.InSessionReceive, token);
         Assert.Equal(1, rejected.Deferred);
         Assert.Empty(fixture.Stub.Acknowledged);
         Assert.Equal(gameStarts ? "known save" : "new offline progress", File.ReadAllText(destination));
@@ -326,15 +325,17 @@ public class SaveSyncTests
         if (gameStarts)
         {
             Spool.Write(fixture.Install.RootPath, new SpoolRecord("game-end", DateTimeOffset.UtcNow.AddSeconds(1), 2, []));
-            Assert.Equal(1, (await fixture.SyncAsync(FlushMode.InSession, token)).Downloaded);
+            Assert.Equal(1, (await fixture.SyncAsync(FlushMode.InSessionReceive, token)).Downloaded);
         }
         else
         {
             fixture.Scan();
-            Assert.Equal(1, (await fixture.SyncAsync(FlushMode.InSession, token)).Conflicts);
+            fixture.Stub.UnsolicitedDownloads.Add((42, "libretro:battery"));
+            Assert.Equal(1, (await fixture.SyncAsync(FlushMode.InSessionReceive, token)).Conflicts);
             Assert.True(fixture.Store.SaveConflicts.Read(42, "libretro:battery")!.IsOpen);
             fixture.MarkSent();
-            Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSession, token)).Downloaded);
+            fixture.Stub.UnsolicitedDownloads.Clear();
+            Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSessionReceive, token)).Downloaded);
             Assert.Empty(fixture.Stub.Acknowledged);
             Assert.Equal("new offline progress", File.ReadAllText(destination));
             Assert.Single(Directory.GetFiles(fixture.Install.Resolve(SaveSync.AsideDirectory)));
@@ -352,7 +353,7 @@ public class SaveSyncTests
         var destination = fixture.Resolve($"saves/nes/{rom}.srm");
 
         fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "delete";
-        Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSession, token)).Uploaded);
+        Assert.Equal(0, (await fixture.SyncAsync(FlushMode.InSessionReceive, token)).Uploaded);
         Assert.Equal("never uploaded", File.ReadAllText(destination));
         Assert.Empty(fixture.Stub.Saves);
 
@@ -367,7 +368,7 @@ public class SaveSyncTests
 
         fixture.SeedServerSave(42, "libretro:battery", rom, "srm", "old copy on A");
         fixture.Stub.UnsolicitedDownloads.Add((42, "libretro:battery"));
-        foreach (var mode in new[] { FlushMode.InSession, FlushMode.Background })
+        foreach (var mode in new[] { FlushMode.InSessionReceive, FlushMode.Background })
         {
             Assert.Equal(0, (await fixture.SyncAsync(mode, token)).Downloaded);
         }

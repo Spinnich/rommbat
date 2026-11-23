@@ -103,13 +103,17 @@ Which hooks may spawn it is the hook's to decide; see [`src/RomMBat.Hook`](#srcr
 `background quit` waits for the ES process to exit before applying queued configuration, and
 gives up rather than hanging. Measured: ES is gone 48 to 68 ms after the quit hook stamps
 itself, and 10 ms after the pass starts looking on a real session. If it never exits, the
-configuration stays queued and the flush runs anyway, because the flush touches no file ES owns.
+configuration stays queued and the final flush runs anyway, because it touches no file ES owns.
+The detached quit pass waits up to 30 seconds for another flush to release the tree lock.
 
 `background start` runs a full startup flush and keeps one worker per install while
-EmulationStation runs. The worker checks the spool every two seconds. It gives new events
-one poll to settle and retries every 30 seconds while idle. The spool, saved files
-and outbox remain the retry sources after restart. In-session downloads cover plain NES
-Libretro SRAM only. The worker verifies the download, rechecks for a launch and replaces
+EmulationStation runs. An atomic spool rename wakes the worker. A committed `game-end`
+causes an upload pass. Pending sends get up to four retries, after 2, 5, 10 and 30 seconds
+respectively. If the short retry budget runs out during an outage, the next successful
+receive after the outage wakes known pending uploads. The spool, saved files and outbox
+remain the retry sources after restart. The 30-second receive pass uses the existing save index and discovers plain NES Libretro SRAM.
+It performs no upload or whole-tree save or state scan. The worker verifies the download,
+rechecks for a launch and replaces
 only an unchanged synced file, keeping its previous bytes. The Status screen reads the
 last in-session transfer times from `emulators/rommbat/last-upload.txt` and `last-download.txt`.
 

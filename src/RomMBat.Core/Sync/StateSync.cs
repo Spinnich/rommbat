@@ -9,6 +9,8 @@ namespace RomMBat.Core.Sync;
 /// <summary>What a state push did.</summary>
 public sealed record StateSyncOutcome
 {
+    internal bool Unreachable { get; init; }
+
     public int Uploaded { get; init; }
 
     public int AlreadyInStep { get; init; }
@@ -874,6 +876,7 @@ public sealed class StateSync
         var unattributed = 0;
         var dropped = 0;
         var failed = 0;
+        var unreachable = false;
         var bytes = 0L;
         var problems = new List<string>();
 
@@ -916,6 +919,7 @@ public sealed class StateSync
 
             if (attempt.Unreachable)
             {
+                unreachable = true;
                 // The link is down, so every remaining state would fail the same way and each
                 // would cost a connect timeout. They stay recorded as unsent and the next flush
                 // sends the same set, which is what "operations complete or queue" means here.
@@ -926,6 +930,7 @@ public sealed class StateSync
         return new StateSyncOutcome
         {
             Uploaded = uploaded,
+            Unreachable = unreachable,
             AlreadyInStep = inStep,
             Unattributed = unattributed,
             ScreenshotsDropped = dropped,

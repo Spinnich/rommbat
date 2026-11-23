@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using RomMBat.Core.Paths;
 
 namespace RomMBat.Core.Sync;
@@ -21,7 +22,8 @@ namespace RomMBat.Core.Sync;
 /// <para>
 /// <b>For a flush, failing to acquire is a success.</b> Another process is already draining the
 /// same queue, so the right thing is to exit rather than wait: the work is being done, and a
-/// hook that blocks is a hook running inside the game-launch path.
+/// hook that blocks is a hook running inside the game-launch path. The detached quit
+/// agent can wait briefly for the last flush without blocking EmulationStation.
 /// </para>
 /// <para>
 /// <b>The other three holders cannot say that, because nobody is doing their work.</b>
@@ -79,6 +81,27 @@ public sealed class TreeLock : IDisposable
             // A read-only volume, or a stick pulled mid-write. Not flushing is the safe answer.
             return null;
         }
+    }
+
+    internal static async Task<TreeLock?> TryAcquireForShutdownAsync(
+        RetroBatInstall install, CancellationToken cancellationToken)
+    {
+        // The quit agent is detached. An in-flight receive pass may hold the lock even
+        // though it cannot send the final game, so give it time to release the handle.
+        var started = Stopwatch.GetTimestamp();
+        do
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (TryAcquire(install) is { } held)
+            {
+                return held;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
+        }
+        while (Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(30));
+
+        return null;
     }
 
     public void Dispose()

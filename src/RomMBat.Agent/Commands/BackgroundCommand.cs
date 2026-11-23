@@ -60,21 +60,22 @@ internal static class BackgroundCommand
             return await BackgroundSession.RunAsync(
                 context.Install,
                 () => EmulationStationProcess.Check(context.Install).IsRunning,
-                (sessionUpload, token) => RunPassAsync(context, hookEvent, sessionUpload, token),
+                (mode, token) => RunPassAsync(context, hookEvent, mode, token),
                 cancellationToken).ConfigureAwait(false);
         }
 
-        return await RunPassAsync(context, hookEvent, sessionUpload: false, cancellationToken).ConfigureAwait(false);
+        var shutdown = await RunPassAsync(context, hookEvent, FlushMode.Shutdown, cancellationToken).ConfigureAwait(false);
+        return shutdown.ExitCode;
     }
 
-    private static async Task<int> RunPassAsync(
-        AgentContext context, string hookEvent, bool sessionUpload, CancellationToken cancellationToken)
+    private static async Task<BackgroundPassResult> RunPassAsync(
+        AgentContext context, string hookEvent, FlushMode mode, CancellationToken cancellationToken)
     {
         using var log = BackgroundLog.Open(context.Install, hookEvent);
 
         try
         {
-            log.Write($"background {hookEvent} started");
+            log.Write($"background {hookEvent} started ({mode})");
 
             if (hookEvent == "quit")
             {
@@ -91,27 +92,30 @@ internal static class BackgroundCommand
                 }
             }
 
-            // The flush pass, quiet, in both cases. It never touches a file ES owns, so it is
-            // safe whether or not the wait above found ES gone.
+            var retry = false;
+            bool? serverReachable = null;
             var flush = await FlushCommand
                 .RunAsync(
                     context,
                     CommandLine.Parse(["flush", "--quiet"]),
                     cancellationToken,
-                    mode: sessionUpload ? FlushMode.InSession : FlushMode.Background,
-                    onReport: report => log.Write(report.Scanned
-                        ? $"flush {report.State}, queued {report.Queued}, conflicts {report.Conflicts.Count}"
-                            + $", saves up {report.SavesSent?.Uploaded ?? 0}, down {report.SavesSent?.Downloaded ?? 0}"
-                        : $"flush {report.State}"))
+                    mode: mode,
+                    onReport: report =>
+                    {
+                        retry = report.RetryUpload;
+                        serverReachable = report.ServerReachable;
+                        log.Write($"flush {report.State}, queued {report.Queued}, conflicts {report.Conflicts.Count}"
+                            + $", saves up {report.SavesSent?.Uploaded ?? 0}, down {report.SavesSent?.Downloaded ?? 0}");
+                    })
                 .ConfigureAwait(false);
 
             log.Write($"background {hookEvent} finished, flush exit {flush}");
-            return flush;
+            return new BackgroundPassResult(flush, retry, serverReachable);
         }
         catch (OperationCanceledException)
         {
             log.Write($"background {hookEvent} canceled");
-            return ExitCode.Canceled;
+            return new BackgroundPassResult(ExitCode.Canceled);
         }
     }
 

@@ -132,9 +132,9 @@ internal static class FlushCommand
                 + (correlated.Unresolved > 0 ? $", {correlated.Unresolved} still running" : string.Empty));
         }
 
-        if (!quiet)
+        if (!quiet && report.Saves is { } scanned)
         {
-            Console.WriteLine(report.Saves!.Summary);
+            Console.WriteLine(scanned.Summary);
 
             if (report.States is { } states)
             {
@@ -184,16 +184,17 @@ internal static class FlushCommand
                 break;
         }
 
-        var playtime = report.Playtime!;
-
-        if (!quiet || playtime.Failed > 0)
+        if (report.Playtime is { } playtime)
         {
-            Console.WriteLine(playtime.Summary);
-        }
+            if (!quiet || playtime.Failed > 0)
+            {
+                Console.WriteLine(playtime.Summary);
+            }
 
-        foreach (var line in playtime.Problems)
-        {
-            Console.Error.WriteLine($"  {line}");
+            foreach (var line in playtime.Problems)
+            {
+                Console.Error.WriteLine($"  {line}");
+            }
         }
 
         var saves = report.SavesSent!;
@@ -208,16 +209,17 @@ internal static class FlushCommand
             Console.Error.WriteLine($"  {line}");
         }
 
-        var sentStates = report.StatesSent!;
-
-        if (!quiet || sentStates.Failed > 0)
+        if (report.StatesSent is { } sentStates)
         {
-            Console.WriteLine(sentStates.Summary);
-        }
+            if (!quiet || sentStates.Failed > 0)
+            {
+                Console.WriteLine(sentStates.Summary);
+            }
 
-        foreach (var line in sentStates.Problems)
-        {
-            Console.Error.WriteLine($"  {line}");
+            foreach (var line in sentStates.Problems)
+            {
+                Console.Error.WriteLine($"  {line}");
+            }
         }
 
         ReportConflicts(report.Conflicts);

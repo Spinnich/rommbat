@@ -72,9 +72,11 @@ the source of truth; the network is optional, probed with a short-timeout
   first and mapped in `ExitCode.For`. Classify there rather than returning `Offline` from a
   failed `RomMResponse` (#143).
 - **No daemon exists.** A portable install registers no service or scheduled task.
-  `background start` runs a full flush, then checks for upload work until EmulationStation
-  exits. It reads the spool and journal before a session upload and retries from durable
-  local state. An install-scoped handle keeps one worker alive at a time. Each pass
+  `background start` runs a full flush, then watches committed spool files until
+  EmulationStation exits. A `game-end` triggers upload, with a bounded retry budget for pending
+  work. A separate receive pass runs every 30 seconds using the existing save index.
+  A connection recovery wakes known pending uploads after the short retry budget.
+  An install-scoped handle keeps one worker alive at a time. Each pass
   separately takes the tree lock so other commands can still flush between passes.
 
   **What invokes it: the `start` and `quit` hooks, `sync`, and a person typing `flush`.**

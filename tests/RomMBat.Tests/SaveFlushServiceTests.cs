@@ -62,7 +62,7 @@ public sealed class SaveFlushServiceTests
         var rom = install.Resolve(RelativePath.Create("roms/snes/ActRaiser (USA).zip"));
         fixture.WantsUpload(42);
         Spool.Write(install.RootPath, new SpoolRecord("game-start", Now, 1, [rom]));
-        var options = new FlushOptions { Mode = FlushMode.InSession };
+        var options = new FlushOptions { Mode = FlushMode.InSessionUpload };
         var token = TestContext.Current.CancellationToken;
 
         var active = await new SaveFlushService(fixture.Session)
@@ -78,6 +78,7 @@ public sealed class SaveFlushServiceTests
             var busy = await new SaveFlushService(fixture.Session)
                 .RunAsync(options, fixture.Connect(), token);
             Assert.True(busy.Scanned);
+            Assert.True(busy.RetryUpload);
             Assert.Equal(0, busy.SavesSent!.Uploaded);
             Assert.Empty(fixture.Stub.Saves);
         }
@@ -86,6 +87,8 @@ public sealed class SaveFlushServiceTests
         var offline = await new SaveFlushService(fixture.Session)
             .RunAsync(options, fixture.Connect(), token);
         Assert.True(offline.Scanned);
+        Assert.True(offline.RetryUpload);
+        Assert.False(offline.ServerReachable);
         Assert.Null(BackgroundTransfer.Read(install));
         Assert.Empty(fixture.Stub.Saves);
 
@@ -94,6 +97,8 @@ public sealed class SaveFlushServiceTests
         var worker = new SaveFlushService(reopened);
         var retry = await worker.RunAsync(options, fixture.Connect(), token);
         Assert.Equal(1, retry.SavesSent!.Uploaded);
+        Assert.True(retry.ServerReachable);
+        Assert.False(retry.RetryUpload);
         Assert.Single(fixture.Stub.Saves);
         Assert.NotNull(BackgroundTransfer.Read(install));
 
@@ -101,7 +106,58 @@ public sealed class SaveFlushServiceTests
         Spool.Write(install.RootPath, new SpoolRecord("game-end", Now.AddSeconds(2), 3, []));
         var replay = await worker.RunAsync(options, fixture.Connect(), token);
         Assert.Equal(0, replay.SavesSent!.Uploaded);
+        Assert.False(replay.RetryUpload);
         Assert.Single(fixture.Stub.Saves);
+    }
+
+    [Fact]
+    public async Task Idle_receive_does_not_scan_or_upload_pending_local_work()
+    {
+        using var fixture = FlushTree.Create();
+        fixture.Pair();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)");
+        fixture.WantsUpload(42);
+        var store = fixture.Session.Store;
+        store.Outbox.Enqueue(OutboxKind.PlaySession, Now, romId: 42, payload: "{}");
+
+        var report = await new SaveFlushService(fixture.Session).RunAsync(
+            new FlushOptions { Mode = FlushMode.InSessionReceive },
+            fixture.Connect(),
+            TestContext.Current.CancellationToken);
+
+        Assert.False(report.Scanned);
+        Assert.Null(report.Drained);
+        Assert.Null(report.Playtime);
+        Assert.Null(report.StatesSent);
+        Assert.True(report.ServerReachable);
+        Assert.Equal(0, report.SavesSent!.Uploaded);
+        Assert.Empty(store.Saves.List());
+        Assert.Equal(1, store.Outbox.PendingCount());
+        Assert.Empty(fixture.Stub.Saves);
+    }
+
+    [Fact]
+    public async Task Idle_receive_ignores_an_upload_offer_for_an_indexed_save()
+    {
+        using var fixture = FlushTree.Create();
+        fixture.Pair();
+        fixture.AddGame(42, "nes", "Zelda II");
+        fixture.WantsUpload(42);
+        var store = fixture.Session.Store;
+        var install = fixture.Session.Install;
+        new RomMBat.Core.Content.SaveScanner(install, store).Scan();
+        var indexed = Assert.Single(store.Saves.List(42));
+        store.Saves.MarkUploaded(indexed.Path, indexed.UnitKey, indexed.ContentHash!, Now);
+
+        var report = await new SaveFlushService(fixture.Session).RunAsync(
+            new FlushOptions { Mode = FlushMode.InSessionReceive },
+            fixture.Connect(),
+            TestContext.Current.CancellationToken);
+
+        Assert.False(report.Scanned);
+        Assert.Equal(0, report.SavesSent!.Uploaded);
+        Assert.Equal(indexed.ContentHash, fixture.Stub.NegotiatedHashes[(42, "libretro:battery")]);
+        Assert.Empty(fixture.Stub.Saves);
     }
 
     [Fact]
@@ -128,7 +184,7 @@ public sealed class SaveFlushServiceTests
         var install = fixture.Session.Install;
         var path = install.Resolve(RelativePath.Create($"roms/nes/{rom}.nes"));
         var destination = install.Resolve(RelativePath.Create($"saves/nes/{rom}.srm"));
-        var options = new FlushOptions { Mode = FlushMode.InSession };
+        var options = new FlushOptions { Mode = FlushMode.InSessionReceive };
         var token = TestContext.Current.CancellationToken;
         var flush = new SaveFlushService(fixture.Session);
         Spool.Write(install.RootPath, new SpoolRecord("game-start", Now, 1, [path]));
