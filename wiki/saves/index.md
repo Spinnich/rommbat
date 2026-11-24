@@ -40,9 +40,9 @@ save, start with `rommbat-agent saves restore` to preview the restore.
 
 Saves and playtime stay on this device while RomM is unreachable. If short retries
 run out, RomMBat checks for reconnection while pending work remains and sends it when
-it can reach RomM again. Waiting to upload lists items in the outbox. To check an individual
-save, run `rommbat-agent saves`. Under This device, Status shows the most recent in-session
-upload and download.
+it can reach RomM again. Open Waiting to upload to see pending saves by game and slot, alongside
+outbox entries. Saves found on disk are read-only in this list. Under This device, Status shows
+the pending count and the most recent in-session upload and download.
 
 ## When a save is deleted in RomM
 

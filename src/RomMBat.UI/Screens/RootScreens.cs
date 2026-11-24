@@ -82,7 +82,7 @@ public static class RootScreens
             var device = store.Device.Read();
             var conflicts = store.SaveConflicts.ListOpen().Count;
             var unmapped = store.PlatformMap.List().Count(row => row.Folder is null);
-            var outbox = store.Outbox.PendingCount();
+            var pendingUploads = OutboxScreens.PendingCount(store);
             var refused = store.Outbox.FailedCount();
 
             Add(
@@ -112,12 +112,12 @@ public static class RootScreens
             Add(
                 new ListRow(
                     "Waiting to upload",
-                    (outbox, refused) switch
+                    (pendingUploads, refused) switch
                     {
                         (0, 0) => "empty",
-                        (_, 0) => Counted(outbox, "waiting"),
+                        (_, 0) => Counted(pendingUploads, "waiting"),
                         (0, _) => Counted(refused, "refused"),
-                        _ => $"{Counted(outbox, "waiting")}, {Counted(refused, "refused")}",
+                        _ => $"{Counted(pendingUploads, "waiting")}, {Counted(refused, "refused")}",
                     },
                     refused > 0
                         ? "The server refused some, so they exist only on this device until you drop them."

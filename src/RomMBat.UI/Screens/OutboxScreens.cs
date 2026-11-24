@@ -28,12 +28,14 @@ namespace RomMBat.UI.Screens;
 /// </remarks>
 public static class OutboxScreens
 {
-    /// <summary>The refused entries, then the unsent ones as a single row.</summary>
+    internal static int PendingCount(LocalStore store) => store.Outbox.PendingCount() + store.Saves.PendingUploads().Count;
+
+    /// <summary>Queued outbox entries and unsent saves found on disk.</summary>
     public static IScreen List(InstallSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
 
-        List<Func<IScreen>> destinations = [];
+        List<Func<IScreen>?> destinations = [];
 
         // Kept so each question draws over this list.
         ListScreen? screen = null;
@@ -46,8 +48,9 @@ public static class OutboxScreens
             var failed = outbox.Failed();
             var pending = outbox.PendingCount();
 
-            var titles = session.Store.Metadata.ForRoms(
-                failed.Where(entry => entry.RomId is not null).Select(entry => (int)entry.RomId!.Value));
+            var saves = session.Store.Saves.PendingUploads();
+            var ids = failed.Select(entry => entry.RomId).Concat(saves.Select(save => save.RomId));
+            var titles = session.Store.Metadata.ForRoms(ids.OfType<long>().Select(id => (int)id));
 
             foreach (var entry in failed)
             {
@@ -74,16 +77,27 @@ public static class OutboxScreens
                 destinations.Add(() => DropPending(session, screen));
             }
 
+            foreach (var save in saves)
+            {
+                var romId = save.RomId!.Value;
+                var title = titles.TryGetValue((int)romId, out var game) ? game.Name
+                    : save.RomPath is { } romPath ? Path.GetFileNameWithoutExtension(romPath.Name) : $"Game {romId}";
+                rows.Add(new ListRow(title, SaveSlotLabel.Describe(save.Slot),
+                    $"Waiting to upload · {save.Slot}"));
+                destinations.Add(null);
+            }
+
             return rows;
         }
 
         screen = new ListScreen(
             "Waiting to upload",
             Rows,
-            index => ScreenCommand.Push(destinations[index]()),
+            index => destinations[index] is { } open ? ScreenCommand.Push(open()) : ScreenCommand.Stay,
             acceptLabel: "Drop",
             backLabel: "Back")
         {
+            OfferAcceptWhen = () => screen is { Cursor: >= 0 } && destinations[screen.Cursor] is not null,
             EmptyMessage = "Nothing is waiting. A save, save state or play session made without the "
                 + "server waits here until it is sent.",
             Note = () => session.Store.Outbox.FailedCount() == 0
@@ -141,7 +155,7 @@ public static class OutboxScreens
     /// </remarks>
     private static ConfirmScreen DropPending(InstallSession session, IScreen? underneath) =>
         Confirm(
-            "Drop everything not sent yet?",
+            "Drop all pending outbox entries?",
             "Unsent entries dropped",
             new ListRow(
                 "Not sent yet",

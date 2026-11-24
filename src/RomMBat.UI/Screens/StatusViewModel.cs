@@ -241,7 +241,7 @@ public sealed class StatusViewModel : IScreen
     private StatusSection Waiting()
     {
         var store = _session.Store;
-        var outbox = store.Outbox.PendingCount();
+        var pendingUploads = OutboxScreens.PendingCount(store);
         var conflicts = store.SaveConflicts.ListOpen().Count;
         var pending = PendingSettings.Of(_session.Install, store);
 
@@ -249,8 +249,8 @@ public sealed class StatusViewModel : IScreen
         {
             new(
                 "Waiting to upload",
-                outbox == 0 ? "empty" : Plural(outbox, "item"),
-                outbox == 0 ? null : "Saves, states and play sessions waiting for the server."),
+                pendingUploads == 0 ? "empty" : Plural(pendingUploads, "item"),
+                pendingUploads == 0 ? null : "Saves, states and play sessions waiting for the server."),
             new(
                 "Conflicts",
                 conflicts == 0 ? "none" : Plural(conflicts, "save"),
