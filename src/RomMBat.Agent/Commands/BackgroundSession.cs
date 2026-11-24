@@ -6,7 +6,7 @@ using RomMBat.Core.Sync;
 namespace RomMBat.Agent.Commands;
 
 internal readonly record struct BackgroundPassResult(
-    int ExitCode, bool RetryUpload = false, bool? ServerReachable = null);
+    int ExitCode, bool RetryUpload = false, bool? ServerReachable = null, bool RetryAcknowledgement = false);
 
 /// <summary>Runs one worker per install for as long as EmulationStation is present.</summary>
 internal static class BackgroundSession
@@ -40,9 +40,15 @@ internal static class BackgroundSession
         using var startup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var libraryLifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var watchingStartup = 1;
+        var acknowledgementWake = 0;
         using var wakeup = new SpoolWakeup(spool, timeProvider, path =>
         {
-            if (Volatile.Read(ref watchingStartup) != 0 && IsGameStart(path))
+            if (Path.GetExtension(path) == SessionSignal.AcknowledgementExtension)
+            {
+                Interlocked.Exchange(ref acknowledgementWake, 1);
+            }
+            else if (Volatile.Read(ref watchingStartup) != 0
+                && (Path.GetExtension(path) == SessionSignal.LaunchExtension || IsGameStart(path)))
             {
                 startup.Cancel();
             }
@@ -56,13 +62,19 @@ internal static class BackgroundSession
         var origin = timeProvider.GetTimestamp();
         var retries = 0;
         var disconnected = false;
+        var retryMode = FlushMode.InSessionUpload;
         TimeSpan? nextUpload = null;
         TimeSpan? nextProbe = null;
         Task? libraryWork = null;
 
         try
         {
-            // Subscribe before the recovery pass so an event arriving during startup wakes us.
+            // Subscribe first, then check for a prelaunch already waiting on the install.
+            if (SessionSignal.HasLaunchIntent(spool))
+            {
+                startup.Cancel();
+            }
+
             var initial = await RunPassAsync(FlushMode.Background, startup.Token).ConfigureAwait(false);
             Interlocked.Exchange(ref watchingStartup, 0);
             var exitCode = initial.ExitCode;
@@ -88,8 +100,16 @@ internal static class BackgroundSession
                         retries = 0;
                     }
 
+                    retryMode = FlushMode.InSessionUpload;
                     nextUpload = now;
                     nextProbe = null;
+                }
+
+                if (Interlocked.Exchange(ref acknowledgementWake, 0) != 0 && nextUpload is null && nextProbe is null)
+                {
+                    retryMode = FlushMode.InSessionAcknowledgement;
+                    retries = 0;
+                    nextUpload = now;
                 }
 
                 if (nextProbe <= now)
@@ -109,7 +129,7 @@ internal static class BackgroundSession
 
                 if (nextUpload <= now)
                 {
-                    var upload = await RunPassAsync(FlushMode.InSessionUpload, cancellationToken).ConfigureAwait(false);
+                    var upload = await RunPassAsync(retryMode, cancellationToken).ConfigureAwait(false);
                     exitCode = upload.ExitCode;
                     ScheduleRetry(upload);
                 }
@@ -124,6 +144,11 @@ internal static class BackgroundSession
                 {
                     var receive = await RunPassAsync(FlushMode.InSessionReceive, cancellationToken).ConfigureAwait(false);
                     exitCode = receive.ExitCode;
+                    if (receive.RetryAcknowledgement && nextUpload is null && nextProbe is null)
+                    {
+                        ScheduleRetry(receive);
+                    }
+
                     nextReceive = timeProvider.GetElapsedTime(origin) + ReceiveInterval;
                 }
 
@@ -188,9 +213,12 @@ internal static class BackgroundSession
         void ScheduleRetry(BackgroundPassResult pass)
         {
             var now = timeProvider.GetElapsedTime(origin);
-            disconnected = pass.RetryUpload && (pass.ServerReachable is { } reachable ? !reachable : disconnected);
-            nextUpload = pass.RetryUpload && retries < RetryDelays.Length ? now + RetryDelays[retries++] : null;
-            nextProbe = nextUpload is null && disconnected && probe is not null ? now + ReconnectInterval : null;
+            var pending = pass.RetryUpload || pass.RetryAcknowledgement;
+            retryMode = pass.RetryUpload ? FlushMode.InSessionUpload : FlushMode.InSessionAcknowledgement;
+            disconnected = pending && (pass.ServerReachable is { } reachable ? !reachable : disconnected);
+            nextUpload = pending && retries < RetryDelays.Length ? now + RetryDelays[retries++] : null;
+            nextProbe = nextUpload is null && (disconnected || pass.RetryAcknowledgement) && probe is not null
+                ? now + ReconnectInterval : null;
         }
 
         async Task<BackgroundPassResult> RunPassAsync(FlushMode mode, CancellationToken token)
@@ -201,13 +229,17 @@ internal static class BackgroundSession
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
-                return new BackgroundPassResult(ExitCode.Canceled, RetryUpload: mode != FlushMode.InSessionReceive);
+                return new BackgroundPassResult(ExitCode.Canceled,
+                    RetryUpload: mode is FlushMode.InSessionUpload or FlushMode.Background,
+                    RetryAcknowledgement: mode == FlushMode.InSessionAcknowledgement);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SqliteException)
             {
                 using var log = BackgroundLog.Open(install, "start");
                 log.Write($"session flush interrupted: {ex.Message}");
-                return new BackgroundPassResult(ExitCode.ServerError, RetryUpload: mode != FlushMode.InSessionReceive);
+                return new BackgroundPassResult(ExitCode.ServerError,
+                    RetryUpload: mode is FlushMode.InSessionUpload or FlushMode.Background,
+                    RetryAcknowledgement: mode == FlushMode.InSessionAcknowledgement);
             }
         }
     }
@@ -283,7 +315,10 @@ internal sealed class SpoolWakeup : IDisposable
     {
         _time = time;
         Directory.CreateDirectory(spool);
-        _watcher = new FileSystemWatcher(spool, "*" + Spool.Extension) { NotifyFilter = NotifyFilters.FileName };
+        _watcher = new FileSystemWatcher(spool) { NotifyFilter = NotifyFilters.FileName };
+        _watcher.Filters.Add("*" + Spool.Extension);
+        _watcher.Filters.Add("*" + SessionSignal.LaunchExtension);
+        _watcher.Filters.Add("*" + SessionSignal.AcknowledgementExtension);
         _watcher.Created += (_, args) => Committed(args.FullPath);
         _watcher.Renamed += (_, args) => Committed(args.FullPath);
         // On overflow, rescan committed records once instead of depending on event order.

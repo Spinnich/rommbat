@@ -1,3 +1,8 @@
+using RomM.Client;
+using RomMBat.Core.Paths;
+using RomMBat.Core;
+using RomMBat.Core.Identity;
+using RomMBat.Core.Store;
 using RomMBat.Agent.Commands;
 using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
@@ -268,6 +273,191 @@ public sealed class BackgroundSessionTests
 
         await BackgroundSession.RunAsync(install, () => false, Flush, deadline.Token);
         Assert.True(yielded);
+    }
+
+    [Fact]
+    public async Task Prelaunch_releases_the_startup_lock_before_the_journal_hook_runs()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+        using var store = LocalStore.Open(install);
+        using var stub = new StubRomMServer();
+        using var connection = new RomMConnection(
+            new RomMClientOptions { Origin = new Uri("https://romm.invalid"), AccessToken = "rmm_test" }, stub);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(5));
+        var rom = RelativePath.Create("roms/nes/Zelda II.nes");
+        var path = install.Resolve(rom);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, "rom");
+        store.Files.Record(new LocalFile { Path = rom, RomId = 42, FileName = rom.Name, Folder = "nes" });
+        SelectLibretro(install);
+        stub.Saves[26] = PeerSave();
+        var locked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var worker = BackgroundSession.RunAsync(install, () => false, async (_, token) =>
+        {
+            using var held = TreeLock.TryAcquire(install);
+            Assert.NotNull(held);
+            locked.SetResult();
+            await Task.Delay(Timeout.Infinite, token);
+            return new BackgroundPassResult(0);
+        }, deadline.Token);
+
+        try
+        {
+            await locked.Task.WaitAsync(deadline.Token);
+            var result = await new SaveSync(install, store, connection, "device")
+                .PrepareLaunchAsync(rom, deadline.Token);
+            Assert.Equal("incoming save ready", result);
+            Assert.Equal("peer progress", File.ReadAllText(install.Resolve("saves/nes/Zelda II.srm")));
+            Assert.Empty(Directory.GetFiles(install.Resolve(SpoolDrain.Directory), "*.hook"));
+        }
+        finally
+        {
+            await deadline.CancelAsync();
+            await worker;
+        }
+    }
+
+    [Fact]
+    public async Task Pending_ack_wakes_only_its_verified_install_without_a_receive_tick()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var otherTree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        var other = otherTree.Install();
+        install.EnsureAppDirectories();
+        other.EnsureAppDirectories();
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(5));
+        var modes = new List<FlushMode>();
+        var ran = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var otherUnexpected = false;
+        var worker = BackgroundSession.RunAsync(install, () => true, (mode, _) =>
+        {
+            modes.Add(mode);
+            if (mode != FlushMode.Background)
+            {
+                ran.TrySetResult();
+            }
+
+            return Task.FromResult(new BackgroundPassResult(0));
+        }, deadline.Token, periodicReceive: false);
+        var otherWorker = BackgroundSession.RunAsync(other, () => true, (mode, _) =>
+        {
+            otherUnexpected |= mode != FlushMode.Background;
+            return Task.FromResult(new BackgroundPassResult(0));
+        }, deadline.Token, periodicReceive: false);
+
+        try
+        {
+            using (File.Open(Path.Combine(install.Resolve(SpoolDrain.Directory), "receipt.ack"),
+                new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Options = FileOptions.DeleteOnClose }))
+            {
+            }
+
+            await ran.Task.WaitAsync(deadline.Token);
+        }
+        finally
+        {
+            await deadline.CancelAsync();
+            await Task.WhenAll(worker, otherWorker);
+        }
+
+        Assert.Equal([FlushMode.Background, FlushMode.InSessionAcknowledgement], modes);
+        Assert.False(otherUnexpected);
+    }
+
+    [Fact]
+    public async Task Verified_worker_recovers_an_ack_on_reconnect_then_stops_requesting()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+        var install = session.Install;
+        using var stub = new StubRomMServer();
+        var origin = new Uri("https://romm.invalid");
+        using var connection = new RomMConnection(new RomMClientOptions { Origin = origin, AccessToken = "rmm_test" }, stub);
+        var token = TestContext.Current.CancellationToken;
+        var rom = RelativePath.Create("roms/nes/Zelda II.nes");
+        Directory.CreateDirectory(Path.GetDirectoryName(install.Resolve(rom))!);
+        File.WriteAllText(install.Resolve(rom), "rom");
+        session.Store.Files.Record(new LocalFile { Path = rom, RomId = 42, FileName = rom.Name, Folder = "nes" });
+        SelectLibretro(install);
+        session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(install));
+        session.Store.Device.SavePairing(new PairingResult(origin, "device", "Handheld",
+            new GrantedScopes(["assets.read", "devices.write"]), TokenProtector.Protect("rmm_test", null, null)),
+            DateTimeOffset.UtcNow);
+        stub.Saves[26] = PeerSave();
+        stub.FailAcknowledge = System.Net.HttpStatusCode.ServiceUnavailable;
+        await new SaveSync(install, session.Store, connection, "device").PrepareLaunchAsync(rom, token);
+        Assert.Empty(stub.Acknowledged);
+        stub.FailAcknowledge = null;
+
+        var clock = new SessionClock();
+        var running = true;
+        var attempts = new List<double>();
+        var probes = new List<double>();
+        var unrelatedAfterStartup = 0;
+        var requestsAtSuccess = 0;
+        await BackgroundSession.RunAsync(install, () => running, async (mode, ct) =>
+        {
+            stub.IsReachable = clock.Seconds >= 72;
+            var before = stub.RequestLog.Count;
+            var report = await new SaveFlushService(session).RunAsync(new FlushOptions { Mode = mode }, connection, ct);
+            Assert.Equal(0, report.Queued);
+            if (mode != FlushMode.Background)
+            {
+                Assert.Equal(FlushMode.InSessionAcknowledgement, mode);
+                attempts.Add(clock.Seconds);
+                unrelatedAfterStartup += stub.RequestLog.Skip(before)
+                    .Count(path => !path.EndsWith("/downloaded", StringComparison.Ordinal));
+                if (!report.RetryAcknowledgement)
+                {
+                    requestsAtSuccess = stub.RequestLog.Count;
+                }
+            }
+
+            return new BackgroundPassResult(0, report.RetryUpload, report.ServerReachable, report.RetryAcknowledgement);
+        }, token, (delay, _) =>
+        {
+            if (delay == Timeout.InfiniteTimeSpan)
+            {
+                clock.Advance(TimeSpan.FromMinutes(2));
+                running = false;
+            }
+            else
+            {
+                clock.Advance(delay);
+            }
+
+            return Task.FromResult(false);
+        }, clock, probe: _ =>
+        {
+            probes.Add(clock.Seconds);
+            return Task.FromResult(clock.Seconds >= 72);
+        }, periodicReceive: false);
+
+        Assert.Equal([2, 7, 17, 47, 77], attempts);
+        Assert.Equal([62, 77], probes);
+        Assert.Equal([26], stub.Acknowledged);
+        Assert.Equal(0, unrelatedAfterStartup);
+        Assert.Equal(requestsAtSuccess, stub.RequestLog.Count);
+        Assert.Equal("peer progress", File.ReadAllText(install.Resolve("saves/nes/Zelda II.srm")));
+    }
+
+    private static StubRomMServer.StubSave PeerSave() => new()
+    {
+        Id = 26, RomId = 42, Slot = "libretro:battery", Emulator = "libretro",
+        FileNameNoTags = "Zelda II", FileExtension = "srm", Bytes = "peer progress"u8.ToArray(),
+    };
+
+    private static void SelectLibretro(RetroBatInstall install)
+    {
+        var settings = install.Resolve("emulationstation/.emulationstation/es_settings.cfg");
+        Directory.CreateDirectory(Path.GetDirectoryName(settings)!);
+        File.WriteAllText(settings, """<config><string name="nes.emulator" value="libretro" /></config>""");
     }
 
     [Fact]

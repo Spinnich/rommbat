@@ -227,7 +227,7 @@ public sealed class ContentSync
             group.Publish();
             return outcome;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
         {
             return outcome with
             {

@@ -206,6 +206,7 @@ internal static class BackgroundCommand
             }
 
             var retry = false;
+            var retryAcknowledgement = false;
             bool? serverReachable = null;
             var flush = await FlushCommand
                 .RunAsync(
@@ -216,6 +217,7 @@ internal static class BackgroundCommand
                     onReport: report =>
                     {
                         retry = report.RetryUpload;
+                        retryAcknowledgement = report.RetryAcknowledgement;
                         serverReachable = report.ServerReachable;
                         log.Write($"flush {report.State}, queued {report.Queued}, conflicts {report.Conflicts.Count}"
                             + $", saves up {report.SavesSent?.Uploaded ?? 0}, down {report.SavesSent?.Downloaded ?? 0}");
@@ -227,7 +229,7 @@ internal static class BackgroundCommand
                 .ConfigureAwait(false);
 
             log.Write($"background {hookEvent} finished, flush exit {flush}");
-            return new BackgroundPassResult(flush, retry, serverReachable);
+            return new BackgroundPassResult(flush, retry, serverReachable, retryAcknowledgement);
         }
         catch (OperationCanceledException)
         {

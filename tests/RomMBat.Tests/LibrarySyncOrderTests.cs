@@ -170,6 +170,72 @@ public sealed class LibrarySyncOrderTests : IDisposable
     }
 
     [Fact]
+    public void A_later_group_move_failure_reverts_only_this_publication()
+    {
+        var install = _session.Install;
+        var first = RelativePath.Create("roms/psx/Disc 1.chd");
+        var second = RelativePath.Create("roms/psx/occupied/Disc 2.chd");
+        var other = install.Resolve("roms/psx/occupied");
+        Directory.CreateDirectory(Path.GetDirectoryName(other)!);
+        File.WriteAllText(other, "external file");
+
+        var group = new StartupRomGroup(install, _session.Store, []);
+        var firstPart = Stage(first, 1);
+        var secondPart = Stage(second, 2);
+
+        Assert.ThrowsAny<IOException>(group.Publish);
+        Assert.False(File.Exists(install.Resolve(first)));
+        Assert.Equal("external file", File.ReadAllText(other));
+        Assert.Equal(first.Name, File.ReadAllText(firstPart));
+        Assert.Equal(second.Name, File.ReadAllText(secondPart));
+        Assert.Empty(_session.Store.Files.List("psx", LocalFileKind.Rom));
+
+        string Stage(RelativePath target, int id)
+        {
+            var part = install.Resolve(ContentPlanner.PartFor(id));
+            Directory.CreateDirectory(Path.GetDirectoryName(part)!);
+            File.WriteAllText(part, target.Name);
+            group.Add(new LocalFile
+            {
+                Path = target, RomId = id, Folder = "psx", FileName = target.Name,
+            }, part, fileId: 0);
+            return part;
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Failed_group_index_transaction_restores_verified_partials(bool flatDiscs)
+    {
+        using var stub = PlayStationSet(flatDiscs);
+        using var connection = Connect(stub);
+        var token = TestContext.Current.CancellationToken;
+        Set();
+        using var fault = _session.Store.Connection.CreateCommand();
+        fault.CommandText = """
+            CREATE TEMP TRIGGER fail_disc_index BEFORE INSERT ON local_file
+            WHEN NEW.relative_path LIKE '%Disc 2%.chd' OR NEW.relative_path LIKE '%Disc 2).chd'
+            BEGIN SELECT RAISE(ABORT, 'cannot index disc 2'); END;
+            """;
+        fault.ExecuteNonQuery();
+        var service = StartupService();
+        var progress = new Immediate<SyncEvent>(_ => { });
+        Assert.Equal(SyncState.Blocked, (await service.RunAtStartupAsync(connection, progress, token)).State);
+        var folder = _session.Install.Resolve("roms/psx");
+        Assert.False(Directory.Exists(folder) && Directory.EnumerateFiles(folder, "*.chd", SearchOption.AllDirectories).Any());
+        Assert.False(File.Exists(PlayStationFile("Game 1.m3u")));
+        Assert.Empty(_session.Store.Files.List("psx"));
+        Assert.Equal(2, _session.Store.Downloads.List().Count);
+
+        fault.CommandText = "DROP TRIGGER fail_disc_index;";
+        fault.ExecuteNonQuery();
+        Assert.Equal(SyncState.Done, (await service.RunAtStartupAsync(connection, progress, token)).State);
+        Assert.Equal(2, Directory.EnumerateFiles(folder, "*.chd", SearchOption.AllDirectories).Count());
+        Assert.Equal(2, stub.ContentRequests.Count);
+    }
+
+    [Fact]
     public async Task Startup_does_not_publish_a_server_playlist_that_references_an_absent_disc()
     {
         using var stub = PlayStationSet();

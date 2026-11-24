@@ -133,8 +133,8 @@ The hook waits for `rommbat-agent.exe prepare-launch --rom <absolute ROM path>`.
 The agent has four seconds overall and up to 1.25 seconds for the save lease. The hook
 terminates a child still running at five seconds and waits for it to stop. A failed check
 leaves the local save available. See `logs/background.log` for the outcome and duration
-and `logs/prelaunch.log` for the outer timeout. A normal game-start cancels the initial
-save flush so it can yield to the gate while the separate library sync continues.
+and `logs/prelaunch.log` for the outer timeout. The prelaunch process signals this install
+before waiting for the save lock, so startup can yield regardless of journal hook order.
 
 Prelaunch lists saves for the selected managed ROM only, with a quick local check for
 unmanaged ROMs. Automatic prelaunch writes cover plain NES Libretro SRAM. For other

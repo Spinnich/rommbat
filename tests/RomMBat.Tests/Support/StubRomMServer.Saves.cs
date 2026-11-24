@@ -105,6 +105,8 @@ internal sealed partial class StubRomMServer
     /// </remarks>
     public IList<int> Acknowledged { get; } = [];
 
+    public IList<(int SaveId, string? DeviceId, string Hash)> VerifiedAcknowledgements { get; } = [];
+
     /// <summary>When set, every acknowledgment answers this status and is not recorded.</summary>
     public HttpStatusCode? FailAcknowledge { get; set; }
 
@@ -253,12 +255,37 @@ internal sealed partial class StubRomMServer
 
         if (path.EndsWith("/downloaded", StringComparison.Ordinal))
         {
+            var id = SaveIdFrom(path, "downloaded");
+            using var document = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken)
+                .ConfigureAwait(false));
+            var body = document.RootElement;
+            var hash = body.TryGetProperty("content_hash", out var submitted) ? submitted.GetString() : null;
+            if (hash is not null)
+            {
+                VerifiedAcknowledgements.Add((id, body.GetProperty("device_id").GetString(), hash));
+            }
+
             if (FailAcknowledge is { } refused)
             {
                 return Json(refused, new { detail = "refused by the test" });
             }
 
-            Acknowledged.Add(SaveIdFrom(path, "downloaded"));
+            if (hash is not null)
+            {
+                if (!Saves.TryGetValue(id, out var save))
+                {
+                    return Detail(HttpStatusCode.NotFound, "no such save");
+                }
+
+                if (string.Equals(hash, save.ContentHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    Acknowledged.Add(id);
+                }
+
+                return Json(HttpStatusCode.OK, Describe(save));
+            }
+
+            Acknowledged.Add(id);
             return Json(HttpStatusCode.OK, new { ok = true });
         }
 

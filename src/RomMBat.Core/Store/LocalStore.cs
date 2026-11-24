@@ -49,6 +49,7 @@ public sealed class LocalStore : IDisposable
         States = new LocalStateStore(connection);
         Unsyncable = new UnsyncableStore(connection);
         SaveSlots = new SaveSlotStore(connection);
+        PendingSaveAcks = new PendingSaveAckStore(connection);
         SaveConflicts = new SaveConflictStore(connection);
         GameIdBindings = new GameIdBindingStore(connection);
         SyncSets = new SyncSetStore(connection);
@@ -112,6 +113,8 @@ public sealed class LocalStore : IDisposable
 
     /// <summary>The server-side identity of each (rom_id, slot).</summary>
     public SaveSlotStore SaveSlots { get; }
+
+    internal PendingSaveAckStore PendingSaveAcks { get; }
 
     /// <summary>Slots where both sides moved, which outlive the flush that found them.</summary>
     public SaveConflictStore SaveConflicts { get; }
@@ -261,7 +264,7 @@ public sealed class LocalStore : IDisposable
     internal static readonly IReadOnlyList<string> ServerKeyedTables =
     [
         // Clear removed_nes_save after local_save, whose delete trigger records removals.
-        "save_slot", "save_conflict", "local_save", "removed_nes_save", "local_state", "game_id_binding",
+        "save_slot", "pending_save_ack", "save_conflict", "local_save", "removed_nes_save", "local_state", "game_id_binding",
         "content_download", "rom_metadata", "sync_set_member",
     ];
 

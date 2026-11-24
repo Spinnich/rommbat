@@ -44,6 +44,7 @@ public enum FlushMode
     Background,
     InSessionReceive,
     InSessionUpload,
+    InSessionAcknowledgement,
     Shutdown,
 }
 
@@ -113,6 +114,9 @@ public sealed record FlushReport
 
     /// <summary>An upload pass has existing work that can be retried.</summary>
     public bool RetryUpload { get; init; }
+
+    /// <summary>Verified downloads still awaiting a server acknowledgement.</summary>
+    public bool RetryAcknowledgement { get; init; }
 
     /// <summary>Whether this pass reached RomM, when it could establish reachability.</summary>
     public bool? ServerReachable { get; init; }
@@ -184,8 +188,10 @@ public sealed class SaveFlushService
         var install = _session.Install;
         var store = _session.Store;
 
-        var inSession = options.Mode is FlushMode.InSessionReceive or FlushMode.InSessionUpload;
+        var acknowledgementOnly = options.Mode == FlushMode.InSessionAcknowledgement;
+        var inSession = options.Mode is FlushMode.InSessionReceive or FlushMode.InSessionUpload or FlushMode.InSessionAcknowledgement;
         var receiveOnly = options.Mode == FlushMode.InSessionReceive;
+        var canUpload = !receiveOnly && !acknowledgementOnly;
 
         using var held = options.Mode == FlushMode.Shutdown
             ? await TreeLock.TryAcquireForShutdownAsync(install, cancellationToken).ConfigureAwait(false)
@@ -197,7 +203,8 @@ public sealed class SaveFlushService
             return new FlushReport
             {
                 State = FlushState.Skipped,
-                RetryUpload = !receiveOnly,
+                RetryUpload = canUpload,
+                RetryAcknowledgement = acknowledgementOnly,
                 Problem = "Another flush is already running.",
             };
         }
@@ -205,7 +212,10 @@ public sealed class SaveFlushService
         cancellationToken.ThrowIfCancellationRequested();
         if (inSession && new InFlightGuard(install, store).HasActiveGame())
         {
-            return new FlushReport { State = FlushState.GameRunning, RetryUpload = !receiveOnly };
+            return new FlushReport
+            {
+                State = FlushState.GameRunning, RetryUpload = canUpload, RetryAcknowledgement = acknowledgementOnly,
+            };
         }
 
         SpoolDrainOutcome? drained = null;
@@ -213,7 +223,7 @@ public sealed class SaveFlushService
         StateScanOutcome? scannedStates = null;
         SaveScanOutcome? scanned = null;
 
-        if (options.Mode != FlushMode.InSessionReceive)
+        if (canUpload)
         {
             // 1. The hooks wrote spool files and nothing else. Turn them into journal rows.
             drained = new SpoolDrain(install, store).Drain();
@@ -271,8 +281,23 @@ public sealed class SaveFlushService
             };
         }
 
+        bool HasPendingAcknowledgements() =>
+            store.PendingSaveAcks.List(connection.Options.Origin.ToString(), deviceId).Count > 0;
+
         try
         {
+            if (acknowledgementOnly)
+            {
+                var receipts = await new SaveSync(install, store, connection, deviceId)
+                    .RunAsync(options.Mode, cancellationToken).ConfigureAwait(false);
+                return local with
+                {
+                    State = receipts.Failed > 0 ? FlushState.Partial : FlushState.Done,
+                    SavesSent = receipts,
+                    RetryAcknowledgement = HasPendingAcknowledgements(),
+                };
+            }
+
             var playtime = receiveOnly ? null : await new OutboxFlush(store, connection, deviceId)
                 .FlushPlaySessionsAsync(cancellationToken)
                 .ConfigureAwait(false);
@@ -318,6 +343,7 @@ public sealed class SaveFlushService
                 // and the count queued has moved.
                 Conflicts = store.SaveConflicts.ListOpen(),
                 Queued = queued,
+                RetryAcknowledgement = HasPendingAcknowledgements(),
                 RetryUpload = !receiveOnly && (queued > 0 || HasPendingUploads(store, saves.Failed > 0, states?.Failed > 0)),
                 ServerReachable = playtime?.Unreachable == true || states?.Unreachable == true
                     ? false
@@ -332,6 +358,7 @@ public sealed class SaveFlushService
             {
                 State = FlushState.Unreachable,
                 ServerReachable = false,
+                RetryAcknowledgement = HasPendingAcknowledgements(),
                 RetryUpload = !receiveOnly && (local.Queued > 0 || HasPendingUploads(store, savesFailed: true, statesFailed: true)),
                 Problem = $"The server is not reachable: {ex.Message}",
                 Queued = store.Outbox.PendingCount(),

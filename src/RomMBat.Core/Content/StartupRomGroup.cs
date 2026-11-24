@@ -88,65 +88,109 @@ internal sealed class StartupRomGroup(
             }
         }
 
-        if (steps.Count == 1 && steps[0].Member.IsMultiFile && _pending.Count > 0
-            && !Path.Exists(install.Resolve(ContentPlanner.FolderFor(steps[0].Member))))
-        {
-            PublishNewFolder(install.Resolve(ContentPlanner.FolderFor(steps[0].Member)));
-            Record(_pending);
-            return;
-        }
+        var targetFolder = steps is [{ Member.IsMultiFile: true }] && _pending.Count > 0
+            ? install.Resolve(ContentPlanner.FolderFor(steps[0].Member))
+            : null;
+        var newFolder = targetFolder is not null && !Path.Exists(targetFolder);
+        var stage = newFolder
+            ? install.Resolve(RetroBatInstall.PartialDirectory.Combine(Path.GetRandomFileName()))
+            : null;
 
-        // Flat discs and repairs keep their existing paths. They are all verified before the
-        // first move. Individual moves are create-only, and the playlist always goes last.
-        foreach (var file in _pending.OrderBy(file => file.Record.Kind != LocalFileKind.RomPart))
-        {
-            var target = install.Resolve(file.Record.Path);
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            MoveIntoPlace(file, target);
-        }
-
-        Record(_pending);
-    }
-
-    private void PublishNewFolder(string target)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-        var stage = install.Resolve(RetroBatInstall.PartialDirectory.Combine(Path.GetRandomFileName()));
-        Directory.CreateDirectory(stage);
+        var moved = new List<PublishedFile>();
+        var folderPublished = false;
         try
         {
-            foreach (var file in _pending)
+            // Flat discs and repairs keep their existing paths. A fresh multi-file folder
+            // is populated off-menu and then renamed into place as one unit.
+            foreach (var file in _pending.OrderBy(file => file.Record.Kind != LocalFileKind.RomPart))
             {
-                MoveIntoPlace(file, Path.Combine(stage, file.Record.Path.Name));
+                var target = stage is null ? install.Resolve(file.Record.Path) : Path.Combine(stage, file.Record.Path.Name);
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                var stamp = MoveIntoPlace(file, target);
+                moved.Add(new PublishedFile(file, target, stamp));
             }
 
-            Directory.Move(stage, target);
-        }
-        finally
-        {
-            // If publication lost a race, keep the verified downloads resumable.
-            if (Directory.Exists(stage))
+            if (stage is not null)
             {
-                foreach (var file in _pending)
+                Directory.CreateDirectory(Path.GetDirectoryName(targetFolder!)!);
+                Directory.Move(stage, targetFolder!);
+                folderPublished = true;
+            }
+
+            foreach (var file in moved)
+            {
+                var path = folderPublished ? install.Resolve(file.Pending.Record.Path) : file.Path;
+                if (ReadStamp(path) != file.Stamp)
                 {
-                    var staged = Path.Combine(stage, file.Record.Path.Name);
-                    if (file.Part is not null && File.Exists(staged))
+                    throw new IOException($"'{file.Pending.Record.Path.Name}' changed before indexing.");
+                }
+            }
+
+            Record(_pending);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            var problems = new List<string>();
+            foreach (var file in moved.AsEnumerable().Reverse())
+            {
+                var path = folderPublished ? install.Resolve(file.Pending.Record.Path) : file.Path;
+                try
+                {
+                    if (ReadStamp(path) != file.Stamp)
                     {
-                        File.Move(staged, file.Part, overwrite: false);
+                        problems.Add($"'{path}' changed before rollback");
+                    }
+                    else if (file.Pending.Part is { } part)
+                    {
+                        File.Move(path, part, overwrite: false);
+                    }
+                    else
+                    {
+                        File.Delete(path);
                     }
                 }
-
-                Directory.Delete(stage, recursive: true);
+                catch (Exception rollback) when (rollback is IOException or UnauthorizedAccessException)
+                {
+                    problems.Add(rollback.Message);
+                }
             }
+
+            if (stage is not null)
+            {
+                var folder = folderPublished ? targetFolder! : stage;
+                try
+                {
+                    if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
+                    {
+                        Directory.Delete(folder);
+                    }
+                }
+                catch (Exception rollback) when (rollback is IOException or UnauthorizedAccessException)
+                {
+                    problems.Add(rollback.Message);
+                }
+            }
+
+            if (problems.Count != 0)
+            {
+                throw new IOException($"{ex.Message} Group rollback needs attention: {string.Join("; ", problems)}", ex);
+            }
+
+            throw;
         }
     }
 
-    private void MoveIntoPlace(PendingFile file, string target)
+    private static FileStamp? ReadStamp(string path)
+    {
+        var info = new FileInfo(path);
+        return info.Exists ? new FileStamp(info.CreationTimeUtc, info.LastWriteTimeUtc, info.Length) : null;
+    }
+
+    private FileStamp MoveIntoPlace(PendingFile file, string target)
     {
         if (file.Part is not null)
         {
-            File.Move(file.Part, target, overwrite: false);
-            return;
+            return MoveVerified(file.Part, target);
         }
 
         var temporary = install.Resolve(RetroBatInstall.PartialDirectory.Combine(Path.GetRandomFileName()));
@@ -157,12 +201,19 @@ internal sealed class StartupRomGroup(
                 output.Write(file.Playlist!);
             }
 
-            File.Move(temporary, target, overwrite: false);
+            return MoveVerified(temporary, target);
         }
         finally
         {
             File.Delete(temporary);
         }
+    }
+
+    private static FileStamp MoveVerified(string source, string target)
+    {
+        var stamp = ReadStamp(source) ?? throw new FileNotFoundException("The staged group file is missing.", source);
+        File.Move(source, target, overwrite: false);
+        return stamp;
     }
 
     private void Record(IReadOnlyList<PendingFile> files) => store.InTransaction(() =>
@@ -190,5 +241,7 @@ internal sealed class StartupRomGroup(
         }
     });
 
+    private sealed record FileStamp(DateTime Created, DateTime Modified, long Size);
+    private sealed record PublishedFile(PendingFile Pending, string Path, FileStamp Stamp);
     private sealed record PendingFile(LocalFile Record, string? Part, int FileId, byte[]? Playlist = null);
 }

@@ -395,6 +395,12 @@ public sealed class SaveSync
 
     internal async Task<SaveSyncOutcome> RunAsync(FlushMode mode, CancellationToken cancellationToken)
     {
+        var (waitingForReceipt, receiptProblems) = await RecoverNesReceiptsAsync(cancellationToken).ConfigureAwait(false);
+        if (mode == FlushMode.InSessionAcknowledgement)
+        {
+            return new SaveSyncOutcome { Failed = waitingForReceipt.Count, Problems = receiptProblems };
+        }
+
         var inSession = mode is FlushMode.InSessionReceive or FlushMode.InSessionUpload;
         var receiveOnly = mode == FlushMode.InSessionReceive;
         var saves = _store.Saves.List()
@@ -433,10 +439,18 @@ public sealed class SaveSync
             }
         }
 
+        foreach (var problem in receiptProblems)
+        {
+            problems.Add(problem);
+        }
+
+        failed += waitingForReceipt.Count;
+
         var request = new NegotiateRequest(
             _deviceId,
             [.. byKey.Values
-                .Where(save => !receiveOnly || !save.IsUnsent && !save.HasChangedSinceUpload)
+                .Where(save => !waitingForReceipt.Contains((save.RomId!.Value, save.Slot))
+                    && (!receiveOnly || !save.IsUnsent && !save.HasChangedSinceUpload))
                 .Select(save => new NegotiateSave(
                     (int)save.RomId!.Value,
                     NameFor(save),
@@ -492,6 +506,11 @@ public sealed class SaveSync
             cancellationToken.ThrowIfCancellationRequested();
 
             var key = ((long)operation.RomId, operation.Slot ?? string.Empty);
+            if (waitingForReceipt.Contains(key))
+            {
+                continue;
+            }
+
             byKey.TryGetValue(key, out var local);
 
             var automaticNes = mode != FlushMode.Manual && IsNesBattery(operation);
@@ -1902,42 +1921,41 @@ public sealed class SaveSync
                     return (0, null, blocked, null);
                 }
 
+                var receipt = new PendingSaveAck(operation.RomId, NesBatterySlot, saveId,
+                    operation.ServerContentHash!, destination, operation.ServerUpdatedAt);
+                // A process can stop immediately after the file swap. Write intent first so
+                // recovery can prove what landed by checking the destination's bytes.
+                _store.PendingSaveAcks.Record(AckOrigin, _deviceId, receipt);
+                if (launching is not null)
+                {
+                    // Wake the worker before a process stop can leave installed bytes behind.
+                    // Its acknowledgement pass waits for the same tree lock as this launch.
+                    SessionSignal.AcknowledgementPending(_install);
+                }
+
                 if (CommitNesDownload(part, destination, local, launching, cancellationToken) is { } changed)
                 {
+                    _store.PendingSaveAcks.Remove(AckOrigin, _deviceId, receipt);
                     return (0, null, changed, null);
+                }
+
+                receipt = RecordInstalledNesReceipt(receipt, operation, local);
+                var confirmation = await ConfirmNesReceiptAsync(receipt, cancellationToken).ConfigureAwait(false);
+                if (confirmation.Problem is { } problem)
+                {
+                    return (written, $"{destination}: {problem}", null, null);
                 }
             }
             else
             {
                 MoveAside(destination);
                 File.Move(part, absolute, overwrite: true);
-            }
+                var ack = await _connection.AcknowledgeSaveAsync(saveId, _deviceId, cancellationToken).ConfigureAwait(false);
+                if (!ack.IsSuccess)
+                {
+                    return (written, $"{destination}: written, but the server was not told: {ack.Message}", null, null);
+                }
 
-            // Keep verified bytes in the local index even if the acknowledgement is interrupted.
-            // The next receiver negotiates from that index without walking the save tree.
-            if (automaticNes)
-            {
-                RecordRestored(operation, destination, local, operation.ServerContentHash, recordSlot: false);
-            }
-
-            // Only now, with the bytes on disk and checked. Before this the server still
-            // believes the device does not have the save, which is the recoverable state.
-            var ack = await _connection.AcknowledgeSaveAsync(saveId, _deviceId, cancellationToken).ConfigureAwait(false);
-
-            if (!ack.IsSuccess)
-            {
-                // The file is in place and the server does not know. The next negotiate offers
-                // it again and the second download is a no-op against identical content, so
-                // this costs a transfer rather than a save.
-                return (written, $"{destination}: written, but the server was not told: {ack.Message}", null, null);
-            }
-
-            if (automaticNes)
-            {
-                RecordRestoredSlot(operation, _time.GetUtcNow());
-            }
-            else
-            {
                 RecordRestored(operation, destination, local);
             }
             return (written, null, null, null);
@@ -1953,6 +1971,120 @@ public sealed class SaveSync
         finally
         {
             SafeDelete(part);
+        }
+    }
+
+    private string AckOrigin => _connection.Options.Origin.ToString();
+
+    private async Task<(HashSet<(long RomId, string Slot)> Waiting, List<string> Problems)> RecoverNesReceiptsAsync(
+        CancellationToken cancellationToken)
+    {
+        var waiting = new HashSet<(long RomId, string Slot)>();
+        var problems = new List<string>();
+        foreach (var receipt in _store.PendingSaveAcks.List(AckOrigin, _deviceId))
+        {
+            var (retry, problem) = await RecoverNesReceiptAsync(receipt, launching: null, cancellationToken)
+                .ConfigureAwait(false);
+            if (problem is not null)
+            {
+                problems.Add(problem);
+            }
+
+            if (retry)
+            {
+                waiting.Add((receipt.RomId, receipt.Slot));
+            }
+        }
+
+        return (waiting, problems);
+    }
+
+    private PendingSaveAck RecordInstalledNesReceipt(PendingSaveAck receipt, SyncOperation operation, LocalSave? local)
+    {
+        var installed = receipt with { Installed = true };
+        _store.InTransaction(() =>
+        {
+            RecordRestored(operation, installed.Path, local, installed.Hash);
+            _store.PendingSaveAcks.Record(AckOrigin, _deviceId, installed);
+        });
+        return installed;
+    }
+
+    private async Task<(bool Retry, string? Problem)> RecoverNesReceiptAsync(
+        PendingSaveAck receipt, RelativePath? launching, CancellationToken cancellationToken)
+    {
+        if (!receipt.Installed)
+        {
+            if (NesSaveInUse(launching) is { } running)
+            {
+                return (true, running);
+            }
+
+            var path = _install.Resolve(receipt.Path);
+            try
+            {
+                // A removed or edited file cannot prove an interrupted publication. Preserve
+                // the scanner's record, in particular any deliberate-deletion tombstone.
+                if (_store.Saves.WasNesSaveRemoved(receipt.RomId) || !File.Exists(path)
+                    || _store.SaveSlots.Read(receipt.RomId, receipt.Slot)?.SaveId > receipt.SaveId)
+                {
+                    _store.PendingSaveAcks.Remove(AckOrigin, _deviceId, receipt);
+                    return (false, null);
+                }
+
+                using var current = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                if (!string.Equals(LogicalContentHash.OfStream(current), receipt.Hash, StringComparison.OrdinalIgnoreCase))
+                {
+                    _store.PendingSaveAcks.Remove(AckOrigin, _deviceId, receipt);
+                    return (false, null);
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                var local = _store.Saves.List(receipt.RomId).FirstOrDefault(save =>
+                    save.Path == receipt.Path && save.UnitKey.Length == 0 && save.Slot == receipt.Slot);
+                var operation = new SyncOperation("download", receipt.RomId, receipt.SaveId, null,
+                    receipt.Slot, "libretro", null, receipt.ServerUpdatedAt, receipt.Hash);
+                receipt = RecordInstalledNesReceipt(receipt, operation, local);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return (true, $"Save {receipt.SaveId} installation could not be verified: {ex.Message}");
+            }
+        }
+
+        return await ConfirmNesReceiptAsync(receipt, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<(bool Retry, string? Problem)> ConfirmNesReceiptAsync(
+        PendingSaveAck receipt, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // A retry confirms the bytes installed at the time of download. It must not
+            // substitute an edited file or the current remote head for that evidence.
+            var reply = await _connection.AcknowledgeVerifiedSaveAsync(
+                receipt.SaveId, _deviceId, receipt.Hash, cancellationToken).ConfigureAwait(false);
+            if (!reply.IsSuccess && reply.Status != RomMResponseStatus.NotFound)
+            {
+                return (true, $"Save {receipt.SaveId} acknowledgement pending: {reply.Message}");
+            }
+
+            if (reply.IsSuccess && reply.Value is not { Id: > 0 })
+            {
+                return (true, $"Save {receipt.SaveId} acknowledgement returned no save identity.");
+            }
+
+            // A missing or superseded server version cannot be acknowledged. The local
+            // baseline still describes the bytes we actually installed.
+            _store.PendingSaveAcks.Remove(AckOrigin, _deviceId, receipt);
+            return reply.Value is { } row && row.Id == receipt.SaveId && row.RomId == receipt.RomId
+                && row.Slot == receipt.Slot && string.Equals(row.ContentHash, receipt.Hash, StringComparison.OrdinalIgnoreCase)
+                ? (false, null)
+                : (false, $"Save {receipt.SaveId} acknowledgement retired because that server version is no longer available.");
+        }
+        catch (Exception ex) when (ex is RomMUnreachableException or RomMApiException)
+        {
+            return (true, $"Save {receipt.SaveId} acknowledgement pending: {ex.Message}");
         }
     }
 
@@ -2058,6 +2190,8 @@ public sealed class SaveSync
             return "unmanaged ROM; no save check";
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+        using var intent = SessionSignal.BeginLaunch(_install);
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         using var held = await TreeLock.TryAcquireForLaunchAsync(_install, cancellationToken).ConfigureAwait(false);
         if (held is null)
@@ -2071,6 +2205,21 @@ public sealed class SaveSync
             return $"local save retained: {running}";
         }
 
+        var canRestore = rom.Folder == "nes"
+            && new LaunchEmulator(_install).For("nes", _store.Files.ForRom(romId, LocalFileKind.Rom)) == "libretro";
+        if (canRestore)
+        {
+            foreach (var receipt in _store.PendingSaveAcks.List(AckOrigin, _deviceId, romId))
+            {
+                var (retry, receiptProblem) = await RecoverNesReceiptAsync(receipt, romPath, cancellationToken).ConfigureAwait(false);
+                if (retry)
+                {
+                    SessionSignal.AcknowledgementPending(_install);
+                    return $"local save retained: {receiptProblem}";
+                }
+            }
+        }
+
         var listed = await _connection.ListSavesAsync(romId, _deviceId, cancellationToken).ConfigureAwait(false);
         if (!listed.IsSuccess || listed.Value is not { } rows)
         {
@@ -2081,8 +2230,7 @@ public sealed class SaveSync
             .GroupBy(row => row.Slot!, StringComparer.Ordinal)
             .Select(slot => slot.OrderByDescending(row => row.UpdatedAt).ThenByDescending(row => row.Id).First())
             .ToArray();
-        if (rom.Folder != "nes"
-            || new LaunchEmulator(_install).For("nes", _store.Files.ForRom(romId, LocalFileKind.Rom)) != "libretro")
+        if (!canRestore)
         {
             var differing = heads.Count(row =>
             {
@@ -2122,6 +2270,12 @@ public sealed class SaveSync
             automaticNes: true, launching: romPath).ConfigureAwait(false);
         if ((download.Problem ?? download.Deferred ?? download.Rejected) is { } problem)
         {
+            if (download.Bytes > 0)
+            {
+                BackgroundTransfer.Record(_install, _time.GetUtcNow(), download: true);
+                return $"incoming save ready; {problem}";
+            }
+
             return $"local save retained: {problem}";
         }
 
@@ -2905,7 +3059,7 @@ public sealed class SaveSync
     /// </remarks>
     private void RecordRestored(
         SyncOperation operation, RelativePath destination, LocalSave? previous,
-        string? verifiedHash = null, bool recordSlot = true)
+        string? verifiedHash = null)
     {
         var now = _time.GetUtcNow();
         var absolute = _install.Resolve(destination);
@@ -2954,10 +3108,7 @@ public sealed class SaveSync
             },
             now);
 
-        if (recordSlot)
-        {
-            RecordRestoredSlot(operation, now);
-        }
+        RecordRestoredSlot(operation, now);
     }
 
     private void RecordRestoredSlot(SyncOperation operation, DateTimeOffset now)

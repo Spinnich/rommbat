@@ -28,6 +28,31 @@ public sealed class SaveFlushServiceTests
     private static readonly DateTimeOffset Now = new(2026, 8, 31, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task Pairing_as_another_device_does_not_replay_the_old_devices_ack()
+    {
+        using var fixture = FlushTree.Create();
+        fixture.Pair();
+        const string slot = "libretro:battery";
+        var install = fixture.Session.Install;
+        var origin = fixture.Session.Store.Device.Read()!.ServerOrigin!;
+        var destination = RelativePath.Create("saves/nes/Zelda II.srm");
+        fixture.Session.Store.PendingSaveAcks.Record(origin.ToString(), "device-1",
+            new PendingSaveAck(42, slot, 26, new string('a', 32), destination, Now, Installed: true));
+        fixture.Session.Store.Device.SavePairing(
+            new PairingResult(origin, "device-2", "Other device", new GrantedScopes(["assets.read"]),
+                TokenProtector.Protect("rmm_token", null, Now.AddYears(1))), Now);
+
+        var report = await new SaveFlushService(fixture.Session).RunAsync(
+            new FlushOptions { Mode = FlushMode.InSessionAcknowledgement },
+            fixture.Connect(), TestContext.Current.CancellationToken);
+
+        Assert.Equal(FlushState.Done, report.State);
+        Assert.False(report.RetryAcknowledgement);
+        Assert.Empty(fixture.Stub.RequestLog);
+        Assert.Empty(fixture.Session.Store.PendingSaveAcks.List(origin.ToString(), "device-1"));
+    }
+
+    [Fact]
     public async Task Failing_to_take_the_tree_lock_is_an_outcome_rather_than_an_error()
     {
         // Two flushes overlap whenever somebody runs one beside a sync, and the measured case

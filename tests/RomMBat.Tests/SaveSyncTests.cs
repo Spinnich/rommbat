@@ -478,6 +478,147 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task Prelaunch_recovers_an_interrupted_ack_before_restoring_a_newer_head()
+    {
+        using var fixture = SyncFixture.Create();
+        const string game = "Zelda II";
+        const string slot = "libretro:battery";
+        var rom = RelativePath.Create("roms/nes/Zelda II.nes");
+        var token = TestContext.Current.CancellationToken;
+        fixture.AddGame(42, "nes", game, ".nes", ".srm", saveContents: null);
+        fixture.RunSystemUnder("nes", "libretro");
+        fixture.SeedServerSave(42, slot, game, "srm", "downloaded", id: 26);
+        fixture.Stub.FailAcknowledge = HttpStatusCode.ServiceUnavailable;
+        await fixture.PrepareLaunchAsync(rom.Value, token);
+        var path = fixture.Resolve("saves/nes/Zelda II.srm");
+        Assert.Equal("downloaded", File.ReadAllText(path));
+        Assert.Empty(fixture.Stub.Acknowledged);
+
+        fixture.Stub.FailAcknowledge = null;
+        fixture.SeedServerSave(42, slot, game, "srm", "newer", id: 27);
+        using var reopened = LocalStore.Open(fixture.Install);
+        using var connection = new RomMConnection(
+            new RomMClientOptions { Origin = Origin, AccessToken = "rmm_test" }, fixture.Stub);
+        Assert.Equal("incoming save ready", await new SaveSync(fixture.Install, reopened, connection, DeviceId)
+            .PrepareLaunchAsync(rom, token));
+        Assert.Equal([26, 27], fixture.Stub.Acknowledged);
+        Assert.Equal([26, 27], fixture.Stub.RequestLog.Where(request =>
+            request.EndsWith("/content", StringComparison.Ordinal)).Select(request => int.Parse(request.Split('/')[3],
+                System.Globalization.CultureInfo.InvariantCulture)));
+        Assert.Equal((26, DeviceId, fixture.Stub.Saves[26].ContentHash), fixture.Stub.VerifiedAcknowledgements[1]);
+        Assert.Equal("newer", File.ReadAllText(path));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Interrupted_file_publication_recovers_only_matching_SRAM(bool edited, bool removed)
+    {
+        using var fixture = SyncFixture.Create();
+        const string game = "Zelda II";
+        const string rom = "roms/nes/Zelda II.nes";
+        const string slot = "libretro:battery";
+        var token = TestContext.Current.CancellationToken;
+        fixture.AddGame(42, "nes", game, ".nes", ".srm", saveContents: null);
+        fixture.RunSystemUnder("nes", "libretro");
+        fixture.SeedServerSave(42, slot, game, "srm", "peer progress", id: 26);
+        using var fault = fixture.Store.Connection.CreateCommand();
+        fault.CommandText = """
+            CREATE TEMP TRIGGER fail_nes_index BEFORE INSERT ON local_save
+            BEGIN SELECT RAISE(ABORT, 'interrupted after publication'); END;
+            """;
+        fault.ExecuteNonQuery();
+        await Assert.ThrowsAsync<Microsoft.Data.Sqlite.SqliteException>(() => fixture.PrepareLaunchAsync(rom, token));
+        var path = fixture.Resolve("saves/nes/Zelda II.srm");
+        Assert.Equal("peer progress", File.ReadAllText(path));
+        var pending = Assert.Single(fixture.Store.PendingSaveAcks.List(Origin.ToString(), DeviceId));
+        Assert.False(pending.Installed);
+        Assert.Empty(fixture.Stub.Acknowledged);
+        fault.CommandText = "DROP TRIGGER fail_nes_index;";
+        fault.ExecuteNonQuery();
+
+        if (edited)
+        {
+            File.WriteAllText(path, "local progress");
+            fixture.Scan();
+        }
+        else if (removed)
+        {
+            fixture.Scan();
+            File.Delete(path);
+            fixture.Scan();
+        }
+
+        using var reopened = LocalStore.Open(fixture.Install);
+        using var connection = new RomMConnection(
+            new RomMClientOptions { Origin = Origin, AccessToken = "rmm_test" }, fixture.Stub);
+        var sync = new SaveSync(fixture.Install, reopened, connection, DeviceId);
+        await sync.RunAsync(FlushMode.InSessionAcknowledgement, token);
+        Assert.Empty(reopened.PendingSaveAcks.List(Origin.ToString(), DeviceId));
+        if (edited || removed)
+        {
+            Assert.Empty(fixture.Stub.Acknowledged);
+        }
+        else
+        {
+            Assert.Equal(26, Assert.Single(fixture.Stub.Acknowledged));
+        }
+        if (removed)
+        {
+            Assert.True(reopened.Saves.WasNesSaveRemoved(42));
+            Assert.False(File.Exists(path));
+        }
+        else
+        {
+            Assert.Equal(edited ? "local progress" : "peer progress", File.ReadAllText(path));
+            Assert.Equal(edited, Assert.Single(reopened.Saves.List(42)).IsUnsent);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Retrying_an_ack_never_attests_to_updated_remote_or_local_bytes(bool pruned)
+    {
+        using var fixture = SyncFixture.Create();
+        const string game = "Zelda II";
+        const string slot = "libretro:battery";
+        const string rom = "roms/nes/Zelda II.nes";
+        var token = TestContext.Current.CancellationToken;
+        fixture.AddGame(42, "nes", game, ".nes", ".srm", saveContents: null);
+        fixture.RunSystemUnder("nes", "libretro");
+        fixture.SeedServerSave(42, slot, game, "srm", "downloaded", id: 26);
+        var installed = fixture.Stub.Saves[26].ContentHash;
+        fixture.Stub.FailAcknowledge = HttpStatusCode.ServiceUnavailable;
+        await fixture.PrepareLaunchAsync(rom, token);
+        fixture.Stub.FailAcknowledge = null;
+        if (pruned)
+        {
+            fixture.Stub.Saves.Remove(26);
+        }
+        else
+        {
+            fixture.SeedServerSave(42, slot, game, "srm", "updated in place", id: 26);
+        }
+
+        fixture.SeedServerSave(42, slot, game, "srm", "newer", id: 27);
+        var path = fixture.Resolve("saves/nes/Zelda II.srm");
+        File.WriteAllText(path, "local progress");
+        fixture.Scan();
+        await fixture.SyncAsync(FlushMode.InSessionAcknowledgement, token);
+        Assert.Empty(fixture.Store.PendingSaveAcks.List(Origin.ToString(), DeviceId));
+        Assert.Empty(fixture.Stub.Acknowledged);
+        Assert.Equal((26, DeviceId, installed), fixture.Stub.VerifiedAcknowledgements[^1]);
+        var local = Assert.Single(fixture.Store.Saves.List(42));
+        Assert.True(local.HasChangedSinceUpload);
+        Assert.Equal(installed, fixture.Store.SaveSlots.Read(42, slot)?.ServerContentHash);
+        Assert.StartsWith("local save retained:", await fixture.PrepareLaunchAsync(rom, token), StringComparison.Ordinal);
+        Assert.Equal("local progress", File.ReadAllText(path));
+        Assert.Empty(fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
     public async Task Zelda_II_session_retries_interrupted_content_and_ack_without_duplicate_backups()
     {
         using var fixture = SyncFixture.Create();
