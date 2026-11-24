@@ -12,6 +12,8 @@ public sealed record SaveSyncOutcome
 {
     internal bool? ServerReachable { get; init; }
 
+    internal bool TransientUploadFailure { get; init; }
+
     public int Uploaded { get; init; }
 
     public int Downloaded { get; init; }
@@ -482,7 +484,13 @@ public sealed class SaveSync
         if (!negotiated.IsSuccess || negotiated.Value is not { } result)
         {
             problems.Add(negotiated.Message ?? "negotiate failed");
-            return new SaveSyncOutcome { Failed = failed + byKey.Count, Problems = problems };
+            return new SaveSyncOutcome
+            {
+                Failed = failed + byKey.Count,
+                Problems = problems,
+                ServerReachable = negotiated.HttpStatus is not null ? true : null,
+                TransientUploadFailure = !receiveOnly && negotiated.IsTransientFailure,
+            };
         }
 
         var uploaded = 0;
@@ -500,6 +508,7 @@ public sealed class SaveSync
         // What each upload did, so siblings of one save can be reported together below.
         var sent = new List<(long RomId, string Slot, bool Ok)>();
         var serverReachable = true;
+        var transientUploadFailure = false;
 
         foreach (var operation in result.Operations)
         {
@@ -588,6 +597,7 @@ public sealed class SaveSync
                         .ConfigureAwait(false);
 
                     serverReachable &= !attempt.Unreachable;
+                    transientUploadFailure |= attempt.TransientFailure;
                     if (attempt.Conflicted)
                     {
                         // <b>A 409 is a conflict, not a failure, and this is where the two
@@ -908,6 +918,7 @@ public sealed class SaveSync
         {
             Uploaded = uploaded,
             ServerReachable = serverReachable,
+            TransientUploadFailure = transientUploadFailure,
             Downloaded = downloaded,
             Conflicts = conflicts.Count,
             NoOps = noOps,
@@ -1393,7 +1404,7 @@ public sealed class SaveSync
     /// flush and costs nothing; a conflict needs a person to choose a side, so it is persisted
     /// and reported rather than retried, and <c>saves resolve</c> is the only thing that ends it.
     /// </remarks>
-    private async Task<(bool Conflicted, string? Problem, bool Unreachable)> UploadAsync(
+    private async Task<(bool Conflicted, string? Problem, bool Unreachable, bool TransientFailure)> UploadAsync(
         LocalSave save,
         int sessionId,
         CancellationToken cancellationToken)
@@ -1403,7 +1414,7 @@ public sealed class SaveSync
 
         if (isUnit ? !Directory.Exists(path) : !File.Exists(path))
         {
-            return (false, $"{Describe(save)}: it is gone since the scan.", false);
+            return (false, $"{Describe(save)}: it is gone since the scan.", false, false);
         }
 
         string? bundle = null;
@@ -1421,7 +1432,7 @@ public sealed class SaveSync
 
                 if (unit is null)
                 {
-                    return (false, $"{Describe(save)}: it is gone since the scan.", false);
+                    return (false, $"{Describe(save)}: it is gone since the scan.", false, false);
                 }
 
                 bundle = SaveUnitTransfer.Pack(_install, unit, _install.Resolve(PartialDirectory));
@@ -1447,7 +1458,7 @@ public sealed class SaveSync
 
             if (!response.IsSuccess || response.Value is not { } result)
             {
-                return (false, $"{Describe(save)}: {response.Message}", false);
+                return (false, $"{Describe(save)}: {response.Message}", false, response.IsTransientFailure);
             }
 
             if (result.Conflict)
@@ -1455,7 +1466,7 @@ public sealed class SaveSync
                 // The server refused because this device's record is stale. Never retried with
                 // overwrite here, which would discard whatever moved; the caller records it as a
                 // conflict and `saves resolve --keep-local` is the only caller of overwrite.
-                return (true, null, false);
+                return (true, null, false, false);
             }
 
             if (result.Save is { } row)
@@ -1467,15 +1478,15 @@ public sealed class SaveSync
             // The value a later scan compares the tree against. For every shape it is also the
             // server's content_hash for what was sent.
             _store.Saves.MarkUploaded(save.Path, save.UnitKey, save.ContentHash!, _time.GetUtcNow());
-            return (false, null, false);
+            return (false, null, false, false);
         }
         catch (RomMUnreachableException ex)
         {
-            return (false, $"{Describe(save)}: {ex.Message}", true);
+            return (false, $"{Describe(save)}: {ex.Message}", true, false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return (false, $"{Describe(save)}: it could not be read: {ex.Message}", false);
+            return (false, $"{Describe(save)}: it could not be read: {ex.Message}", false, false);
         }
         finally
         {

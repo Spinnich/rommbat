@@ -314,11 +314,21 @@ public sealed class ContentSync
 
                 case ContentAction.Download:
                 case ContentAction.Resume:
-                    var result = step.Member.IsMultiFile
-                        ? await TransferSetAsync(step, index, plan.Steps.Count, progress, cancellationToken)
-                            .ConfigureAwait(false)
-                        : await TransferAsync(step, index, plan.Steps.Count, progress, cancellationToken)
-                            .ConfigureAwait(false);
+                    (long Bytes, string? Problem, bool Rejected, FailureCause Cause) result;
+                    try
+                    {
+                        result = step.Member.IsMultiFile
+                            ? await TransferSetAsync(step, index, plan.Steps.Count, progress, cancellationToken)
+                                .ConfigureAwait(false)
+                            : await TransferAsync(step, index, plan.Steps.Count, progress, cancellationToken)
+                                .ConfigureAwait(false);
+                    }
+                    catch (BudgetRefusal ex)
+                    {
+                        blocked++;
+                        problems.Add($"{step.Member.DisplayName}: {ex.Message}");
+                        break;
+                    }
 
                     rejected |= result.Rejected;
                     cause = FailureCauses.Worst(cause, result.Cause);
@@ -669,6 +679,7 @@ public sealed class ContentSync
     {
         if (StartupGroup is null)
         {
+            RequireBudget(ManagedGrowth(transfer.TargetPath, new FileInfo(partAbsolute).Length));
             File.Move(partAbsolute, targetAbsolute, overwrite: !PreserveExisting);
         }
 
@@ -774,11 +785,37 @@ public sealed class ContentSync
 
         var folder = ContentPlanner.FolderFor(member);
         var playlistName = MultiFileLayout.PlaylistNameFor(member.FsName);
+        var served = members.FirstOrDefault(file =>
+            string.Equals(file.FileName, playlistName, StringComparison.OrdinalIgnoreCase));
+        var discs = served is null ? layout.DiscsOf(members.Select(file => file.FileName)) : [];
+        if (served is null && discs.Count == 0)
+        {
+            return (0, $"none of its files is a disc {member.Folder} can list in a playlist", false, FailureCause.Failed);
+        }
+
+        var playlistBytes = Encoding.UTF8.GetBytes(string.Join(PlaylistSeparator, discs));
 
         try
         {
             if (StartupGroup is null)
             {
+                if (_store.Settings.GetInt64(SettingStore.ContentMaxBytes) is not null)
+                {
+                    var growth = served is null ? ManagedGrowth(folder.Combine(playlistName), playlistBytes.Length) : 0;
+                    foreach (var file in members)
+                    {
+                        var target = folder.Combine(file.FileName);
+                        if (!CanKeepMember(member.RomId, file, new FileInfo(_install.Resolve(target)), _store.Files.Find(target)))
+                        {
+                            growth += ManagedGrowth(target, file.SizeBytes);
+                        }
+                    }
+
+                    // Refuse before writing any discs when their listed sizes and the local
+                    // playlist already prove this package cannot fit.
+                    RequireBudget(growth);
+                }
+
                 Directory.CreateDirectory(_install.Resolve(folder));
             }
         }
@@ -788,8 +825,6 @@ public sealed class ContentSync
         }
 
         var bytes = 0L;
-        var served = members.FirstOrDefault(file =>
-            string.Equals(file.FileName, playlistName, StringComparison.OrdinalIgnoreCase));
 
         foreach (var file in members.Where(file => !ReferenceEquals(file, served)))
         {
@@ -824,15 +859,7 @@ public sealed class ContentSync
             return result with { Bytes = bytes + result.Bytes };
         }
 
-        var discs = layout.DiscsOf(members.Select(file => file.FileName));
-
-        if (discs.Count == 0)
-        {
-            return (bytes, $"none of its files is a disc {member.Folder} can list in a playlist", false, FailureCause.Failed);
-        }
-
-        var written = WritePlaylist(step.Member, folder, playlistName, discs);
-
+        var written = WritePlaylist(step.Member, folder, playlistName, playlistBytes);
         return (bytes, written, false, written is null ? FailureCause.None : FailureCause.Failed);
     }
 
@@ -884,14 +911,7 @@ public sealed class ContentSync
             return (0, group.Defer(file.FileName), false, FailureCause.Failed);
         }
 
-        if (info.Exists
-            && known is not null
-            && known.RomId == step.Member.RomId
-            && !known.Stale
-            && known.SizeBytes == info.Length
-            && info.Length == file.SizeBytes
-            && known.VerifiedBy != VerifiedBy.None
-            && (file.Md5 is null || ContentHasher.Matches(known.Md5Hash, file.Md5)))
+        if (CanKeepMember(step.Member.RomId, file, info, known))
         {
             return (0, null, false, FailureCause.None);
         }
@@ -916,6 +936,24 @@ public sealed class ContentSync
             .ConfigureAwait(false);
     }
 
+    private static bool CanKeepMember(int romId, RomFileRow file, FileInfo info, LocalFile? known) =>
+        info.Exists && known is not null && known.RomId == romId && !known.Stale
+        && known.SizeBytes == info.Length && info.Length == file.SizeBytes && known.VerifiedBy != VerifiedBy.None
+        && (file.Md5 is null || ContentHasher.Matches(known.Md5Hash, file.Md5));
+
+    private long ManagedGrowth(RelativePath target, long bytes) =>
+        bytes - (_store.Files.Find(target) is { Origin: FileOrigin.Synced } owned ? owned.SizeBytes : 0);
+
+    private void RequireBudget(long growth)
+    {
+        if (ContentPlanner.PublicationBudgetProblem(_store, growth) is { } problem)
+        {
+            throw new BudgetRefusal(problem);
+        }
+    }
+
+    private sealed class BudgetRefusal(string message) : Exception(message);
+
     /// <summary>
     /// Writes a playlist naming the set's discs and records it as the game's own file.
     /// </summary>
@@ -925,11 +963,10 @@ public sealed class ContentSync
     /// three libretro cores, DuckStation and mednafen, each of which loaded both discs from it.
     /// Written to a temporary name and renamed, so ES never lists a half-written playlist.
     /// </remarks>
-    private string? WritePlaylist(SyncSetMember member, RelativePath folder, string playlistName, IReadOnlyList<string> discs)
+    private string? WritePlaylist(SyncSetMember member, RelativePath folder, string playlistName, byte[] bytes)
     {
         var target = folder.Combine(playlistName);
         var absolute = _install.Resolve(target);
-        var bytes = Encoding.UTF8.GetBytes(string.Join(PlaylistSeparator, discs));
         if (StartupGroup is { } group)
         {
             try
@@ -964,6 +1001,7 @@ public sealed class ContentSync
             }
         }
 
+        RequireBudget(ManagedGrowth(target, bytes.Length));
         var temporary = absolute + ".tmp";
 
         try

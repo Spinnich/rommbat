@@ -295,7 +295,7 @@ public sealed class GameSync
                 continue;
             }
 
-            if (preserveExisting && landed.Blocked > 0)
+            if (landed.Blocked > 0 && (preserveExisting || game.Steps.Any(step => step.Member.IsMultiFile)))
             {
                 continue;
             }
@@ -310,11 +310,12 @@ public sealed class GameSync
 
             try
             {
+                var (managed, transfer) = RemainingRomBytes(games, index + 1, preserveExisting);
                 fetched = await artwork
                     .ApplyAsync(
                         [.. game.RomIds],
                         new Immediate<string>(what => progress.Report(new MediaProgressed(what))),
-                        RemainingRomBytes(games, index + 1),
+                        managed, transfer,
                         cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -369,7 +370,7 @@ public sealed class GameSync
             progress.Report(new ContentProgressed(step with { Index = offset + step.Index, Total = total })));
 
     /// <summary>
-    /// How many bytes of ROM this run still intends to fetch, from the given game onwards.
+    /// Disk and transfer space for ROMs still to be committed, from the given game onwards.
     /// </summary>
     /// <remarks>
     /// Only <see cref="ContentAction.Download"/> and <see cref="ContentAction.Resume"/> count.
@@ -384,12 +385,20 @@ public sealed class GameSync
     /// stop being spent.
     /// </para>
     /// </remarks>
-    private static long RemainingRomBytes(IReadOnlyList<PlannedGame> games, int from) =>
-        games
-            .Skip(from)
-            .SelectMany(game => game.Steps)
-            .Where(step => step.Action is ContentAction.Download or ContentAction.Resume)
-            .Sum(step => step.BytesToTransfer);
+    private static (long Managed, long Transfer) RemainingRomBytes(
+        IReadOnlyList<PlannedGame> games, int from, bool preserveExisting)
+    {
+        var downloads = games.Skip(from).SelectMany(game => game.Steps)
+            .Where(step => step.Action is ContentAction.Download or ContentAction.Resume);
+        long managed = 0, transfer = 0;
+        foreach (var step in downloads)
+        {
+            managed += ContentPlanner.ManagedBytesToAdd(step, preserveExisting);
+            transfer += step.BytesToTransfer;
+        }
+
+        return (managed, transfer);
+    }
 
     /// <summary>Whether a rollback also throws away what a later run could continue from.</summary>
     /// <remarks>

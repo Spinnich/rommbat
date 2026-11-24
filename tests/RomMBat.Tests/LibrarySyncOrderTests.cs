@@ -105,6 +105,53 @@ public sealed class LibrarySyncOrderTests : IDisposable
     }
 
     [Fact]
+    public async Task Startup_reserves_the_full_managed_size_of_a_resumed_rom_before_fetching_artwork()
+    {
+        using var stub = Library(2);
+        using var connection = Connect(stub);
+        Set(games: 2);
+        var install = _session.Install;
+        var part = ContentPlanner.PartFor(2);
+        Directory.CreateDirectory(Path.GetDirectoryName(install.Resolve(part))!);
+        File.WriteAllBytes(install.Resolve(part), stub.Content[2]);
+        _session.Store.Downloads.Begin(new ContentDownload
+        {
+            RomId = 2, PartPath = part, TargetPath = RelativePath.Create("roms/psx/Game 2.chd"),
+            ExpectedSize = 1024, UpdatedAt = Now,
+        });
+        _session.Store.Settings.Set(SettingStore.ContentMaxBytes, "2048", Now);
+
+        await StartupService().RunAtStartupAsync(
+            connection, new Immediate<SyncEvent>(_ => { }), TestContext.Current.CancellationToken);
+
+        Assert.Equal(2048, _session.Store.Files.SyncedBytes());
+        Assert.Equal(2, _session.Store.Files.List("psx", LocalFileKind.Rom).Count);
+        Assert.DoesNotContain(_session.Store.Files.List(), file => file.Kind.IsMedia());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Packed_playlist_cannot_push_managed_content_over_the_cap(bool startup)
+    {
+        using var stub = PlayStationSet();
+        using var connection = Connect(stub);
+        var set = Set();
+        _session.Store.Settings.Set(SettingStore.ContentMaxBytes, "10000", Now);
+        var token = TestContext.Current.CancellationToken;
+        var progress = new Immediate<SyncEvent>(_ => { });
+        var service = StartupService();
+        var report = startup
+            ? await service.RunAtStartupAsync(connection, progress, token)
+            : await service.RunAsync([set], new SyncOptions(), connection, progress, cancellationToken: token);
+
+        Assert.True(_session.Store.Files.SyncedBytes() <= 10000);
+        Assert.Equal(SyncState.Blocked, report.State);
+        Assert.False(File.Exists(PlayStationFile("Game 1.m3u")));
+        Assert.Equal(startup ? 2 : 0, _session.Store.Downloads.ForRom(1).Count);
+    }
+
+    [Fact]
     public async Task Startup_sync_installs_a_multifile_PlayStation_member()
     {
         using var stub = PlayStationSet();

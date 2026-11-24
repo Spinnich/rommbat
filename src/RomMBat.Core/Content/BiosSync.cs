@@ -333,6 +333,12 @@ public sealed class BiosSync
                 return (0, null, changed, FailureCause.Failed, false);
             }
 
+            if (PublicationBudgetProblem(step, new FileInfo(part).Length) is { } budget)
+            {
+                SafeDelete(part);
+                return (0, null, budget, FailureCause.Failed, false);
+            }
+
             // Overwrites only an upgrade's target, which holds RomMBat's own bytes. Anywhere else a
             // file that appeared since the plan was built is the user's, and is reported rather
             // than lost. A refused move is this destination's fault, so the bytes are not refused.
@@ -409,6 +415,13 @@ public sealed class BiosSync
         }
     }
 
+    private string? PublicationBudgetProblem(BiosStep step, long length)
+    {
+        var previous = step.Action == BiosAction.Upgrade && _store.Files.Find(step.Path) is { Origin: FileOrigin.Synced } owned
+            ? owned.SizeBytes : 0;
+        return ContentPlanner.PublicationBudgetProblem(_store, length - previous);
+    }
+
     /// <summary>Writes a second destination for bytes this pass already verified.</summary>
     private string? CopyInto(BiosStep step, RelativePath source)
     {
@@ -417,6 +430,11 @@ public sealed class BiosSync
 
         try
         {
+            if (PublicationBudgetProblem(step, new FileInfo(from).Length) is { } budget)
+            {
+                return budget;
+            }
+
             Directory.CreateDirectory(Path.GetDirectoryName(to)!);
 
             // As in FetchAsync: only an upgrade, already checked, replaces what is there.

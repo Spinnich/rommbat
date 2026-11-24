@@ -116,8 +116,8 @@ discs and leaves repairs with multiple missing discs for explicit sync.
 
 A committed `game-end` causes an upload pass. Pending sends get up to four retries after
 2, 5, 10 and 30 seconds. Thereafter an outage uses a 15-second heartbeat for pending
-work. A game-end upload deferred by the save lock or a running game rechecks the local
-guard at the same interval. The spool, save files and outbox support restart recovery.
+work. A game-end upload deferred by the save lock, a running game, or a temporary save
+endpoint error retries at the same interval. Spool files, saves and outbox survive restarts.
 
 ### Synchronous prelaunch save preparation
 

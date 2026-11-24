@@ -115,6 +115,9 @@ public sealed record FlushReport
     /// <summary>An upload pass has existing work that can be retried.</summary>
     public bool RetryUpload { get; init; }
 
+    /// <summary>A save upload could not complete because the server returned a transient HTTP error.</summary>
+    public bool TransientUploadFailure { get; init; }
+
     /// <summary>Verified downloads still awaiting a server acknowledgement.</summary>
     public bool RetryAcknowledgement { get; init; }
 
@@ -345,6 +348,7 @@ public sealed class SaveFlushService
                 Queued = queued,
                 RetryAcknowledgement = HasPendingAcknowledgements(),
                 RetryUpload = !receiveOnly && (queued > 0 || HasPendingUploads(store, saves.Failed > 0, states?.Failed > 0)),
+                TransientUploadFailure = saves.TransientUploadFailure,
                 ServerReachable = playtime?.Unreachable == true || states?.Unreachable == true
                     ? false
                     : saves.ServerReachable,

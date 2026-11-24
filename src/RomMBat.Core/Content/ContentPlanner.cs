@@ -269,8 +269,7 @@ public sealed class ContentPlanner
                     continue;
                 }
 
-                var wouldAdd = preserveExisting && member.IsMultiFile
-                    ? step.BytesToTransfer + step.ResumableMemberBytes : member.SizeBytes;
+                var wouldAdd = ManagedBytesToAdd(step, preserveExisting);
 
                 if (budget is { } cap && projectedManaged + wouldAdd > cap)
                 {
@@ -311,6 +310,17 @@ public sealed class ContentPlanner
             BudgetBytes = budget,
             FreeBytes = free,
         };
+    }
+
+    internal static long ManagedBytesToAdd(ContentStep step, bool preserveExisting) =>
+        preserveExisting && step.Member.IsMultiFile
+            ? step.BytesToTransfer + step.ResumableMemberBytes : step.Member.SizeBytes;
+
+    internal static string? PublicationBudgetProblem(LocalStore store, long growth)
+    {
+        var budget = store.Settings.GetInt64(SettingStore.ContentMaxBytes);
+        return growth > 0 && budget is { } cap && growth > cap - store.Files.SyncedBytes()
+            ? $"the {ByteSize.Format(cap)} managed content budget would be exceeded." : null;
     }
 
     /// <summary>How many bytes RomMBat's own downloads occupy.</summary>

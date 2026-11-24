@@ -195,11 +195,16 @@ public sealed class MediaSync
     /// why the fix for #102 was to interleave rather than to reserve.
     /// </para>
     /// </remarks>
-    public async Task<MediaSyncOutcome> ApplyAsync(
+    public Task<MediaSyncOutcome> ApplyAsync(
         IReadOnlyCollection<int> romIds,
         IProgress<string>? progress = null,
         long reservedBytes = 0,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ApplyAsync(romIds, progress, reservedBytes, reservedBytes, cancellationToken);
+
+    internal async Task<MediaSyncOutcome> ApplyAsync(
+        IReadOnlyCollection<int> romIds, IProgress<string>? progress,
+        long reservedManagedBytes, long reservedTransferBytes, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(romIds);
 
@@ -226,9 +231,9 @@ public sealed class MediaSync
 
         // The ROMs still to come are spoken for, against both bounds. Without this the last
         // game in a plan finds its budget already spent on the first game's artwork.
-        managed += reservedBytes;
+        managed += reservedManagedBytes;
 
-        var freeRoom = Math.Max(0, _limits.AvailableFreeBytes - floor - reservedBytes);
+        var freeRoom = Math.Max(0, _limits.AvailableFreeBytes - floor - reservedTransferBytes);
         var budgetExhausted = false;
 
         foreach (var romId in romIds.Distinct())

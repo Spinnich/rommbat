@@ -880,6 +880,30 @@ public sealed class BiosSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task Firmware_cannot_exceed_the_cap_when_catalog_size_understates_verified_bytes()
+    {
+        var content = Content("synthetic firmware bytes");
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "psx", "psx", "PlayStation")
+        {
+            Firmware = [new StubFirmware(1, "scph5501.bin", content) { AdvertisedSize = 1 }],
+        });
+        var manifest = Slots(new Slot("psx", "bios/scph5501.bin", [new Offer(Md5(content))]));
+        using var store = LocalStore.Open(_tree.Install());
+        store.Settings.Set(SettingStore.ContentMaxBytes, "1", DateTimeOffset.UtcNow);
+        var token = TestContext.Current.CancellationToken;
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: token);
+        Assert.Equal(BiosAction.Download, Assert.Single(plan.Steps).Action);
+        using var connection = Connect(stub);
+
+        var outcome = await new BiosSync(_tree.Install(), store, connection).ApplyAsync(plan, cancellationToken: token);
+
+        Assert.Equal(0, store.Files.SyncedBytes());
+        Assert.False(File.Exists(Path.Combine(_tree.Root, "bios", "scph5501.bin")));
+        Assert.Contains(outcome.Problems, problem => problem.Contains("budget", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task A_tie_nothing_breaks_is_ambiguous_and_fetches_nothing()
     {
         var one = Content("MT32_CONTROL.ROM v1.04");

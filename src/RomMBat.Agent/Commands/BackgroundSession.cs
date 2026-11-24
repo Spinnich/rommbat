@@ -7,10 +7,11 @@ namespace RomMBat.Agent.Commands;
 
 internal readonly record struct BackgroundPassResult(
     int ExitCode, bool RetryUpload = false, bool? ServerReachable = null, bool RetryAcknowledgement = false,
-    FlushState? State = null)
+    FlushState? State = null, bool TransientUploadFailure = false)
 {
     public static BackgroundPassResult FromReport(int exitCode, FlushReport report) =>
-        new(exitCode, report.RetryUpload, report.ServerReachable, report.RetryAcknowledgement, report.State);
+        new(exitCode, report.RetryUpload, report.ServerReachable, report.RetryAcknowledgement, report.State,
+            report.TransientUploadFailure);
 }
 
 /// <summary>Runs one worker per install for as long as EmulationStation is present.</summary>
@@ -225,10 +226,11 @@ internal static class BackgroundSession
             retryMode = pass.RetryUpload ? FlushMode.InSessionUpload : FlushMode.InSessionAcknowledgement;
             disconnected = pending && (pass.ServerReachable is { } reachable ? !reachable : disconnected);
             nextUpload = pending && retries < RetryDelays.Length ? now + RetryDelays[retries++] : null;
-            if (nextUpload is null && gameEndPending && pass.State is FlushState.Skipped or FlushState.GameRunning)
+            if (nextUpload is null && gameEndPending
+                && (pass.TransientUploadFailure || pass.State is FlushState.Skipped or FlushState.GameRunning))
             {
-                // The pass stopped before it could inspect the save. Recheck the local guard
-                // for this game-end without probing RomM or waking an idle session.
+                // Recheck only this pending game-end. A heartbeat cannot establish that
+                // RomM's save endpoints have recovered from a temporary HTTP failure.
                 nextUpload = now + PendingWorkInterval;
             }
 

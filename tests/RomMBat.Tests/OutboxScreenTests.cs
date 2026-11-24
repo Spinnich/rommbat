@@ -143,6 +143,41 @@ public class OutboxScreenTests : IDisposable
         Assert.Single(_session.Store.SaveConflicts.ListOpen());
     }
 
+    [Fact]
+    public async Task An_offline_scanned_save_state_appears_in_the_pending_count_and_list()
+    {
+        var install = _session.Install;
+        var schema = install.Resolve(SaveStateSchema.ConfigPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(schema)!);
+        File.Copy(Fixtures.EsSaveStatesTemplate, schema);
+        var rom = install.Resolve("roms/snes/ActRaiser (USA).zip");
+        Directory.CreateDirectory(Path.GetDirectoryName(rom)!);
+        File.WriteAllText(rom, "test rom bytes");
+        _session.Store.Files.Record(new LocalFile
+        {
+            Path = RelativePath.Create("roms/snes/ActRaiser (USA).zip"),
+            FileName = "ActRaiser (USA).zip", Folder = "snes", RomId = 42, Kind = LocalFileKind.Rom,
+        });
+        var path = install.Resolve("saves/snes/libretro.snes9x/ActRaiser (USA).state1");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, "offline state bytes");
+        await new SaveFlushService(_session).RunAsync(new FlushOptions(Offline: true),
+            cancellationToken: TestContext.Current.CancellationToken);
+        var state = Assert.Single(_session.Store.States.List());
+        Assert.True(state.NeedsUpload);
+        Assert.Empty(_session.Store.Outbox.Pending());
+        Assert.Equal(1, OutboxScreens.PendingCount(_session.Store));
+        var screen = Assert.IsType<ListScreen>(OutboxScreens.List(_session));
+        var row = Assert.Single(screen.Rows);
+        Assert.Equal("ActRaiser (USA)", row.Label);
+        Assert.Contains(state.Slot, row.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain(screen.Hints, hint => hint.Action == NavAction.Accept);
+
+        _session.Store.States.MarkUploaded(state.Path, 33, state.Path.Name, state.ContentHash!, DateTimeOffset.UtcNow);
+        Assert.Equal(0, OutboxScreens.PendingCount(_session.Store));
+        Assert.Empty(Assert.IsType<ListScreen>(OutboxScreens.List(_session)).Rows);
+    }
+
     private static GamepadStatus NoGamepad =>
         new(GamepadAvailability.NoDevice, null, null, "No controller is connected.");
 

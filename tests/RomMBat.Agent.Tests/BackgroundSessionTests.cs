@@ -126,10 +126,12 @@ public sealed class BackgroundSessionTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Game_end_upload_resumes_after_save_lock_contention_without_waiting_for_library(
-        bool holdSaveLock)
+    [InlineData(false, null)]
+    [InlineData(true, null)]
+    [InlineData(false, System.Net.HttpStatusCode.ServiceUnavailable)]
+    [InlineData(false, System.Net.HttpStatusCode.Forbidden)]
+    public async Task Game_end_upload_recovers_from_temporary_failures_only(
+        bool holdSaveLock, System.Net.HttpStatusCode? negotiateFailure)
     {
         using var tree = TempRetroBatTree.Create();
         using var session = InstallSession.Open(tree.Root).Session!;
@@ -160,16 +162,19 @@ public sealed class BackgroundSessionTests
         var gameEnded = false;
         var skipped = new List<double>();
         var uploads = new List<double>();
+        var attempted = new List<double>();
         var requestsAfterUpload = 0;
         var now = DateTimeOffset.UtcNow;
         try
         {
             await BackgroundSession.RunAsync(install, () => running, async (mode, ct) =>
             {
+                stub.NegotiateRefusal = gameEnded && clock.Seconds < 67 ? negotiateFailure : null;
                 var report = await new SaveFlushService(session).RunAsync(new FlushOptions { Mode = mode }, connection, ct);
                 if (mode != FlushMode.Background)
                 {
                     Assert.Equal(FlushMode.InSessionUpload, mode);
+                    attempted.Add(clock.Seconds);
                     if (report.State == FlushState.Skipped)
                     {
                         Assert.True(report.RetryUpload);
@@ -231,7 +236,15 @@ public sealed class BackgroundSessionTests
         }
 
         Assert.Equal(holdSaveLock ? [0, 2, 7, 17, 47, 62] : Array.Empty<double>(), skipped);
-        Assert.Equal(holdSaveLock ? [77] : new double[] { 0 }, uploads);
+        if (negotiateFailure == System.Net.HttpStatusCode.Forbidden)
+        {
+            Assert.DoesNotContain(attempted, at => at > 47);
+            Assert.Empty(uploads);
+            Assert.Empty(stub.Saves);
+            return;
+        }
+
+        Assert.Equal(holdSaveLock || negotiateFailure is not null ? [77] : new double[] { 0 }, uploads);
         Assert.Equal("synthetic battery bytes"u8.ToArray(), Assert.Single(stub.Saves.Values).Bytes);
         Assert.Equal(requestsAfterUpload, stub.RequestLog.Count);
     }

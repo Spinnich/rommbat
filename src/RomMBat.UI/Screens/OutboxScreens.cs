@@ -1,3 +1,4 @@
+using RomMBat.Core.Paths;
 using System.Globalization;
 using RomMBat.Core;
 using RomMBat.Core.Metadata;
@@ -28,7 +29,8 @@ namespace RomMBat.UI.Screens;
 /// </remarks>
 public static class OutboxScreens
 {
-    internal static int PendingCount(LocalStore store) => store.Outbox.PendingCount() + store.Saves.PendingUploads().Count;
+    internal static int PendingCount(LocalStore store) =>
+        store.Outbox.PendingCount() + store.Saves.PendingUploads().Count + store.States.PendingUploads().Count;
 
     /// <summary>Queued outbox entries and unsent saves found on disk.</summary>
     public static IScreen List(InstallSession session)
@@ -49,7 +51,9 @@ public static class OutboxScreens
             var pending = outbox.PendingCount();
 
             var saves = session.Store.Saves.PendingUploads();
-            var ids = failed.Select(entry => entry.RomId).Concat(saves.Select(save => save.RomId));
+            var states = session.Store.States.PendingUploads();
+            var ids = failed.Select(entry => entry.RomId)
+                .Concat(saves.Select(save => save.RomId)).Concat(states.Select(state => state.RomId));
             var titles = session.Store.Metadata.ForRoms(ids.OfType<long>().Select(id => (int)id));
 
             foreach (var entry in failed)
@@ -79,11 +83,21 @@ public static class OutboxScreens
 
             foreach (var save in saves)
             {
-                var romId = save.RomId!.Value;
+                AddFile(save.RomId!.Value, save.RomPath, SaveSlotLabel.Describe(save.Slot),
+                    $"Waiting to upload · {save.Slot}");
+            }
+
+            foreach (var state in states)
+            {
+                AddFile(state.RomId!.Value, state.RomPath, "Save state",
+                    $"Waiting to upload · {state.Slot}");
+            }
+
+            void AddFile(long romId, RelativePath? romPath, string summary, string detail)
+            {
                 var title = titles.TryGetValue((int)romId, out var game) ? game.Name
-                    : save.RomPath is { } romPath ? Path.GetFileNameWithoutExtension(romPath.Name) : $"Game {romId}";
-                rows.Add(new ListRow(title, SaveSlotLabel.Describe(save.Slot),
-                    $"Waiting to upload · {save.Slot}"));
+                    : romPath is { } path ? Path.GetFileNameWithoutExtension(path.Name) : $"Game {romId}";
+                rows.Add(new ListRow(title, summary, detail));
                 destinations.Add(null);
             }
 

@@ -52,6 +52,13 @@ internal sealed class StartupRomGroup(
 
     public void Publish()
     {
+        // Catalog sizes cannot account for a generated playlist or for the actual
+        // members listed separately by RomM. Pending files have already been verified.
+        if (ContentPlanner.PublicationBudgetProblem(store, _pending.Sum(file => file.Record.SizeBytes)) is { } budget)
+        {
+            throw new IOException(budget);
+        }
+
         var targets = new HashSet<RelativePath>();
         foreach (var file in _kept.Select(file => file.Path).Concat(_pending.Select(file => file.Record.Path)))
         {

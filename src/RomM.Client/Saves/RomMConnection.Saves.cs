@@ -470,7 +470,7 @@ public sealed partial class RomMConnection
     {
         var detail = await ReadDetailAsync(response, cancellationToken).ConfigureAwait(false);
 
-        return response.StatusCode switch
+        var failure = response.StatusCode switch
         {
             HttpStatusCode.Unauthorized => RomMResponse.Failure<T>(
                 RomMResponseStatus.Unauthorized,
@@ -489,6 +489,7 @@ public sealed partial class RomMConnection
                 RomMResponseStatus.ServerError,
                 detail ?? $"The server answered {(int)response.StatusCode}."),
         };
+        return failure with { HttpStatus = response.StatusCode };
     }
 
     private sealed record AcknowledgeBody(

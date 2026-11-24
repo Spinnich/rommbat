@@ -196,7 +196,12 @@ public sealed class LocalStateStore
     }
 
     /// <summary>Everything found, in path order.</summary>
-    public IReadOnlyList<LocalState> List(long? romId = null)
+    public IReadOnlyList<LocalState> List(long? romId = null) => Query(romId, pendingOnly: false);
+
+    /// <summary>Attributed states with readable bytes that have yet to be sent.</summary>
+    public IReadOnlyList<LocalState> PendingUploads() => Query(romId: null, pendingOnly: true);
+
+    private List<LocalState> Query(long? romId, bool pendingOnly)
     {
         using var command = _connection.Command(
             """
@@ -206,9 +211,12 @@ public sealed class LocalStateStore
                    uploaded_content_hash, uploaded_at_utc, scanned_at_utc
             FROM local_state
             WHERE ($romId IS NULL OR rom_id = $romId)
+              AND ($pendingOnly = 0 OR (rom_id IS NOT NULL AND content_hash IS NOT NULL
+                AND (uploaded_content_hash IS NULL OR uploaded_content_hash <> content_hash COLLATE NOCASE)))
             ORDER BY relative_path;
             """)
-            .With("$romId", SqliteValues.OrNull(romId));
+            .With("$romId", SqliteValues.OrNull(romId))
+            .With("$pendingOnly", pendingOnly ? 1 : 0);
 
         using var reader = command.ExecuteReader();
         var states = new List<LocalState>();
