@@ -14,6 +14,8 @@ public sealed record SaveSyncOutcome
 
     internal bool TransientUploadFailure { get; init; }
 
+    internal bool UploadAuthorizationDenied { get; init; }
+
     public int Uploaded { get; init; }
 
     public int Downloaded { get; init; }
@@ -490,6 +492,7 @@ public sealed class SaveSync
                 Problems = problems,
                 ServerReachable = negotiated.HttpStatus is not null ? true : null,
                 TransientUploadFailure = !receiveOnly && negotiated.IsTransientFailure,
+                UploadAuthorizationDenied = negotiated.Status is RomMResponseStatus.Unauthorized or RomMResponseStatus.Forbidden,
             };
         }
 
@@ -1486,7 +1489,7 @@ public sealed class SaveSync
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return (false, $"{Describe(save)}: it could not be read: {ex.Message}", false, false);
+            return (false, $"{Describe(save)}: it could not be read: {ex.Message}", false, SaveFileLock.IsSharingViolation(ex));
         }
         finally
         {

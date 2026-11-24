@@ -175,6 +175,12 @@ public sealed class BackgroundSessionTests
                 {
                     Assert.Equal(FlushMode.InSessionUpload, mode);
                     attempted.Add(clock.Seconds);
+                    if (negotiateFailure == System.Net.HttpStatusCode.Forbidden)
+                    {
+                        Assert.False(report.GameEndUploadPending);
+                        Assert.False(report.TransientUploadFailure);
+                    }
+
                     if (report.State == FlushState.Skipped)
                     {
                         Assert.True(report.RetryUpload);
@@ -246,6 +252,185 @@ public sealed class BackgroundSessionTests
 
         Assert.Equal(holdSaveLock || negotiateFailure is not null ? [77] : new double[] { 0 }, uploads);
         Assert.Equal("synthetic battery bytes"u8.ToArray(), Assert.Single(stub.Saves.Values).Bytes);
+        Assert.Equal(requestsAfterUpload, stub.RequestLog.Count);
+    }
+
+    [Theory]
+    [InlineData("restart")]
+    [InlineData("scan lock")]
+    [InlineData("upload lock")]
+    [InlineData("state scan lock")]
+    [InlineData("state upload lock")]
+    [InlineData("manual without event")]
+    public async Task Pending_game_end_bytes_recover_without_another_event(string obstacle)
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        using var stub = new StubRomMServer();
+        var origin = new Uri("https://romm.invalid");
+        using var connection = new RomMConnection(new RomMClientOptions { Origin = origin, AccessToken = "rmm_test" }, stub);
+        var token = TestContext.Current.CancellationToken;
+        var rom = RelativePath.Create("roms/snes/ActRaiser (USA).zip");
+        var state = obstacle.StartsWith("state ", StringComparison.Ordinal);
+        var scanLock = obstacle.EndsWith("scan lock", StringComparison.Ordinal);
+        var uploadLock = obstacle.EndsWith("upload lock", StringComparison.Ordinal);
+        var manualOnly = obstacle == "manual without event";
+        var recovered = obstacle == "restart" || manualOnly;
+        var save = install.Resolve(state
+            ? "saves/snes/libretro.snes9x/ActRaiser (USA).state1"
+            : "saves/snes/ActRaiser (USA).srm");
+        if (state)
+        {
+            var schema = install.Resolve(RomMBat.Core.RetroBat.SaveStateSchema.ConfigPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(schema)!);
+            File.Copy(Path.Combine(AppContext.BaseDirectory, "fixtures", "es_savestates.template.cfg"), schema);
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(install.Resolve(rom))!);
+        File.WriteAllText(install.Resolve(rom), "synthetic rom");
+        Directory.CreateDirectory(Path.GetDirectoryName(save)!);
+        var now = DateTimeOffset.UtcNow;
+        stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+
+        void CloseGame()
+        {
+            File.WriteAllText(save, "synthetic battery bytes");
+            Spool.Write(install.RootPath, new SpoolRecord("game-start", now, 1, [install.Resolve(rom)]));
+            Spool.Write(install.RootPath, new SpoolRecord("game-end", now.AddSeconds(1), 2, []));
+        }
+
+        using (var first = InstallSession.Open(tree.Root).Session!)
+        {
+            first.Store.Files.Record(new LocalFile
+            {
+                Path = rom, RomId = 42, FileName = rom.Name, Folder = "snes", Kind = LocalFileKind.Rom,
+            });
+            first.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(install));
+            first.Store.Device.SavePairing(new PairingResult(origin, "device", "Handheld",
+                new GrantedScopes(["assets.read", "assets.write"]), TokenProtector.Protect("rmm_test", null, null)), now);
+
+            if (recovered)
+            {
+                if (manualOnly)
+                {
+                    File.WriteAllText(save, "synthetic battery bytes");
+                }
+                else
+                {
+                    CloseGame();
+                }
+
+                stub.NegotiateRefusal = System.Net.HttpStatusCode.ServiceUnavailable;
+                var manual = await new SaveFlushService(first).RunAsync(new FlushOptions(), connection, token);
+                Assert.True(manual.RetryUpload);
+                Assert.Equal(!manualOnly, manual.GameEndUploadPending);
+                Assert.False(Directory.Exists(install.Resolve(SpoolDrain.Directory))
+                    && Directory.EnumerateFiles(install.Resolve(SpoolDrain.Directory), "*" + Spool.Extension).Any());
+                Assert.Single(first.Store.Saves.PendingUploads());
+            }
+        }
+
+        using var reopened = InstallSession.Open(tree.Root).Session!;
+        var clock = new SessionClock();
+        var running = true;
+        var gameEnded = recovered;
+        var uploads = new List<double>();
+        var requestsAfterUpload = 0;
+        FileStream? held = null;
+        if (uploadLock)
+        {
+            stub.BeforeNegotiate = () =>
+            {
+                if (gameEnded && clock.Seconds < 67)
+                {
+                    held = File.Open(save, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                }
+            };
+        }
+
+        try
+        {
+            await BackgroundSession.RunAsync(install, () => running, async (mode, ct) =>
+            {
+                if (recovered && clock.Seconds >= 67)
+                {
+                    stub.NegotiateRefusal = null;
+                }
+
+                var report = await new SaveFlushService(reopened).RunAsync(new FlushOptions { Mode = mode }, connection, ct);
+                if (uploadLock && held is not null)
+                {
+                    var hash = state ? Assert.Single(reopened.Store.States.List()).ContentHash
+                        : Assert.Single(reopened.Store.Saves.List()).ContentHash;
+                    Assert.NotNull(hash);
+                    var problems = state ? report.StatesSent!.Problems : report.SavesSent!.Problems;
+                    Assert.Contains(problems, problem => problem.Contains("could not be read", StringComparison.Ordinal));
+                    held.Dispose();
+                    held = null;
+                }
+
+                if (scanLock && held is not null)
+                {
+                    Assert.Null(state ? Assert.Single(reopened.Store.States.List()).ContentHash
+                        : Assert.Single(reopened.Store.Saves.List()).ContentHash);
+                }
+
+                if ((state ? report.StatesSent?.Uploaded : report.SavesSent?.Uploaded) == 1)
+                {
+                    Assert.False(report.GameEndUploadPending);
+                    uploads.Add(clock.Seconds);
+                    requestsAfterUpload = stub.RequestLog.Count;
+                }
+
+                return BackgroundPassResult.FromReport(0, report);
+            }, token, (delay, _) =>
+            {
+                if (!gameEnded)
+                {
+                    Assert.Equal(Timeout.InfiniteTimeSpan, delay);
+                    CloseGame();
+                    gameEnded = true;
+                    if (scanLock)
+                    {
+                        held = File.Open(save, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                    }
+
+                    return Task.FromResult(true);
+                }
+
+                if (delay == Timeout.InfiniteTimeSpan)
+                {
+                    running = false;
+                }
+                else
+                {
+                    Assert.True(clock.Seconds < 90);
+                    clock.Advance(delay);
+                    if (clock.Seconds >= 67)
+                    {
+                        held?.Dispose();
+                        held = null;
+                    }
+                }
+
+                return Task.FromResult(false);
+            }, clock, probe: _ => throw new InvalidOperationException("This recovery does not require a heartbeat."), periodicReceive: false);
+        }
+        finally
+        {
+            held?.Dispose();
+        }
+
+        if (manualOnly)
+        {
+            Assert.Empty(uploads);
+            Assert.Empty(stub.Saves);
+            Assert.Equal(47, clock.Seconds);
+            return;
+        }
+
+        Assert.Equal([77], uploads);
+        var bytes = state ? Assert.Single(stub.States.Values).Bytes : Assert.Single(stub.Saves.Values).Bytes;
+        Assert.Equal("synthetic battery bytes"u8.ToArray(), bytes);
         Assert.Equal(requestsAfterUpload, stub.RequestLog.Count);
     }
 

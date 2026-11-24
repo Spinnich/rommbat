@@ -9,6 +9,8 @@ namespace RomMBat.Core.Sync;
 /// <summary>What a state push did.</summary>
 public sealed record StateSyncOutcome
 {
+    internal bool UploadReadDeferred { get; init; }
+
     internal bool Unreachable { get; init; }
 
     public int Uploaded { get; init; }
@@ -877,6 +879,7 @@ public sealed class StateSync
         var dropped = 0;
         var failed = 0;
         var unreachable = false;
+        var uploadReadDeferred = false;
         var bytes = 0L;
         var problems = new List<string>();
 
@@ -915,6 +918,7 @@ public sealed class StateSync
             }
 
             failed++;
+            uploadReadDeferred |= attempt.ReadDeferred;
             problems.Add(attempt.Problem);
 
             if (attempt.Unreachable)
@@ -930,6 +934,7 @@ public sealed class StateSync
         return new StateSyncOutcome
         {
             Uploaded = uploaded,
+            UploadReadDeferred = uploadReadDeferred,
             Unreachable = unreachable,
             AlreadyInStep = inStep,
             Unattributed = unattributed,
@@ -940,7 +945,7 @@ public sealed class StateSync
         };
     }
 
-    private async Task<(string? Problem, bool Unreachable, bool ScreenshotDropped)> UploadAsync(
+    private async Task<(string? Problem, bool Unreachable, bool ScreenshotDropped, bool ReadDeferred)> UploadAsync(
         LocalState state,
         CancellationToken cancellationToken)
     {
@@ -948,7 +953,7 @@ public sealed class StateSync
 
         if (!File.Exists(path))
         {
-            return ($"{state.Path}: the file is gone since the scan.", false, false);
+            return ($"{state.Path}: the file is gone since the scan.", false, false, false);
         }
 
         try
@@ -970,7 +975,7 @@ public sealed class StateSync
 
                 if (!response.IsSuccess || response.Value is not { } row)
                 {
-                    return ($"{state.Path}: {response.Message}", false, false);
+                    return ($"{state.Path}: {response.Message}", false, false, false);
                 }
 
                 _store.States.MarkUploaded(state.Path, row.Id, name, state.ContentHash!, _time.GetUtcNow());
@@ -978,7 +983,7 @@ public sealed class StateSync
                 // A screenshot was sent and the row came back without it, or with another state's.
                 // Reported rather than retried: the bytes do reach the server, so a retry uploads
                 // the image again and orphans another copy against the ROM.
-                return (null, false, screenshot is not null && !IsOwnScreenshot(row.Screenshot?.FileName, row.FileName));
+                return (null, false, screenshot is not null && !IsOwnScreenshot(row.Screenshot?.FileName, row.FileName), false);
             }
             finally
             {
@@ -987,11 +992,11 @@ public sealed class StateSync
         }
         catch (RomMUnreachableException ex)
         {
-            return ($"{state.Path}: {ex.Message}", true, false);
+            return ($"{state.Path}: {ex.Message}", true, false, false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return ($"{state.Path}: it could not be read: {ex.Message}", false, false);
+            return ($"{state.Path}: it could not be read: {ex.Message}", false, false, SaveFileLock.IsSharingViolation(ex));
         }
     }
 

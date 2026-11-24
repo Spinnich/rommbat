@@ -115,8 +115,11 @@ public sealed record FlushReport
     /// <summary>An upload pass has existing work that can be retried.</summary>
     public bool RetryUpload { get; init; }
 
-    /// <summary>A save upload could not complete because the server returned a transient HTTP error.</summary>
+    /// <summary>An upload was deferred by a sharing lock or a transient HTTP error.</summary>
     public bool TransientUploadFailure { get; init; }
+
+    /// <summary>A known game-end still has work that can be resumed across sessions.</summary>
+    public bool GameEndUploadPending { get; init; }
 
     /// <summary>Verified downloads still awaiting a server acknowledgement.</summary>
     public bool RetryAcknowledgement { get; init; }
@@ -195,6 +198,7 @@ public sealed class SaveFlushService
         var inSession = options.Mode is FlushMode.InSessionReceive or FlushMode.InSessionUpload or FlushMode.InSessionAcknowledgement;
         var receiveOnly = options.Mode == FlushMode.InSessionReceive;
         var canUpload = !receiveOnly && !acknowledgementOnly;
+        bool HasGameEnd() => canUpload && store.Settings.Get(SettingStore.GameEndUploadPending) is not null;
 
         using var held = options.Mode == FlushMode.Shutdown
             ? await TreeLock.TryAcquireForShutdownAsync(install, cancellationToken).ConfigureAwait(false)
@@ -207,6 +211,7 @@ public sealed class SaveFlushService
             {
                 State = FlushState.Skipped,
                 RetryUpload = canUpload,
+                GameEndUploadPending = HasGameEnd(),
                 RetryAcknowledgement = acknowledgementOnly,
                 Problem = "Another flush is already running.",
             };
@@ -218,6 +223,7 @@ public sealed class SaveFlushService
             return new FlushReport
             {
                 State = FlushState.GameRunning, RetryUpload = canUpload, RetryAcknowledgement = acknowledgementOnly,
+                GameEndUploadPending = HasGameEnd(),
             };
         }
 
@@ -225,6 +231,7 @@ public sealed class SaveFlushService
         CorrelationOutcome? correlated = null;
         StateScanOutcome? scannedStates = null;
         SaveScanOutcome? scanned = null;
+        var uploadReadDeferred = false;
 
         if (canUpload)
         {
@@ -245,11 +252,16 @@ public sealed class SaveFlushService
             // have attributed went up on the second flush instead (#64).
             var schema = StateScanner.LoadSchema(install);
 
-            scannedStates = schema is null
-                ? null
-                : new StateScanner(install, store, schema, _time).Scan();
+            if (schema is not null)
+            {
+                var stateScanner = new StateScanner(install, store, schema, _time);
+                scannedStates = stateScanner.Scan();
+                uploadReadDeferred = stateScanner.UploadReadDeferred;
+            }
 
-            scanned = new SaveScanner(install, store, states: schema, timeProvider: _time).Scan();
+            var saveScanner = new SaveScanner(install, store, states: schema, timeProvider: _time);
+            scanned = saveScanner.Scan();
+            uploadReadDeferred |= saveScanner.UploadReadDeferred;
         }
 
         var local = new FlushReport
@@ -263,25 +275,45 @@ public sealed class SaveFlushService
             Queued = store.Outbox.PendingCount(),
         };
 
+        var gameEnd = HasGameEnd();
+        FlushReport TrackGameEnd(FlushReport report, bool retryable)
+        {
+            if (gameEnd)
+            {
+                // SpoolDrain recorded the trigger before consuming the event. Keep it only
+                // while actual pending bytes, a sharing lock or queued playtime justify it.
+                var pending = retryable && (uploadReadDeferred || report.Queued > 0 || store.Saves.PendingUploads().Count > 0
+                    || store.States.PendingUploads().Count > 0);
+                if (pending)
+                {
+                    return report with { GameEndUploadPending = true };
+                }
+
+                store.Settings.Set(SettingStore.GameEndUploadPending, (string?)null, (_time ?? TimeProvider.System).GetUtcNow());
+            }
+
+            return report;
+        }
+
         // 4. Everything above this line worked without a server. Only sending needs one.
         if (options.Offline)
         {
-            return local with { State = FlushState.LocalOnly };
+            return TrackGameEnd(local with { State = FlushState.LocalOnly }, retryable: true);
         }
 
         if (connection is null)
         {
             // Not paired is a real refusal; anything queued is safe and stays queued.
-            return local with { State = FlushState.NotPaired };
+            return TrackGameEnd(local with { State = FlushState.NotPaired }, retryable: true);
         }
 
         if (store.Device.Read()?.RomMDeviceId is not { } deviceId)
         {
-            return local with
+            return TrackGameEnd(local with
             {
                 State = FlushState.NotPaired,
                 Problem = "This install is paired but has no RomM device id. Pair again.",
-            };
+            }, retryable: true);
         }
 
         bool HasPendingAcknowledgements() =>
@@ -335,7 +367,11 @@ public sealed class SaveFlushService
                 }
             }
 
-            return local with
+            var serverReachable = playtime?.Unreachable == true || states?.Unreachable == true
+                ? false : saves.ServerReachable;
+            var deferred = !saves.UploadAuthorizationDenied
+                && (saves.TransientUploadFailure || uploadReadDeferred || states?.UploadReadDeferred == true);
+            return TrackGameEnd(local with
             {
                 State = failed ? FlushState.Partial : FlushState.Done,
                 Playtime = playtime,
@@ -348,17 +384,15 @@ public sealed class SaveFlushService
                 Queued = queued,
                 RetryAcknowledgement = HasPendingAcknowledgements(),
                 RetryUpload = !receiveOnly && (queued > 0 || HasPendingUploads(store, saves.Failed > 0, states?.Failed > 0)),
-                TransientUploadFailure = saves.TransientUploadFailure,
-                ServerReachable = playtime?.Unreachable == true || states?.Unreachable == true
-                    ? false
-                    : saves.ServerReachable,
-            };
+                TransientUploadFailure = deferred,
+                ServerReachable = serverReachable,
+            }, retryable: deferred || serverReachable == false);
         }
         catch (RomMUnreachableException ex)
         {
             // Offline is a working state, not a failure. Everything stays
             // queued and the next flush picks it up.
-            return local with
+            return TrackGameEnd(local with
             {
                 State = FlushState.Unreachable,
                 ServerReachable = false,
@@ -366,7 +400,7 @@ public sealed class SaveFlushService
                 RetryUpload = !receiveOnly && (local.Queued > 0 || HasPendingUploads(store, savesFailed: true, statesFailed: true)),
                 Problem = $"The server is not reachable: {ex.Message}",
                 Queued = store.Outbox.PendingCount(),
-            };
+            }, retryable: true);
         }
     }
 

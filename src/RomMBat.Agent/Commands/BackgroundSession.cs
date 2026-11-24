@@ -7,11 +7,11 @@ namespace RomMBat.Agent.Commands;
 
 internal readonly record struct BackgroundPassResult(
     int ExitCode, bool RetryUpload = false, bool? ServerReachable = null, bool RetryAcknowledgement = false,
-    FlushState? State = null, bool TransientUploadFailure = false)
+    FlushState? State = null, bool TransientUploadFailure = false, bool GameEndUploadPending = false)
 {
     public static BackgroundPassResult FromReport(int exitCode, FlushReport report) =>
         new(exitCode, report.RetryUpload, report.ServerReachable, report.RetryAcknowledgement, report.State,
-            report.TransientUploadFailure);
+            report.TransientUploadFailure, report.GameEndUploadPending);
 }
 
 /// <summary>Runs one worker per install for as long as EmulationStation is present.</summary>
@@ -222,7 +222,7 @@ internal static class BackgroundSession
         {
             var now = timeProvider.GetElapsedTime(origin);
             var pending = pass.RetryUpload || pass.RetryAcknowledgement;
-            gameEndPending &= pass.RetryUpload;
+            gameEndPending = pass.RetryUpload && (gameEndPending || pass.GameEndUploadPending);
             retryMode = pass.RetryUpload ? FlushMode.InSessionUpload : FlushMode.InSessionAcknowledgement;
             disconnected = pending && (pass.ServerReachable is { } reachable ? !reachable : disconnected);
             nextUpload = pending && retries < RetryDelays.Length ? now + RetryDelays[retries++] : null;

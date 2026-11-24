@@ -49,6 +49,8 @@ internal sealed partial class StubRomMServer
 
     public HttpStatusCode? NegotiateRefusal { get; set; }
 
+    public Action? BeforeNegotiate { get; set; }
+
     /// <summary>Slots that answer 409, the way a stale device record makes the real server.</summary>
     public HashSet<(int RomId, string Slot)> ConflictOnUpload { get; } = [];
 
@@ -220,6 +222,7 @@ internal sealed partial class StubRomMServer
     {
         if (path.EndsWith("/api/sync/negotiate", StringComparison.Ordinal))
         {
+            BeforeNegotiate?.Invoke();
             return NegotiateRefusal is { } failure ? Detail(failure, "negotiation refused")
                 : await NegotiateAsync(request, cancellationToken).ConfigureAwait(false);
         }
