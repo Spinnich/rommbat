@@ -330,6 +330,33 @@ public sealed class SaveFlushServiceTests
         Assert.True(saveAt < stateAt, "the states went up before the saves");
     }
 
+    [Theory]
+    [InlineData(System.Net.HttpStatusCode.ServiceUnavailable, System.Net.HttpStatusCode.Forbidden, true)]
+    [InlineData(System.Net.HttpStatusCode.Forbidden, System.Net.HttpStatusCode.ServiceUnavailable, true)]
+    [InlineData(System.Net.HttpStatusCode.Forbidden, System.Net.HttpStatusCode.Forbidden, false)]
+    public async Task Save_and_state_endpoint_failures_keep_independent_retry_classifications(
+        System.Net.HttpStatusCode saveFailure, System.Net.HttpStatusCode stateFailure, bool deferred)
+    {
+        using var fixture = FlushTree.Create();
+        fixture.Pair();
+        fixture.WriteSaveStateSchema();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)");
+        fixture.AddSave("snes/libretro.snes9x", "ActRaiser (USA).state1", "a state");
+        fixture.Stub.NegotiateRefusal = saveFailure;
+        fixture.Stub.StateUploadRefusal = stateFailure;
+        Spool.Write(fixture.Session.Install.RootPath, new SpoolRecord("game-end", Now, 1, []));
+
+        var report = await fixture.RunAsync(fixture.Connect());
+
+        Assert.Equal(1, report.SavesSent!.Failed);
+        Assert.Equal(1, report.StatesSent!.Failed);
+        Assert.True(report.ServerReachable);
+        Assert.Equal(deferred, report.TransientUploadFailure);
+        Assert.Equal(deferred, report.GameEndUploadPending);
+        Assert.Empty(fixture.Stub.Saves);
+        Assert.Empty(fixture.Stub.States);
+    }
+
     [Fact]
     public async Task A_second_pass_over_an_unchanged_tree_sends_nothing_and_says_so()
     {

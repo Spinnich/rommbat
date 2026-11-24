@@ -117,7 +117,7 @@ discs and leaves repairs with multiple missing discs for explicit sync.
 A committed `game-end` causes an upload pass. Pending sends get up to four retries after
 2, 5, 10 and 30 seconds. Thereafter an outage uses a 15-second heartbeat for pending
 work. Game-end intent survives spool ingestion and restarts. Pending work blocked by
-a sharing lock, running game, or temporary save endpoint error retries at the same interval.
+a sharing lock, running game, or temporary save or state endpoint error retries at that interval.
 
 ### Synchronous prelaunch save preparation
 

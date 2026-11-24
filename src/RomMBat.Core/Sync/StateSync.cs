@@ -9,7 +9,7 @@ namespace RomMBat.Core.Sync;
 /// <summary>What a state push did.</summary>
 public sealed record StateSyncOutcome
 {
-    internal bool UploadReadDeferred { get; init; }
+    internal bool TransientUploadFailure { get; init; }
 
     internal bool Unreachable { get; init; }
 
@@ -879,7 +879,7 @@ public sealed class StateSync
         var dropped = 0;
         var failed = 0;
         var unreachable = false;
-        var uploadReadDeferred = false;
+        var transientUploadFailure = false;
         var bytes = 0L;
         var problems = new List<string>();
 
@@ -918,7 +918,7 @@ public sealed class StateSync
             }
 
             failed++;
-            uploadReadDeferred |= attempt.ReadDeferred;
+            transientUploadFailure |= attempt.TransientFailure;
             problems.Add(attempt.Problem);
 
             if (attempt.Unreachable)
@@ -934,7 +934,7 @@ public sealed class StateSync
         return new StateSyncOutcome
         {
             Uploaded = uploaded,
-            UploadReadDeferred = uploadReadDeferred,
+            TransientUploadFailure = transientUploadFailure,
             Unreachable = unreachable,
             AlreadyInStep = inStep,
             Unattributed = unattributed,
@@ -945,7 +945,7 @@ public sealed class StateSync
         };
     }
 
-    private async Task<(string? Problem, bool Unreachable, bool ScreenshotDropped, bool ReadDeferred)> UploadAsync(
+    private async Task<(string? Problem, bool Unreachable, bool ScreenshotDropped, bool TransientFailure)> UploadAsync(
         LocalState state,
         CancellationToken cancellationToken)
     {
@@ -975,7 +975,7 @@ public sealed class StateSync
 
                 if (!response.IsSuccess || response.Value is not { } row)
                 {
-                    return ($"{state.Path}: {response.Message}", false, false, false);
+                    return ($"{state.Path}: {response.Message}", false, false, response.IsTransientFailure);
                 }
 
                 _store.States.MarkUploaded(state.Path, row.Id, name, state.ContentHash!, _time.GetUtcNow());

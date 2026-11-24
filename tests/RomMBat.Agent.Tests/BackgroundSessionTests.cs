@@ -435,6 +435,151 @@ public sealed class BackgroundSessionTests
     }
 
     [Theory]
+    [InlineData(System.Net.HttpStatusCode.ServiceUnavailable, null, true)]
+    [InlineData(System.Net.HttpStatusCode.ServiceUnavailable, System.Net.HttpStatusCode.Forbidden, true)]
+    [InlineData(System.Net.HttpStatusCode.Forbidden, null, true)]
+    [InlineData(System.Net.HttpStatusCode.ServiceUnavailable, null, false)]
+    public async Task State_endpoint_retries_only_a_transient_game_end_after_worker_restart(
+        System.Net.HttpStatusCode stateFailure, System.Net.HttpStatusCode? saveFailure, bool gameEnd)
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        using var stub = new StubRomMServer { StateUploadRefusal = stateFailure, NegotiateRefusal = saveFailure };
+        var origin = new Uri("https://romm.invalid");
+        using var connection = new RomMConnection(new RomMClientOptions { Origin = origin, AccessToken = "rmm_test" }, stub);
+        var token = TestContext.Current.CancellationToken;
+        var rom = RelativePath.Create("roms/snes/ActRaiser (USA).zip");
+        var state = install.Resolve("saves/snes/libretro.snes9x/ActRaiser (USA).state1");
+        var schema = install.Resolve(RomMBat.Core.RetroBat.SaveStateSchema.ConfigPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(schema)!);
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "fixtures", "es_savestates.template.cfg"), schema);
+        Directory.CreateDirectory(Path.GetDirectoryName(install.Resolve(rom))!);
+        File.WriteAllText(install.Resolve(rom), "synthetic rom");
+        Directory.CreateDirectory(Path.GetDirectoryName(state)!);
+        var now = DateTimeOffset.UtcNow;
+        await connection.ProbeAsync(token);
+
+        var clock = new SessionClock();
+        var attempts = new List<double>();
+        var successes = new List<double>();
+        var requestsAtSuccess = 0;
+        var ended = false;
+
+        async Task RunWorker(InstallSession session, bool first)
+        {
+            var running = true;
+            var flush = new SaveFlushService(session);
+            await BackgroundSession.RunAsync(install, () => running, async (mode, ct) =>
+            {
+                if (clock.Seconds >= 120)
+                {
+                    stub.StateUploadRefusal = null;
+                }
+
+                var report = await flush.RunAsync(new FlushOptions { Mode = mode }, connection, ct);
+                Assert.NotEqual(FlushMode.InSessionReceive, mode);
+                Assert.Equal(0, report.SavesSent!.Failed);
+                if (saveFailure is not null)
+                {
+                    Assert.Contains("negotiation refused", report.SavesSent.Problems);
+                }
+
+                if (report.StatesSent is { Failed: > 0 })
+                {
+                    Assert.True(report.ServerReachable);
+                    attempts.Add(clock.Seconds);
+                }
+
+                if (report.StatesSent?.Uploaded == 1)
+                {
+                    successes.Add(clock.Seconds);
+                    requestsAtSuccess = stub.RequestLog.Count;
+                    Assert.False(report.GameEndUploadPending);
+                }
+
+                return BackgroundPassResult.FromReport(0, report);
+            }, token, (delay, _) =>
+            {
+                if (first && !ended)
+                {
+                    Assert.Equal(Timeout.InfiniteTimeSpan, delay);
+                    File.WriteAllText(state, "synthetic state");
+                    Spool.Write(install.RootPath, new SpoolRecord("game-start", now, 1, [install.Resolve(rom)]));
+                    Spool.Write(install.RootPath, new SpoolRecord("game-end", now.AddSeconds(1), 2, []));
+                    ended = true;
+                    return Task.FromResult(true);
+                }
+
+                // Stop just after every fast retry. Start the next worker against the same
+                // install with no new spool event or EmulationStation restart.
+                if (first && clock.Seconds == 47 || delay == Timeout.InfiniteTimeSpan)
+                {
+                    if (!first)
+                    {
+                        clock.Advance(TimeSpan.FromMinutes(2));
+                    }
+
+                    running = false;
+                }
+                else
+                {
+                    Assert.True(clock.Seconds < 140);
+                    clock.Advance(delay);
+                }
+
+                return Task.FromResult(false);
+            }, clock, probe: _ => throw new InvalidOperationException("The heartbeat is already healthy."), periodicReceive: false);
+        }
+
+        using (var session = InstallSession.Open(tree.Root).Session!)
+        {
+            session.Store.Files.Record(new LocalFile
+            {
+                Path = rom, RomId = 42, FileName = rom.Name, Folder = "snes", Kind = LocalFileKind.Rom,
+            });
+            session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(install));
+            session.Store.Device.SavePairing(new PairingResult(origin, "device", "Handheld",
+                new GrantedScopes(["assets.read", "assets.write", "devices.write"]),
+                TokenProtector.Protect("rmm_test", null, null)), now);
+            if (gameEnd)
+            {
+                await RunWorker(session, first: true);
+                Assert.Equal([0, 2, 7, 17, 47], attempts);
+                Assert.Empty(Directory.EnumerateFiles(install.Resolve(SpoolDrain.Directory), "*" + Spool.Extension));
+            }
+            else
+            {
+                File.WriteAllText(state, "synthetic state");
+                var manual = await new SaveFlushService(session).RunAsync(new FlushOptions(), connection, token);
+                Assert.False(manual.GameEndUploadPending);
+                Assert.Equal(1, manual.StatesSent!.Failed);
+            }
+
+            Assert.Single(session.Store.States.PendingUploads());
+            Assert.Empty(stub.States);
+        }
+
+        clock.Advance(TimeSpan.FromSeconds(1));
+        using var reopened = InstallSession.Open(tree.Root).Session!;
+        await RunWorker(reopened, first: false);
+
+        if (gameEnd && stateFailure == System.Net.HttpStatusCode.ServiceUnavailable)
+        {
+            Assert.Equal([125], successes);
+            Assert.Equal("synthetic state"u8.ToArray(), Assert.Single(stub.States.Values).Bytes);
+            Assert.Empty(reopened.Store.States.PendingUploads());
+            Assert.Equal(requestsAtSuccess, stub.RequestLog.Count);
+        }
+        else
+        {
+            Assert.Empty(successes);
+            Assert.Empty(stub.States);
+            Assert.Single(reopened.Store.States.PendingUploads());
+            Assert.Equal(gameEnd ? 95 : 48, attempts[^1]);
+        }
+    }
+
+    [Theory]
     [InlineData(false, FlushState.Skipped, true)]
     [InlineData(true, FlushState.Partial, true)]
     [InlineData(true, FlushState.Done, false)]

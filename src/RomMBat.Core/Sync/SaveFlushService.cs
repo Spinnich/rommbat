@@ -231,7 +231,8 @@ public sealed class SaveFlushService
         CorrelationOutcome? correlated = null;
         StateScanOutcome? scannedStates = null;
         SaveScanOutcome? scanned = null;
-        var uploadReadDeferred = false;
+        var stateReadDeferred = false;
+        var saveReadDeferred = false;
 
         if (canUpload)
         {
@@ -256,12 +257,12 @@ public sealed class SaveFlushService
             {
                 var stateScanner = new StateScanner(install, store, schema, _time);
                 scannedStates = stateScanner.Scan();
-                uploadReadDeferred = stateScanner.UploadReadDeferred;
+                stateReadDeferred = stateScanner.UploadReadDeferred;
             }
 
             var saveScanner = new SaveScanner(install, store, states: schema, timeProvider: _time);
             scanned = saveScanner.Scan();
-            uploadReadDeferred |= saveScanner.UploadReadDeferred;
+            saveReadDeferred = saveScanner.UploadReadDeferred;
         }
 
         var local = new FlushReport
@@ -282,8 +283,8 @@ public sealed class SaveFlushService
             {
                 // SpoolDrain recorded the trigger before consuming the event. Keep it only
                 // while actual pending bytes, a sharing lock or queued playtime justify it.
-                var pending = retryable && (uploadReadDeferred || report.Queued > 0 || store.Saves.PendingUploads().Count > 0
-                    || store.States.PendingUploads().Count > 0);
+                var pending = retryable && (saveReadDeferred || stateReadDeferred || report.Queued > 0
+                    || store.Saves.PendingUploads().Count > 0 || store.States.PendingUploads().Count > 0);
                 if (pending)
                 {
                     return report with { GameEndUploadPending = true };
@@ -369,8 +370,9 @@ public sealed class SaveFlushService
 
             var serverReachable = playtime?.Unreachable == true || states?.Unreachable == true
                 ? false : saves.ServerReachable;
-            var deferred = !saves.UploadAuthorizationDenied
-                && (saves.TransientUploadFailure || uploadReadDeferred || states?.UploadReadDeferred == true);
+            // A refusal to negotiate battery saves says nothing about the state endpoint.
+            var deferred = stateReadDeferred || states?.TransientUploadFailure == true
+                || (!saves.UploadAuthorizationDenied && (saves.TransientUploadFailure || saveReadDeferred));
             return TrackGameEnd(local with
             {
                 State = failed ? FlushState.Partial : FlushState.Done,
