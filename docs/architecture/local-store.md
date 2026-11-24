@@ -33,7 +33,7 @@ tables, as the latest migration leaves them:
 | `local_save`       | One row per save unit on disk, identified by `(relative_path, unit_key)`, with its logical content hash and the last uploaded one                     |
 | `local_state`      | One row per save state, with its emulator, core, version, screenshot and the name it was uploaded under                                               |
 | `save_slot`        | The server-side identity of each `(rom_id, slot)`: `save_id`, both filenames, the server hash, the uploading device                                   |
-| `removed_nes_save` | ROMs whose known NES Libretro SRAM disappeared. Prevents automatic restore from undoing a local deletion                                               |
+| `removed_nes_save` | ROMs whose known NES Libretro SRAM disappeared. Prevents automatic restore from undoing a local deletion                                              |
 | `save_conflict`    | Slots where both sides moved, outliving the flush that found them, until a person picks a side                                                        |
 | `unsyncable`       | What was found under `saves/` and is not being synced, with a reason a user can act on. Rewritten every scan                                          |
 | `game_id_binding`  | Learned Game ID to `rom_id` bindings for class C and D attribution, with the route that taught each one, or a recorded refusal                        |
