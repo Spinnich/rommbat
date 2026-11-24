@@ -110,6 +110,9 @@ media and firmware. Multi-file and multi-disc games verify all components off-me
 before publication. Startup reports existing ROM or BIOS replacements as deferred.
 Review existing files before explicit sync with the emulator closed. After library
 changes, ES gets one menu reload request and one retry after three seconds if absent.
+Fresh loose-disc groups keep their filenames and ROM IDs and publish by directory rename
+from `partial/`. A manifest reconciles a rename interrupted before indexing. Startup
+rechecks existing discs and leaves repairs with multiple missing discs for explicit sync.
 
 A committed `game-end` causes an upload pass. Pending sends get up to four retries after
 2, 5, 10 and 30 seconds. After an outage exhausts those retries, a separate 15-second

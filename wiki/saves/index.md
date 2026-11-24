@@ -17,9 +17,11 @@ account can carry on where you left off. You do not have to do anything for it t
 When EmulationStation opens, RomMBat sends pending saves and syncs the sets enabled on this
 device. It adds missing supported games, including multi-file and multi-disc games, along with
 your selected artwork and available firmware. It verifies every part of a game before adding
-the group to the menu. Your existing ROMs, BIOS and artwork stay in place. If a ROM or BIOS
-needs replacing, check the startup report in `emulators\rommbat\logs\background.log` and
-review the file before running Sync with the emulator closed.
+the group to the menu. Fresh loose discs appear together in one folder. If a visible
+loose-disc game is missing more than one disc, review the startup report and run Sync
+with the emulator closed. Your existing ROMs, BIOS and artwork stay in place. If a ROM
+or BIOS needs replacing, check the startup report in `emulators\rommbat\logs\background.log`
+and review the file before running Sync with the emulator closed.
 
 Closing a game triggers a send. Quitting EmulationStation gives pending work another chance
 to go up. If the server is unavailable, RomMBat retries while work is waiting.

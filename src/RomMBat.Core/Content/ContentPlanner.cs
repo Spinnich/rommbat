@@ -34,6 +34,12 @@ public sealed record ContentStep
     /// <summary>Where the file belongs, relative to the RetroBat root.</summary>
     public required RelativePath TargetPath { get; init; }
 
+    internal bool PublishAsDiscGroup { get; init; }
+
+    internal long? ExistingSize { get; init; }
+
+    internal DateTime? ExistingModifiedUtc { get; init; }
+
     /// <summary>How many bytes would cross the network. Zero for anything already here.</summary>
     public long BytesToTransfer { get; init; }
 
@@ -227,12 +233,14 @@ public sealed class ContentPlanner
         var projectedManaged = managed;
         var projectedFree = free;
 
+        var freshDiscFolders = preserveExisting ? FreshDiscFolders(members) : [];
+
         foreach (var member in members.Where(member => !string.IsNullOrWhiteSpace(member.Folder)))
         {
             ContentStep step;
             try
             {
-                step = Inspect(member, preserveExisting);
+                step = Inspect(member, preserveExisting, freshDiscFolders);
             }
             catch (Exception ex) when (preserveExisting && ex is IOException or UnauthorizedAccessException)
             {
@@ -401,7 +409,37 @@ public sealed class ContentPlanner
     }
 
     /// <summary>Decides what one member needs, doing the least I/O that can answer.</summary>
-    private ContentStep Inspect(SyncSetMember member, bool preserveExisting)
+    private HashSet<RelativePath> FreshDiscFolders(IReadOnlyList<SyncSetMember> members)
+    {
+        var candidates = members.Where(member => !member.IsMultiFile)
+            .Select(member => (member.Folder, Group: FlatDiscLayout.FolderFor(member.Folder, member.FsName)))
+            .Where(item => item.Group is not null)
+            .GroupBy(item => item.Folder!, StringComparer.OrdinalIgnoreCase);
+        var fresh = new HashSet<RelativePath>();
+        foreach (var system in candidates)
+        {
+            var groups = system.GroupBy(item => item.Group!.Value).Where(group => group.Count() > 1).ToArray();
+            if (groups.Length == 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                var existing = FlatDiscLayout.ExistingLooseFolders(_install, system.Key).ToHashSet();
+                fresh.UnionWith(groups.Select(group => group.Key)
+                    .Where(group => !existing.Contains(group) && !Path.Exists(_install.Resolve(group))));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Without a readable system folder, multiple missing discs are deferred.
+            }
+        }
+
+        return fresh;
+    }
+
+    private ContentStep Inspect(SyncSetMember member, bool preserveExisting, HashSet<RelativePath> freshDiscFolders)
     {
         if (member.IsMultiFile)
         {
@@ -409,12 +447,25 @@ public sealed class ContentPlanner
         }
 
         var target = TargetFor(member);
+        var publishAsGroup = false;
+        if (FlatDiscLayout.FolderFor(member.Folder, member.FsName) is { } group)
+        {
+            var nested = group.Combine(target.Name);
+            publishAsGroup = freshDiscFolders.Contains(group);
+            if (publishAsGroup
+                || !Path.Exists(_install.Resolve(target)) && Directory.Exists(_install.Resolve(group)))
+            {
+                target = nested;
+            }
+        }
+
         var absolute = _install.Resolve(target);
         var step = new ContentStep
         {
             Member = member,
             Action = ContentAction.Download,
             TargetPath = target,
+            PublishAsDiscGroup = publishAsGroup,
             BytesToTransfer = member.SizeBytes,
         };
 
@@ -456,7 +507,11 @@ public sealed class ContentPlanner
             && (known.ModifiedUtc is not { } recordedTime
                 || _limits.AreTimestampsEquivalent(recordedTime, info.LastWriteTimeUtc)))
         {
-            return step with { Action = ContentAction.AlreadyPresent, BytesToTransfer = 0 };
+            return step with
+            {
+                Action = ContentAction.AlreadyPresent, BytesToTransfer = 0,
+                ExistingSize = info.Length, ExistingModifiedUtc = info.LastWriteTimeUtc,
+            };
         }
 
         // Something is there and nothing vouches for it. Hashing is the only honest answer, and

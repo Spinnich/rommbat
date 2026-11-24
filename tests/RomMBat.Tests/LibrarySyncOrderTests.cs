@@ -170,6 +170,237 @@ public sealed class LibrarySyncOrderTests : IDisposable
     }
 
     [Fact]
+    public async Task Fresh_flat_discs_publish_together_inside_a_single_visible_folder()
+    {
+        using var stub = PlayStationSet(flatDiscs: true);
+        using var connection = Connect(stub);
+        Set();
+        var report = await StartupService().RunAtStartupAsync(connection,
+            new Immediate<SyncEvent>(_ => { }), TestContext.Current.CancellationToken);
+
+        Assert.Equal(SyncState.Done, report.State);
+        var system = _session.Install.Resolve("roms/psx");
+        Assert.Empty(Directory.GetFiles(system, "*.chd"));
+        var directory = Assert.Single(Directory.GetDirectories(system), path => Directory.GetFiles(path, "*.chd").Length > 0);
+        Assert.Equal(2, Directory.GetFiles(directory, "*.chd").Length);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Restart_recovers_flat_discs_staged_off_menu_or_published_before_indexing(bool published)
+    {
+        using var stub = PlayStationSet(flatDiscs: true);
+        using var connection = Connect(stub);
+        var token = TestContext.Current.CancellationToken;
+        Set();
+        var requested = 0;
+        stub.BeforeRomContent = _ =>
+        {
+            if (++requested == 2)
+            {
+                stub.DropContentAfterBytes = 1500;
+            }
+            return Task.CompletedTask;
+        };
+        var progress = new Immediate<SyncEvent>(_ => { });
+        Assert.Equal(SyncState.Incomplete, (await StartupService().RunAtStartupAsync(connection, progress, token)).State);
+        var install = _session.Install;
+        var covered = FlatDiscLayout.FolderFor("psx", "Game 1 (Disc 1).chd")!.Value;
+        var stage = install.Resolve(FlatDiscLayout.StageFor(covered));
+        var downloads = _session.Store.Downloads.List().ToArray();
+        Directory.CreateDirectory(stage);
+        foreach (var item in published ? downloads : downloads.Take(1))
+        {
+            var part = install.Resolve(item.PartPath);
+            File.WriteAllBytes(part, stub.Content[item.RomId]);
+            File.Move(part, Path.Combine(stage, item.TargetPath.Name));
+        }
+
+        var system = install.Resolve("roms/psx");
+        Assert.False(Directory.Exists(system) && Directory.EnumerateFiles(system, "*.chd", SearchOption.AllDirectories).Any());
+        var folder = install.Resolve(covered);
+        if (published)
+        {
+            FlatDiscLayout.WriteManifest(stage, downloads.ToDictionary(item => item.RomId,
+                item => new FlatDiscLayout.Receipt(
+                    ContentHasher.ComputeFileMd5(Path.Combine(stage, item.TargetPath.Name)),
+                    null, HashScope.File, VerifiedBy.Size)));
+            Directory.CreateDirectory(system);
+            Directory.Move(stage, folder);
+            Assert.Equal(2, Directory.GetFiles(folder, "*.chd").Length);
+        }
+
+        using var reopened = InstallSession.Open(install.RootPath).Session!;
+        var sync = new LibrarySyncService(reopened, _ => Task.FromResult(EsCallResult.Answered));
+        Assert.Equal(SyncState.Done, (await sync.RunAtStartupAsync(connection, progress, token)).State);
+        Assert.False(Directory.Exists(stage));
+        Assert.Equal(2, Directory.GetFiles(folder, "*.chd").Length);
+        Assert.Empty(reopened.Store.Downloads.List());
+        Assert.All(reopened.Store.Files.List("psx", LocalFileKind.Rom), file => Assert.Equal(FileOrigin.Synced, file.Origin));
+        Assert.Equal(published ? 2 : 3, stub.ContentRequests.Count);
+        if (!published)
+        {
+            Assert.Contains("bytes=1500-", stub.ContentRequests[^1], StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task Startup_then_manual_sync_and_set_removal_share_disc_paths_media_and_gamelist()
+    {
+        using var stub = PlayStationSet(flatDiscs: true);
+        using var connection = Connect(stub);
+        var set = Set();
+        var token = TestContext.Current.CancellationToken;
+        var install = _session.Install;
+        var gamelist = install.Resolve("roms/psx/gamelist.xml");
+        Directory.CreateDirectory(Path.GetDirectoryName(gamelist)!);
+        File.WriteAllText(gamelist, """
+            <gameList>
+              <game><path>./Game 1 (Disc 1).chd</path><name>Old disc path</name></game>
+              <game><path>./Personal.chd</path><name>Personal</name></game>
+            </gameList>
+            """);
+
+        var service = StartupService();
+        var progress = new Immediate<SyncEvent>(_ => { });
+        Assert.Equal(SyncState.Done, (await service.RunAtStartupAsync(connection, progress, token)).State);
+        var discs = _session.Store.Files.List("psx", LocalFileKind.Rom).ToArray();
+        Assert.Equal(2, discs.Length);
+        var indexed = File.ReadAllText(gamelist);
+        Assert.DoesNotContain("./Game 1 (Disc 1).chd", indexed, StringComparison.Ordinal);
+        Assert.Contains("./Game 1 [RomMBat discs]/Game 1 (Disc 1).chd", indexed, StringComparison.Ordinal);
+
+        Assert.Equal(SyncState.Done, (await service.RunAsync([set], new SyncOptions(NoResolve: true),
+            connection, progress, cancellationToken: token)).State);
+        Assert.Equal(2, stub.ContentRequests.Count);
+        Assert.Equal(discs, _session.Store.Files.List("psx", LocalFileKind.Rom).ToArray());
+        var media = _session.Store.Files.List("psx").Where(file => file.Kind.IsMedia()).ToArray();
+        Assert.NotEmpty(media);
+        Assert.Equal(indexed, File.ReadAllText(gamelist));
+
+        var eviction = new EvictionService(_session);
+        var preview = eviction.PreviewRemoval([1, 2], releasing: [set.Id]);
+        var removal = await eviction.ApplySetRemovalAsync(preview, set.Name, token);
+        Assert.Null(removal.Refusal);
+        Assert.Empty(removal.Evicted!.Problems);
+        Assert.Null(_session.Store.SyncSets.Find(set.Name));
+        Assert.All(discs.Concat(media), file => Assert.False(File.Exists(install.Resolve(file.Path))));
+        Assert.DoesNotContain("Disc 1", File.ReadAllText(gamelist), StringComparison.Ordinal);
+        Assert.DoesNotContain("Disc 2", File.ReadAllText(gamelist), StringComparison.Ordinal);
+        Assert.Contains("Personal.chd", File.ReadAllText(gamelist), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Startup_never_publishes_part_of_a_group_when_budget_or_an_existing_unselected_disc_blocks_it(bool existing)
+    {
+        using var stub = PlayStationSet(flatDiscs: true);
+        using var connection = Connect(stub);
+        Set();
+        var install = _session.Install;
+        var existingDisc = install.Resolve("roms/psx/Game 1 (Disc 3).chd");
+        if (existing)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(existingDisc)!);
+            File.WriteAllText(existingDisc, "personal disc");
+        }
+        else
+        {
+            _session.Store.Settings.Set(SettingStore.ContentMaxBytes, "8000", Now);
+        }
+
+        var report = await StartupService().RunAtStartupAsync(connection, new Immediate<SyncEvent>(_ => { }),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(SyncState.Blocked, report.State);
+        Assert.Empty(stub.ContentRequests);
+        Assert.Empty(_session.Store.Files.List("psx", LocalFileKind.Rom));
+        if (existing)
+        {
+            Assert.Equal("personal disc", File.ReadAllText(existingDisc));
+        }
+    }
+
+    [Fact]
+    public async Task Startup_groups_loose_discs_selected_by_different_sets()
+    {
+        using var stub = PlayStationSet(flatDiscs: true);
+        using var connection = Connect(stub);
+        var first = Set();
+        var second = _session.Store.SyncSets.Add(first with { Name = "second", ScopeValue = "2" }, Now);
+        foreach (var (set, rom) in new[] { (first, stub.Library[0]), (second, stub.Library[1]) })
+        {
+            _session.Store.SyncSets.ReplaceMembers(set.Id, [new SyncSetMember
+            {
+                RomId = rom.Id, Folder = "psx", FsName = rom.FsName, DisplayName = rom.Name, SizeBytes = 5000,
+                State = MemberState.Member, PlatformSlug = "psx", FsExtension = "chd", ResolvedAt = Now,
+                SortKey = rom.FsName,
+            }], "one disc", Now.AddSeconds(1), complete: true);
+        }
+
+        var report = await StartupService().RunAsync([first, second], new SyncOptions(NoResolve: true) { AtStartup = true },
+            connection, new Immediate<SyncEvent>(_ => { }), cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(SyncState.Done, report.State);
+        Assert.Equal(2, stub.ContentRequests.Count);
+        var folder = _session.Install.Resolve("roms/psx/Game 1 [RomMBat discs]");
+        Assert.Equal(2, Directory.GetFiles(folder, "*.chd").Length);
+    }
+
+    [Fact]
+    public async Task A_flat_disc_changed_during_the_next_download_blocks_publication()
+    {
+        using var stub = PlayStationSet(flatDiscs: true);
+        using var connection = Connect(stub);
+        Set();
+        var first = RelativePath.Create("roms/psx/Game 1 (Disc 1).chd");
+        var path = _session.Install.Resolve(first);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllBytes(path, stub.Content[1]);
+        _session.Store.Files.Record(new LocalFile
+        {
+            Path = first, RomId = 1, Folder = "psx", FileName = first.Name, SizeBytes = stub.Content[1].Length,
+            VerifiedBy = VerifiedBy.Size, ModifiedUtc = File.GetLastWriteTimeUtc(path),
+        });
+        stub.BeforeRomContent = _ =>
+        {
+            File.AppendAllText(path, "edited");
+            return Task.CompletedTask;
+        };
+
+        var report = await StartupService().RunAtStartupAsync(connection,
+            new Immediate<SyncEvent>(_ => { }), TestContext.Current.CancellationToken);
+
+        Assert.Equal(SyncState.Blocked, report.State);
+        Assert.False(File.Exists(_session.Install.Resolve("roms/psx/Game 1 (Disc 2).chd")));
+        Assert.EndsWith("edited", File.ReadAllText(path), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Startup_builds_a_missing_playlist_from_verified_discs_without_a_partial_directory()
+    {
+        using var stub = PlayStationSet();
+        using var connection = Connect(stub);
+        Set();
+        foreach (var disc in stub.Library[0].Files!)
+        {
+            var path = PlayStationFile(disc.FileName);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllBytes(path, disc.Bytes);
+        }
+
+        Assert.False(Directory.Exists(_session.Install.Resolve(RetroBatInstall.PartialDirectory)));
+        var report = await StartupService().RunAtStartupAsync(connection,
+            new Immediate<SyncEvent>(_ => { }), TestContext.Current.CancellationToken);
+
+        Assert.Equal(SyncState.Done, report.State);
+        Assert.Empty(stub.ContentRequests);
+        Assert.True(File.Exists(PlayStationFile("Game 1.m3u")));
+    }
+
+    [Fact]
     public void A_later_group_move_failure_reverts_only_this_publication()
     {
         var install = _session.Install;

@@ -97,6 +97,12 @@ internal static class EvictCommand
 
         var applied = await service.ApplyAsync(report, cancellationToken).ConfigureAwait(false);
 
+        if (applied.Refusal is { } refusal)
+        {
+            Console.Error.WriteLine(refusal);
+            return ExitCode.Refused;
+        }
+
         ReportSweep(applied.Swept);
 
         if (applied.Evicted is { } evicted)
@@ -151,6 +157,12 @@ internal static class EvictCommand
         Console.WriteLine();
 
         var applied = await service.ApplyAsync(report, cancellationToken).ConfigureAwait(false);
+        if (applied.Refusal is { } refusal)
+        {
+            Console.Error.WriteLine(refusal);
+            return ExitCode.Refused;
+        }
+
         ReportSweep(applied.Swept);
 
         return ExitCode.Ok;

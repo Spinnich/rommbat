@@ -4,6 +4,7 @@ using RomMBat.Core.Paths;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
 using Xunit;
 
@@ -37,6 +38,25 @@ public sealed class UninstallTests : IDisposable
     {
         _session.Dispose();
         _tree.Dispose();
+    }
+
+    [Fact]
+    public async Task Busy_library_refuses_uninstall_before_removing_anything()
+    {
+        InstallHooksAndMenu();
+        Rom(7, "snes", "Chrono Trigger (USA).sfc", FileOrigin.Synced);
+        var service = Service();
+        var report = service.Preview(new RemovalScope(Content: true));
+        using var held = TreeLock.TryAcquireLibrary(_session.Install);
+        Assert.NotNull(held);
+
+        var applied = await service.ApplyAsync(report, TestContext.Current.CancellationToken);
+
+        Assert.False(applied.Ok);
+        Assert.Contains("library", applied.Refusal, StringComparison.OrdinalIgnoreCase);
+        Assert.True(new EsHooks(_session.Install).IsInstalled());
+        Assert.True(new EsMenuEntry(_session.Install).IsInstalled());
+        Assert.True(File.Exists(RomOnDisk("snes", "Chrono Trigger (USA).sfc")));
     }
 
     [Fact]

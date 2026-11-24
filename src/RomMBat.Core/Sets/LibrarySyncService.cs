@@ -1,6 +1,7 @@
 using RomM.Client;
 using RomM.Client.Catalog;
 using RomMBat.Core.Content;
+using RomMBat.Core.Paths;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
@@ -274,6 +275,14 @@ public sealed class LibrarySyncService
 
         var ran = new List<SyncPass>();
 
+        // ROM/media partials use their own lease. A slow library download cannot own the
+        // save tree's lease while a game is waiting for SRAM.
+        using var library = options.DryRun ? null : TreeLock.TryAcquireLibrary(_session.Install);
+        if (!options.DryRun && library is null)
+        {
+            return new SyncReport(SyncState.Refused, ran);
+        }
+
         if (!options.DryRun && !options.AtStartup)
         {
             ran.Add(SyncPass.Hooks);
@@ -303,19 +312,19 @@ public sealed class LibrarySyncService
             }
         }
 
-        // ROM/media partials use their own lease. A slow library download cannot own the
-        // save tree's lease while a game is waiting for SRAM.
-        using var library = options.DryRun ? null : TreeLock.TryAcquireLibrary(_session.Install);
-        if (!options.DryRun && library is null)
-        {
-            return new SyncReport(SyncState.Refused, ran);
-        }
-
         ran.Add(SyncPass.Filesystem);
         var limits = FilesystemLimits.Inspect(_session.Install.RootPath);
         progress.Report(new FilesystemNoted(limits));
 
-        var current = sets;
+        if (!options.DryRun)
+        {
+            FlatDiscLayout.Recover(_session.Install, _session.Store);
+        }
+
+        // The startup caller can have waited while a set was deleted or disabled.
+        IReadOnlyList<SyncSetDefinition> current = options.AtStartup
+            ? _session.Store.SyncSets.List().Where(set => set.Enabled).ToArray()
+            : sets;
 
         if (!options.Offline && connection is not null && !options.NoResolve)
         {
@@ -376,9 +385,25 @@ public sealed class LibrarySyncService
         var fetchedArtwork = false;
         var publishedRoms = false;
 
+        // A disc set can span enabled sets. Publish its selected discs together once.
+        var discsAcrossSets = options.AtStartup
+            ? current.SelectMany(set => _session.Store.SyncSets.Members(set.Id))
+                .Where(member => !member.IsMultiFile)
+                .ToLookup(member => FlatDiscLayout.FolderFor(member.Folder, member.FsName))
+            : null;
+        var plannedDiscFolders = new HashSet<RelativePath>();
+
         foreach (var set in current)
         {
             var members = _session.Store.SyncSets.Members(set.Id);
+            if (discsAcrossSets is not null)
+            {
+                members = [.. members.SelectMany(member =>
+                    !member.IsMultiFile && FlatDiscLayout.FolderFor(member.Folder, member.FsName) is { } group
+                        ? plannedDiscFolders.Add(group) ? discsAcrossSets[group].DistinctBy(disc => disc.RomId) : []
+                        : new[] { member })];
+            }
+
             var plan = planner.PlanCore(set, members, preserveExisting: options.AtStartup);
 
             progress.Report(new SetPlanned(set, plan));

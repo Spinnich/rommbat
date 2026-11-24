@@ -50,7 +50,10 @@ public sealed class TreeLock : IDisposable
     /// <returns>Null when another process holds it, which is an ordinary outcome.</returns>
     public static TreeLock? TryAcquire(RetroBatInstall install) => TryAcquire(install, Path);
 
-    internal static TreeLock? TryAcquireLibrary(RetroBatInstall install) =>
+    public const string LibraryBusy = "Another RomMBat pass is changing the library. Let it finish, then try again.";
+
+    /// <summary>Serializes operations that change the installed library.</summary>
+    public static TreeLock? TryAcquireLibrary(RetroBatInstall install) =>
         TryAcquire(install, RetroBatInstall.AppDirectory.Combine("library.lock"));
 
     private static TreeLock? TryAcquire(RetroBatInstall install, RelativePath lockPath)

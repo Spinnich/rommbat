@@ -164,7 +164,7 @@ internal static class SetsCommand
         if (outcome.IsRefused)
         {
             Console.Error.WriteLine(outcome.Problem);
-            return ExitCode.Usage;
+            return outcome.Refusal == SetRefusal.Busy ? ExitCode.Refused : ExitCode.Usage;
         }
 
         Console.WriteLine($"Removed '{command.Positional[1]}'. Nothing on disk was touched.");

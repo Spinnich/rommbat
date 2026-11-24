@@ -30,7 +30,12 @@ public sealed record EvictionReport(
 public sealed record EvictionApplied(
     PartialSweepOutcome? Swept,
     EvictionOutcome? Evicted,
-    GamelistSyncOutcome? Gamelists);
+    GamelistSyncOutcome? Gamelists,
+    string? Refusal = null)
+{
+    public bool CanForgetSet => Refusal is null && Evicted?.Problems.Count is not > 0
+        && Gamelists?.Folders.Any(folder => folder.Problem is not null) is not true;
+}
 
 /// <summary>
 /// Freeing space, showing what would go before anything goes.
@@ -180,7 +185,7 @@ public sealed class EvictionService
         var wanted = romIds.ToHashSet();
 
         var systems = _session.Store.SyncSets.List()
-            .SelectMany(set => _session.Store.SyncSets.Members(set.Id, state: null))
+            .SelectMany(set => _session.Store.SyncSets.Members(set.Id))
             .Where(member => wanted.Contains(member.RomId))
             .Select(member => member.Folder)
             .OfType<string>()
@@ -211,14 +216,59 @@ public sealed class EvictionService
     /// there forever. Rewriting needs no server: the entry and its metadata are both local.
     /// </para>
     /// </remarks>
-    public async Task<EvictionApplied> ApplyAsync(
-        EvictionReport report,
-        CancellationToken cancellationToken = default)
+    public Task<EvictionApplied> ApplyAsync(EvictionReport report, CancellationToken cancellationToken = default) =>
+        ApplyWithLeaseAsync(report, setToRemove: null, cancellationToken);
+
+    public Task<EvictionApplied> ApplySetRemovalAsync(
+        EvictionReport report, string setName, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(setName);
+        return ApplyWithLeaseAsync(report, setName, cancellationToken);
+    }
+
+    private async Task<EvictionApplied> ApplyWithLeaseAsync(
+        EvictionReport report, string? setToRemove, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(report);
+        cancellationToken.ThrowIfCancellationRequested();
+        using var library = TreeLock.TryAcquireLibrary(_session.Install);
+        if (library is null)
+        {
+            return new EvictionApplied(null, null, null, TreeLock.LibraryBusy);
+        }
 
+        if (setToRemove is not null)
+        {
+            if (_session.Store.SyncSets.Find(setToRemove) is not { } set)
+            {
+                return new EvictionApplied(null, null, null, "The set is no longer available. Open the sets list again.");
+            }
+
+            var ids = _session.Store.SyncSets.Members(set.Id, state: null).Select(member => member.RomId).ToArray();
+            var fresh = PreviewRemoval(ids, releasing: [set.Id]);
+            var selected = report.Plan.Selected.Select(item => item.File.Path).ToHashSet();
+            if (!selected.SetEquals(fresh.Plan.Selected.Select(item => item.File.Path)))
+            {
+                return new EvictionApplied(null, null, null, "The removal preview changed. Open it again to review what can go.");
+            }
+
+            report = fresh;
+        }
+
+        var result = await ApplyUnderLibraryLeaseAsync(report, cancellationToken).ConfigureAwait(false);
+        if (setToRemove is not null && result.CanForgetSet)
+        {
+            _session.Store.SyncSets.Remove(setToRemove);
+        }
+
+        return result;
+    }
+
+    internal async Task<EvictionApplied> ApplyUnderLibraryLeaseAsync(
+        EvictionReport report, CancellationToken cancellationToken)
+    {
         var sweep = new PartialSweep(_session.Install, _session.Store);
-        var swept = report.Abandoned.IsEmpty ? null : sweep.Apply(report.Abandoned);
+        var swept = report.Abandoned.IsEmpty ? null : sweep.ApplyWithLibrary(report.Abandoned);
 
         // Nothing selected rather than nothing over budget, which are the same thing on the
         // budget path and are not on the removal one: a removal's BytesToFree is what the
@@ -226,12 +276,6 @@ public sealed class EvictionService
         if (report.Plan.Selected.Count == 0)
         {
             return new EvictionApplied(swept, null, null);
-        }
-
-        using var library = TreeLock.TryAcquireLibrary(_session.Install);
-        if (library is null)
-        {
-            return new EvictionApplied(new PartialSweepOutcome { Skipped = true }, null, null);
         }
 
         var evicted = new EvictionPlanner(_session.Store).Apply(report.Plan, _session.Install);

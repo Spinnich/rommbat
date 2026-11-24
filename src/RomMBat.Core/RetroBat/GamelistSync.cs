@@ -329,12 +329,16 @@ public sealed class GamelistSync
             // like the folder. Trying both removes whichever this game was listed as.
             var playlist = owned.GamelistPath + "/" + MultiFileLayout.PlaylistNameFor(owned.FsName);
 
-            if (here.Contains(owned.GamelistPath) || here.Contains(playlist))
+            if (!here.Contains(owned.GamelistPath) && !here.Contains(playlist)
+                && (document.Remove(owned.GamelistPath) || document.Remove(playlist)))
             {
-                continue;
+                removed++;
             }
 
-            if (document.Remove(owned.GamelistPath) || document.Remove(playlist))
+            if (FlatDiscLayout.FolderFor(folder, owned.FsName) is { } group
+                && !here.Contains($"./{group.Name}/{owned.FsName}")
+                && !File.Exists(_install.Resolve(group.Combine(owned.FsName)))
+                && document.Remove($"./{group.Name}/{owned.FsName}"))
             {
                 removed++;
             }

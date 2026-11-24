@@ -272,6 +272,25 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task Busy_library_keeps_the_set_and_its_files_when_UI_removal_is_applied()
+    {
+        var set = Seed("doomed");
+        SeedFile(1, "snes", "only.sfc", 1_024);
+        Members(set, 1);
+        var preview = new EvictionService(_session).PreviewRemoval([1], releasing: [set.Id]);
+        using var lease = TreeLock.TryAcquireLibrary(_session.Install);
+        Assert.NotNull(lease);
+
+        var applying = Assert.IsType<ListScreen>(SetsScreens.ApplyRemoval(_session, set.Name, preview));
+        await Wait(() => !applying.IsLoading);
+
+        Assert.Contains(applying.Rows, row => row.Label == "Removal paused" && row.Detail!.Contains("library", StringComparison.Ordinal));
+        Assert.NotNull(_session.Store.SyncSets.Find(set.Name));
+        Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "only.sfc")));
+        Assert.Equal(ScreenCommandKind.Pop, applying.Handle(NavAction.Back).Kind);
+    }
+
+    [Fact]
     public async Task Removing_takes_the_games_it_named_and_leaves_the_one_it_kept()
     {
         var doomed = Seed("doomed");

@@ -221,14 +221,15 @@ public sealed class PartialSweep
     {
         ArgumentNullException.ThrowIfNull(plan);
 
-        using var held = TreeLock.TryAcquire(_install);
-
         using var library = TreeLock.TryAcquireLibrary(_install);
+        return library is null ? new PartialSweepOutcome { Skipped = true } : ApplyWithLibrary(plan);
+    }
 
-        if (held is null || library is null)
+    internal PartialSweepOutcome ApplyWithLibrary(PartialSweepPlan plan)
+    {
+        using var held = TreeLock.TryAcquire(_install);
+        if (held is null)
         {
-            // Ordinary, not an error, the same way a second flush is. Reclaiming disk is never
-            // urgent enough to race a save being put back.
             return new PartialSweepOutcome { Skipped = true };
         }
 
