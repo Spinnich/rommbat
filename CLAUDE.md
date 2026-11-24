@@ -75,7 +75,7 @@ unwind later. Code cites them by number, so the numbers do not change.
    crc32 and size. A file with no identity is reported, never fetched, and a file RomM lacks
    **never blocks a platform**, its sync or its certification. The record is
    `docs/design/decisions/firmware-from-emulator-evidence.md`.
-4. **The `game-start` and `game-end` hooks never touch the network.** Those two run inside
+4. **The `game-start` and `game-end` journal hooks write to the local spool.** Those two run inside
    the game-launch path: they write one spool file, exit, and start nothing. **`start`
    and `quit` are outside that path** and start the detached session worker and quit pass, respectively,
    which is what drains the spool on a machine where nobody opens a terminal. The set is
@@ -83,7 +83,7 @@ unwind later. Code cites them by number, so the numbers do not change.
    which of the four it is serving until it reads the folder it was installed into.
    The separately named verified Windows `rommbat-prelaunch-wait.exe` is the launch barrier
    for one ROM's save check. It invokes the agent, joins it before returning, and writes
-   no journal record. Game-start and game-end journal hooks keep the original rule.
+   no journal record.
 5. **Set `SocketsHttpHandler.ConnectTimeout` on every handler.** Nothing sets it by default
    and an unreachable LAN host stalls for 21 s. Then classify the failure: a timeout and a
    user cancellation are both `TaskCanceledException` and differ only in the inner exception.

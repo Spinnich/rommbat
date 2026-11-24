@@ -63,9 +63,11 @@ cleanly on reconnect.**
 
 - The local SQLite database is the source of truth for local state. The network is an
   optional enrichment, probed with a short-timeout `GET /api/heartbeat`, never assumed.
-- **ES hooks never touch the network.** `game-start` and `game-end` run inside the game
-  launch path; they append to a durable local journal and exit in milliseconds. A
-  background agent flushes the journal when the server is reachable.
+- **Game journal hooks write to the local spool and exit.** A background agent drains it
+  and sends pending work when RomM is reachable. On a verified Windows EmulationStation
+  build, a separate synchronous hook delegates a time-limited save check for the selected
+  ROM to the agent. The game can start with its local save if the check fails.
+  See [Prelaunch save preparation](../architecture/projects.md#synchronous-prelaunch-save-preparation).
 - Everything produced offline (saves, states, play sessions) lands in an **outbox** with
   its real local mtime and content hash, not its sync time. A week offline is just a
   bigger `POST /api/sync/negotiate` payload; the protocol is full-state reconciliation,

@@ -182,18 +182,15 @@ installed, so a reference would put the store and the API client into each of th
 and Core's reader on one definition. It is trimmed, single-file and ReadyToRun, for start time
 on a USB stick; the measurements are in the `.csproj` too.
 
-It opens no socket, touches no database and takes no lock. One file per event is what makes
+The journal hook opens no socket, touches no database and takes no lock. One file per event makes
 that safe: three `game-end` hooks have been caught in flight at once (RB-347), and none of them
 shares anything with another.
 
-`game-start` and `game-end` run inside the game launch path. They spawn nothing, must not open a
-socket and must not wait on a lock. ES spawns them **fire-and-forget**, so they do not
-delay the launch (30 ms from hook to launcher, against an 8 s hook, RB-346), but they **do run
-concurrently**, with each other and across events.
+The ordinary `game-start` and `game-end` journal hooks run asynchronously and can overlap
+(RB-346, RB-347). The same packaged executable also serves the separate verified
+[prelaunch hook](#synchronous-prelaunch-save-preparation) under its `-wait.exe` name.
 
-CLAUDE.md rule 4 forbids a hook touching the network because hooks run in the
-game-launch path, and only `game-start` and `game-end` do. `start` fires when EmulationStation
-starts and `quit` when it exits, so for each of those two the hook spawns
+For `start` and `quit`, the journal hook spawns
 `emulators/rommbat/rommbat-agent.exe background <event>` detached, with `UseShellExecute=false`
 and `CreateNoWindow=true`, and does not wait. The set lives on `SpoolRecord.BackgroundEvents`,
 which the hook compiles rather than references, so the hook and the agent cannot disagree about

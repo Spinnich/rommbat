@@ -14,24 +14,35 @@ account can carry on where you left off. You do not have to do anything for it t
 
 ## When it happens
 
-When EmulationStation opens, RomMBat syncs the sets enabled on this device and
-sends pending saves. The startup sync adds missing single-file ROMs and keeps existing
-ROMs and BIOS files in place. Closing a game or quitting EmulationStation also sends
-pending work.
+When EmulationStation opens, RomMBat sends pending saves and syncs the sets enabled on this
+device. It adds missing supported games, including multi-file and multi-disc games, along with
+your selected artwork and available firmware. It verifies every part of a game before adding
+the group to the menu. Your existing ROMs, BIOS and artwork stay in place. If a ROM or BIOS
+needs replacing, check the startup report in `emulators\rommbat\logs\background.log` and
+review the file before running Sync with the emulator closed.
 
-On the verified Windows EmulationStation build, RomMBat checks the selected managed
-game's saves before the emulator opens it. Plain NES Libretro saves can be restored
-then. If the server is unavailable or the check times out, the game opens with its
-local save. Other installations keep the 30-second background check for plain NES
-Libretro saves. A previously removed save stays removed. To bring it back, start with
-`rommbat-agent saves restore` to preview the restore.
+Closing a game triggers a send. Quitting EmulationStation gives pending work another chance
+to go up. If the server is unavailable, RomMBat retries while work is waiting.
+
+On the verified Windows EmulationStation build shipped with RetroBat 8.3.1.1, choosing a game
+managed by RomMBat checks that game's remote saves before the emulator starts. Automatic
+restore at launch covers plain NES Libretro battery saves (`.srm`). Other managed games use
+their regular save sync. If the check fails or times out, the game opens with the local save.
+Installations without verified launch support keep the 30-second receive check for plain NES
+Libretro saves while EmulationStation is open.
+
+An open conflict or unverified local history keeps the local save in place. If only the
+file's modification time changed and its bytes still match the last verified shared save,
+the newer remote version can wait for the next launch. To bring back a previously removed
+save, start with `rommbat-agent saves restore` to preview the restore.
 
 ## Away from the server
 
 Saves and playtime stay on this device while RomM is unreachable. If short retries
 run out, RomMBat checks for reconnection while pending work remains and sends it when
-it can reach RomM again. The main menu's Waiting to upload row shows queued items,
-and Status shows the most recent in-session upload and download.
+it can reach RomM again. Waiting to upload lists items in the outbox. To check an individual
+save, run `rommbat-agent saves`. Under This device, Status shows the most recent in-session
+upload and download.
 
 ## When a save is deleted in RomM
 

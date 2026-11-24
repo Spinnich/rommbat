@@ -7,20 +7,28 @@ read-when: Before changing an ES hook, the spool the hooks write, or what a hook
 
 Facts RomMBat relies on, one per heading. [The upstream reference](../README.md) says what an entry holds and how IDs are kept.
 
-## RB-346. Hooks do not block game launch
+## RB-346. Ordinary game-start scripts do not block launch
 
 Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: an 8 s sleep in every hook, timed against `emulatorLauncher.log`.
-ES spawns event scripts fire-and-forget. `emulatorLauncher` started 30 ms after the `game-start`
-hook on three launches of three, while the hook still had 8 s of sleep ahead of it. So a hook's
-running time never delays a launch.
+ES queues the ordinary `game-start` scripts. On all three measured launches, the launcher
+starts 30 ms after the hook while the hook still has 8 s of sleep ahead of it. Windows scripts
+with a `-wait` stem follow the [synchronous path](#windows-game-start-wait-executables).
 
-## RB-197. A hook runs during the launch, not inside it
+## RB-197. The journal hook runs concurrently with the launcher
 
 Verified: RetroBat 8.2.0, 2026-08-24. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: joined 23 journaled `game-start` records to the launcher log's `[Startup]` stamps.
 The launcher's `[Startup]` line lands a median 24 ms after the hook's record (20 of 23 between 12
 and 44 ms). Against the hook's own ~60 ms start, ES spawned it before the launcher began and did
-not wait. The launcher then takes 0.5 s to 2.8 s to reach `[Running]`. A spawn costs contention,
-not latency. Rule 4 is about the network and does not rest on this.
+not wait. The launcher then takes 0.5 s to 2.8 s to reach `[Running]`. This timing describes the ordinary journal hook.
+
+## Windows game-start wait executables
+
+On the Windows build verified with RetroBat 8.3.1.1, a `game-start` executable whose stem
+ends in `-wait` runs synchronously before the launcher. EmulationStation continues to the
+launcher when the callback returns, including when it returns an error. RomMBat
+[verifies the executable and bounds the wait](../../architecture/projects.md#synchronous-prelaunch-save-preparation).
+See the pinned [script dispatch](https://github.com/RetroBat-Official/emulationstation/blob/45f37fd74819ee07118ca2e7680a907b25733ac5/es-core/src/Scripting.cpp#L119-L136)
+and [launch order](https://github.com/RetroBat-Official/emulationstation/blob/45f37fd74819ee07118ca2e7680a907b25733ac5/es-app/src/FileData.cpp#L716-L732).
 
 ## RB-195. A hook's start cost is JIT, not size
 
@@ -35,7 +43,7 @@ so it stays on.
 
 Verified: RetroBat 8.2.0, 2026-08-08. Carried: RetroBat 8.3.1.1, 2026-10-17, 8.3.1.1's delta is ten RetroBat and fourteen emulatorlauncher commits (screen placement and Wiimote buttons across the generators, the doom and recomp ports systems, CHIHIRO's .bin extension and BIOS name, a QuiverLauncher padtokey entry, the order of emulator entries in `es_systems.cfg`) and EmulationStation's window holds no commit on events, settings keys or the HTTP API on Windows; no event, hook folder or script argument is in it (searched the ES commits for events, scripts and arguments). How: sleeping hooks in every event folder appending to one log.
 A `quit` fired 2.1 s after a `game-end` while that hook was mid-sleep, and their appends
-interleaved. Three `game-end` hooks were in flight at once. So each RomMBat hook writes its own
+interleaved. Three `game-end` hooks were in flight at once. So each RomMBat journal hook writes its own
 spool file and renames it into place, sharing nothing, and the flush that drains the spool takes
 `TreeLock`.
 
