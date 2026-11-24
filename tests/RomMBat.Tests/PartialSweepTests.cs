@@ -52,6 +52,40 @@ public sealed class PartialSweepTests : IDisposable
     }
 
     [Fact]
+    public void Packed_staging_and_member_partials_are_reclaimed_only_when_unclaimed_and_the_library_is_free()
+    {
+        var install = _tree.Install();
+        using var store = LocalStore.Open(install);
+        var sweep = new PartialSweep(install, store);
+        WriteDirectory("pack-7", "Disc 1.chd", "seven staged");
+        WriteDirectory("pack-9", "Disc 1.chd", "nine staged");
+        Write("7-11.part", "seven in progress");
+        Write("9-12.part", "nine in progress");
+        WriteDirectory("pack-notes", "readme.txt", "someone else's notes");
+
+        var preview = sweep.Plan();
+        Assert.Equal(4, preview.Candidates.Count);
+        using (var library = TreeLock.TryAcquireLibrary(install))
+        {
+            Assert.NotNull(library);
+            Assert.True(sweep.Apply(preview).Skipped);
+            Assert.True(Directory.Exists(Resolve("pack-9")));
+        }
+
+        var set = store.SyncSets.Add(
+            new SyncSetDefinition { Name = "kept", Scope = CatalogScopeKind.Platform, ScopeValue = "snes" },
+            DateTimeOffset.UtcNow);
+        store.SyncSets.ReplaceMembers(set.Id, [Member(7)], "one game", DateTimeOffset.UtcNow);
+        Assert.Equal(2, sweep.Apply(preview).Removed);
+
+        Assert.True(Directory.Exists(Resolve("pack-7")));
+        Assert.True(File.Exists(Resolve("7-11.part")));
+        Assert.False(Directory.Exists(Resolve("pack-9")));
+        Assert.False(File.Exists(Resolve("9-12.part")));
+        Assert.True(Directory.Exists(Resolve("pack-notes")));
+    }
+
+    [Fact]
     public void A_rom_transfer_mid_flight_is_kept_even_with_no_content_download_row()
     {
         // The row is written on commit, so a transfer that has not committed has none. Keying on

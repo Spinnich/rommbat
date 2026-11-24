@@ -94,23 +94,23 @@ internal sealed class StartupRomGroup(
         var targetFolder = loose is { } group ? install.Resolve(group)
             : steps is [{ Member.IsMultiFile: true }] && _pending.Count > 0
                 ? install.Resolve(ContentPlanner.FolderFor(steps[0].Member)) : null;
+        var packed = loose is null && targetFolder is not null && !Path.Exists(targetFolder);
         var stage = loose is { } freshDiscFolder
             ? install.Resolve(FlatDiscLayout.StageFor(freshDiscFolder))
-            : targetFolder is not null && !Path.Exists(targetFolder)
-                ? install.Resolve(RetroBatInstall.PartialDirectory.Combine(Path.GetRandomFileName())) : null;
+            : packed ? install.Resolve(PackedRomStage.For(steps[0].Member.RomId)) : null;
 
         var moved = new List<PublishedFile>();
         var folderPublished = false;
         var stagingStarted = false;
         try
         {
+            if (stage is not null && (Path.Exists(stage) || Path.Exists(targetFolder!)))
+            {
+                throw new IOException("The disc group directory is already occupied.");
+            }
+
             if (loose is not null)
             {
-                if (Path.Exists(stage!) || Path.Exists(targetFolder!))
-                {
-                    throw new IOException("The disc group directory is already occupied.");
-                }
-
                 foreach (var file in _pending)
                 {
                     var romId = file.Record.RomId!.Value;
@@ -132,7 +132,7 @@ internal sealed class StartupRomGroup(
             {
                 var target = stage is null ? install.Resolve(file.Record.Path) : Path.Combine(stage, file.Record.Path.Name);
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                var stamp = MoveIntoPlace(file, target);
+                var stamp = MoveIntoPlace(file, target, packed);
                 moved.Add(new PublishedFile(file, target, stamp));
             }
 
@@ -147,6 +147,13 @@ internal sealed class StartupRomGroup(
                     {
                         throw new IOException("A loose disc appeared in the system folder during the transfer.");
                     }
+                }
+
+                if (packed)
+                {
+                    PackedRomStage.WriteManifest(stage, _pending.Select(file => new PackedRomStage.Entry(
+                        file.FileId, file.Record.Path.Name,
+                        FlatDiscLayout.CreateReceipt(Path.Combine(stage, file.Record.Path.Name), file.Record))));
                 }
 
                 Directory.CreateDirectory(Path.GetDirectoryName(targetFolder!)!);
@@ -164,7 +171,7 @@ internal sealed class StartupRomGroup(
             }
 
             Record(_pending);
-            if (loose is not null)
+            if (stage is not null)
             {
                 FlatDiscLayout.RemoveManifest(targetFolder!);
             }
@@ -177,7 +184,7 @@ internal sealed class StartupRomGroup(
                 {
                     var owned = moved.Select(file => install.Resolve(file.Pending.Record.Path))
                         .ToHashSet(StringComparer.OrdinalIgnoreCase);
-                    if (loose is not null)
+                    if (stage is not null)
                     {
                         owned.Add(FlatDiscLayout.ManifestPath(targetFolder!));
                     }
@@ -227,7 +234,7 @@ internal sealed class StartupRomGroup(
                 var folder = stage;
                 try
                 {
-                    if (loose is not null && Directory.Exists(folder) && moved.Count > 0)
+                    if (Directory.Exists(folder) && moved.Count > 0)
                     {
                         FlatDiscLayout.RemoveManifest(folder);
                     }
@@ -270,11 +277,22 @@ internal sealed class StartupRomGroup(
         return info.Exists ? new FileStamp(info.CreationTimeUtc, info.LastWriteTimeUtc, info.Length) : null;
     }
 
-    private FileStamp MoveIntoPlace(PendingFile file, string target)
+    private FileStamp MoveIntoPlace(PendingFile file, string target, bool stagedPackage)
     {
         if (file.Part is not null)
         {
             return MoveVerified(file.Part, target);
+        }
+
+        if (stagedPackage)
+        {
+            // This directory is off-menu and recovery can regenerate a torn playlist.
+            using (var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                output.Write(file.Playlist!);
+            }
+
+            return ReadStamp(target) ?? throw new IOException("The staged playlist is missing.");
         }
 
         var temporary = install.Resolve(RetroBatInstall.PartialDirectory.Combine(Path.GetRandomFileName()));

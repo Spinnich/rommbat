@@ -1,4 +1,5 @@
 using RomMBat.Core.Content;
+using RomMBat.Core.Paths;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
@@ -161,42 +162,41 @@ public sealed class EvictionService
     /// it the only thing that could ever say which game those bytes belong to. The user decides.
     /// </para>
     /// </remarks>
-    /// <param name="romIds">The games going, whose set membership names their systems.</param>
-    /// <param name="folders">
-    /// Systems to add by folder, for stale downloads, which a server change took out of every set.
-    /// </param>
+    /// <param name="romIds">Games whose current memberships name their systems.</param>
+    /// <param name="folders">Systems identified from installed files selected for uninstall.</param>
     public IReadOnlyList<string> Unvouchable(IReadOnlyList<int> romIds, IEnumerable<string>? folders = null)
     {
         ArgumentNullException.ThrowIfNull(romIds);
 
-        var extra = (folders ?? []).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var wanted = romIds.ToHashSet();
+        var systems = (folders ?? []).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (wanted.Count > 0)
+        {
+            systems.UnionWith(_session.Store.SyncSets.List()
+                .SelectMany(set => _session.Store.SyncSets.Members(set.Id))
+                .Where(member => wanted.Contains(member.RomId))
+                .Select(member => member.Folder)
+                .OfType<string>());
+        }
 
-        if (romIds.Count == 0 && extra.Count == 0)
+        if (systems.Count == 0)
         {
             return [];
         }
 
-        // Hashed once rather than scanned per member row. romIds arrives as a list, so the
-        // membership of every set was tested against it linearly: 386 ids against 5,900 rows is
-        // a couple of million comparisons on the live install today, and a 5,000-member set
-        // delete is 5,000 x 5,000. It is dominated by the two filesystem scans a removal
-        // preview already runs, which is why this was filed rather than held against #115, but
-        // it gets worse in the direction the project is going. #117.
-        var wanted = romIds.ToHashSet();
-
-        var systems = _session.Store.SyncSets.List()
-            .SelectMany(set => _session.Store.SyncSets.Members(set.Id))
-            .Where(member => wanted.Contains(member.RomId))
-            .Select(member => member.Folder)
-            .OfType<string>()
-            .Concat(extra)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // Shared containers are reported by the scanner without entries in local_save.
+        // Look up their declared locations without opening the cards or parsing a report.
+        var shared = systems.SelectMany(system => SaveShapes.Bundled.SharedContainersFor(system)
+            .Select(container => RelativePath.Create($"saves/{system}/{container.Key}")))
+            .Where(path => Path.Exists(_session.Install.Resolve(path)))
+            .Select(path => path.Value);
 
         return
         [
             .. _session.Store.Saves.List()
                 .Where(save => save.RomId is null && systems.Contains(save.System))
                 .Select(save => save.Path.Value)
+                .Concat(shared)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Order(StringComparer.OrdinalIgnoreCase),
         ];
@@ -244,7 +244,7 @@ public sealed class EvictionService
                 return new EvictionApplied(null, null, null, "The set is no longer available. Open the sets list again.");
             }
 
-            var ids = _session.Store.SyncSets.Members(set.Id, state: null).Select(member => member.RomId).ToArray();
+            var ids = _session.Store.SyncSets.Members(set.Id).Select(member => member.RomId).ToArray();
             var fresh = PreviewRemoval(ids, releasing: [set.Id]);
             var selected = report.Plan.Selected.Select(item => item.File.Path).ToHashSet();
             if (!selected.SetEquals(fresh.Plan.Selected.Select(item => item.File.Path)))

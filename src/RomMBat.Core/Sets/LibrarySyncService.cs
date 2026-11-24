@@ -319,6 +319,7 @@ public sealed class LibrarySyncService
         if (!options.DryRun)
         {
             FlatDiscLayout.Recover(_session.Install, _session.Store);
+            PackedRomStage.Recover(_session.Install, _session.Store);
         }
 
         // The startup caller can have waited while a set was deleted or disabled.

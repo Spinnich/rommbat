@@ -36,6 +36,8 @@ public sealed record ContentStep
 
     internal bool PublishAsDiscGroup { get; init; }
 
+    internal long ResumableMemberBytes { get; init; }
+
     internal long? ExistingSize { get; init; }
 
     internal DateTime? ExistingModifiedUtc { get; init; }
@@ -267,7 +269,8 @@ public sealed class ContentPlanner
                     continue;
                 }
 
-                var wouldAdd = preserveExisting && member.IsMultiFile ? step.BytesToTransfer : member.SizeBytes;
+                var wouldAdd = preserveExisting && member.IsMultiFile
+                    ? step.BytesToTransfer + step.ResumableMemberBytes : member.SizeBytes;
 
                 if (budget is { } cap && projectedManaged + wouldAdd > cap)
                 {
@@ -371,12 +374,27 @@ public sealed class ContentPlanner
             return step with { Action = ContentAction.AlreadyPresent, BytesToTransfer = 0 };
         }
 
+        if (Path.Exists(_install.Resolve(PackedRomStage.For(member.RomId))))
+        {
+            return step with
+            {
+                Action = ContentAction.Blocked,
+                BytesToTransfer = 0,
+                Reason = "a previous package staging directory could not be recovered; review it before retrying",
+            };
+        }
+
         var held = onDisk.Where(file => file.Kind == LocalFileKind.RomPart).Sum(file => file.SizeBytes);
+
+        var missing = Math.Max(0, member.SizeBytes - held);
+        var resumable = Math.Min(missing, PackedRomStage.ResumableBytes(
+            _install, _store, member.RomId, FolderFor(member), onDisk));
 
         return step with
         {
-            BytesToTransfer = Math.Max(0, member.SizeBytes - held),
-            Reason = held > 0 ? $"{ByteSize.Format(held)} of its files already here" : null,
+            BytesToTransfer = missing - resumable,
+            ResumableMemberBytes = resumable,
+            Reason = held + resumable > 0 ? $"{ByteSize.Format(held + resumable)} of its files already here" : null,
         };
     }
 

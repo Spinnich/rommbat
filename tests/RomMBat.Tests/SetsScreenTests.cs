@@ -291,6 +291,31 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task Delete_with_games_matches_the_preview_with_a_departed_game_installed()
+    {
+        var set = Seed("doomed");
+        SeedFile(1, "snes", "current.sfc", 2048);
+        SeedFile(2, "snes", "departed.sfc", 2048);
+        Members(set, 1, 2);
+        _session.Store.SyncSets.ReplaceMembers(set.Id,
+            _session.Store.SyncSets.Members(set.Id).Where(member => member.RomId == 1).ToArray(),
+            "one game", Now.AddSeconds(1), complete: true);
+        Assert.Single(_session.Store.SyncSets.Members(set.Id, MemberState.Departed));
+
+        var preview = Assert.IsType<ConfirmScreen>(SetsScreens.ConfirmRemoval(_session, set.Name));
+        await Wait(() => !preview.IsLoading);
+        Assert.Contains(Render(preview), text => text.Contains("current.sfc", StringComparison.Ordinal));
+        Assert.DoesNotContain(Render(preview), text => text.Contains("departed.sfc", StringComparison.Ordinal));
+        preview.Handle(NavAction.Left);
+        var applying = Assert.IsType<ListScreen>(preview.Handle(NavAction.Accept).Screen);
+        await Wait(() => !applying.IsLoading);
+
+        Assert.Null(_session.Store.SyncSets.Find(set.Name));
+        Assert.False(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "current.sfc")));
+        Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "departed.sfc")));
+    }
+
+    [Fact]
     public async Task Removing_takes_the_games_it_named_and_leaves_the_one_it_kept()
     {
         var doomed = Seed("doomed");

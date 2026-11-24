@@ -121,6 +121,112 @@ public sealed class LibrarySyncOrderTests : IDisposable
     }
 
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Restart_recovers_a_packed_ROM_stopped_during_off_menu_staging(bool published, bool changed)
+    {
+        using var stub = PlayStationSet();
+        using var connection = Connect(stub);
+        var token = TestContext.Current.CancellationToken;
+        Set();
+        stub.DropMemberAfterBytes = (12, 1500);
+        var progress = new Immediate<SyncEvent>(_ => { });
+        Assert.Equal(SyncState.Incomplete,
+            (await StartupService().RunAtStartupAsync(connection, progress, token)).State);
+
+        var install = _session.Install;
+        var downloads = _session.Store.Downloads.ForRom(1);
+        var stage = install.Resolve(PackedRomStage.For(1));
+        Directory.CreateDirectory(stage);
+        var receipts = new List<PackedRomStage.Entry>();
+        foreach (var disc in published ? downloads : downloads.Take(1))
+        {
+            var part = install.Resolve(disc.PartPath);
+            if (published)
+            {
+                File.WriteAllBytes(part, Enumerable.Repeat((byte)(disc.FileId - 10), 5000).ToArray());
+            }
+
+            var staged = Path.Combine(stage, disc.TargetPath.Name);
+            File.Move(part, staged);
+            receipts.Add(PackageReceipt(disc.FileId, staged));
+        }
+        Assert.False(File.Exists(PlayStationFile("Disc 1.chd")));
+        if (published)
+        {
+            var generated = Path.Combine(stage, "Game 1.m3u");
+            File.WriteAllText(generated, "Disc 1.chd\nDisc 2.chd");
+            receipts.Add(PackageReceipt(0, generated));
+            PackedRomStage.WriteManifest(stage, receipts);
+            Directory.CreateDirectory(install.Resolve("roms/psx"));
+            Directory.Move(stage, install.Resolve("roms/psx/Game 1"));
+            if (changed)
+            {
+                File.WriteAllBytes(PlayStationFile("Disc 1.chd"), new byte[5000]);
+            }
+        }
+
+        using var reopened = InstallSession.Open(install.RootPath).Session!;
+        var sync = new LibrarySyncService(reopened, _ => Task.FromResult(EsCallResult.Answered));
+        var restarted = await sync.RunAtStartupAsync(connection, progress, token);
+        if (changed)
+        {
+            Assert.Equal(SyncState.Blocked, restarted.State);
+            Assert.Equal(new byte[5000], File.ReadAllBytes(PlayStationFile("Disc 1.chd")));
+            Assert.Empty(reopened.Store.Files.ForRom(1));
+            Assert.Equal(2, stub.ContentRequests.Count);
+            return;
+        }
+
+        Assert.Equal(SyncState.Done, restarted.State);
+        Assert.Equal(published ? 2 : 3, stub.ContentRequests.Count);
+        if (!published)
+        {
+            Assert.Contains("bytes=1500-", stub.ContentRequests[^1], StringComparison.Ordinal);
+        }
+
+        Assert.False(Directory.Exists(stage));
+        Assert.Equal("Disc 1.chd\nDisc 2.chd", File.ReadAllText(PlayStationFile("Game 1.m3u")));
+        Assert.Empty(reopened.Store.Downloads.List());
+        var indexed = reopened.Store.Files.ForRom(1).Where(file => file.Kind is LocalFileKind.Rom or LocalFileKind.RomPart);
+        Assert.Equal(3, indexed.Count());
+        Assert.All(indexed, file => Assert.Equal(FileOrigin.Synced, file.Origin));
+    }
+
+    private static PackedRomStage.Entry PackageReceipt(int fileId, string path)
+    {
+        var hash = ContentHasher.ComputeFileMd5(path);
+        return new(fileId, Path.GetFileName(path), new(hash, hash, HashScope.File, VerifiedBy.Md5));
+    }
+
+    [Fact]
+    public async Task Resumable_packed_members_get_free_space_credit_but_still_count_toward_the_budget()
+    {
+        using var stub = PlayStationSet();
+        using var connection = Connect(stub);
+        var token = TestContext.Current.CancellationToken;
+        var set = Set();
+        stub.DropMemberAfterBytes = (12, 1500);
+        var progress = new Immediate<SyncEvent>(_ => { });
+        Assert.Equal(SyncState.Incomplete,
+            (await StartupService().RunAtStartupAsync(connection, progress, token)).State);
+        var install = _session.Install;
+        _session.Store.Settings.Set(SettingStore.FreeSpaceFloorBytes, "1000", Now);
+        var planner = new ContentPlanner(install, _session.Store,
+            FilesystemLimits.Unconstrained with { AvailableFreeBytes = 4500 });
+        var members = _session.Store.SyncSets.Members(set.Id);
+        var resumed = Assert.Single(planner.PlanCore(set, members, preserveExisting: true).Steps);
+        Assert.Equal(ContentAction.Download, resumed.Action);
+        Assert.Equal(3500, resumed.BytesToTransfer);
+
+        _session.Store.Settings.Set(SettingStore.ContentMaxBytes, "9999", Now);
+        var overCap = Assert.Single(planner.PlanCore(set, members, preserveExisting: true).Steps);
+        Assert.Equal(ContentAction.Blocked, overCap.Action);
+        Assert.Contains("budget is full", overCap.Reason, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Startup_keeps_interrupted_game_groups_out_of_the_menu_until_complete(bool flatDiscs)

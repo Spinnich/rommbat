@@ -141,7 +141,7 @@ public sealed class RemovalService
             content = eviction.PreviewRemoval(roms, sets, includeStale: true);
             unvouchable = eviction.Unvouchable(
                 roms,
-                content.Plan.Selected.Where(candidate => candidate.File.Stale).Select(candidate => candidate.File.Folder).OfType<string>());
+                content.Plan.Selected.Select(candidate => candidate.File.Folder).OfType<string>());
         }
         else
         {

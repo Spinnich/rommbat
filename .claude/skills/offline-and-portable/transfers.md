@@ -42,8 +42,10 @@ Part of the [offline-and-portable](SKILL.md) skill. What a canceled or dropped t
   through `local_file` and a partial has no row until commit; the free-space floor reads the
   volume, so the bytes are gone from free space attributed to nothing. `evict` runs
   `PartialSweep` for that. Six producers write here and they die differently: only the ROM
-  transfer resumes, so only it is kept, and it is kept on **set membership rather than age**,
-  because an interrupted transfer waiting to resume looks exactly like an orphan on disk. The
+  transfer resumes, so it is kept on **set membership rather than age**. This also covers
+  `<rom id>-<file id>.part` and the `pack-<rom id>/` stage for a fresh multi-file package.
+  Sync restores staged members to their normal partials before planning. Those bytes reduce
+  the space still needed, and the full installed package still counts toward the budget. The
   other five (`bios-`, `save-`, `resolve-`, `state-`, `unit-`) open with `FileMode.Create` or
   delete in a `finally`, so anything of theirs left behind is from a pass that died. A name none
   of the six writes is left alone, and that means **matching the whole name each producer
@@ -61,11 +63,9 @@ Part of the [offline-and-portable](SKILL.md) skill. What a canceled or dropped t
   prevent. **A `FileShare.None` sentinel inside the directory does not fix this**, measured
   rather than assumed: `Directory.Delete(recursive: true)` removes the siblings and only then
   fails on the sentinel, so the staged members are gone either way. `PartialSweep.Apply` takes
-  `TreeLock` and returns having done nothing when it cannot get it, and all three routes into a
-  restore (`flush`, `saves resolve` and `saves restore --apply`) hold the same lock. Producers that run outside it
-  (`sync`, `bios`) rely on `FileShare.None` while writing, where losing the race costs a
-  transfer that starts again rather than data. **Reproduced on a real install, not reasoned
-  about**: against a staging directory holding three real PPSSPP `SAVEDATA` members, the
+  the library lease and then the save tree lock. If either is busy, it leaves transfers alone.
+  `sync` and `bios` hold the library lease while writing, and `flush`, `saves resolve`, and
+  `saves restore --apply` hold the save lock. **Reproduced on a real install**: against a staging directory holding three real PPSSPP `SAVEDATA` members, the
   pre-lock build reported "1 abandoned transfer removed" and took all three while a flush held
   the lock; the same scenario on the fixed build left them alone and reclaimed them on the next
   pass.
