@@ -126,6 +126,180 @@ public sealed class BackgroundSessionTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Game_end_upload_resumes_after_save_lock_contention_without_waiting_for_library(
+        bool holdSaveLock)
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+        using var stub = new StubRomMServer();
+        var origin = new Uri("https://romm.invalid");
+        using var connection = new RomMConnection(new RomMClientOptions { Origin = origin, AccessToken = "rmm_test" }, stub);
+        var install = session.Install;
+        var token = TestContext.Current.CancellationToken;
+        var rom = RelativePath.Create("roms/snes/ActRaiser (USA).zip");
+        Directory.CreateDirectory(Path.GetDirectoryName(install.Resolve(rom))!);
+        File.WriteAllText(install.Resolve(rom), "rom bytes");
+        session.Store.Files.Record(new LocalFile
+        {
+            Path = rom, RomId = 42, FileName = rom.Name, Folder = "snes", Kind = LocalFileKind.Rom,
+        });
+        session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(install));
+        session.Store.Device.SavePairing(new PairingResult(origin, "device", "Handheld",
+            new GrantedScopes(["assets.read", "assets.write"]), TokenProtector.Protect("rmm_test", null, null)),
+            DateTimeOffset.UtcNow);
+        stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+
+        using var library = TreeLock.TryAcquireLibrary(install);
+        Assert.NotNull(library);
+        // Take the save lock only after startup, so this work comes from game-end alone.
+        TreeLock? contention = null;
+        var clock = new SessionClock();
+        var running = true;
+        var gameEnded = false;
+        var skipped = new List<double>();
+        var uploads = new List<double>();
+        var requestsAfterUpload = 0;
+        var now = DateTimeOffset.UtcNow;
+        try
+        {
+            await BackgroundSession.RunAsync(install, () => running, async (mode, ct) =>
+            {
+                var report = await new SaveFlushService(session).RunAsync(new FlushOptions { Mode = mode }, connection, ct);
+                if (mode != FlushMode.Background)
+                {
+                    Assert.Equal(FlushMode.InSessionUpload, mode);
+                    if (report.State == FlushState.Skipped)
+                    {
+                        Assert.True(report.RetryUpload);
+                        Assert.Null(report.ServerReachable);
+                        skipped.Add(clock.Seconds);
+                    }
+
+                    if (report.SavesSent?.Uploaded == 1)
+                    {
+                        uploads.Add(clock.Seconds);
+                        requestsAfterUpload = stub.RequestLog.Count;
+                    }
+                }
+
+                return BackgroundPassResult.FromReport(0, report);
+            }, token, (delay, _) =>
+            {
+                if (!gameEnded)
+                {
+                    Assert.Equal(Timeout.InfiniteTimeSpan, delay);
+                    contention = holdSaveLock ? TreeLock.TryAcquire(install) : null;
+                    Assert.Equal(holdSaveLock, contention is not null);
+                    var save = install.Resolve("saves/snes/ActRaiser (USA).srm");
+                    Directory.CreateDirectory(Path.GetDirectoryName(save)!);
+                    File.WriteAllText(save, "synthetic battery bytes");
+                    Spool.Write(install.RootPath, new SpoolRecord("game-start", now, 1, [install.Resolve(rom)]));
+                    Spool.Write(install.RootPath, new SpoolRecord("game-end", now.AddSeconds(1), 2, []));
+                    gameEnded = true;
+                    return Task.FromResult(true);
+                }
+
+                if (delay == Timeout.InfiniteTimeSpan)
+                {
+                    clock.Advance(TimeSpan.FromMinutes(2));
+                    running = false;
+                }
+                else
+                {
+                    Assert.True(clock.Seconds < 90);
+                    if (clock.Seconds < 67 && clock.Seconds + delay.TotalSeconds >= 67)
+                    {
+                        var untilRelease = TimeSpan.FromSeconds(67 - clock.Seconds);
+                        clock.Advance(untilRelease);
+                        contention?.Dispose();
+                        clock.Advance(delay - untilRelease);
+                    }
+                    else
+                    {
+                        clock.Advance(delay);
+                    }
+                }
+
+                return Task.FromResult(false);
+            }, clock, probe: _ => throw new InvalidOperationException("A local lock should not probe RomM."), periodicReceive: false);
+        }
+        finally
+        {
+            contention?.Dispose();
+        }
+
+        Assert.Equal(holdSaveLock ? [0, 2, 7, 17, 47, 62] : Array.Empty<double>(), skipped);
+        Assert.Equal(holdSaveLock ? [77] : new double[] { 0 }, uploads);
+        Assert.Equal("synthetic battery bytes"u8.ToArray(), Assert.Single(stub.Saves.Values).Bytes);
+        Assert.Equal(requestsAfterUpload, stub.RequestLog.Count);
+    }
+
+    [Theory]
+    [InlineData(false, FlushState.Skipped, true)]
+    [InlineData(true, FlushState.Partial, true)]
+    [InlineData(true, FlushState.Done, false)]
+    [InlineData(true, FlushState.GameRunning, true)]
+    public async Task Slow_local_retries_require_a_game_end_and_a_local_deferral(
+        bool gameEnd, FlushState state, bool retry)
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+        var clock = new SessionClock();
+        var running = true;
+        var attempts = new List<double>();
+        var initialWait = true;
+        var delays = new List<TimeSpan>();
+        var result = await BackgroundSession.RunAsync(install, () => running, (mode, _) =>
+        {
+            if (gameEnd && mode == FlushMode.Background)
+            {
+                return Task.FromResult(new BackgroundPassResult(0));
+            }
+
+            Assert.NotEqual(FlushMode.InSessionReceive, mode);
+            attempts.Add(clock.Seconds);
+            return Task.FromResult(clock.Seconds >= 77
+                ? new BackgroundPassResult(0)
+                : new BackgroundPassResult(0, RetryUpload: retry, State: state));
+        }, TestContext.Current.CancellationToken, (delay, _) =>
+        {
+            if (initialWait && gameEnd)
+            {
+                initialWait = false;
+                Assert.Equal(Timeout.InfiniteTimeSpan, delay);
+                Spool.Write(install.RootPath, new SpoolRecord("game-end", DateTimeOffset.UtcNow, 1, []));
+                return Task.FromResult(true);
+            }
+
+            delays.Add(delay);
+            if (delay == Timeout.InfiniteTimeSpan)
+            {
+                running = false;
+            }
+            else
+            {
+                Assert.True(clock.Seconds < 90);
+                clock.Advance(delay);
+            }
+
+            return Task.FromResult(false);
+        }, clock, probe: _ => throw new InvalidOperationException("Local retries should not probe RomM."), periodicReceive: false);
+
+        Assert.Equal(0, result);
+        double[] expected = state switch
+        {
+            FlushState.GameRunning => [0, 2, 7, 17, 47, 62, 77],
+            FlushState.Done => [0],
+            _ => [0, 2, 7, 17, 47],
+        };
+        Assert.Equal(expected, attempts);
+        Assert.Equal(Timeout.InfiniteTimeSpan, delays[^1]);
+    }
+
+    [Theory]
     [InlineData(true, true)]
     [InlineData(false, true)]
     [InlineData(true, false)]
@@ -419,7 +593,7 @@ public sealed class BackgroundSessionTests
                 }
             }
 
-            return new BackgroundPassResult(0, report.RetryUpload, report.ServerReachable, report.RetryAcknowledgement);
+            return BackgroundPassResult.FromReport(0, report);
         }, token, (delay, _) =>
         {
             if (delay == Timeout.InfiniteTimeSpan)

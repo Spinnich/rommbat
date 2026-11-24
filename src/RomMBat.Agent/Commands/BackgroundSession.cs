@@ -6,13 +6,18 @@ using RomMBat.Core.Sync;
 namespace RomMBat.Agent.Commands;
 
 internal readonly record struct BackgroundPassResult(
-    int ExitCode, bool RetryUpload = false, bool? ServerReachable = null, bool RetryAcknowledgement = false);
+    int ExitCode, bool RetryUpload = false, bool? ServerReachable = null, bool RetryAcknowledgement = false,
+    FlushState? State = null)
+{
+    public static BackgroundPassResult FromReport(int exitCode, FlushReport report) =>
+        new(exitCode, report.RetryUpload, report.ServerReachable, report.RetryAcknowledgement, report.State);
+}
 
 /// <summary>Runs one worker per install for as long as EmulationStation is present.</summary>
 internal static class BackgroundSession
 {
     private static readonly TimeSpan ReceiveInterval = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan ReconnectInterval = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan PendingWorkInterval = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan[] RetryDelays =
         [TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30)];
 
@@ -62,6 +67,7 @@ internal static class BackgroundSession
         var origin = timeProvider.GetTimestamp();
         var retries = 0;
         var disconnected = false;
+        var gameEndPending = false;
         var retryMode = FlushMode.InSessionUpload;
         TimeSpan? nextUpload = null;
         TimeSpan? nextProbe = null;
@@ -100,6 +106,7 @@ internal static class BackgroundSession
                         retries = 0;
                     }
 
+                    gameEndPending = true;
                     retryMode = FlushMode.InSessionUpload;
                     nextUpload = now;
                     nextProbe = null;
@@ -123,7 +130,7 @@ internal static class BackgroundSession
                     }
                     else
                     {
-                        nextProbe = timeProvider.GetElapsedTime(origin) + ReconnectInterval;
+                        nextProbe = timeProvider.GetElapsedTime(origin) + PendingWorkInterval;
                     }
                 }
 
@@ -214,11 +221,19 @@ internal static class BackgroundSession
         {
             var now = timeProvider.GetElapsedTime(origin);
             var pending = pass.RetryUpload || pass.RetryAcknowledgement;
+            gameEndPending &= pass.RetryUpload;
             retryMode = pass.RetryUpload ? FlushMode.InSessionUpload : FlushMode.InSessionAcknowledgement;
             disconnected = pending && (pass.ServerReachable is { } reachable ? !reachable : disconnected);
             nextUpload = pending && retries < RetryDelays.Length ? now + RetryDelays[retries++] : null;
+            if (nextUpload is null && gameEndPending && pass.State is FlushState.Skipped or FlushState.GameRunning)
+            {
+                // The pass stopped before it could inspect the save. Recheck the local guard
+                // for this game-end without probing RomM or waking an idle session.
+                nextUpload = now + PendingWorkInterval;
+            }
+
             nextProbe = nextUpload is null && (disconnected || pass.RetryAcknowledgement) && probe is not null
-                ? now + ReconnectInterval : null;
+                ? now + PendingWorkInterval : null;
         }
 
         async Task<BackgroundPassResult> RunPassAsync(FlushMode mode, CancellationToken token)

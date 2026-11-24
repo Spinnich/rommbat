@@ -24,7 +24,8 @@ or BIOS needs replacing, check the startup report in `emulators\rommbat\logs\bac
 and review the file before running Sync with the emulator closed.
 
 Closing a game triggers a send. Quitting EmulationStation gives pending work another chance
-to go up. If the server is unavailable, RomMBat retries while work is waiting.
+to go up. A save pass delayed by another pass or a running game retries the pending
+game-end work when it can. If the server is unavailable, RomMBat retries while work is waiting.
 
 On the verified Windows EmulationStation build shipped with RetroBat 8.3.1.1, choosing a game
 managed by RomMBat checks that game's remote saves before the emulator starts. Automatic

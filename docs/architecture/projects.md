@@ -115,9 +115,9 @@ A manifest reconciles a rename interrupted before indexing. Startup rechecks exi
 discs and leaves repairs with multiple missing discs for explicit sync.
 
 A committed `game-end` causes an upload pass. Pending sends get up to four retries after
-2, 5, 10 and 30 seconds. After an outage exhausts those retries, a separate 15-second
-heartbeat runs only while a known upload is waiting for RomM. The spool, save files
-and outbox are the retry sources after restart.
+2, 5, 10 and 30 seconds. Thereafter an outage uses a 15-second heartbeat for pending
+work. A game-end upload deferred by the save lock or a running game rechecks the local
+guard at the same interval. The spool, save files and outbox support restart recovery.
 
 ### Synchronous prelaunch save preparation
 
