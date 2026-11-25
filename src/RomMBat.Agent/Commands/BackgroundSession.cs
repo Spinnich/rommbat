@@ -33,7 +33,8 @@ internal static class BackgroundSession
         Func<CancellationToken, Task>? syncLibrary = null,
         bool periodicReceive = true,
         Func<Action, IDisposable>? watchPrelaunch = null,
-        Func<CancellationToken, Task>? waitForEsExit = null)
+        Func<CancellationToken, Task>? waitForEsExit = null,
+        Func<bool>? hasPendingGameEnd = null)
     {
         using var lease = TryOwnSession(install);
         if (lease is null)
@@ -98,7 +99,11 @@ internal static class BackgroundSession
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var now = timeProvider.GetElapsedTime(origin);
-                if (spoolChanged && HasGameEnd(spool))
+                // Read the durable intent after checking the spool. Another flush records it
+                // before deleting the hook file. Only use it to start work, never to reset an
+                // upload's existing retry schedule on an unrelated filesystem notification.
+                if (spoolChanged && (HasGameEnd(spool)
+                    || (nextUpload is null && nextProbe is null && hasPendingGameEnd?.Invoke() == true)))
                 {
                     // Preserve the retry budget when another notification refers to the same
                     // still-queued work, but let a fresh game end wake a delayed retry.

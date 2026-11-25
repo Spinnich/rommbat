@@ -44,7 +44,7 @@ save, start with `rommbat-agent saves restore` to preview the restore.
 Saves and playtime stay on this device while RomM is unreachable. If short retries
 run out, RomMBat checks for reconnection while pending work remains and sends it when
 it can reach RomM again. Pending game-end uploads survive a restart and retry after temporary
-errors from either upload endpoint or when a locked save or save state becomes readable.
+errors from the save, save state, or playtime endpoint, or when a locked file becomes readable.
 Open Waiting to upload to see pending saves and save states by game and slot, alongside
 outbox entries. Saves and states found on disk are read-only in this list. Under This device, Status shows
 the pending count and the most recent in-session upload and download.

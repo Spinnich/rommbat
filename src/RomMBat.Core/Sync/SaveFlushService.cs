@@ -179,6 +179,10 @@ public sealed class SaveFlushService
         _time = timeProvider;
     }
 
+    /// <summary>Whether a flush has consumed a game-end whose upload is still pending.</summary>
+    public static bool HasPendingGameEnd(LocalStore store) =>
+        store.Settings.Get(SettingStore.GameEndUploadPending) is not null;
+
     /// <summary>Runs one pass.</summary>
     /// <param name="connection">
     /// Null to send nothing. A caller that could not authenticate passes null and gets
@@ -198,7 +202,7 @@ public sealed class SaveFlushService
         var inSession = options.Mode is FlushMode.InSessionReceive or FlushMode.InSessionUpload or FlushMode.InSessionAcknowledgement;
         var receiveOnly = options.Mode == FlushMode.InSessionReceive;
         var canUpload = !receiveOnly && !acknowledgementOnly;
-        bool HasGameEnd() => canUpload && store.Settings.Get(SettingStore.GameEndUploadPending) is not null;
+        bool HasGameEnd() => canUpload && HasPendingGameEnd(store);
 
         using var held = options.Mode == FlushMode.Shutdown
             ? await TreeLock.TryAcquireForShutdownAsync(install, cancellationToken).ConfigureAwait(false)
@@ -371,7 +375,7 @@ public sealed class SaveFlushService
             var serverReachable = playtime?.Unreachable == true || states?.Unreachable == true
                 ? false : saves.ServerReachable;
             // A refusal to negotiate battery saves says nothing about the state endpoint.
-            var deferred = stateReadDeferred || states?.TransientUploadFailure == true
+            var deferred = playtime?.TransientUploadFailure == true || stateReadDeferred || states?.TransientUploadFailure == true
                 || (!saves.UploadAuthorizationDenied && (saves.TransientUploadFailure || saveReadDeferred));
             return TrackGameEnd(local with
             {

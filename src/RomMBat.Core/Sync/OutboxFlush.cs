@@ -10,6 +10,8 @@ public sealed record OutboxFlushOutcome(int Sent, int Duplicates, int Failed, IR
 {
     internal bool Unreachable { get; init; }
 
+    internal bool TransientUploadFailure { get; init; }
+
     public static OutboxFlushOutcome Empty { get; } = new(0, 0, 0, []);
 
     public bool IsNoOp => Sent == 0 && Duplicates == 0 && Failed == 0;
@@ -132,7 +134,10 @@ public sealed class OutboxFlush
                     sent,
                     duplicates,
                     indexed.Count,
-                    [.. problems, response.Message ?? "the server refused the batch."]);
+                    [.. problems, response.Message ?? "the server refused the batch."])
+                {
+                    TransientUploadFailure = response.IsTransientFailure,
+                };
             }
 
             var (batchSent, batchDuplicates, batchFailed, accepted) = Reconcile(indexed, outcome, problems);

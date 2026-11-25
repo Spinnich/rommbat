@@ -49,6 +49,8 @@ internal sealed partial class StubRomMServer
 
     public HttpStatusCode? NegotiateRefusal { get; set; }
 
+    public HttpStatusCode? PlaySessionRefusal { get; set; }
+
     public Action? BeforeNegotiate { get; set; }
 
     /// <summary>Slots that answer 409, the way a stale device record makes the real server.</summary>
@@ -598,6 +600,11 @@ internal sealed partial class StubRomMServer
         {
             // Freegosy's bare array lands here, and the real server answers 422 for it.
             return Detail(HttpStatusCode.UnprocessableEntity, "Input should be a valid dictionary or object");
+        }
+
+        if (PlaySessionRefusal is { } refusal)
+        {
+            return Detail(refusal, "play-session POST refused");
         }
 
         var sessions = document.RootElement.GetProperty("sessions");

@@ -990,6 +990,104 @@ public sealed class BackgroundSessionTests
         Assert.True(await signal);
     }
 
+    [Theory]
+    [InlineData(true, null, 0)]
+    [InlineData(false, System.Net.HttpStatusCode.ServiceUnavailable, 77)]
+    [InlineData(false, System.Net.HttpStatusCode.Forbidden, -1)]
+    public async Task Game_end_playtime_recovers_without_a_second_event(
+        bool manualDrainsFirst, System.Net.HttpStatusCode? failure, int expectedSuccess)
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+        using var manual = InstallSession.Open(tree.Root).Session!;
+        using var stub = new StubRomMServer { PlaySessionRefusal = failure };
+        var origin = new Uri("https://romm.invalid");
+        using var connection = new RomMConnection(new RomMClientOptions { Origin = origin, AccessToken = "rmm_test" }, stub);
+        var install = session.Install;
+        var token = TestContext.Current.CancellationToken;
+        var now = DateTimeOffset.UtcNow;
+        var rom = RelativePath.Create("roms/snes/ActRaiser (USA).zip");
+        Directory.CreateDirectory(Path.GetDirectoryName(install.Resolve(rom))!);
+        File.WriteAllText(install.Resolve(rom), "synthetic rom");
+        session.Store.Files.Record(new LocalFile
+        {
+            Path = rom, RomId = 42, FileName = rom.Name, Folder = "snes", Kind = LocalFileKind.Rom,
+        });
+        session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(install));
+        session.Store.Device.SavePairing(new PairingResult(origin, "device", "Handheld",
+            new GrantedScopes(["assets.read", "assets.write", "devices.write"]),
+            TokenProtector.Protect("rmm_test", null, null)), now);
+
+        var clock = new SessionClock();
+        var running = true;
+        var ended = false;
+        var sends = new List<double>();
+        var requestsAtSuccess = 0;
+        await BackgroundSession.RunAsync(install, () => running, async (mode, ct) =>
+        {
+            Assert.NotEqual(FlushMode.InSessionReceive, mode);
+            if (clock.Seconds >= 67)
+            {
+                stub.PlaySessionRefusal = null;
+            }
+
+            var report = await new SaveFlushService(session).RunAsync(new FlushOptions { Mode = mode }, connection, ct);
+            if (report.Playtime?.Sent is 1)
+            {
+                sends.Add(clock.Seconds);
+                requestsAtSuccess = stub.RequestLog.Count;
+            }
+
+            return BackgroundPassResult.FromReport(0, report);
+        }, token, async (delay, ct) =>
+        {
+            if (!ended)
+            {
+                Assert.Equal(Timeout.InfiniteTimeSpan, delay);
+                Spool.Write(install.RootPath, new SpoolRecord("game-start", now, 1, [install.Resolve(rom)]));
+                Spool.Write(install.RootPath, new SpoolRecord("game-end", now.AddSeconds(30), 2, []));
+                ended = true;
+                if (manualDrainsFirst)
+                {
+                    var report = await new SaveFlushService(manual).RunAsync(new FlushOptions(Offline: true), cancellationToken: ct);
+                    Assert.True(report.GameEndUploadPending);
+                    Assert.Equal(1, report.Queued);
+                    Assert.Empty(Directory.EnumerateFiles(install.Resolve(SpoolDrain.Directory), "*" + Spool.Extension));
+                }
+
+                return true;
+            }
+
+            if (delay == Timeout.InfiniteTimeSpan)
+            {
+                running = false;
+            }
+            else
+            {
+                Assert.True(clock.Seconds < 90);
+                clock.Advance(delay);
+            }
+
+            return false;
+        }, clock, probe: _ => throw new InvalidOperationException("RomM remains reachable."),
+            periodicReceive: false, hasPendingGameEnd: () =>
+                SaveFlushService.HasPendingGameEnd(session.Store));
+
+        if (expectedSuccess < 0)
+        {
+            Assert.Empty(sends);
+            Assert.Empty(stub.PlaySessions);
+            Assert.Equal(47, clock.Seconds);
+            Assert.Equal(1, session.Store.Outbox.PendingCount());
+            return;
+        }
+
+        Assert.Equal([(double)expectedSuccess], sends);
+        Assert.Equal(42, Assert.Single(stub.PlaySessions).RomId);
+        Assert.Equal(0, session.Store.Outbox.PendingCount());
+        Assert.Equal(requestsAtSuccess, stub.RequestLog.Count);
+    }
+
     private sealed class SessionClock : TimeProvider
     {
         private long _timestamp;

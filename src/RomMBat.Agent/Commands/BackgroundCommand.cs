@@ -78,7 +78,8 @@ internal static class BackgroundCommand
                 syncLibrary: token => SyncLibraryAsync(context, token),
                 periodicReceive: es is null,
                 watchPrelaunch: invalidate => EsPrelaunchHook.WatchChanges(context.Install, invalidate),
-                waitForEsExit: es is null ? null : es.WaitForExitAsync)
+                waitForEsExit: es is null ? null : es.WaitForExitAsync,
+                hasPendingGameEnd: () => SaveFlushService.HasPendingGameEnd(context.Store))
                 .ConfigureAwait(false);
         }
 
