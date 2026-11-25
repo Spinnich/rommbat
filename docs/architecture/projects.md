@@ -111,8 +111,8 @@ before publication. Startup reports existing ROM or BIOS replacements as deferre
 Review existing files before explicit sync with the emulator closed. After library
 changes, ES gets one menu reload request and one retry after three seconds if absent.
 Fresh loose-disc groups and multi-file packages publish by directory rename from `partial/`.
-A manifest reconciles a rename interrupted before indexing. Startup rechecks existing loose
-discs and leaves repairs with multiple missing discs for explicit sync.
+A manifest reconciles renames interrupted before indexing. Startup rechecks existing discs.
+Groups deferred for repair or rejected by either disk limit reserve no space for startup.
 
 A committed `game-end` causes an upload pass. Pending sends get up to four retries after
 2, 5, 10 and 30 seconds. Thereafter an outage uses a 15-second heartbeat for pending

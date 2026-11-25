@@ -189,14 +189,12 @@ public sealed class ContentSync
             return await ApplyAsync(plan with { Steps = blocked }, progress, cancellationToken).ConfigureAwait(false);
         }
 
-        if (plan.Steps.Any(step => !step.PublishAsDiscGroup)
-            && plan.Steps.Count(step => step.Action is ContentAction.Download or ContentAction.Resume) > 1)
+        if (ContentPlanner.StartupGroupRefusal(plan.Steps) is { } refusal)
         {
             return new ContentSyncOutcome
             {
                 Blocked = 1,
-                Problems = [$"{plan.Steps[0].Member.DisplayName}: multiple discs are missing from an existing group. "
-                    + "Review the files and run an explicit sync with the emulator closed."],
+                Problems = [$"{plan.Steps[0].Member.DisplayName}: {refusal}"],
             };
         }
 

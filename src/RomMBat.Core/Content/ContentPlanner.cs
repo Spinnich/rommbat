@@ -228,78 +228,79 @@ public sealed class ContentPlanner
 
         var managed = ManagedBytes();
         var free = _limits.AvailableFreeBytes;
-        var steps = new List<ContentStep>(members.Count);
-
-        // Tracked across the loop so each candidate is judged against what the ones before it
-        // would already have taken.
+        var freshDiscFolders = preserveExisting ? FreshDiscFolders(members) : [];
+        var steps = members.Where(member => !string.IsNullOrWhiteSpace(member.Folder))
+            .Select(member => InspectCandidate(member, preserveExisting, freshDiscFolders))
+            .ToArray();
         var projectedManaged = managed;
         var projectedFree = free;
 
-        var freshDiscFolders = preserveExisting ? FreshDiscFolders(members) : [];
-
-        foreach (var member in members.Where(member => !string.IsNullOrWhiteSpace(member.Folder)))
+        if (preserveExisting)
         {
-            ContentStep step;
-            try
+            // Startup acts on whole games, including discs that are not adjacent in the set.
+            // Charge both budgets only after the group is known to be eligible.
+            foreach (var game in Enumerable.Range(0, steps.Length).GroupBy(index =>
+                DiscSet.GameKey(steps[index].Member.Folder, steps[index].Member.FsName), StringComparer.OrdinalIgnoreCase))
             {
-                step = Inspect(member, preserveExisting, freshDiscFolders);
+                var group = game.Select(index => steps[index]).ToArray();
+                var transfers = game.Where(index => DownloadsContent(steps[index])).ToArray();
+                if (transfers.Length == 0)
+                {
+                    continue;
+                }
+
+                var growth = transfers.Sum(index => ManagedBytesToAdd(steps[index], preserveExisting));
+                var transferBytes = transfers.Sum(index => steps[index].BytesToTransfer);
+                var refusal = group.Any(step => step.Action == ContentAction.Blocked)
+                    ? "another file in this game group could not be synced"
+                    : StartupGroupRefusal(group) ?? BudgetRefusal(growth, transferBytes);
+
+                if (refusal is null)
+                {
+                    projectedManaged += growth;
+                    projectedFree -= transferBytes;
+                    continue;
+                }
+
+                foreach (var index in transfers)
+                {
+                    steps[index] = Block(steps[index], refusal);
+                }
             }
-            catch (Exception ex) when (preserveExisting && ex is IOException or UnauthorizedAccessException)
+        }
+        else
+        {
+            // Explicit sync can repair individual files in an existing group.
+            for (var index = 0; index < steps.Length; index++)
             {
-                steps.Add(new ContentStep
+                var step = steps[index];
+                if (!DownloadsContent(step))
                 {
-                    Member = member,
-                    Action = ContentAction.Blocked,
-                    TargetPath = TargetFor(member),
-                    Reason = $"could not inspect the existing ROM; review it with the emulator closed ({ex.Message})",
-                });
-                continue;
-            }
-
-            if (step.Action is ContentAction.Download or ContentAction.Resume)
-            {
-                if (preserveExisting && !member.IsMultiFile && Path.Exists(_install.Resolve(step.TargetPath)))
-                {
-                    steps.Add(step with
-                    {
-                        Action = ContentAction.Blocked,
-                        BytesToTransfer = 0,
-                        Reason = "existing ROM left in place; review it before running sync with the emulator closed",
-                    });
                     continue;
                 }
 
-                var wouldAdd = ManagedBytesToAdd(step, preserveExisting);
-
-                if (budget is { } cap && projectedManaged + wouldAdd > cap)
+                var growth = ManagedBytesToAdd(step, preserveExisting);
+                if (BudgetRefusal(growth, step.BytesToTransfer) is { } refusal)
                 {
-                    steps.Add(step with
-                    {
-                        Action = ContentAction.Blocked,
-                        BytesToTransfer = 0,
-                        Reason = $"the {ByteSize.Format(cap)} budget is full. "
-                            + "Raise it, or evict something to make room.",
-                    });
+                    steps[index] = Block(step, refusal);
                     continue;
                 }
 
-                if (projectedFree - step.BytesToTransfer < floor)
-                {
-                    steps.Add(step with
-                    {
-                        Action = ContentAction.Blocked,
-                        BytesToTransfer = 0,
-                        Reason = $"this drive would drop below the {ByteSize.Format(floor)} "
-                            + "of free space RomMBat is told to leave.",
-                    });
-                    continue;
-                }
-
-                projectedManaged += wouldAdd;
+                projectedManaged += growth;
                 projectedFree -= step.BytesToTransfer;
             }
+        }
 
-            steps.Add(step);
+        string? BudgetRefusal(long growth, long transfer)
+        {
+            if (budget is { } cap && projectedManaged + growth > cap)
+            {
+                return $"the {ByteSize.Format(cap)} budget is full. Raise it, or evict something to make room.";
+            }
+
+            return projectedFree - transfer < floor
+                ? $"this drive would drop below the {ByteSize.Format(floor)} of free space RomMBat is told to leave."
+                : null;
         }
 
         return new ContentPlan
@@ -311,6 +312,40 @@ public sealed class ContentPlanner
             FreeBytes = free,
         };
     }
+
+    private ContentStep InspectCandidate(SyncSetMember member, bool preserveExisting, HashSet<RelativePath> freshDiscFolders)
+    {
+        try
+        {
+            var step = Inspect(member, preserveExisting, freshDiscFolders);
+            if (preserveExisting && !member.IsMultiFile && DownloadsContent(step) && Path.Exists(_install.Resolve(step.TargetPath)))
+            {
+                return Block(step, "existing ROM left in place; review it before running sync with the emulator closed");
+            }
+
+            return step;
+        }
+        catch (Exception ex) when (preserveExisting && ex is IOException or UnauthorizedAccessException)
+        {
+            return new ContentStep
+            {
+                Member = member,
+                Action = ContentAction.Blocked,
+                TargetPath = TargetFor(member),
+                Reason = $"could not inspect the existing ROM; review it with the emulator closed ({ex.Message})",
+            };
+        }
+    }
+
+    internal static string? StartupGroupRefusal(IReadOnlyList<ContentStep> steps) =>
+        steps.Any(step => !step.PublishAsDiscGroup) && steps.Count(DownloadsContent) > 1
+            ? "multiple discs are missing from an existing group. Review the files and run an explicit sync with the emulator closed."
+            : null;
+
+    private static bool DownloadsContent(ContentStep step) => step.Action is ContentAction.Download or ContentAction.Resume;
+
+    private static ContentStep Block(ContentStep step, string reason) =>
+        step with { Action = ContentAction.Blocked, BytesToTransfer = 0, Reason = reason };
 
     internal static long ManagedBytesToAdd(ContentStep step, bool preserveExisting) =>
         preserveExisting && step.Member.IsMultiFile

@@ -476,6 +476,66 @@ public sealed class LibrarySyncOrderTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData(8000)]
+    [InlineData(10000)]
+    public async Task Startup_rejected_disc_group_does_not_reserve_room_needed_by_the_next_game(long cap)
+    {
+        using var stub = PlayStationSet(flatDiscs: true);
+        using var later = Library(3);
+        stub.Library.Add(later.Library[2] with { SizeBytes = 4000 });
+        stub.Content[3] = new byte[4000];
+        using var connection = Connect(stub);
+        Set(games: 3);
+        var install = _session.Install;
+        if (cap == 10000)
+        {
+            // Multiple repairs in a visible loose group are deferred, even at a cap
+            // that would accommodate both transfers.
+            var personal = install.Resolve("roms/psx/Game 1 (Disc 3).chd");
+            Directory.CreateDirectory(Path.GetDirectoryName(personal)!);
+            File.WriteAllText(personal, "personal disc");
+        }
+
+        _session.Store.Settings.Set(SettingStore.ContentMaxBytes, cap, Now);
+        var report = await StartupService().RunAtStartupAsync(connection, new Immediate<SyncEvent>(_ => { }),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(SyncState.Blocked, report.State);
+        Assert.Single(stub.ContentRequests);
+        Assert.Equal(3, Assert.Single(_session.Store.Files.List("psx", LocalFileKind.Rom)).RomId);
+        Assert.True(File.Exists(install.Resolve("roms/psx/Game 3.chd")));
+        Assert.Equal(4000, _session.Store.Files.SyncedBytes());
+        Assert.Empty(_session.Store.Downloads.List());
+        if (cap == 10000)
+        {
+            Assert.Equal("personal disc", File.ReadAllText(install.Resolve("roms/psx/Game 1 (Disc 3).chd")));
+        }
+    }
+
+    [Fact]
+    public void Startup_free_space_reservation_rejects_a_disc_group_as_a_unit()
+    {
+        var set = Set(games: 3);
+        _session.Store.Settings.Set(SettingStore.FreeSpaceFloorBytes, "1000", Now);
+        var members = _session.Store.SyncSets.Members(set.Id);
+        var planner = new ContentPlanner(_session.Install, _session.Store,
+            FilesystemLimits.Unconstrained with { AvailableFreeBytes = 9000 });
+
+        // The two discs can be separated by other titles in set order.
+        var plan = planner.PlanCore(set,
+            [
+                members[0] with { FsName = "Game 1 (Disc 1).chd", SizeBytes = 5000 },
+                members[2] with { SizeBytes = 4000 },
+                members[1] with { FsName = "Game 1 (Disc 2).chd", SizeBytes = 5000 },
+            ], preserveExisting: true);
+
+        Assert.Equal(3, Assert.Single(plan.Downloads).Member.RomId);
+        Assert.Equal(4000, plan.BytesToTransfer);
+        Assert.Equal([1, 2], plan.Blocked.Select(step => step.Member.RomId).ToArray());
+        Assert.All(plan.Blocked, step => Assert.Contains("free space", step.Reason, StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task Startup_groups_loose_discs_selected_by_different_sets()
     {

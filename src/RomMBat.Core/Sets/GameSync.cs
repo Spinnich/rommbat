@@ -169,8 +169,7 @@ public sealed class GameSync
 
         foreach (var step in plan.Steps)
         {
-            var marker = DiscSet.Parse(step.Member.FsName);
-            var key = $"{step.Member.Folder}/{marker?.BaseTitle ?? step.Member.FsName}";
+            var key = DiscSet.GameKey(step.Member.Folder, step.Member.FsName);
 
             if (!grouped.TryGetValue(key, out var steps))
             {
