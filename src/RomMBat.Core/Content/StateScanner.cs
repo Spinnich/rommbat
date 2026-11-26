@@ -142,9 +142,12 @@ public sealed class StateScanner
             ?.WithSupplement(SaveStateSchema.Supplement);
     }
 
+    internal bool UploadReadDeferred { get; private set; }
+
     /// <summary>Walks every declared state directory that exists and records what is in it.</summary>
     public StateScanOutcome Scan()
     {
+        UploadReadDeferred = false;
         var savesRoot = _install.Resolve(SaveScanner.SavesDirectory);
         var now = _time.GetUtcNow();
 
@@ -311,6 +314,7 @@ public sealed class StateScanner
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            UploadReadDeferred |= rom is not null && SaveFileLock.IsSharingViolation(ex);
             // Held open by a running emulator. Recorded without a hash, which reads as unsent
             // and is never uploaded, because sending bytes whose integrity was not checked is
             // worse than sending nothing.

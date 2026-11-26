@@ -179,6 +179,11 @@ public sealed class EsHooks
             }
         }
 
+        if (sourceExecutable is null && EsPrelaunchHook.Ensure(_install) is { } prelaunch)
+        {
+            steps.Add(prelaunch);
+        }
+
         return new EsHookOutcome(steps);
     }
 
@@ -216,10 +221,24 @@ public sealed class EsHooks
             }
         }
 
+        var prelaunch = _install.Resolve(EsPrelaunchHook.Path);
+        if (File.Exists(prelaunch))
+        {
+            try
+            {
+                File.Delete(prelaunch);
+                steps.Add(new EsHookStep("prelaunch", EsPrelaunchHook.Path, EsHookAction.Uninstalled));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                steps.Add(new EsHookStep("prelaunch", EsPrelaunchHook.Path, EsHookAction.Failed, ex.Message));
+            }
+        }
+
         return new EsHookOutcome(steps);
     }
 
-    private static bool SameBytes(string left, string right)
+    internal static bool SameBytes(string left, string right)
     {
         try
         {

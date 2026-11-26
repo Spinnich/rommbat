@@ -131,6 +131,8 @@ internal sealed record StubFirmware(int Id, string FileName, byte[] Bytes)
     public string Md5Hash => Convert.ToHexString(System.Security.Cryptography.MD5.HashData(Bytes)).ToLowerInvariant();
 #pragma warning restore CA5351
 
+    public int? AdvertisedSize { get; init; }
+
     public bool IsVerified { get; init; }
 
     /// <summary>The row outlived the file. Its content route answers 500, as measured.</summary>
@@ -326,6 +328,8 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// <summary>Every content request, as <c>&lt;rom id&gt; &lt;range or "-"&gt;</c>.</summary>
     public IList<string> ContentRequests { get; } = [];
 
+    public Func<CancellationToken, Task>? BeforeRomContent { get; set; }
+
     /// <summary>
     /// Cuts the body off after this many bytes, once.
     /// </summary>
@@ -475,7 +479,7 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
                 {
                     id = firmware.Id,
                     file_name = firmware.FileName,
-                    file_size_bytes = firmware.Bytes.Length,
+                    file_size_bytes = firmware.AdvertisedSize ?? firmware.Bytes.Length,
                     md5_hash = firmware.Md5Hash,
                     is_verified = firmware.IsVerified,
                     missing_from_fs = firmware.MissingFromFs,
@@ -525,6 +529,11 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
 
         if (path.Contains("/content/", StringComparison.Ordinal))
         {
+            if (BeforeRomContent is not null)
+            {
+                await BeforeRomContent(cancellationToken).ConfigureAwait(false);
+            }
+
             return ContentResponse(request, path);
         }
 

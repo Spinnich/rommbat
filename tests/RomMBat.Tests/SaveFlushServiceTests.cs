@@ -28,6 +28,31 @@ public sealed class SaveFlushServiceTests
     private static readonly DateTimeOffset Now = new(2026, 8, 31, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task Pairing_as_another_device_does_not_replay_the_old_devices_ack()
+    {
+        using var fixture = FlushTree.Create();
+        fixture.Pair();
+        const string slot = "libretro:battery";
+        var install = fixture.Session.Install;
+        var origin = fixture.Session.Store.Device.Read()!.ServerOrigin!;
+        var destination = RelativePath.Create("saves/nes/Zelda II.srm");
+        fixture.Session.Store.PendingSaveAcks.Record(origin.ToString(), "device-1",
+            new PendingSaveAck(42, slot, 26, new string('a', 32), destination, Now, Installed: true));
+        fixture.Session.Store.Device.SavePairing(
+            new PairingResult(origin, "device-2", "Other device", new GrantedScopes(["assets.read"]),
+                TokenProtector.Protect("rmm_token", null, Now.AddYears(1))), Now);
+
+        var report = await new SaveFlushService(fixture.Session).RunAsync(
+            new FlushOptions { Mode = FlushMode.InSessionAcknowledgement },
+            fixture.Connect(), TestContext.Current.CancellationToken);
+
+        Assert.Equal(FlushState.Done, report.State);
+        Assert.False(report.RetryAcknowledgement);
+        Assert.Empty(fixture.Stub.RequestLog);
+        Assert.Empty(fixture.Session.Store.PendingSaveAcks.List(origin.ToString(), "device-1"));
+    }
+
+    [Fact]
     public async Task Failing_to_take_the_tree_lock_is_an_outcome_rather_than_an_error()
     {
         // Two flushes overlap whenever somebody runs one beside a sync, and the measured case
@@ -50,6 +75,155 @@ public sealed class SaveFlushServiceTests
         // Nothing ran, so nothing is claimed to have run.
         Assert.False(report.Scanned);
         Assert.Null(report.Drained);
+    }
+
+    [Fact]
+    public async Task Session_flush_waits_for_game_end_and_replays_after_a_restart()
+    {
+        using var fixture = FlushTree.Create();
+        fixture.Pair();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)");
+        var install = fixture.Session.Install;
+        var rom = install.Resolve(RelativePath.Create("roms/snes/ActRaiser (USA).zip"));
+        fixture.WantsUpload(42);
+        Spool.Write(install.RootPath, new SpoolRecord("game-start", Now, 1, [rom]));
+        var options = new FlushOptions { Mode = FlushMode.InSessionUpload };
+        var token = TestContext.Current.CancellationToken;
+
+        var active = await new SaveFlushService(fixture.Session)
+            .RunAsync(options, fixture.Connect(), token);
+        Assert.Equal(FlushState.GameRunning, active.State);
+        Assert.False(active.Scanned);
+        Assert.Empty(fixture.Stub.Saves);
+
+        Spool.Write(install.RootPath, new SpoolRecord("game-end", Now.AddSeconds(1), 2, []));
+        var save = install.Resolve(RelativePath.Create("saves/snes/ActRaiser (USA).srm"));
+        using (File.Open(save, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            var busy = await new SaveFlushService(fixture.Session)
+                .RunAsync(options, fixture.Connect(), token);
+            Assert.True(busy.Scanned);
+            Assert.True(busy.RetryUpload);
+            Assert.Equal(0, busy.SavesSent!.Uploaded);
+            Assert.Empty(fixture.Stub.Saves);
+        }
+
+        fixture.Stub.IsReachable = false;
+        var offline = await new SaveFlushService(fixture.Session)
+            .RunAsync(options, fixture.Connect(), token);
+        Assert.True(offline.Scanned);
+        Assert.True(offline.RetryUpload);
+        Assert.False(offline.ServerReachable);
+        Assert.Null(BackgroundTransfer.Read(install));
+        Assert.Empty(fixture.Stub.Saves);
+
+        using var reopened = InstallSession.Open(install.RootPath).Session!;
+        fixture.Stub.IsReachable = true;
+        var worker = new SaveFlushService(reopened);
+        var retry = await worker.RunAsync(options, fixture.Connect(), token);
+        Assert.Equal(1, retry.SavesSent!.Uploaded);
+        Assert.True(retry.ServerReachable);
+        Assert.False(retry.RetryUpload);
+        Assert.Single(fixture.Stub.Saves);
+        Assert.NotNull(BackgroundTransfer.Read(install));
+
+        fixture.StopWantingUpload(42);
+        Spool.Write(install.RootPath, new SpoolRecord("game-end", Now.AddSeconds(2), 3, []));
+        var replay = await worker.RunAsync(options, fixture.Connect(), token);
+        Assert.Equal(0, replay.SavesSent!.Uploaded);
+        Assert.False(replay.RetryUpload);
+        Assert.Single(fixture.Stub.Saves);
+    }
+
+    [Fact]
+    public async Task Idle_receive_does_not_scan_or_upload_pending_local_work()
+    {
+        using var fixture = FlushTree.Create();
+        fixture.Pair();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)");
+        fixture.WantsUpload(42);
+        var store = fixture.Session.Store;
+        store.Outbox.Enqueue(OutboxKind.PlaySession, Now, romId: 42, payload: "{}");
+
+        var report = await new SaveFlushService(fixture.Session).RunAsync(
+            new FlushOptions { Mode = FlushMode.InSessionReceive },
+            fixture.Connect(),
+            TestContext.Current.CancellationToken);
+
+        Assert.False(report.Scanned);
+        Assert.Null(report.Drained);
+        Assert.Null(report.Playtime);
+        Assert.Null(report.StatesSent);
+        Assert.True(report.ServerReachable);
+        Assert.Equal(0, report.SavesSent!.Uploaded);
+        Assert.Empty(store.Saves.List());
+        Assert.Equal(1, store.Outbox.PendingCount());
+        Assert.Empty(fixture.Stub.Saves);
+    }
+
+    [Fact]
+    public async Task Idle_receive_ignores_an_upload_offer_for_an_indexed_save()
+    {
+        using var fixture = FlushTree.Create();
+        fixture.Pair();
+        fixture.AddGame(42, "nes", "Zelda II");
+        fixture.WantsUpload(42);
+        var store = fixture.Session.Store;
+        var install = fixture.Session.Install;
+        new RomMBat.Core.Content.SaveScanner(install, store).Scan();
+        var indexed = Assert.Single(store.Saves.List(42));
+        store.Saves.MarkUploaded(indexed.Path, indexed.UnitKey, indexed.ContentHash!, Now);
+
+        var report = await new SaveFlushService(fixture.Session).RunAsync(
+            new FlushOptions { Mode = FlushMode.InSessionReceive },
+            fixture.Connect(),
+            TestContext.Current.CancellationToken);
+
+        Assert.False(report.Scanned);
+        Assert.Equal(0, report.SavesSent!.Uploaded);
+        Assert.Equal(indexed.ContentHash, fixture.Stub.NegotiatedHashes[(42, "libretro:battery")]);
+        Assert.Empty(fixture.Stub.Saves);
+    }
+
+    [Fact]
+    public async Task In_session_flush_downloads_Zelda_II_after_the_game_ends()
+    {
+        using var fixture = FlushTree.Create();
+        fixture.Pair();
+        const string rom = "Zelda II - The Adventure of Link (USA)";
+        fixture.AddRom(42, "nes", $"{rom}.nes");
+        fixture.Stub.Saves.Add(100, new StubRomMServer.StubSave
+        {
+            Id = 100,
+            RomId = 42,
+            Slot = "libretro:battery",
+            Emulator = "libretro",
+            FileNameNoTags = rom,
+            FileExtension = "srm",
+            Bytes = "progress from A"u8.ToArray(),
+            OriginDeviceId = "peer-device",
+            UpdatedAt = Now,
+        });
+        fixture.Stub.UnsolicitedDownloads.Add((42, "libretro:battery"));
+
+        var install = fixture.Session.Install;
+        var path = install.Resolve(RelativePath.Create($"roms/nes/{rom}.nes"));
+        var destination = install.Resolve(RelativePath.Create($"saves/nes/{rom}.srm"));
+        var options = new FlushOptions { Mode = FlushMode.InSessionReceive };
+        var token = TestContext.Current.CancellationToken;
+        var flush = new SaveFlushService(fixture.Session);
+        Spool.Write(install.RootPath, new SpoolRecord("game-start", Now, 1, [path]));
+
+        Assert.Equal(FlushState.GameRunning, (await flush.RunAsync(options, fixture.Connect(), token)).State);
+        Assert.False(File.Exists(destination));
+        Assert.Null(BackgroundTransfer.Read(install, download: true));
+
+        Spool.Write(install.RootPath, new SpoolRecord("game-end", Now.AddSeconds(1), 2, []));
+        var closed = await flush.RunAsync(options, fixture.Connect(), token);
+        Assert.Equal(1, closed.SavesSent!.Downloaded);
+        Assert.Equal("progress from A", File.ReadAllText(destination));
+        Assert.Equal([100], fixture.Stub.Acknowledged);
+        Assert.NotNull(BackgroundTransfer.Read(install, download: true));
     }
 
     [Fact]
@@ -154,6 +328,33 @@ public sealed class SaveFlushServiceTests
         Assert.True(saveAt >= 0, "no save was sent, so the ordering was never exercised");
         Assert.True(stateAt >= 0, "no state was sent, so the ordering was never exercised");
         Assert.True(saveAt < stateAt, "the states went up before the saves");
+    }
+
+    [Theory]
+    [InlineData(System.Net.HttpStatusCode.ServiceUnavailable, System.Net.HttpStatusCode.Forbidden, true)]
+    [InlineData(System.Net.HttpStatusCode.Forbidden, System.Net.HttpStatusCode.ServiceUnavailable, true)]
+    [InlineData(System.Net.HttpStatusCode.Forbidden, System.Net.HttpStatusCode.Forbidden, false)]
+    public async Task Save_and_state_endpoint_failures_keep_independent_retry_classifications(
+        System.Net.HttpStatusCode saveFailure, System.Net.HttpStatusCode stateFailure, bool deferred)
+    {
+        using var fixture = FlushTree.Create();
+        fixture.Pair();
+        fixture.WriteSaveStateSchema();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)");
+        fixture.AddSave("snes/libretro.snes9x", "ActRaiser (USA).state1", "a state");
+        fixture.Stub.NegotiateRefusal = saveFailure;
+        fixture.Stub.StateUploadRefusal = stateFailure;
+        Spool.Write(fixture.Session.Install.RootPath, new SpoolRecord("game-end", Now, 1, []));
+
+        var report = await fixture.RunAsync(fixture.Connect());
+
+        Assert.Equal(1, report.SavesSent!.Failed);
+        Assert.Equal(1, report.StatesSent!.Failed);
+        Assert.True(report.ServerReachable);
+        Assert.Equal(deferred, report.TransientUploadFailure);
+        Assert.Equal(deferred, report.GameEndUploadPending);
+        Assert.Empty(fixture.Stub.Saves);
+        Assert.Empty(fixture.Stub.States);
     }
 
     [Fact]

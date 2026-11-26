@@ -159,6 +159,8 @@ public sealed class MediaSync
         _time = timeProvider ?? TimeProvider.System;
     }
 
+    internal bool PreserveExisting { get; init; }
+
     /// <summary>Where one kind of media for one game belongs.</summary>
     public static RelativePath TargetFor(string folder, string romFileName, MediaKind kind, string extension)
     {
@@ -193,11 +195,16 @@ public sealed class MediaSync
     /// why the fix for #102 was to interleave rather than to reserve.
     /// </para>
     /// </remarks>
-    public async Task<MediaSyncOutcome> ApplyAsync(
+    public Task<MediaSyncOutcome> ApplyAsync(
         IReadOnlyCollection<int> romIds,
         IProgress<string>? progress = null,
         long reservedBytes = 0,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ApplyAsync(romIds, progress, reservedBytes, reservedBytes, cancellationToken);
+
+    internal async Task<MediaSyncOutcome> ApplyAsync(
+        IReadOnlyCollection<int> romIds, IProgress<string>? progress,
+        long reservedManagedBytes, long reservedTransferBytes, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(romIds);
 
@@ -224,9 +231,9 @@ public sealed class MediaSync
 
         // The ROMs still to come are spoken for, against both bounds. Without this the last
         // game in a plan finds its budget already spent on the first game's artwork.
-        managed += reservedBytes;
+        managed += reservedManagedBytes;
 
-        var freeRoom = Math.Max(0, _limits.AvailableFreeBytes - floor - reservedBytes);
+        var freeRoom = Math.Max(0, _limits.AvailableFreeBytes - floor - reservedTransferBytes);
         var budgetExhausted = false;
 
         foreach (var romId in romIds.Distinct())
@@ -257,7 +264,7 @@ public sealed class MediaSync
             // half-written es_settings.cfg reads exactly like one where both switches were
             // turned off, so acting on it would sweep the artwork of an install that never said
             // anything. Fetching on a guess costs a re-fetch; deleting on one costs the files.
-            if (preference.FromInstall)
+            if (preference.FromInstall && !PreserveExisting)
             {
                 removed += Discard(romId, kinds);
             }
@@ -512,7 +519,7 @@ public sealed class MediaSync
 
             // Renamed only once the whole body has landed, so EmulationStation never sees a
             // half-written image and caches a broken texture for it.
-            File.Move(partial, absolute, overwrite: true);
+            File.Move(partial, absolute, overwrite: !PreserveExisting);
             return (response.Value!.BytesWritten, null, false);
         }
         catch (RomMUnreachableException ex)

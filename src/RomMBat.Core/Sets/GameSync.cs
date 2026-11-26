@@ -39,6 +39,8 @@ public sealed record GameSyncOutcome
 
     public required MediaSyncOutcome Media { get; init; }
 
+    internal IReadOnlyList<int> UnpublishedRomIds { get; init; } = [];
+
     /// <summary>Games removed because they did not land whole.</summary>
     public int RolledBack { get; init; }
 
@@ -167,8 +169,7 @@ public sealed class GameSync
 
         foreach (var step in plan.Steps)
         {
-            var marker = DiscSet.Parse(step.Member.FsName);
-            var key = $"{step.Member.Folder}/{marker?.BaseTitle ?? step.Member.FsName}";
+            var key = DiscSet.GameKey(step.Member.Folder, step.Member.FsName);
 
             if (!grouped.TryGetValue(key, out var steps))
             {
@@ -191,10 +192,14 @@ public sealed class GameSync
     }
 
     /// <summary>Carries out a plan, one whole game at a time.</summary>
-    public async Task<GameSyncOutcome> ApplyAsync(
+    public Task<GameSyncOutcome> ApplyAsync(
         ContentPlan plan,
         IProgress<SyncEvent> progress,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ApplyAsync(plan, progress, preserveExisting: false, cancellationToken);
+
+    internal async Task<GameSyncOutcome> ApplyAsync(
+        ContentPlan plan, IProgress<SyncEvent> progress, bool preserveExisting, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(progress);
@@ -203,12 +208,19 @@ public sealed class GameSync
         var media = new MediaSyncOutcome();
         var rolledBack = 0;
         var problems = new List<string>();
+        var unpublished = new List<int>();
         var stopped = false;
         var rejected = false;
         var walked = 0;
 
-        var roms = new ContentSync(_install, _store, _connection, _time);
-        var artwork = new MediaSync(_install, _store, _connection, _limits, _time);
+        var roms = new ContentSync(_install, _store, _connection, _time)
+        {
+            PreserveExisting = preserveExisting,
+        };
+        var artwork = new MediaSync(_install, _store, _connection, _limits, _time)
+        {
+            PreserveExisting = preserveExisting,
+        };
 
         var games = Group(plan);
 
@@ -222,11 +234,12 @@ public sealed class GameSync
 
             try
             {
-                landed = await roms
-                    .ApplyAsync(
-                        plan with { Steps = game.Steps },
-                        Renumbered(progress, offset, plan.Steps.Count),
-                        cancellationToken)
+                var gamePlan = plan with { Steps = game.Steps };
+                var gameProgress = Renumbered(progress, offset, plan.Steps.Count);
+                var isGroup = game.Steps.Count > 1 || game.Steps[0].Member.IsMultiFile;
+                landed = await (preserveExisting && isGroup
+                        ? roms.ApplyStartupGroupAsync(gamePlan, gameProgress, cancellationToken)
+                        : roms.ApplyAsync(gamePlan, gameProgress, cancellationToken))
                     .ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -234,29 +247,55 @@ public sealed class GameSync
                 // Stopped inside this game's transfer, so this game is the one that goes.
                 // Returned rather than rethrown: everything the pass already did is real, and
                 // throwing would discard that work, as a canceled resolve's would.
-                RollBack(game, progress, problems, ref rolledBack, Resume.Discard);
+                if (!preserveExisting)
+                {
+                    RollBack(game, progress, problems, ref rolledBack, Resume.Discard);
+                }
+                else
+                {
+                    // Neither the interrupted game nor the games ahead were published.
+                    unpublished.AddRange(games.Skip(index).SelectMany(remaining => remaining.RomIds));
+                }
+
                 stopped = true;
                 break;
             }
 
             content = ContentSyncOutcome.Merge(content, landed);
 
+            if (preserveExisting && (landed.Failed > 0 || landed.Blocked > 0))
+            {
+                unpublished.AddRange(game.RomIds);
+            }
+
             if (landed.Failed > 0)
             {
                 // A failure is not a cancellation, and the difference is the partial. The whole
                 // game still comes off disk, so the invariant holds, but what the next run would
                 // continue from is left alone.
-                RollBack(game, progress, problems, ref rolledBack, Resume.Keep);
+                if (!preserveExisting)
+                {
+                    RollBack(game, progress, problems, ref rolledBack, Resume.Keep);
+                }
 
                 if (landed.Rejected)
                 {
                     // The server refused this device rather than this request, so every game
                     // after it would send the same token and be refused identically. One
                     // expired pairing must not become forty problems.
+                    if (preserveExisting)
+                    {
+                        unpublished.AddRange(games.Skip(index + 1).SelectMany(remaining => remaining.RomIds));
+                    }
                     rejected = true;
                     break;
                 }
 
+                continue;
+            }
+
+            if (landed.Blocked > 0 && (preserveExisting || game.Steps.Any(step => step.Member.IsMultiFile)))
+            {
                 continue;
             }
 
@@ -270,11 +309,12 @@ public sealed class GameSync
 
             try
             {
+                var (managed, transfer) = RemainingRomBytes(games, index + 1, preserveExisting);
                 fetched = await artwork
                     .ApplyAsync(
                         [.. game.RomIds],
                         new Immediate<string>(what => progress.Report(new MediaProgressed(what))),
-                        RemainingRomBytes(games, index + 1),
+                        managed, transfer,
                         cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -289,6 +329,10 @@ public sealed class GameSync
                 // it escape skipped the caller's gamelist pass, so a stop during artwork left
                 // every finished game on disk and invisible to EmulationStation. That is the
                 // same defect a hands-on pass found on the ROM path, in the place beside it.
+                if (preserveExisting)
+                {
+                    unpublished.AddRange(games.Skip(index + 1).SelectMany(remaining => remaining.RomIds));
+                }
                 stopped = true;
                 break;
             }
@@ -300,6 +344,7 @@ public sealed class GameSync
         {
             Content = content,
             Media = media,
+            UnpublishedRomIds = unpublished,
             RolledBack = rolledBack,
             RollbackProblems = problems,
             Stopped = stopped,
@@ -324,7 +369,7 @@ public sealed class GameSync
             progress.Report(new ContentProgressed(step with { Index = offset + step.Index, Total = total })));
 
     /// <summary>
-    /// How many bytes of ROM this run still intends to fetch, from the given game onwards.
+    /// Disk and transfer space for ROMs still to be committed, from the given game onwards.
     /// </summary>
     /// <remarks>
     /// Only <see cref="ContentAction.Download"/> and <see cref="ContentAction.Resume"/> count.
@@ -339,12 +384,20 @@ public sealed class GameSync
     /// stop being spent.
     /// </para>
     /// </remarks>
-    private static long RemainingRomBytes(IReadOnlyList<PlannedGame> games, int from) =>
-        games
-            .Skip(from)
-            .SelectMany(game => game.Steps)
-            .Where(step => step.Action is ContentAction.Download or ContentAction.Resume)
-            .Sum(step => step.BytesToTransfer);
+    private static (long Managed, long Transfer) RemainingRomBytes(
+        IReadOnlyList<PlannedGame> games, int from, bool preserveExisting)
+    {
+        var downloads = games.Skip(from).SelectMany(game => game.Steps)
+            .Where(step => step.Action is ContentAction.Download or ContentAction.Resume);
+        long managed = 0, transfer = 0;
+        foreach (var step in downloads)
+        {
+            managed += ContentPlanner.ManagedBytesToAdd(step, preserveExisting);
+            transfer += step.BytesToTransfer;
+        }
+
+        return (managed, transfer);
+    }
 
     /// <summary>Whether a rollback also throws away what a later run could continue from.</summary>
     /// <remarks>

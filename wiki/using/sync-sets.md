@@ -73,8 +73,9 @@ choose to remove it; see [Disk space](disk-budget.md#making-room).
 Delete set, in a set's Start menu, asks what to do with its games. Keep it is selected first, so
 nothing happens until you choose one of the other two:
 
-- Delete with games takes its games off this device. RomMBat shows what would go before
-  anything goes. A game another set still wants is kept, and so is every save and save state.
+- Delete with games previews removal of the set's current games from this device. Games that
+  left the set stay on disk and can be removed through [Disk space](disk-budget.md#making-room).
+  Games another set still wants, saves, and save states are kept.
 - Delete, keep games leaves the games where they are. Nothing on disk changes.
 
 ## When games land in the wrong folder

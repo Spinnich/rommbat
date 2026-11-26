@@ -1,4 +1,6 @@
+using RomM.Client;
 using RomMBat.Agent.Tests.Support;
+using RomMBat.Core.Identity;
 using RomMBat.Core.Paths;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
@@ -127,6 +129,48 @@ public sealed class MenuAndBackgroundTests
         Assert.Contains("background start started", log, StringComparison.Ordinal);
         Assert.Contains("background start finished", log, StringComparison.Ordinal);
         _ = run;
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Immediate_quit_flushes_queued_saves_after_game_end(bool treeBusy)
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+        var now = DateTimeOffset.UtcNow;
+        using (var store = LocalStore.Open(install))
+        {
+            AddRom(install, store, 42, "nes", "Zelda II.nes");
+            store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(install));
+            store.Device.SavePairing(
+                new PairingResult(
+                    new Uri("https://romm.invalid/"), "device-1", "Handheld",
+                    new GrantedScopes(["roms.read", "assets.read", "assets.write", "devices.write"]),
+                    TokenProtector.Protect("rmm_token", null, now.AddYears(1))),
+                now);
+        }
+
+        var save = install.Resolve(RelativePath.Create("saves/nes/Zelda II.srm"));
+        Directory.CreateDirectory(Path.GetDirectoryName(save)!);
+        File.WriteAllText(save, "new progress");
+        Spool.Write(install.RootPath, new SpoolRecord("game-end", now, 1, []));
+        Spool.Write(install.RootPath, new SpoolRecord("quit", now.AddTicks(1), 2, []));
+        using var stub = new StubRomMServer();
+        stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+
+        using var held = treeBusy ? TreeLock.TryAcquire(install) : null;
+        var run = AgentRunner.RunAgainstAsync(tree, stub, "background", "quit");
+        if (treeBusy)
+        {
+            Assert.NotNull(held);
+            held.Dispose();
+        }
+
+        Assert.Equal(0, (await run).ExitCode);
+        Assert.Equal("new progress"u8.ToArray(), Assert.Single(stub.Saves.Values).Bytes);
+        Assert.Empty(Directory.GetFiles(install.Resolve(SpoolDrain.Directory), "*.hook"));
     }
 
     [Fact]

@@ -32,11 +32,28 @@ public enum FlushState
 
     /// <summary>Sent, and something failed. The next pass tries it again.</summary>
     Partial,
+
+    /// <summary>The session worker will try again once the game closes.</summary>
+    GameRunning,
+}
+
+/// <summary>Where the flush runs and which remote changes it can apply.</summary>
+public enum FlushMode
+{
+    Manual,
+    Background,
+    InSessionReceive,
+    InSessionUpload,
+    InSessionAcknowledgement,
+    Shutdown,
 }
 
 /// <summary>What a flush was asked to do.</summary>
 /// <param name="Offline">Do everything the local tree can answer, send nothing.</param>
-public sealed record FlushOptions(bool Offline = false);
+public sealed record FlushOptions(bool Offline = false)
+{
+    public FlushMode Mode { get; init; }
+}
 
 /// <summary>
 /// What one flush did, in the order it did it.
@@ -51,7 +68,7 @@ public sealed record FlushReport
 {
     public required FlushState State { get; init; }
 
-    /// <summary>The spool. Null only when the lock was held.</summary>
+    /// <summary>The spool. Null when the pass was skipped or deferred.</summary>
     public SpoolDrainOutcome? Drained { get; init; }
 
     public CorrelationOutcome? Correlated { get; init; }
@@ -92,8 +109,23 @@ public sealed record FlushReport
     /// <summary>True when the sending half ran, whether or not all of it worked.</summary>
     public bool Sent => Playtime is not null;
 
-    /// <summary>True when the local half ran, which is every state but <see cref="FlushState.Skipped"/>.</summary>
+    /// <summary>True when the local half ran.</summary>
     public bool Scanned => Saves is not null;
+
+    /// <summary>An upload pass has existing work that can be retried.</summary>
+    public bool RetryUpload { get; init; }
+
+    /// <summary>An upload was deferred by a sharing lock or a transient HTTP error.</summary>
+    public bool TransientUploadFailure { get; init; }
+
+    /// <summary>A known game-end still has work that can be resumed across sessions.</summary>
+    public bool GameEndUploadPending { get; init; }
+
+    /// <summary>Verified downloads still awaiting a server acknowledgement.</summary>
+    public bool RetryAcknowledgement { get; init; }
+
+    /// <summary>Whether this pass reached RomM, when it could establish reachability.</summary>
+    public bool? ServerReachable { get; init; }
 }
 
 /// <summary>
@@ -105,12 +137,9 @@ public sealed record FlushReport
 /// <see cref="SaveScanner"/>, <see cref="OutboxFlush"/>, <see cref="SaveSync"/> and
 /// <see cref="StateSync"/>; none of them is reimplemented and none of them is touched.
 /// <para>
-/// <b>This is the whole of RomMBat's background work, and it has no daemon to live in.</b> A
-/// portable install cannot register a service or a scheduled task, so the design is one short
-/// pass that anything can invoke, then exit. The hooks write a spool file and start nothing,
-/// because <c>game-start</c> and <c>game-end</c> run inside the game-launch path; what drains
-/// the spool is a <c>sync</c>, a <c>flush</c>, or the detached <c>background</c> pass that
-/// <c>start</c> and <c>quit</c> spawn.
+/// Each call takes the tree lock for one pass. The EmulationStation session worker
+/// calls it again when spool events arrive or pending uploads need another attempt.
+/// The game hooks only write spool files.
 /// </para>
 /// <para>
 /// <b>Failing to take the lock is success.</b> Two of these overlap whenever a person runs a
@@ -150,6 +179,10 @@ public sealed class SaveFlushService
         _time = timeProvider;
     }
 
+    /// <summary>Whether a flush has consumed a game-end whose upload is still pending.</summary>
+    public static bool HasPendingGameEnd(LocalStore store) =>
+        store.Settings.Get(SettingStore.GameEndUploadPending) is not null;
+
     /// <summary>Runs one pass.</summary>
     /// <param name="connection">
     /// Null to send nothing. A caller that could not authenticate passes null and gets
@@ -165,7 +198,15 @@ public sealed class SaveFlushService
         var install = _session.Install;
         var store = _session.Store;
 
-        using var held = TreeLock.TryAcquire(install);
+        var acknowledgementOnly = options.Mode == FlushMode.InSessionAcknowledgement;
+        var inSession = options.Mode is FlushMode.InSessionReceive or FlushMode.InSessionUpload or FlushMode.InSessionAcknowledgement;
+        var receiveOnly = options.Mode == FlushMode.InSessionReceive;
+        var canUpload = !receiveOnly && !acknowledgementOnly;
+        bool HasGameEnd() => canUpload && HasPendingGameEnd(store);
+
+        using var held = options.Mode == FlushMode.Shutdown
+            ? await TreeLock.TryAcquireForShutdownAsync(install, cancellationToken).ConfigureAwait(false)
+            : TreeLock.TryAcquire(install);
 
         if (held is null)
         {
@@ -173,32 +214,60 @@ public sealed class SaveFlushService
             return new FlushReport
             {
                 State = FlushState.Skipped,
+                RetryUpload = canUpload,
+                GameEndUploadPending = HasGameEnd(),
+                RetryAcknowledgement = acknowledgementOnly,
                 Problem = "Another flush is already running.",
             };
         }
 
-        // 1. The hooks wrote spool files and nothing else. Turn them into journal rows.
-        var drained = new SpoolDrain(install, store).Drain();
+        cancellationToken.ThrowIfCancellationRequested();
+        if (inSession && new InFlightGuard(install, store).HasActiveGame())
+        {
+            return new FlushReport
+            {
+                State = FlushState.GameRunning, RetryUpload = canUpload, RetryAcknowledgement = acknowledgementOnly,
+                GameEndUploadPending = HasGameEnd(),
+            };
+        }
 
-        // 2. Pair each game-end with its launch, and queue what that produces.
-        var correlated = new PlaytimeCorrelator(install, store).Correlate();
+        SpoolDrainOutcome? drained = null;
+        CorrelationOutcome? correlated = null;
+        StateScanOutcome? scannedStates = null;
+        SaveScanOutcome? scanned = null;
+        var stateReadDeferred = false;
+        var saveReadDeferred = false;
 
-        // 3. Work out what is on disk. Local, and the thing eviction depends on.
-        //
-        // The state schema goes into both passes: the save scan needs it so it does not report
-        // a state as unsyncable in the same run that uploads it.
-        //
-        // The state scan runs first. The sidecar attribution route reads local_state and
-        // SaveScanner is what runs it, so scanning saves first left the route reading an empty
-        // table on the first flush after an install is set up, and the class C saves it would
-        // have attributed went up on the second flush instead (#64).
-        var schema = StateScanner.LoadSchema(install);
+        if (canUpload)
+        {
+            // 1. The hooks wrote spool files and nothing else. Turn them into journal rows.
+            drained = new SpoolDrain(install, store).Drain();
 
-        var scannedStates = schema is null
-            ? null
-            : new StateScanner(install, store, schema, _time).Scan();
+            // 2. Pair each game-end with its launch, and queue what that produces.
+            correlated = new PlaytimeCorrelator(install, store).Correlate();
 
-        var scanned = new SaveScanner(install, store, states: schema, timeProvider: _time).Scan();
+            // 3. Work out what is on disk. Local, and the thing eviction depends on.
+            //
+            // The state schema goes into both passes: the save scan needs it so it does not report
+            // a state as unsyncable in the same run that uploads it.
+            //
+            // The state scan runs first. The sidecar attribution route reads local_state and
+            // SaveScanner is what runs it, so scanning saves first left the route reading an empty
+            // table on the first flush after an install is set up, and the class C saves it would
+            // have attributed went up on the second flush instead (#64).
+            var schema = StateScanner.LoadSchema(install);
+
+            if (schema is not null)
+            {
+                var stateScanner = new StateScanner(install, store, schema, _time);
+                scannedStates = stateScanner.Scan();
+                stateReadDeferred = stateScanner.UploadReadDeferred;
+            }
+
+            var saveScanner = new SaveScanner(install, store, states: schema, timeProvider: _time);
+            scanned = saveScanner.Scan();
+            saveReadDeferred = saveScanner.UploadReadDeferred;
+        }
 
         var local = new FlushReport
         {
@@ -211,49 +280,104 @@ public sealed class SaveFlushService
             Queued = store.Outbox.PendingCount(),
         };
 
+        var gameEnd = HasGameEnd();
+        FlushReport TrackGameEnd(FlushReport report, bool retryable)
+        {
+            if (gameEnd)
+            {
+                // SpoolDrain recorded the trigger before consuming the event. Keep it only
+                // while actual pending bytes, a sharing lock or queued playtime justify it.
+                var pending = retryable && (saveReadDeferred || stateReadDeferred || report.Queued > 0
+                    || store.Saves.PendingUploads().Count > 0 || store.States.PendingUploads().Count > 0);
+                if (pending)
+                {
+                    return report with { GameEndUploadPending = true };
+                }
+
+                store.Settings.Set(SettingStore.GameEndUploadPending, (string?)null, (_time ?? TimeProvider.System).GetUtcNow());
+            }
+
+            return report;
+        }
+
         // 4. Everything above this line worked without a server. Only sending needs one.
         if (options.Offline)
         {
-            return local with { State = FlushState.LocalOnly };
+            return TrackGameEnd(local with { State = FlushState.LocalOnly }, retryable: true);
         }
 
         if (connection is null)
         {
             // Not paired is a real refusal; anything queued is safe and stays queued.
-            return local with { State = FlushState.NotPaired };
+            return TrackGameEnd(local with { State = FlushState.NotPaired }, retryable: true);
         }
 
         if (store.Device.Read()?.RomMDeviceId is not { } deviceId)
         {
-            return local with
+            return TrackGameEnd(local with
             {
                 State = FlushState.NotPaired,
                 Problem = "This install is paired but has no RomM device id. Pair again.",
-            };
+            }, retryable: true);
         }
+
+        bool HasPendingAcknowledgements() =>
+            store.PendingSaveAcks.List(connection.Options.Origin.ToString(), deviceId).Count > 0;
 
         try
         {
-            var playtime = await new OutboxFlush(store, connection, deviceId)
+            if (acknowledgementOnly)
+            {
+                var receipts = await new SaveSync(install, store, connection, deviceId)
+                    .RunAsync(options.Mode, cancellationToken).ConfigureAwait(false);
+                return local with
+                {
+                    State = receipts.Failed > 0 ? FlushState.Partial : FlushState.Done,
+                    SavesSent = receipts,
+                    RetryAcknowledgement = HasPendingAcknowledgements(),
+                };
+            }
+
+            var playtime = receiveOnly ? null : await new OutboxFlush(store, connection, deviceId)
                 .FlushPlaySessionsAsync(cancellationToken)
                 .ConfigureAwait(false);
 
             var saves = await new SaveSync(install, store, connection, deviceId)
-                .RunAsync(cancellationToken)
+                .RunAsync(options.Mode, cancellationToken)
                 .ConfigureAwait(false);
 
             // States go last because they are the only part of this pass that cannot fail in a
             // way anyone has to act on: nothing negotiates, nothing conflicts, and an unsent
             // state is simply sent again next time.
-            var states = await new StateSync(install, store, connection)
+            var states = receiveOnly ? null : await new StateSync(install, store, connection)
                 .RunAsync(cancellationToken)
                 .ConfigureAwait(false);
 
             // A session left open is a step this run attempted and failed, so it counts, even
             // though every transfer landed (#148).
-            var failed = saves.Failed > 0 || saves.SessionLeftOpen || playtime.Failed > 0 || states.Failed > 0;
+            var failed = saves.Failed > 0 || saves.SessionLeftOpen || playtime?.Failed > 0 || states?.Failed > 0;
+            var queued = store.Outbox.PendingCount();
 
-            return local with
+            if (inSession)
+            {
+                var now = (_time ?? TimeProvider.System).GetUtcNow();
+                if (saves.Uploaded > 0 || states?.Uploaded > 0)
+                {
+                    BackgroundTransfer.Record(install, now);
+                }
+
+                if (saves.Downloaded > 0)
+                {
+                    BackgroundTransfer.Record(install, now, download: true);
+                }
+            }
+
+            var serverReachable = playtime?.Unreachable == true || states?.Unreachable == true
+                ? false : saves.ServerReachable;
+            // A refusal to negotiate battery saves says nothing about the state endpoint.
+            var deferred = playtime?.TransientUploadFailure == true || stateReadDeferred || states?.TransientUploadFailure == true
+                || (!saves.UploadAuthorizationDenied && (saves.TransientUploadFailure || saveReadDeferred));
+            return TrackGameEnd(local with
             {
                 State = failed ? FlushState.Partial : FlushState.Done,
                 Playtime = playtime,
@@ -263,19 +387,32 @@ public sealed class SaveFlushService
                 // Re-read after sending: a conflict this pass just found belongs in the report,
                 // and the count queued has moved.
                 Conflicts = store.SaveConflicts.ListOpen(),
-                Queued = store.Outbox.PendingCount(),
-            };
+                Queued = queued,
+                RetryAcknowledgement = HasPendingAcknowledgements(),
+                RetryUpload = !receiveOnly && (queued > 0 || HasPendingUploads(store, saves.Failed > 0, states?.Failed > 0)),
+                TransientUploadFailure = deferred,
+                ServerReachable = serverReachable,
+            }, retryable: deferred || serverReachable == false);
         }
         catch (RomMUnreachableException ex)
         {
             // Offline is a working state, not a failure. Everything stays
             // queued and the next flush picks it up.
-            return local with
+            return TrackGameEnd(local with
             {
                 State = FlushState.Unreachable,
+                ServerReachable = false,
+                RetryAcknowledgement = HasPendingAcknowledgements(),
+                RetryUpload = !receiveOnly && (local.Queued > 0 || HasPendingUploads(store, savesFailed: true, statesFailed: true)),
                 Problem = $"The server is not reachable: {ex.Message}",
                 Queued = store.Outbox.PendingCount(),
-            };
+            }, retryable: true);
         }
     }
+
+    private static bool HasPendingUploads(LocalStore store, bool savesFailed, bool statesFailed) =>
+        store.Saves.List().Any(save => save.RomId is not null
+            && (save.ContentHash is null || savesFailed && (save.IsUnsent || save.HasChangedSinceUpload)))
+        || store.States.List().Any(state => state.RomId is not null
+            && (state.ContentHash is null || statesFailed && (state.IsUnsent || state.HasChangedSinceUpload)));
 }

@@ -137,6 +137,7 @@ public sealed class DeviceStore
               paired_at            = $pairedAt,
               last_seen_at         = $pairedAt
             WHERE id = 1;
+            DELETE FROM pending_save_ack WHERE server_origin <> $origin OR device_id <> $deviceId;
             """)
             .With("$origin", result.ServerOrigin.ToString())
             .With("$deviceId", result.RomMDeviceId)

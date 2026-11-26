@@ -40,6 +40,9 @@ public enum SetRefusal
 
     /// <summary>No set of that name exists.</summary>
     NotFound,
+
+    /// <summary>The library is being changed by another pass.</summary>
+    Busy,
 }
 
 /// <summary>The result of a set operation: the set, or why there is not one.</summary>
@@ -580,10 +583,18 @@ public sealed class SyncSetService
     }
 
     /// <summary>Forgets a set. Touches nothing on disk.</summary>
-    public SetOutcome Remove(string name) =>
-        _session.Store.SyncSets.Remove(name)
+    public SetOutcome Remove(string name)
+    {
+        using var library = TreeLock.TryAcquireLibrary(_session.Install);
+        if (library is null)
+        {
+            return SetOutcome.No(SetRefusal.Busy, TreeLock.LibraryBusy, name);
+        }
+
+        return _session.Store.SyncSets.Remove(name)
             ? new SetOutcome(null, SetRefusal.None, null, name)
             : SetOutcome.No(SetRefusal.NotFound, $"No sync set named '{name}'.", name);
+    }
 
     /// <summary>The caps and ordering as a sentence, which both front ends show verbatim.</summary>
     public static string DescribePolicy(SyncSetDefinition set)

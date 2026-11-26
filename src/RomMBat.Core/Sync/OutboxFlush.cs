@@ -8,6 +8,10 @@ namespace RomMBat.Core.Sync;
 /// <summary>What a flush of the outbox did.</summary>
 public sealed record OutboxFlushOutcome(int Sent, int Duplicates, int Failed, IReadOnlyList<string> Problems)
 {
+    internal bool Unreachable { get; init; }
+
+    internal bool TransientUploadFailure { get; init; }
+
     public static OutboxFlushOutcome Empty { get; } = new(0, 0, 0, []);
 
     public bool IsNoOp => Sent == 0 && Duplicates == 0 && Failed == 0;
@@ -117,7 +121,10 @@ public sealed class OutboxFlush
             {
                 // Offline is a working state. Everything stays pending.
                 RecordFailure(indexed, ex.Message);
-                return new OutboxFlushOutcome(sent, duplicates, indexed.Count, [.. problems, ex.Message]);
+                return new OutboxFlushOutcome(sent, duplicates, indexed.Count, [.. problems, ex.Message])
+                {
+                    Unreachable = true,
+                };
             }
 
             if (!response.IsSuccess || response.Value is not { } outcome)
@@ -127,7 +134,10 @@ public sealed class OutboxFlush
                     sent,
                     duplicates,
                     indexed.Count,
-                    [.. problems, response.Message ?? "the server refused the batch."]);
+                    [.. problems, response.Message ?? "the server refused the batch."])
+                {
+                    TransientUploadFailure = response.IsTransientFailure,
+                };
             }
 
             var (batchSent, batchDuplicates, batchFailed, accepted) = Reconcile(indexed, outcome, problems);

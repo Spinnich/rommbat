@@ -1,5 +1,7 @@
 using System.Security.AccessControl;
 using System.Text;
+using RomM.Client;
+using RomMBat.Core.Sets;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
@@ -7,7 +9,7 @@ using RomMBat.Core.Sync;
 namespace RomMBat.Agent.Commands;
 
 /// <summary>
-/// <c>background &lt;event&gt;</c>: the pass an EmulationStation hook spawns.
+/// <c>background &lt;event&gt;</c>: the worker or quit pass an EmulationStation hook spawns.
 /// </summary>
 /// <remarks>
 /// <b>This is what closes the loop.</b> The hooks write a spool file and exit, and without this
@@ -55,11 +57,139 @@ internal static class BackgroundCommand
             return exitCode;
         }
 
+        if (hookEvent == "start")
+        {
+            var prelaunch = EsPrelaunchHook.Ensure(context.Install);
+            using var es = prelaunch is { Action: not EsHookAction.Failed }
+                ? EmulationStationProcess.FindForInstall(context.Install)
+                : null;
+            if (prelaunch is { Action: EsHookAction.Failed })
+            {
+                using var log = BackgroundLog.Open(context.Install, "start");
+                log.Write($"using periodic save receive: prelaunch install failed: {prelaunch.Problem}");
+            }
+
+            return await BackgroundSession.RunAsync(
+                context.Install,
+                () => es is null ? EmulationStationProcess.Check(context.Install).IsRunning : !es.HasExited,
+                (mode, token) => RunPassAsync(context, hookEvent, mode, token),
+                cancellationToken,
+                probe: token => ProbeAsync(context, token),
+                syncLibrary: token => SyncLibraryAsync(context, token),
+                periodicReceive: es is null,
+                watchPrelaunch: invalidate => EsPrelaunchHook.WatchChanges(context.Install, invalidate),
+                waitForEsExit: es is null ? null : es.WaitForExitAsync,
+                hasPendingGameEnd: () => SaveFlushService.HasPendingGameEnd(context.Store))
+                .ConfigureAwait(false);
+        }
+
+        var shutdown = await RunPassAsync(context, hookEvent, FlushMode.Shutdown, cancellationToken).ConfigureAwait(false);
+        return shutdown.ExitCode;
+    }
+
+    private static async Task<bool> ProbeAsync(AgentContext context, CancellationToken cancellationToken)
+    {
+        if (context.Store.Device.Read()?.ServerOrigin is not { } origin)
+        {
+            return false;
+        }
+
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(3));
+        using var connection = AgentContext.Connect(origin);
+        try
+        {
+            await connection.ProbeAsync(deadline.Token).ConfigureAwait(false);
+            return true;
+        }
+        catch (Exception ex) when (ex is RomMUnreachableException or RomMApiException
+            || ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+    }
+
+    private static async Task SyncLibraryAsync(AgentContext context, CancellationToken cancellationToken)
+    {
+        if (!context.Store.SyncSets.List().Any(set => set.Enabled))
+        {
+            return;
+        }
+
+        using var log = BackgroundLog.Open(context.Install, "start");
+        try
+        {
+            // The session worker can receive game-end while library requests are in flight.
+            using var library = AgentContext.Open(CommandLine.Parse(["sync", "--root", context.Install.RootPath]),
+                TextWriter.Null, out _);
+            using var connection = library?.Authenticate(CommandLine.Parse(["sync"]), TextWriter.Null, out _);
+            if (connection is null)
+            {
+                return;
+            }
+
+            var report = await new LibrarySyncService(library!.Session)
+                .RunAtStartupAsync(connection, new Immediate<SyncEvent>(update =>
+                {
+                    SyncCommand.Printer.Show(update);
+                    switch (update)
+                    {
+                        case BiosProblem bios:
+                            log.Write($"startup library sync BIOS: {bios.Message}");
+                            break;
+
+                        case BiosApplied bios:
+                            foreach (var problem in bios.Outcome.Problems)
+                            {
+                                log.Write($"startup library sync BIOS: {problem}");
+                            }
+                            break;
+
+                        case MediaApplied media:
+                            foreach (var problem in media.Outcome.Problems)
+                            {
+                                log.Write($"startup library sync media: {problem}");
+                            }
+                            break;
+
+                        case GamelistsWritten menus:
+                            if (menus.Outcome.ReloadRequested)
+                            {
+                                log.Write($"startup menu reload: {menus.Outcome.Reload}");
+                            }
+
+                            foreach (var folder in menus.Outcome.Folders.Where(folder => folder.Problem is not null))
+                            {
+                                log.Write($"startup library sync {folder.Folder}: {folder.Problem}");
+                            }
+                            break;
+
+                        case SetSynced set:
+                            foreach (var problem in set.Outcome.Problems)
+                            {
+                                log.Write($"startup library sync {set.Set.Name}: {problem}");
+                            }
+                            break;
+                    }
+                }), cancellationToken)
+                .ConfigureAwait(false);
+            log.Write($"startup library sync {report.State}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+            or Microsoft.Data.Sqlite.SqliteException or RomMUnreachableException or RomMApiException)
+        {
+            log.Write($"startup library sync interrupted: {ex.Message}");
+        }
+    }
+
+    private static async Task<BackgroundPassResult> RunPassAsync(
+        AgentContext context, string hookEvent, FlushMode mode, CancellationToken cancellationToken)
+    {
         using var log = BackgroundLog.Open(context.Install, hookEvent);
 
         try
         {
-            log.Write($"background {hookEvent} started");
+            log.Write($"background {hookEvent} started ({mode})");
 
             if (hookEvent == "quit")
             {
@@ -76,19 +206,32 @@ internal static class BackgroundCommand
                 }
             }
 
-            // The flush pass, quiet, in both cases. It never touches a file ES owns, so it is
-            // safe whether or not the wait above found ES gone.
+            FlushReport? result = null;
             var flush = await FlushCommand
-                .RunAsync(context, CommandLine.Parse(["flush", "--quiet"]), cancellationToken)
+                .RunAsync(
+                    context,
+                    CommandLine.Parse(["flush", "--quiet"]),
+                    cancellationToken,
+                    mode: mode,
+                    onReport: report =>
+                    {
+                        result = report;
+                        log.Write($"flush {report.State}, queued {report.Queued}, conflicts {report.Conflicts.Count}"
+                            + $", saves up {report.SavesSent?.Uploaded ?? 0}, down {report.SavesSent?.Downloaded ?? 0}");
+                        if (report.SavesSent is { LeftForLaunch: > 0 } saves)
+                        {
+                            log.Write($"saves left for game launch: {saves.LeftForLaunch}");
+                        }
+                    })
                 .ConfigureAwait(false);
 
             log.Write($"background {hookEvent} finished, flush exit {flush}");
-            return flush;
+            return result is null ? new BackgroundPassResult(flush) : BackgroundPassResult.FromReport(flush, result);
         }
         catch (OperationCanceledException)
         {
             log.Write($"background {hookEvent} canceled");
-            return ExitCode.Canceled;
+            return new BackgroundPassResult(ExitCode.Canceled);
         }
     }
 

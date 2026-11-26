@@ -84,10 +84,10 @@ public sealed record PartialSweepOutcome
 /// of theirs that outlives its process is from a pass that died.
 /// </para>
 /// <list type="bullet">
-/// <item><c>&lt;rom id&gt;.part</c>, from <see cref="ContentSync"/>. <b>Kept while an enabled
-/// set still claims that game</b>, whether or not a <c>content_download</c> row exists, because
-/// an interrupted transfer waiting to resume looks exactly like an orphan on disk. Keyed on set
-/// membership rather than on age, so a slow transfer is never mistaken for a dead one.</item>
+/// <item><c>&lt;rom id&gt;.part</c>, <c>&lt;rom id&gt;-&lt;file id&gt;.part</c>, and
+/// <c>pack-&lt;rom id&gt;/</c>, from <see cref="ContentSync"/> and startup publication.
+/// Kept while an enabled set still claims the game, regardless of age. Startup and explicit
+/// sync restore staged package members to their normal partial paths before planning.</item>
 /// <item><c>bios-&lt;md5&gt;.part</c>, from <see cref="BiosSync"/>. No <c>content_download</c>
 /// row exists or is wanted, since the fetch never resumes.</item>
 /// <item><c>save-&lt;id&gt;.part</c>, <c>resolve-&lt;id&gt;.part</c> and
@@ -110,13 +110,9 @@ public sealed record PartialSweepOutcome
 /// (<c>flush</c>, <c>saves resolve</c> and <c>saves restore --apply</c>) all hold the same lock.
 /// </para>
 /// <para>
-/// <b>The producers that run outside that lock are protected by the filesystem instead, and
-/// losing that race costs a transfer rather than data.</b> <c>sync</c> and <c>bios</c> hold
-/// their partial with <c>FileShare.None</c> while writing, so a delete throws and the sweep
-/// reports the file and moves on. Between that stream closing and the rename into place the
-/// file is unlocked, and a sweep there fails one download that the next pass starts again. A
-/// ROM partial is not exposed to even that, because the sweep keeps every one an enabled set
-/// still claims and a transfer implies a claim.
+/// The sweep also takes the library lease before the save lease. This protects the ROM and
+/// BIOS producers, including the interval after a member closes its handle and before the group
+/// is published. A preview is rechecked under both leases, including the active set claims.
 /// </para>
 /// <para>
 /// <b>Anything else in the directory is left alone.</b> A name this class does not recognize
@@ -188,12 +184,11 @@ public sealed class PartialSweep
 
         foreach (var entry in Entries(root))
         {
-            if (Classify(Path.GetFileName(entry), claimed) is not { } reason)
+            var isDirectory = System.IO.Directory.Exists(entry);
+            if (Classify(Path.GetFileName(entry), isDirectory, claimed) is not { } reason)
             {
                 continue;
             }
-
-            var isDirectory = System.IO.Directory.Exists(entry);
 
             candidates.Add(new PartialCandidate
             {
@@ -221,12 +216,15 @@ public sealed class PartialSweep
     {
         ArgumentNullException.ThrowIfNull(plan);
 
-        using var held = TreeLock.TryAcquire(_install);
+        using var library = TreeLock.TryAcquireLibrary(_install);
+        return library is null ? new PartialSweepOutcome { Skipped = true } : ApplyWithLibrary(plan);
+    }
 
+    internal PartialSweepOutcome ApplyWithLibrary(PartialSweepPlan plan)
+    {
+        using var held = TreeLock.TryAcquire(_install);
         if (held is null)
         {
-            // Ordinary, not an error, the same way a second flush is. Reclaiming disk is never
-            // urgent enough to race a save being put back.
             return new PartialSweepOutcome { Skipped = true };
         }
 
@@ -234,12 +232,22 @@ public sealed class PartialSweep
         var freed = 0L;
         var problems = new List<string>();
 
+        var claimed = ClaimedRomIds();
         foreach (var candidate in plan.Candidates)
         {
             var absolute = _install.Resolve(candidate.Path);
 
             try
             {
+                if (candidate.Path != Directory.Combine(candidate.Name)
+                    || !Path.Exists(absolute)
+                    || System.IO.Directory.Exists(absolute) != candidate.IsDirectory
+                    || Classify(candidate.Name, candidate.IsDirectory, claimed) != candidate.Reason
+                    || File.GetAttributes(absolute).HasFlag(FileAttributes.ReparsePoint))
+                {
+                    continue;
+                }
+
                 if (candidate.IsDirectory)
                 {
                     if (!System.IO.Directory.Exists(absolute))
@@ -276,8 +284,13 @@ public sealed class PartialSweep
     /// <c>partial/unit-tests/</c> into candidates, which is the opposite of the rule in the
     /// class remarks that a name no producer writes is left alone.
     /// </remarks>
-    private static PartialReason? Classify(string name, HashSet<int> claimed)
+    private static PartialReason? Classify(string name, bool isDirectory, HashSet<int> claimed)
     {
+        if (isDirectory && PackedRomStage.TryGetRomId(name, out var packedRom))
+        {
+            return claimed.Contains(packedRom) ? null : PartialReason.Unclaimed;
+        }
+
         if (IsHexPart(name, BiosPrefix) || IsIdPart(name, SavePrefix) || IsIdPart(name, ResolvePrefix)
             || IsIdPart(name, StatePrefix) || IsUnit(name))
         {
@@ -292,6 +305,19 @@ public sealed class PartialSweep
         // The whole stem has to be the id. "12abc.part" is not a ROM transfer this wrote, and
         // int.TryParse over a prefix would take it for one.
         var stem = name[..^RomSuffix.Length];
+
+        var separator = stem.IndexOf('-');
+        if (separator >= 0)
+        {
+            if (!int.TryParse(stem.AsSpan(0, separator), NumberStyles.None, CultureInfo.InvariantCulture, out var owner)
+                || !int.TryParse(stem.AsSpan(separator + 1), NumberStyles.None, CultureInfo.InvariantCulture, out var file)
+                || owner <= 0 || file <= 0 || name != ContentPlanner.PartFor(owner, file).Name)
+            {
+                return null;
+            }
+
+            return claimed.Contains(owner) ? null : PartialReason.Unclaimed;
+        }
 
         if (!int.TryParse(stem, NumberStyles.None, CultureInfo.InvariantCulture, out var romId))
         {

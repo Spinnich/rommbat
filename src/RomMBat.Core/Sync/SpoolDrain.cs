@@ -169,13 +169,28 @@ public sealed class SpoolDrain
             romPath = _install.Relativize(romArgument);
         }
 
-        _store.Journal.Append(
+        void Append() => _store.Journal.Append(
             parsed,
             record.At,
             romPath,
             basename,
             displayName,
             record.ProcessId == 0 ? null : record.ProcessId);
+
+        if (parsed == JournalEvent.GameEnd)
+        {
+            // Any flush can consume the hook record, including a manual or a quit flush.
+            // Keep its upload intent across crashes before scanning or sending finishes.
+            _store.InTransaction(() =>
+            {
+                Append();
+                _store.Settings.Set(SettingStore.GameEndUploadPending, "1", _time.GetUtcNow());
+            });
+        }
+        else
+        {
+            Append();
+        }
     }
 
     private static void Remove(string path)

@@ -4,6 +4,7 @@ using RomMBat.Core.Paths;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
 using Xunit;
 
@@ -37,6 +38,25 @@ public sealed class UninstallTests : IDisposable
     {
         _session.Dispose();
         _tree.Dispose();
+    }
+
+    [Fact]
+    public async Task Busy_library_refuses_uninstall_before_removing_anything()
+    {
+        InstallHooksAndMenu();
+        Rom(7, "snes", "Chrono Trigger (USA).sfc", FileOrigin.Synced);
+        var service = Service();
+        var report = service.Preview(new RemovalScope(Content: true));
+        using var held = TreeLock.TryAcquireLibrary(_session.Install);
+        Assert.NotNull(held);
+
+        var applied = await service.ApplyAsync(report, TestContext.Current.CancellationToken);
+
+        Assert.False(applied.Ok);
+        Assert.Contains("library", applied.Refusal, StringComparison.OrdinalIgnoreCase);
+        Assert.True(new EsHooks(_session.Install).IsInstalled());
+        Assert.True(new EsMenuEntry(_session.Install).IsInstalled());
+        Assert.True(File.Exists(RomOnDisk("snes", "Chrono Trigger (USA).sfc")));
     }
 
     [Fact]
@@ -175,6 +195,27 @@ public sealed class UninstallTests : IDisposable
         Assert.Empty(Service().Preview(new RemovalScope()).Unvouchable);
     }
 
+    [Fact]
+    public async Task Uninstall_names_and_preserves_the_shared_card_of_an_installed_departed_PS2_game()
+    {
+        const string card = "saves/ps2/pcsx2/memcards/Mcd001.ps2";
+        Rom(12, "ps2", "Departed.iso", FileOrigin.Synced);
+        WriteTree(card, "shared saves");
+        Member(12, "Departed.iso", "ps2");
+        _session.Store.SyncSets.ReplaceMembers(_memberSet!.Id, [], "no games", Now.AddSeconds(1), complete: true);
+        Assert.Single(_session.Store.SyncSets.Members(_memberSet.Id, MemberState.Departed));
+
+        var service = Service();
+        var report = service.Preview(new RemovalScope(Content: true));
+        Assert.Equal(12, Assert.Single(report.Content!.Plan.Selected).File.RomId);
+        Assert.Contains(card, report.Unvouchable);
+        var applied = await service.ApplyAsync(report, TestContext.Current.CancellationToken);
+
+        Assert.True(applied.Ok, applied.Refusal);
+        Assert.False(File.Exists(RomOnDisk("ps2", "Departed.iso")));
+        Assert.Equal("shared saves", File.ReadAllText(_session.Install.Resolve(card)));
+    }
+
     /// <summary>
     /// The same save is named when the games going are stale downloads, which no set member
     /// places in a system any more.
@@ -306,7 +347,7 @@ public sealed class UninstallTests : IDisposable
     }
 
     /// <summary>Puts a game in one set, which is how <c>Unvouchable</c> learns its system.</summary>
-    private void Member(int romId, string fsName)
+    private void Member(int romId, string fsName, string folder = "nes")
     {
         _memberSet ??= _session.Store.SyncSets.Add(
             new SyncSetDefinition
@@ -322,8 +363,8 @@ public sealed class UninstallTests : IDisposable
         {
             RomId = romId,
             State = MemberState.Member,
-            Folder = "nes",
-            PlatformSlug = "nes",
+            Folder = folder,
+            PlatformSlug = folder,
             FsName = fsName,
             FsExtension = "zip",
             SizeBytes = 64,

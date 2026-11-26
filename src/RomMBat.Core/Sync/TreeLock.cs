@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using RomMBat.Core.Paths;
 
 namespace RomMBat.Core.Sync;
@@ -21,7 +22,8 @@ namespace RomMBat.Core.Sync;
 /// <para>
 /// <b>For a flush, failing to acquire is a success.</b> Another process is already draining the
 /// same queue, so the right thing is to exit rather than wait: the work is being done, and a
-/// hook that blocks is a hook running inside the game-launch path.
+/// hook that blocks is a hook running inside the game-launch path. The detached quit
+/// agent can wait briefly for the last flush without blocking EmulationStation.
 /// </para>
 /// <para>
 /// <b>The other three holders cannot say that, because nobody is doing their work.</b>
@@ -46,11 +48,19 @@ public sealed class TreeLock : IDisposable
     /// Takes the lock if it is free.
     /// </summary>
     /// <returns>Null when another process holds it, which is an ordinary outcome.</returns>
-    public static TreeLock? TryAcquire(RetroBatInstall install)
+    public static TreeLock? TryAcquire(RetroBatInstall install) => TryAcquire(install, Path);
+
+    public const string LibraryBusy = "Another RomMBat pass is changing the library. Let it finish, then try again.";
+
+    /// <summary>Serializes operations that change the installed library.</summary>
+    public static TreeLock? TryAcquireLibrary(RetroBatInstall install) =>
+        TryAcquire(install, RetroBatInstall.AppDirectory.Combine("library.lock"));
+
+    private static TreeLock? TryAcquire(RetroBatInstall install, RelativePath lockPath)
     {
         ArgumentNullException.ThrowIfNull(install);
 
-        var path = install.Resolve(Path);
+        var path = install.Resolve(lockPath);
 
         try
         {
@@ -79,6 +89,33 @@ public sealed class TreeLock : IDisposable
             // A read-only volume, or a stick pulled mid-write. Not flushing is the safe answer.
             return null;
         }
+    }
+
+    internal static Task<TreeLock?> TryAcquireForLaunchAsync(
+        RetroBatInstall install, CancellationToken cancellationToken) =>
+        WaitForLockAsync(install, TimeSpan.FromMilliseconds(1250), cancellationToken);
+
+    internal static Task<TreeLock?> TryAcquireForShutdownAsync(
+        RetroBatInstall install, CancellationToken cancellationToken) =>
+        WaitForLockAsync(install, TimeSpan.FromSeconds(30), cancellationToken);
+
+    private static async Task<TreeLock?> WaitForLockAsync(
+        RetroBatInstall install, TimeSpan budget, CancellationToken cancellationToken)
+    {
+        var started = Stopwatch.GetTimestamp();
+        do
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (TryAcquire(install) is { } held)
+            {
+                return held;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
+        }
+        while (Stopwatch.GetElapsedTime(started) < budget);
+
+        return null;
     }
 
     public void Dispose()

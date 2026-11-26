@@ -23,6 +23,11 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   **The body is a bare string** with no save id and no timestamps, so fetch the save row if
   you want to show the user what they are conflicting with. It fires when **this device's**
   sync record is stale, not when the save is newest overall.
+- For automatic NES SRAM, persist the download intent before swapping the file. After a
+  restart, confirm interrupted installation against the destination's byte hash before
+  recording it as the slot baseline. Keep known deletions and local edits. Retry a
+  pending receipt with the hash that actually landed and the same server and device.
+  Receipt-only retries avoid save negotiation. See [the pending receipt table](../../../docs/architecture/local-store.md).
 - **Restore cannot be built on `negotiate`, and this is measured.** The server answers negotiate
   from its own per-device sync record, not from what the client claims. A save this device
   uploaded and acknowledged comes back `no_op`, "No changes since last sync", **even with the

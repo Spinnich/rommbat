@@ -118,9 +118,12 @@ public sealed class SaveScanner
     /// <summary>Where saves live.</summary>
     public static RelativePath SavesDirectory { get; } = RelativePath.Create("saves");
 
+    internal bool UploadReadDeferred { get; private set; }
+
     /// <summary>Walks the save tree and records what it finds.</summary>
     public SaveScanOutcome Scan()
     {
+        UploadReadDeferred = false;
         var savesRoot = _install.Resolve(SavesDirectory);
         var now = _time.GetUtcNow();
 
@@ -361,6 +364,7 @@ public sealed class SaveScanner
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            UploadReadDeferred |= rom is not null && SaveFileLock.IsSharingViolation(ex);
             // Locked by a running emulator. Recorded without a hash, which reads as unsent and
             // therefore blocks eviction, which is the fail-closed direction.
         }
@@ -624,6 +628,7 @@ public sealed class SaveScanner
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                UploadReadDeferred |= attribution.IsResolved && SaveFileLock.IsSharingViolation(ex);
                 // Held open by a running emulator. Recorded without a hash, which reads as
                 // unsent and therefore blocks eviction, which is the fail-closed direction.
             }

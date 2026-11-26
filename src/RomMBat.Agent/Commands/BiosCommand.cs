@@ -4,6 +4,7 @@ using RomMBat.Core;
 using RomMBat.Core.Content;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 
 namespace RomMBat.Agent.Commands;
 
@@ -35,6 +36,14 @@ internal static class BiosCommand
 
         var offline = command.Has("offline");
         var apply = command.Has("apply");
+
+        var changesLibrary = apply || command.Has("region-order");
+        using var library = changesLibrary ? TreeLock.TryAcquireLibrary(context.Install) : null;
+        if (changesLibrary && library is null)
+        {
+            Console.Error.WriteLine(TreeLock.LibraryBusy);
+            return ExitCode.Refused;
+        }
 
         if (command.Has("region-order") && SetRegionOrder(context, command.Value("region-order")) is { } refused)
         {
