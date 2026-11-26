@@ -14,20 +14,40 @@ account can carry on where you left off. You do not have to do anything for it t
 
 ## When it happens
 
-RomMBat syncs saves each time you open EmulationStation and each time you quit it, and again at
-the start of every sync. It runs in the background, with no window, and never while a game is
-starting. Nothing is sent while you play: it goes up the next time you quit EmulationStation.
+When EmulationStation opens, RomMBat sends pending saves and syncs the sets enabled on this
+device. It adds missing supported games, including multi-file and multi-disc games, along with
+your selected artwork and available firmware. It verifies every part of a game before adding
+the group to the menu. Fresh loose discs appear together in one folder. If a visible
+loose-disc game is missing more than one disc, review the startup report and run Sync
+with the emulator closed. Your existing ROMs, BIOS and artwork stay in place. If a ROM
+or BIOS needs replacing, check the startup report in `emulators\rommbat\logs\background.log`
+and review the file before running Sync with the emulator closed.
 
-A save another device made comes down when you open EmulationStation. If you have already
-started that game by then, RomMBat does not write under it: the save waits and lands the next
-time you quit EmulationStation. A save that reaches RomM while EmulationStation is sitting open
-comes down the next time you open it
-([#155](https://github.com/Spinnich/rommbat/issues/155)).
+Closing a game triggers a send. Quitting EmulationStation gives pending work another chance
+to go up. A save pass delayed by another pass or a running game retries the pending
+game-end work when it can. If the server is unavailable, RomMBat retries while work is waiting.
+
+On the verified Windows EmulationStation build shipped with RetroBat 8.3.1.1, choosing a game
+managed by RomMBat checks that game's remote saves before the emulator starts. Automatic
+restore at launch covers plain NES Libretro battery saves (`.srm`). Other managed games use
+their regular save sync. If the check fails or times out, the game opens with the local save.
+Installations without verified launch support keep the 30-second receive check for plain NES
+Libretro saves while EmulationStation is open.
+
+An open conflict or unverified local history keeps the local save in place. If only the
+file's modification time changed and its bytes still match the last verified shared save,
+the newer remote version can wait for the next launch. To bring back a previously removed
+save, start with `rommbat-agent saves restore` to preview the restore.
 
 ## Away from the server
 
-**Playing offline loses nothing.** Saves and playtime wait on this device and go up the next time
-it can reach RomM. The main menu's Waiting to upload row counts what is still waiting.
+Saves and playtime stay on this device while RomM is unreachable. If short retries
+run out, RomMBat checks for reconnection while pending work remains and sends it when
+it can reach RomM again. Pending game-end uploads survive a restart and retry after temporary
+errors from the save, save state, or playtime endpoint, or when a locked file becomes readable.
+Open Waiting to upload to see pending saves and save states by game and slot, alongside
+outbox entries. Saves and states found on disk are read-only in this list. Under This device, Status shows
+the pending count and the most recent in-session upload and download.
 
 ## When a save is deleted in RomM
 

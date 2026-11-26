@@ -36,6 +36,9 @@ public static class DiscSet
         RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase,
         TimeSpan.FromSeconds(1));
 
+    internal static string GameKey(string? folder, string fsName) =>
+        $"{folder}/{Parse(fsName)?.BaseTitle ?? fsName}";
+
     /// <summary>Reads the disc marker off a filename, or null when it carries none.</summary>
     /// <param name="fsName">The ROM's filename as it sits on disk, extension included.</param>
     public static DiscMarker? Parse(string fsName)

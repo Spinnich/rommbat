@@ -291,7 +291,11 @@ public static class SetsScreens
                     "Delete, keep games",
                     () =>
                     {
-                        new SyncSetService(session).Remove(name);
+                        var removal = new SyncSetService(session).Remove(name);
+                        if (removal.Refusal == SetRefusal.Busy)
+                        {
+                            return ScreenCommand.Push(new MessageScreen("Library busy", removal.Problem!));
+                        }
 
                         // Back to the list, closing the detail screen underneath, whose set no
                         // longer exists.
@@ -424,15 +428,15 @@ public static class SetsScreens
             LoadingMessage = "Removing games and rewriting the lists EmulationStation reads...",
             Load = async token =>
             {
-                applied = await new EvictionService(session).ApplyAsync(report, token).ConfigureAwait(false);
-                new SyncSetService(session).Remove(name);
+                applied = await new EvictionService(session).ApplySetRemovalAsync(report, name, token).ConfigureAwait(false);
                 return null;
             },
 
             // Back lands on the sets list, closing this screen and the set's own detail, which
             // describes a set that no longer exists. The confirmation was replaced by this
             // screen, so it is not on the stack. The keep-the-games path pops for the same reason.
-            OnBack = () => ScreenCommand.PopMany(2),
+            OnBack = () => applied is { CanForgetSet: true }
+                ? ScreenCommand.PopMany(2) : ScreenCommand.Pop,
         }.Started();
     }
 
@@ -547,6 +551,11 @@ public static class SetsScreens
 
     private static List<ListRow> AppliedRows(EvictionApplied applied)
     {
+        if (applied.Refusal is { } refusal)
+        {
+            return [new ListRow("Removal paused", null, refusal, false)];
+        }
+
         var rows = new List<ListRow>
         {
             new(
@@ -555,12 +564,17 @@ public static class SetsScreens
                     ? $"{evicted.Removed} {(evicted.Removed == 1 ? "game" : "games")}, "
                         + ByteSize.Format(evicted.BytesFreed)
                     : "nothing",
-                "The set is gone. Saves and save states were not touched.",
+                !applied.CanForgetSet
+                    ? "The set was kept because removal did not finish."
+                    : "The set is gone. Saves and save states were not touched.",
                 false),
         };
 
         rows.AddRange((applied.Evicted?.Problems ?? []).Select(problem =>
             new ListRow("Problem", null, problem, false)));
+
+        rows.AddRange((applied.Gamelists?.Folders ?? []).Where(folder => folder.Problem is not null)
+            .Select(folder => new ListRow(folder.Folder, null, folder.Problem, false)));
 
         return rows;
     }

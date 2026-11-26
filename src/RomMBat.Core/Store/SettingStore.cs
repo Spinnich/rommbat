@@ -42,6 +42,8 @@ public sealed class SettingStore
     /// </summary>
     public const string FirmwareRegionOrder = "firmware.region_order";
 
+    internal const string GameEndUploadPending = "sync.game_end_upload_pending";
+
     private readonly SqliteConnection _connection;
 
     internal SettingStore(SqliteConnection connection) => _connection = connection;

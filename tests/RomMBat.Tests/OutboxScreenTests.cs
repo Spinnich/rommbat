@@ -1,6 +1,10 @@
+using RomM.Client;
 using RomMBat.Core;
+using RomMBat.Core.Identity;
 using RomMBat.Core.Metadata;
 using RomMBat.Core.RetroBat;
+using RomMBat.Core.Paths;
+using RomMBat.Core.Sync;
 using RomMBat.Core.Store;
 using RomMBat.Tests.Support;
 using RomMBat.UI.Input;
@@ -43,6 +47,160 @@ public class OutboxScreenTests : IDisposable
         Assert.Empty(list.Rows);
         Assert.Contains("play session", list.EmptyMessage!, StringComparison.Ordinal);
         Assert.Null(list.Note!());
+    }
+
+    [Fact]
+    public async Task An_offline_flush_shows_pending_SRAM_with_no_outbox_entries()
+    {
+        const string title = "Zelda II";
+        var save = AddNesSave(42, title, "offline progress");
+        var token = TestContext.Current.CancellationToken;
+        var flush = await new SaveFlushService(_session).RunAsync(
+            new FlushOptions(Offline: true) { Mode = FlushMode.InSessionUpload }, cancellationToken: token);
+
+        Assert.Equal(FlushState.LocalOnly, flush.State);
+        Assert.Equal(0, flush.Queued);
+        var indexed = Assert.Single(_session.Store.Saves.List(42));
+        Assert.Equal(save, indexed.Path);
+        Assert.True(indexed.IsUnsent);
+
+        var model = new StatusViewModel(_session, () => NoGamepad);
+        Assert.Equal("1 item", model.Sections().Single(section => section.Title == "Waiting")
+            .Rows.Single(row => row.Label == "Waiting to upload").Value);
+        var menu = Assert.IsType<ListScreen>(RootScreens.Menu(_session, () => NoGamepad,
+            new RootScreens.RootRoutes { OpenOutbox = () => OutboxScreens.List(_session) }));
+        Assert.Equal("1 waiting", menu.Rows.Single(row => row.Label == "Waiting to upload").Value);
+
+        var navigator = new Navigator(menu);
+        RootMenuDriver.Open(navigator, "Waiting to upload");
+        var screen = Assert.IsType<ListScreen>(navigator.Current);
+        var row = Assert.Single(screen.Rows);
+        Assert.Equal(title, row.Label);
+        Assert.Equal("Battery save", row.Value);
+        Assert.Contains("libretro:battery", row.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain(screen.Hints, hint => hint.Action == NavAction.Accept);
+        navigator.Handle(NavAction.Accept);
+        Assert.Same(screen, navigator.Current);
+        navigator.Handle(NavAction.Back);
+        Assert.Same(menu, navigator.Current);
+        Assert.Equal("Back to EmulationStation", Assert.Single(menu.Hints, hint => hint.Action == NavAction.Back).Label);
+        Assert.Equal("offline progress", File.ReadAllText(_session.Install.Resolve(save)));
+
+        var origin = new Uri("https://romm.invalid");
+        var now = DateTimeOffset.UtcNow;
+        _session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(_session.Install));
+        _session.Store.Device.SavePairing(
+            new PairingResult(origin, "device-1", "Handheld", new GrantedScopes(["assets.write"]),
+                TokenProtector.Protect("rmm_test", null, now.AddYears(1))), now);
+        using var stub = new StubRomMServer();
+        stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+        using var connection = new RomMConnection(new RomMClientOptions { Origin = origin, AccessToken = "rmm_test" }, stub);
+        var sent = await new SaveFlushService(_session).RunAsync(
+            new FlushOptions { Mode = FlushMode.InSessionUpload }, connection, token);
+
+        Assert.Equal(1, sent.SavesSent?.Uploaded);
+        Assert.Empty(Assert.IsType<ListScreen>(OutboxScreens.List(_session)).Rows);
+        var waiting = model.Sections().Single(section => section.Title == "Waiting");
+        Assert.Equal("empty", waiting.Rows.Single(row => row.Label == "Waiting to upload").Value);
+        Assert.Contains(waiting.Rows, item => item.Label == "Last in-session upload");
+    }
+
+    [Fact]
+    public async Task Only_changed_attributed_and_non_conflicted_saves_are_listed_beside_the_outbox()
+    {
+        AddNesSave(41, "Already sent", "unchanged");
+        AddNesSave(42, "Needs a decision", "local side");
+        var pending = AddNesSave(43, "Waiting game", "original progress");
+        var install = _session.Install;
+        File.WriteAllText(install.Resolve(RelativePath.Create("saves/nes/Orphan.srm")), "unattributed");
+        var flush = new SaveFlushService(_session);
+        var token = TestContext.Current.CancellationToken;
+        await flush.RunAsync(new FlushOptions(Offline: true), cancellationToken: token);
+        var now = DateTimeOffset.UtcNow;
+        var sent = Assert.Single(_session.Store.Saves.List(41));
+        _session.Store.Saves.MarkUploaded(sent.Path, sent.UnitKey, sent.ContentHash!, now);
+        var previous = Assert.Single(_session.Store.Saves.List(43));
+        _session.Store.Saves.MarkUploaded(previous.Path, previous.UnitKey, previous.ContentHash!, now);
+        File.SetLastWriteTimeUtc(install.Resolve(sent.Path), now.UtcDateTime.AddMinutes(1));
+        File.WriteAllText(install.Resolve(pending), "new offline progress");
+
+        var conflict = Assert.Single(_session.Store.Saves.List(42));
+        _session.Store.SaveConflicts.Record(new SaveConflictRecord(42, conflict.Slot, conflict.Path,
+            null, conflict.ContentHash, new string('a', 32), now, 27, "Both sides changed", now, now, null, null), now);
+        await flush.RunAsync(new FlushOptions(Offline: true), cancellationToken: token);
+        Assert.Contains(_session.Store.Saves.List(), save => save.RomId is null && save.Path.Name == "Orphan.srm");
+        _session.Store.Outbox.Enqueue(OutboxKind.PlaySession, now, romId: 50);
+
+        var list = Assert.IsType<ListScreen>(OutboxScreens.List(_session));
+        Assert.Equal(["Not sent yet", "Waiting game"], list.Rows.Select(row => row.Label));
+        var navigator = new Navigator(list);
+        Open(navigator, "Not sent yet");
+        navigator.Handle(NavAction.Left);
+        navigator.Handle(NavAction.Accept);
+        Assert.Equal(0, _session.Store.Outbox.PendingCount());
+        Assert.Equal("new offline progress", File.ReadAllText(install.Resolve(pending)));
+        Assert.Single(_session.Store.Saves.PendingUploads());
+        Assert.Single(_session.Store.SaveConflicts.ListOpen());
+    }
+
+    [Fact]
+    public async Task An_offline_scanned_save_state_appears_in_the_pending_count_and_list()
+    {
+        var install = _session.Install;
+        var schema = install.Resolve(SaveStateSchema.ConfigPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(schema)!);
+        File.Copy(Fixtures.EsSaveStatesTemplate, schema);
+        var rom = install.Resolve("roms/snes/ActRaiser (USA).zip");
+        Directory.CreateDirectory(Path.GetDirectoryName(rom)!);
+        File.WriteAllText(rom, "test rom bytes");
+        _session.Store.Files.Record(new LocalFile
+        {
+            Path = RelativePath.Create("roms/snes/ActRaiser (USA).zip"),
+            FileName = "ActRaiser (USA).zip", Folder = "snes", RomId = 42, Kind = LocalFileKind.Rom,
+        });
+        var path = install.Resolve("saves/snes/libretro.snes9x/ActRaiser (USA).state1");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, "offline state bytes");
+        await new SaveFlushService(_session).RunAsync(new FlushOptions(Offline: true),
+            cancellationToken: TestContext.Current.CancellationToken);
+        var state = Assert.Single(_session.Store.States.List());
+        Assert.True(state.NeedsUpload);
+        Assert.Empty(_session.Store.Outbox.Pending());
+        Assert.Equal(1, OutboxScreens.PendingCount(_session.Store));
+        var screen = Assert.IsType<ListScreen>(OutboxScreens.List(_session));
+        var row = Assert.Single(screen.Rows);
+        Assert.Equal("ActRaiser (USA)", row.Label);
+        Assert.Contains(state.Slot, row.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain(screen.Hints, hint => hint.Action == NavAction.Accept);
+
+        _session.Store.States.MarkUploaded(state.Path, 33, state.Path.Name, state.ContentHash!, DateTimeOffset.UtcNow);
+        Assert.Equal(0, OutboxScreens.PendingCount(_session.Store));
+        Assert.Empty(Assert.IsType<ListScreen>(OutboxScreens.List(_session)).Rows);
+    }
+
+    private static GamepadStatus NoGamepad =>
+        new(GamepadAvailability.NoDevice, null, null, "No controller is connected.");
+
+    private RelativePath AddNesSave(int id, string title, string contents)
+    {
+        var rom = RelativePath.Create($"roms/nes/{title}.nes");
+        var save = RelativePath.Create($"saves/nes/{title}.srm");
+        foreach (var (path, text) in new[] { (rom, "rom"), (save, contents) })
+        {
+            var full = _session.Install.Resolve(path);
+            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+            File.WriteAllText(full, text);
+        }
+
+        _session.Store.Files.Record(new LocalFile
+        {
+            Path = rom, Folder = "nes", RomId = id, FileName = rom.Name, SizeBytes = 3,
+        });
+        _session.Store.Metadata.Record(new GameMetadata
+        {
+            RomId = id, Folder = "nes", FsName = rom.Name, Name = title,
+        });
+        return save;
     }
 
     [Fact]

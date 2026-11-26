@@ -221,6 +221,17 @@ public sealed partial class RomMConnection
             cancellationToken,
             emptyBodyValue: true);
 
+    /// <summary>Confirms the exact bytes installed by a non-optimistic download.</summary>
+    public Task<RomMResponse<SaveRow>> AcknowledgeVerifiedSaveAsync(
+        int saveId,
+        string deviceId,
+        string contentHash,
+        CancellationToken cancellationToken = default) =>
+        PostAuthenticatedAsync<VerifiedAcknowledgeBody, SaveRow>(
+            string.Create(CultureInfo.InvariantCulture, $"api/saves/{saveId}/downloaded"),
+            new VerifiedAcknowledgeBody(deviceId, contentHash),
+            cancellationToken);
+
     /// <summary>Fetches one save row, which is how a 409 gets something to show the user.</summary>
     public Task<RomMResponse<IReadOnlyList<SaveRow>>> ListSavesAsync(
         int romId,
@@ -459,7 +470,7 @@ public sealed partial class RomMConnection
     {
         var detail = await ReadDetailAsync(response, cancellationToken).ConfigureAwait(false);
 
-        return response.StatusCode switch
+        var failure = response.StatusCode switch
         {
             HttpStatusCode.Unauthorized => RomMResponse.Failure<T>(
                 RomMResponseStatus.Unauthorized,
@@ -478,10 +489,15 @@ public sealed partial class RomMConnection
                 RomMResponseStatus.ServerError,
                 detail ?? $"The server answered {(int)response.StatusCode}."),
         };
+        return failure with { HttpStatus = response.StatusCode };
     }
 
     private sealed record AcknowledgeBody(
         [property: System.Text.Json.Serialization.JsonPropertyName("device_id")] string DeviceId);
+
+    private sealed record VerifiedAcknowledgeBody(
+        [property: System.Text.Json.Serialization.JsonPropertyName("device_id")] string DeviceId,
+        [property: System.Text.Json.Serialization.JsonPropertyName("content_hash")] string ContentHash);
 
     private sealed record CompleteBody(
         [property: System.Text.Json.Serialization.JsonPropertyName("operations_completed")] int OperationsCompleted,

@@ -70,7 +70,40 @@ public static class EmulationStationProcess
     public static TimeSpan DefaultPollInterval => TimeSpan.FromMilliseconds(100);
 
     /// <summary>Whether an EmulationStation belonging to this install is running.</summary>
-    public static EsRunningVerdict Check(RetroBatInstall install)
+    public static EsRunningVerdict Check(RetroBatInstall install) =>
+        CheckNamed(install, ProcessName, "EmulationStation");
+
+    /// <summary>Opens the process for this install so the session can await its exit.</summary>
+    public static Process? FindForInstall(RetroBatInstall install)
+    {
+        Process? match = null;
+        try
+        {
+            foreach (var process in Process.GetProcessesByName(ProcessName))
+            {
+                if (match is null && PathOf(process) is { } path && install.Contains(path))
+                {
+                    match = process;
+                }
+                else
+                {
+                    process.Dispose();
+                }
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Without an observable process, the caller keeps periodic liveness and receive.
+        }
+
+        return match;
+    }
+
+    internal static bool MayBeLaunchingLibretro(RetroBatInstall install) =>
+        CheckNamed(install, "emulatorLauncher", "EmulatorLauncher").IsRunning
+        || CheckNamed(install, "retroarch", "RetroArch").IsRunning;
+
+    private static EsRunningVerdict CheckNamed(RetroBatInstall install, string processName, string label)
     {
         ArgumentNullException.ThrowIfNull(install);
 
@@ -78,14 +111,14 @@ public static class EmulationStationProcess
 
         try
         {
-            candidates = Process.GetProcessesByName(ProcessName);
+            candidates = Process.GetProcessesByName(processName);
         }
         catch (InvalidOperationException)
         {
             // The process list itself was unavailable. Nothing was ruled out.
             return EsRunningVerdict.Running(
                 "the running processes could not be listed, so it is not safe to say "
-                    + "EmulationStation is closed");
+                    + $"{label} is closed");
         }
 
         var unreadable = 0;
@@ -102,7 +135,7 @@ public static class EmulationStationProcess
 
                     case { } path when install.Contains(path):
                         return EsRunningVerdict.Running(
-                            $"EmulationStation is running from this install (process {process.Id}).");
+                            $"{label} is running from this install (process {process.Id}).");
                 }
             }
         }
@@ -117,7 +150,7 @@ public static class EmulationStationProcess
         return unreadable == 0
             ? EsRunningVerdict.NotRunning
             : EsRunningVerdict.Running(
-                $"{unreadable} EmulationStation process is running and its location could not be "
+                $"{unreadable} {label} process is running and its location could not be "
                     + "read, so it may be this install's.");
     }
 

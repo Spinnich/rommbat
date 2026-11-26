@@ -64,6 +64,7 @@ public sealed record RemovalApplied(
     public bool Ok => Refusal is null
         && (Hooks?.Failed ?? 0) == 0
         && (Menu?.Failed ?? 0) == 0
+        && Content?.Refusal is null
         && (Content?.Evicted?.Problems.Count ?? 0) == 0
         && (Content?.Gamelists?.Folders.All(folder => folder.Problem is null) ?? true)
         && (Problems ?? []).Count == 0
@@ -140,7 +141,7 @@ public sealed class RemovalService
             content = eviction.PreviewRemoval(roms, sets, includeStale: true);
             unvouchable = eviction.Unvouchable(
                 roms,
-                content.Plan.Selected.Where(candidate => candidate.File.Stale).Select(candidate => candidate.File.Folder).OfType<string>());
+                content.Plan.Selected.Select(candidate => candidate.File.Folder).OfType<string>());
         }
         else
         {
@@ -226,6 +227,12 @@ public sealed class RemovalService
                     + "a system's gamelist.xml from the copy it loaded, which could put removed entries back.");
         }
 
+        using var library = TreeLock.TryAcquireLibrary(_session.Install);
+        if (library is null)
+        {
+            return new RemovalApplied(TreeLock.LibraryBusy);
+        }
+
         using var held = TreeLock.TryAcquire(_session.Install);
 
         if (held is null)
@@ -252,7 +259,7 @@ public sealed class RemovalService
         if (fresh.Content is { } plan)
         {
             content = await new EvictionService(_session)
-                .ApplyAsync(plan, cancellationToken)
+                .ApplyUnderLibraryLeaseAsync(plan, cancellationToken)
                 .ConfigureAwait(false);
         }
 

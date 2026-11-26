@@ -1,3 +1,5 @@
+using System.Net;
+
 namespace RomM.Client;
 
 /// <summary>How an authenticated call ended.</summary>
@@ -53,6 +55,12 @@ public enum RomMResponseStatus
 public sealed record RomMResponse<T>(RomMResponseStatus Status, T? Value, string? Message)
 {
     public bool IsSuccess => Status == RomMResponseStatus.Ok;
+
+    public HttpStatusCode? HttpStatus { get; init; }
+
+    public bool IsTransientFailure => HttpStatus is HttpStatusCode.TooManyRequests
+        or HttpStatusCode.InternalServerError or HttpStatusCode.BadGateway
+        or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout;
 
     /// <summary>True when the stored token is expired or revoked and re-pairing is the answer.</summary>
     public bool NeedsRepairing => Status == RomMResponseStatus.Unauthorized;

@@ -1,4 +1,5 @@
 using RomMBat.Agent.Tests.Support;
+using RomMBat.Agent.Commands;
 using RomMBat.Core.Content;
 using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
@@ -68,6 +69,37 @@ public sealed class EvictCommandTests
         }
 
         Assert.True(File.Exists(Partial(tree, DeadRomTransfer)), "the sweep ran without the lock");
+    }
+
+    [Fact]
+    public async Task Busy_library_returns_refused_and_leaves_the_partial()
+    {
+        using var tree = TempRetroBatTree.Create();
+        WritePartial(tree, DeadRomTransfer, "pending");
+        using var lease = File.Open(Path.Combine(tree.AppDirectory, "library.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+
+        var run = await AgentRunner.RunAsync(tree, "evict", "--apply");
+
+        Assert.Equal(ExitCode.Refused, run.ExitCode);
+        Assert.Contains("changing the library", run.Error, StringComparison.Ordinal);
+        Assert.True(File.Exists(Partial(tree, DeadRomTransfer)));
+    }
+
+    [Theory]
+    [InlineData("bios", "--apply")]
+    [InlineData("gamelist", "--no-reload")]
+    [InlineData("sets", "remove", "existing")]
+    public async Task Other_library_mutations_refuse_while_the_library_is_busy(params string[] arguments)
+    {
+        using var tree = TempRetroBatTree.Create();
+        tree.Install().EnsureAppDirectories();
+        using var lease = TreeLock.TryAcquireLibrary(tree.Install());
+        Assert.NotNull(lease);
+
+        var run = await AgentRunner.RunAsync(tree, arguments);
+
+        Assert.Equal(ExitCode.Refused, run.ExitCode);
+        Assert.Contains("changing the library", run.Error, StringComparison.Ordinal);
     }
 
     private static string Partial(TempRetroBatTree tree, string name) =>

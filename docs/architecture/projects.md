@@ -56,9 +56,9 @@ the one with all the interesting invariants.
 
 ## `src/RomMBat.Agent`
 
-Console executable, published as `rommbat-agent.exe`. Short-lived: one pass, then exit.
-There is no daemon, because a portable install cannot register a service or a scheduled
-task.
+Console executable, published as `rommbat-agent.exe`. Most commands run one pass and
+exit. The worker started by EmulationStation lives for the session. A portable
+install registers no service or scheduled task.
 
 | Subcommand   | Network       | Notes                                                                                                      |
 | ------------ | ------------- | ---------------------------------------------------------------------------------------------------------- |
@@ -95,22 +95,62 @@ one by hand.
 
 **The `start` and `quit` hooks invoke a pass, as do `sync` and a person typing `flush`**, so an
 install nobody opens a terminal on still drains its journal. Spawning the agent costs the launch
-contention, not latency: ES spawns hooks fire-and-forget and starts emulatorlauncher without waiting, and the
-75.9 MB agent reaches `Main` in 34 ms, against 49 ms for a whole invocation of the trimmed,
-ReadyToRun hook (RB-195, RB-197).
-Which hooks may spawn it is the hook's to decide; see [`src/RomMBat.Hook`](#srcrommbathook).
+contention, not latency: the journal hooks are asynchronous (RB-195, RB-197).
 
 `background quit` waits for the ES process to exit before applying queued configuration, and
 gives up rather than hanging. Measured: ES is gone 48 to 68 ms after the quit hook stamps
 itself, and 10 ms after the pass starts looking on a real session. If it never exits, the
-configuration stays queued and the flush runs anyway, because the flush touches no file ES owns.
+configuration stays queued and the final flush runs anyway, because it touches no file ES owns.
+The detached quit pass waits up to 30 seconds for another flush to release the tree lock.
 
-`background start` flushes and nothing else. Config is impossible there for a measured reason:
+`background start` scans supported local saves and recovers pending sends. In the same
+session it calls the library sync service with this install's enabled sets. The library
+lease is separate from the save lease. Startup fetches missing supported games, selected
+media and firmware. Multi-file and multi-disc games verify all components off-menu
+before publication. Startup reports existing ROM or BIOS replacements as deferred.
+Review existing files before explicit sync with the emulator closed. After library
+changes, ES gets one menu reload request and one retry after three seconds if absent.
+Fresh loose-disc groups and multi-file packages publish by directory rename from `partial/`.
+A manifest reconciles renames interrupted before indexing. Startup rechecks existing discs.
+Groups deferred for repair or rejected by either disk limit reserve no space for startup.
+
+A committed `game-end` causes an upload pass. Pending sends get up to four retries after
+2, 5, 10 and 30 seconds. Thereafter an outage uses a 15-second heartbeat for pending
+work. Spool events also wake the worker for game-end intent recorded by another flush.
+That intent survives restarts, with 15-second retries for locks, active games, or temporary HTTP errors.
+
+### Synchronous prelaunch save preparation
+
+The regular `zz-rommbat-hook.exe` still writes one `game-start` record. On the measured
+Windows ES build, RomMBat installs `game-start/rommbat-prelaunch-wait.exe` before the next
+launch. ES waits for it before invoking the unchanged system command.
+The gate is enabled for the tested RetroBat 8.3.1.1-stable-win64 executable
+(ES file version 42.2026.1017.0811, SHA-256
+`0366AA3A20B15745F35109A6C68D5FF281E099DEA5CC304F28C3758B071E4F2A`).
+Installation and ES startup verify the hash. The prelaunch process checks the
+cached proof against the Windows file identity and write time. Replacing the
+executable invalidates the proof.
+[EmulationStation's Windows scripting source](https://github.com/RetroBat-Official/emulationstation/blob/45f37fd74819ee07118ca2e7680a907b25733ac5/es-core/src/Scripting.cpp#L119-L136).
+
+The hook waits for `rommbat-agent.exe prepare-launch --rom <absolute ROM path>`.
+The agent has four seconds overall and up to 1.25 seconds for the save lease. The hook
+terminates a child still running at five seconds and waits for it to stop. A failed check
+leaves the local save available. See `logs/background.log` for the outcome and duration
+and `logs/prelaunch.log` for the outer timeout. The prelaunch process signals this install
+before waiting for the save lock, so startup can yield regardless of journal hook order.
+
+Prelaunch lists saves for the selected managed ROM only, with a quick local check for
+unmanaged ROMs. Automatic prelaunch writes cover plain NES Libretro SRAM. For other
+managed systems, prelaunch can report whether remote slots changed and leaves their
+normal sync path in place. The safe restore keeps changed local files, conflicts and
+known deletions, and rechecks the emulator and file before commit. The measured gate
+replaces the 30-second idle receiver for the NES SRAM scope only. Unverified installs
+or a missing wait hook keep the existing 30-second receiver. Verified idle sessions
+wait on file notifications and ES exit. A changed ES executable or hook restores fallback.
+
+Config is impossible during the session for a measured reason:
 ES's launch write to `es_settings.cfg` lands 1.6 to 4.9 s **before** the `start` hook fires, so
 `start` is inside the discard window rather than outside it.
-
-The pass writes what it did to `emulators/rommbat/logs/background.log`. It runs with no window,
-so nothing it prints reaches a person otherwise.
 
 Concurrent invocations are safe: the flush takes a lock file in the tree and a second
 process exits rather than queueing. The lock is mandatory, not defensive, because concurrent
@@ -145,18 +185,15 @@ installed, so a reference would put the store and the API client into each of th
 and Core's reader on one definition. It is trimmed, single-file and ReadyToRun, for start time
 on a USB stick; the measurements are in the `.csproj` too.
 
-It opens no socket, touches no database and takes no lock. One file per event is what makes
+The journal hook opens no socket, touches no database and takes no lock. One file per event makes
 that safe: three `game-end` hooks have been caught in flight at once (RB-347), and none of them
 shares anything with another.
 
-`game-start` and `game-end` run inside the game launch path. They spawn nothing, must not open a
-socket and must not wait on a lock. ES spawns them **fire-and-forget**, so they do not
-delay the launch (30 ms from hook to launcher, against an 8 s hook, RB-346), but they **do run
-concurrently**, with each other and across events.
+The ordinary `game-start` and `game-end` journal hooks run asynchronously and can overlap
+(RB-346, RB-347). The same packaged executable also serves the separate verified
+[prelaunch hook](#synchronous-prelaunch-save-preparation) under its `-wait.exe` name.
 
-CLAUDE.md rule 4 forbids a hook touching the network because hooks run in the
-game-launch path, and only `game-start` and `game-end` do. `start` fires when EmulationStation
-starts and `quit` when it exits, so for each of those two the hook spawns
+For `start` and `quit`, the journal hook spawns
 `emulators/rommbat/rommbat-agent.exe background <event>` detached, with `UseShellExecute=false`
 and `CreateNoWindow=true`, and does not wait. The set lives on `SpoolRecord.BackgroundEvents`,
 which the hook compiles rather than references, so the hook and the agent cannot disagree about

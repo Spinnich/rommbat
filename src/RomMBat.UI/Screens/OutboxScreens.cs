@@ -1,3 +1,4 @@
+using RomMBat.Core.Paths;
 using System.Globalization;
 using RomMBat.Core;
 using RomMBat.Core.Metadata;
@@ -28,12 +29,15 @@ namespace RomMBat.UI.Screens;
 /// </remarks>
 public static class OutboxScreens
 {
-    /// <summary>The refused entries, then the unsent ones as a single row.</summary>
+    internal static int PendingCount(LocalStore store) =>
+        store.Outbox.PendingCount() + store.Saves.PendingUploads().Count + store.States.PendingUploads().Count;
+
+    /// <summary>Queued outbox entries and unsent saves found on disk.</summary>
     public static IScreen List(InstallSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
 
-        List<Func<IScreen>> destinations = [];
+        List<Func<IScreen>?> destinations = [];
 
         // Kept so each question draws over this list.
         ListScreen? screen = null;
@@ -46,8 +50,11 @@ public static class OutboxScreens
             var failed = outbox.Failed();
             var pending = outbox.PendingCount();
 
-            var titles = session.Store.Metadata.ForRoms(
-                failed.Where(entry => entry.RomId is not null).Select(entry => (int)entry.RomId!.Value));
+            var saves = session.Store.Saves.PendingUploads();
+            var states = session.Store.States.PendingUploads();
+            var ids = failed.Select(entry => entry.RomId)
+                .Concat(saves.Select(save => save.RomId)).Concat(states.Select(state => state.RomId));
+            var titles = session.Store.Metadata.ForRoms(ids.OfType<long>().Select(id => (int)id));
 
             foreach (var entry in failed)
             {
@@ -74,16 +81,37 @@ public static class OutboxScreens
                 destinations.Add(() => DropPending(session, screen));
             }
 
+            foreach (var save in saves)
+            {
+                AddFile(save.RomId!.Value, save.RomPath, SaveSlotLabel.Describe(save.Slot),
+                    $"Waiting to upload · {save.Slot}");
+            }
+
+            foreach (var state in states)
+            {
+                AddFile(state.RomId!.Value, state.RomPath, "Save state",
+                    $"Waiting to upload · {state.Slot}");
+            }
+
+            void AddFile(long romId, RelativePath? romPath, string summary, string detail)
+            {
+                var title = titles.TryGetValue((int)romId, out var game) ? game.Name
+                    : romPath is { } path ? Path.GetFileNameWithoutExtension(path.Name) : $"Game {romId}";
+                rows.Add(new ListRow(title, summary, detail));
+                destinations.Add(null);
+            }
+
             return rows;
         }
 
         screen = new ListScreen(
             "Waiting to upload",
             Rows,
-            index => ScreenCommand.Push(destinations[index]()),
+            index => destinations[index] is { } open ? ScreenCommand.Push(open()) : ScreenCommand.Stay,
             acceptLabel: "Drop",
             backLabel: "Back")
         {
+            OfferAcceptWhen = () => screen is { Cursor: >= 0 } && destinations[screen.Cursor] is not null,
             EmptyMessage = "Nothing is waiting. A save, save state or play session made without the "
                 + "server waits here until it is sent.",
             Note = () => session.Store.Outbox.FailedCount() == 0
@@ -141,7 +169,7 @@ public static class OutboxScreens
     /// </remarks>
     private static ConfirmScreen DropPending(InstallSession session, IScreen? underneath) =>
         Confirm(
-            "Drop everything not sent yet?",
+            "Drop all pending outbox entries?",
             "Unsent entries dropped",
             new ListRow(
                 "Not sent yet",

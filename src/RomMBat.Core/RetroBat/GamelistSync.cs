@@ -37,6 +37,8 @@ public sealed record GamelistSyncOutcome
     /// <summary>What happened when EmulationStation was asked to re-read.</summary>
     public EsCallResult Reload { get; init; } = EsCallResult.NotRunning;
 
+    public bool ReloadRequested { get; init; }
+
     /// <summary>Folders past the navigability threshold, with their entry counts.</summary>
     public IReadOnlyList<string> Warnings { get; init; } = [];
 
@@ -159,10 +161,17 @@ public sealed class GamelistSync
     /// Null skips the reload entirely, which is what a dry run wants. Otherwise the reload is
     /// best-effort: ES is usually not running and that is not a failure.
     /// </param>
-    public async Task<GamelistSyncOutcome> ApplyAsync(
+    public Task<GamelistSyncOutcome> ApplyAsync(
         IEnumerable<string>? folders = null,
         EmulationStationClient? emulationStation = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ApplyCoreAsync(folders, emulationStation, unpublished: null, cancellationToken);
+
+    internal async Task<GamelistSyncOutcome> ApplyCoreAsync(
+        IEnumerable<string>? folders,
+        EmulationStationClient? emulationStation,
+        IReadOnlySet<int>? unpublished,
+        CancellationToken cancellationToken)
     {
         var targets = (folders ?? FoldersWithRoms())
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -177,7 +186,7 @@ public sealed class GamelistSync
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var result = Write(folder);
+            var result = Write(folder, unpublished);
             results.Add(result);
 
             if (threshold > 0 && result.Entries > threshold)
@@ -194,12 +203,16 @@ public sealed class GamelistSync
 
         // Only when something changed. Asking ES to rescan when nothing moved costs it a
         // second of work at 100,000 entries and achieves nothing.
-        if (emulationStation is not null && results.Any(folder => folder.Wrote))
+        var reloadRequested = emulationStation is not null && results.Any(folder => folder.Wrote);
+        if (reloadRequested)
         {
-            reload = await emulationStation.ReloadGamesAsync(cancellationToken).ConfigureAwait(false);
+            reload = await emulationStation!.ReloadGamesAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        return new GamelistSyncOutcome { Folders = results, Reload = reload, Warnings = warnings };
+        return new GamelistSyncOutcome
+        {
+            Folders = results, Reload = reload, ReloadRequested = reloadRequested, Warnings = warnings,
+        };
     }
 
     /// <summary>Every folder holding at least one ROM RomMBat knows about.</summary>
@@ -212,7 +225,9 @@ public sealed class GamelistSync
             .Order(StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>Merges one folder's gamelist and writes it when the bytes would differ.</summary>
-    public GamelistFolderResult Write(string folder)
+    public GamelistFolderResult Write(string folder) => Write(folder, unpublished: null);
+
+    private GamelistFolderResult Write(string folder, IReadOnlySet<int>? unpublished)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(folder);
 
@@ -242,6 +257,12 @@ public sealed class GamelistSync
 
         foreach (var file in present)
         {
+            if (unpublished?.Contains(file.RomId!.Value) == true)
+            {
+                // Preserve any pre-existing entry and avoid publishing from an older inventory.
+                continue;
+            }
+
             var entryPath = EntryPathFor(file, folder);
             var existed = document.Contains(entryPath);
             var game = metadata.GetValueOrDefault(file.RomId!.Value);
@@ -308,12 +329,16 @@ public sealed class GamelistSync
             // like the folder. Trying both removes whichever this game was listed as.
             var playlist = owned.GamelistPath + "/" + MultiFileLayout.PlaylistNameFor(owned.FsName);
 
-            if (here.Contains(owned.GamelistPath) || here.Contains(playlist))
+            if (!here.Contains(owned.GamelistPath) && !here.Contains(playlist)
+                && (document.Remove(owned.GamelistPath) || document.Remove(playlist)))
             {
-                continue;
+                removed++;
             }
 
-            if (document.Remove(owned.GamelistPath) || document.Remove(playlist))
+            if (FlatDiscLayout.FolderFor(folder, owned.FsName) is { } group
+                && !here.Contains($"./{group.Name}/{owned.FsName}")
+                && !File.Exists(_install.Resolve(group.Combine(owned.FsName)))
+                && document.Remove($"./{group.Name}/{owned.FsName}"))
             {
                 removed++;
             }

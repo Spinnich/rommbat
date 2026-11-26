@@ -109,9 +109,15 @@ public sealed class ContentDownloadStore
     }
 
     /// <summary>Everything in flight, oldest first.</summary>
-    public IReadOnlyList<ContentDownload> List()
+    public IReadOnlyList<ContentDownload> List() => List(romId: null);
+
+    internal IReadOnlyList<ContentDownload> ForRom(int romId) => List(romId);
+
+    private List<ContentDownload> List(int? romId)
     {
-        using var command = _connection.Command($"{SelectColumns} ORDER BY started_at;");
+        using var command = romId is { } id
+            ? _connection.Command($"{SelectColumns} WHERE rom_id = $romId ORDER BY started_at;").With("$romId", id)
+            : _connection.Command($"{SelectColumns} ORDER BY started_at;");
         using var reader = command.ExecuteReader();
 
         var downloads = new List<ContentDownload>();

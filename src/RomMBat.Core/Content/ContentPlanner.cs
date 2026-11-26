@@ -34,6 +34,14 @@ public sealed record ContentStep
     /// <summary>Where the file belongs, relative to the RetroBat root.</summary>
     public required RelativePath TargetPath { get; init; }
 
+    internal bool PublishAsDiscGroup { get; init; }
+
+    internal long ResumableMemberBytes { get; init; }
+
+    internal long? ExistingSize { get; init; }
+
+    internal DateTime? ExistingModifiedUtc { get; init; }
+
     /// <summary>How many bytes would cross the network. Zero for anything already here.</summary>
     public long BytesToTransfer { get; init; }
 
@@ -205,7 +213,11 @@ public sealed class ContentPlanner
                 $"{romId.ToString(CultureInfo.InvariantCulture)}-{fileId.ToString(CultureInfo.InvariantCulture)}.part");
 
     /// <summary>Works out what syncing this set would do.</summary>
-    public ContentPlan Plan(SyncSetDefinition set, IReadOnlyList<SyncSetMember> members)
+    public ContentPlan Plan(SyncSetDefinition set, IReadOnlyList<SyncSetMember> members) =>
+        PlanCore(set, members, preserveExisting: false);
+
+    internal ContentPlan PlanCore(
+        SyncSetDefinition set, IReadOnlyList<SyncSetMember> members, bool preserveExisting)
     {
         ArgumentNullException.ThrowIfNull(set);
         ArgumentNullException.ThrowIfNull(members);
@@ -216,50 +228,79 @@ public sealed class ContentPlanner
 
         var managed = ManagedBytes();
         var free = _limits.AvailableFreeBytes;
-        var steps = new List<ContentStep>(members.Count);
-
-        // Tracked across the loop so each candidate is judged against what the ones before it
-        // would already have taken.
+        var freshDiscFolders = preserveExisting ? FreshDiscFolders(members) : [];
+        var steps = members.Where(member => !string.IsNullOrWhiteSpace(member.Folder))
+            .Select(member => InspectCandidate(member, preserveExisting, freshDiscFolders))
+            .ToArray();
         var projectedManaged = managed;
         var projectedFree = free;
 
-        foreach (var member in members.Where(member => !string.IsNullOrWhiteSpace(member.Folder)))
+        if (preserveExisting)
         {
-            var step = Inspect(member);
-
-            if (step.Action is ContentAction.Download or ContentAction.Resume)
+            // Startup acts on whole games, including discs that are not adjacent in the set.
+            // Charge both budgets only after the group is known to be eligible.
+            foreach (var game in Enumerable.Range(0, steps.Length).GroupBy(index =>
+                DiscSet.GameKey(steps[index].Member.Folder, steps[index].Member.FsName), StringComparer.OrdinalIgnoreCase))
             {
-                var wouldAdd = member.SizeBytes;
-
-                if (budget is { } cap && projectedManaged + wouldAdd > cap)
+                var group = game.Select(index => steps[index]).ToArray();
+                var transfers = game.Where(index => DownloadsContent(steps[index])).ToArray();
+                if (transfers.Length == 0)
                 {
-                    steps.Add(step with
-                    {
-                        Action = ContentAction.Blocked,
-                        BytesToTransfer = 0,
-                        Reason = $"the {ByteSize.Format(cap)} budget is full. "
-                            + "Raise it, or evict something to make room.",
-                    });
                     continue;
                 }
 
-                if (projectedFree - step.BytesToTransfer < floor)
+                var growth = transfers.Sum(index => ManagedBytesToAdd(steps[index], preserveExisting));
+                var transferBytes = transfers.Sum(index => steps[index].BytesToTransfer);
+                var refusal = group.Any(step => step.Action == ContentAction.Blocked)
+                    ? "another file in this game group could not be synced"
+                    : StartupGroupRefusal(group) ?? BudgetRefusal(growth, transferBytes);
+
+                if (refusal is null)
                 {
-                    steps.Add(step with
-                    {
-                        Action = ContentAction.Blocked,
-                        BytesToTransfer = 0,
-                        Reason = $"this drive would drop below the {ByteSize.Format(floor)} "
-                            + "of free space RomMBat is told to leave.",
-                    });
+                    projectedManaged += growth;
+                    projectedFree -= transferBytes;
                     continue;
                 }
 
-                projectedManaged += wouldAdd;
+                foreach (var index in transfers)
+                {
+                    steps[index] = Block(steps[index], refusal);
+                }
+            }
+        }
+        else
+        {
+            // Explicit sync can repair individual files in an existing group.
+            for (var index = 0; index < steps.Length; index++)
+            {
+                var step = steps[index];
+                if (!DownloadsContent(step))
+                {
+                    continue;
+                }
+
+                var growth = ManagedBytesToAdd(step, preserveExisting);
+                if (BudgetRefusal(growth, step.BytesToTransfer) is { } refusal)
+                {
+                    steps[index] = Block(step, refusal);
+                    continue;
+                }
+
+                projectedManaged += growth;
                 projectedFree -= step.BytesToTransfer;
             }
+        }
 
-            steps.Add(step);
+        string? BudgetRefusal(long growth, long transfer)
+        {
+            if (budget is { } cap && projectedManaged + growth > cap)
+            {
+                return $"the {ByteSize.Format(cap)} budget is full. Raise it, or evict something to make room.";
+            }
+
+            return projectedFree - transfer < floor
+                ? $"this drive would drop below the {ByteSize.Format(floor)} of free space RomMBat is told to leave."
+                : null;
         }
 
         return new ContentPlan
@@ -270,6 +311,51 @@ public sealed class ContentPlanner
             BudgetBytes = budget,
             FreeBytes = free,
         };
+    }
+
+    private ContentStep InspectCandidate(SyncSetMember member, bool preserveExisting, HashSet<RelativePath> freshDiscFolders)
+    {
+        try
+        {
+            var step = Inspect(member, preserveExisting, freshDiscFolders);
+            if (preserveExisting && !member.IsMultiFile && DownloadsContent(step) && Path.Exists(_install.Resolve(step.TargetPath)))
+            {
+                return Block(step, "existing ROM left in place; review it before running sync with the emulator closed");
+            }
+
+            return step;
+        }
+        catch (Exception ex) when (preserveExisting && ex is IOException or UnauthorizedAccessException)
+        {
+            return new ContentStep
+            {
+                Member = member,
+                Action = ContentAction.Blocked,
+                TargetPath = TargetFor(member),
+                Reason = $"could not inspect the existing ROM; review it with the emulator closed ({ex.Message})",
+            };
+        }
+    }
+
+    internal static string? StartupGroupRefusal(IReadOnlyList<ContentStep> steps) =>
+        steps.Any(step => !step.PublishAsDiscGroup) && steps.Count(DownloadsContent) > 1
+            ? "multiple discs are missing from an existing group. Review the files and run an explicit sync with the emulator closed."
+            : null;
+
+    private static bool DownloadsContent(ContentStep step) => step.Action is ContentAction.Download or ContentAction.Resume;
+
+    private static ContentStep Block(ContentStep step, string reason) =>
+        step with { Action = ContentAction.Blocked, BytesToTransfer = 0, Reason = reason };
+
+    internal static long ManagedBytesToAdd(ContentStep step, bool preserveExisting) =>
+        preserveExisting && step.Member.IsMultiFile
+            ? step.BytesToTransfer + step.ResumableMemberBytes : step.Member.SizeBytes;
+
+    internal static string? PublicationBudgetProblem(LocalStore store, long growth)
+    {
+        var budget = store.Settings.GetInt64(SettingStore.ContentMaxBytes);
+        return growth > 0 && budget is { } cap && growth > cap - store.Files.SyncedBytes()
+            ? $"the {ByteSize.Format(cap)} managed content budget would be exceeded." : null;
     }
 
     /// <summary>How many bytes RomMBat's own downloads occupy.</summary>
@@ -300,7 +386,7 @@ public sealed class ContentPlanner
     /// asks, so anything short of that is a download and the transfer skips the members already
     /// there. The bytes counted are what is still missing, so the budget is not charged twice.
     /// </remarks>
-    private ContentStep InspectSet(SyncSetMember member)
+    private ContentStep InspectSet(SyncSetMember member, bool preserveExisting)
     {
         var target = TargetFor(member);
         var step = new ContentStep
@@ -319,23 +405,41 @@ public sealed class ContentPlanner
             .Where(file =>
             {
                 var info = new FileInfo(_install.Resolve(file.Path));
-                return info.Exists && info.Length == file.SizeBytes;
+                return info.Exists && info.Length == file.SizeBytes
+                    && (!preserveExisting || (!file.Stale && info.LastWriteTimeUtc == file.ModifiedUtc));
             })
             .ToList();
 
         var playlist = onDisk.Any(file => file.Kind == LocalFileKind.Rom && file.Path.Equals(target));
 
-        if (playlist && onDisk.Count == rows.Count && EveryDiscNamedIsHere(target, onDisk))
+        var current = !preserveExisting || member.RomUpdatedAt is not { } updated
+            || onDisk.All(file => file.VerifiedAt >= updated);
+        if (playlist && current && onDisk.Count == rows.Count && EveryDiscNamedIsHere(target, onDisk))
         {
             return step with { Action = ContentAction.AlreadyPresent, BytesToTransfer = 0 };
         }
 
+        if (Path.Exists(_install.Resolve(PackedRomStage.For(member.RomId))))
+        {
+            return step with
+            {
+                Action = ContentAction.Blocked,
+                BytesToTransfer = 0,
+                Reason = "a previous package staging directory could not be recovered; review it before retrying",
+            };
+        }
+
         var held = onDisk.Where(file => file.Kind == LocalFileKind.RomPart).Sum(file => file.SizeBytes);
+
+        var missing = Math.Max(0, member.SizeBytes - held);
+        var resumable = Math.Min(missing, PackedRomStage.ResumableBytes(
+            _install, _store, member.RomId, FolderFor(member), onDisk));
 
         return step with
         {
-            BytesToTransfer = Math.Max(0, member.SizeBytes - held),
-            Reason = held > 0 ? $"{ByteSize.Format(held)} of its files already here" : null,
+            BytesToTransfer = missing - resumable,
+            ResumableMemberBytes = resumable,
+            Reason = held + resumable > 0 ? $"{ByteSize.Format(held + resumable)} of its files already here" : null,
         };
     }
 
@@ -368,20 +472,63 @@ public sealed class ContentPlanner
     }
 
     /// <summary>Decides what one member needs, doing the least I/O that can answer.</summary>
-    private ContentStep Inspect(SyncSetMember member)
+    private HashSet<RelativePath> FreshDiscFolders(IReadOnlyList<SyncSetMember> members)
+    {
+        var candidates = members.Where(member => !member.IsMultiFile)
+            .Select(member => (member.Folder, Group: FlatDiscLayout.FolderFor(member.Folder, member.FsName)))
+            .Where(item => item.Group is not null)
+            .GroupBy(item => item.Folder!, StringComparer.OrdinalIgnoreCase);
+        var fresh = new HashSet<RelativePath>();
+        foreach (var system in candidates)
+        {
+            var groups = system.GroupBy(item => item.Group!.Value).Where(group => group.Count() > 1).ToArray();
+            if (groups.Length == 0)
+            {
+                continue;
+            }
+
+            try
+            {
+                var existing = FlatDiscLayout.ExistingLooseFolders(_install, system.Key).ToHashSet();
+                fresh.UnionWith(groups.Select(group => group.Key)
+                    .Where(group => !existing.Contains(group) && !Path.Exists(_install.Resolve(group))));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Without a readable system folder, multiple missing discs are deferred.
+            }
+        }
+
+        return fresh;
+    }
+
+    private ContentStep Inspect(SyncSetMember member, bool preserveExisting, HashSet<RelativePath> freshDiscFolders)
     {
         if (member.IsMultiFile)
         {
-            return InspectSet(member);
+            return InspectSet(member, preserveExisting);
         }
 
         var target = TargetFor(member);
+        var publishAsGroup = false;
+        if (FlatDiscLayout.FolderFor(member.Folder, member.FsName) is { } group)
+        {
+            var nested = group.Combine(target.Name);
+            publishAsGroup = freshDiscFolders.Contains(group);
+            if (publishAsGroup
+                || !Path.Exists(_install.Resolve(target)) && Directory.Exists(_install.Resolve(group)))
+            {
+                target = nested;
+            }
+        }
+
         var absolute = _install.Resolve(target);
         var step = new ContentStep
         {
             Member = member,
             Action = ContentAction.Download,
             TargetPath = target,
+            PublishAsDiscGroup = publishAsGroup,
             BytesToTransfer = member.SizeBytes,
         };
 
@@ -417,10 +564,17 @@ public sealed class ContentPlanner
             && !known.Stale
             && known.SizeBytes == info.Length
             && known.VerifiedBy != VerifiedBy.None
+            && (!preserveExisting || (known.SizeBytes == member.SizeBytes
+                && (string.IsNullOrWhiteSpace(member.Md5Hash) || known.VerifiedBy == VerifiedBy.Size
+                    || ContentHasher.Matches(known.Md5Hash, member.Md5Hash))))
             && (known.ModifiedUtc is not { } recordedTime
                 || _limits.AreTimestampsEquivalent(recordedTime, info.LastWriteTimeUtc)))
         {
-            return step with { Action = ContentAction.AlreadyPresent, BytesToTransfer = 0 };
+            return step with
+            {
+                Action = ContentAction.AlreadyPresent, BytesToTransfer = 0,
+                ExistingSize = info.Length, ExistingModifiedUtc = info.LastWriteTimeUtc,
+            };
         }
 
         // Something is there and nothing vouches for it. Hashing is the only honest answer, and

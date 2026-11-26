@@ -31,8 +31,9 @@ From then on you open RomMBat from EmulationStation, with the controller.
 ## Update
 
 Quit EmulationStation and RomMBat, then extract the new zip over the old one, the same way.
-Your pairing, sync sets, and record of what is on this device are kept: they live beside the
-program in `emulators\rommbat\`, and the zip does not contain them.
+Your pairing, sync sets, and record of what is on this device stay in `emulators\rommbat\`.
+Open RetroBat again to start a new EmulationStation session. Its startup checks whether the
+installed EmulationStation supports the [save check before launch](../saves/index.md#when-it-happens).
 
 ## Remove RomMBat
 

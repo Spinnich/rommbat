@@ -1,5 +1,6 @@
 using RomMBat.Core.Content;
 using RomMBat.Core.RetroBat;
+using RomMBat.Core.Sync;
 
 namespace RomMBat.Agent.Commands;
 
@@ -23,6 +24,13 @@ internal static class GamelistCommand
         if (context is null)
         {
             return exitCode;
+        }
+
+        using var library = TreeLock.TryAcquireLibrary(context.Install);
+        if (library is null)
+        {
+            Console.Error.WriteLine(TreeLock.LibraryBusy);
+            return ExitCode.Refused;
         }
 
         if (command.Value("media") is { } media)

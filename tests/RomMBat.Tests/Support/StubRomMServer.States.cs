@@ -30,6 +30,8 @@ internal sealed partial class StubRomMServer
     /// <summary>Fails the next state upload with this status, once.</summary>
     public HttpStatusCode? FailNextStateUpload { get; set; }
 
+    public HttpStatusCode? StateUploadRefusal { get; set; }
+
     /// <summary>Fails every <c>GET /api/states</c> with this status.</summary>
     /// <remarks>
     /// A token whose scopes do not cover the route answers 403 and a broken instance answers 500,
@@ -130,7 +132,7 @@ internal sealed partial class StubRomMServer
             return Json(HttpStatusCode.OK, rows.Select(Describe).ToArray());
         }
 
-        if (FailNextStateUpload is { } status)
+        if ((FailNextStateUpload ?? StateUploadRefusal) is { } status)
         {
             FailNextStateUpload = null;
             return Detail(status, "the state upload failed");

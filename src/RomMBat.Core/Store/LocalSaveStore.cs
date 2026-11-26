@@ -169,6 +169,40 @@ public sealed class LocalSaveStore
         """,
         command => command.With("$romId", SqliteValues.OrNull(romId)));
 
+    /// <summary>The latest scanned save for each uploadable slot that has unsent bytes.</summary>
+    /// <remarks>Match SaveSync's newest file per ROM and slot before checking for unsent bytes.</remarks>
+    public IReadOnlyList<LocalSave> PendingUploads() => Query(
+        """
+        WITH candidates AS (
+            SELECT s.*,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY rom_id, slot ORDER BY file_mtime_utc DESC, relative_path, unit_key
+                   ) AS priority
+            FROM local_save AS s
+            WHERE rom_id IS NOT NULL AND content_hash IS NOT NULL
+        )
+        SELECT relative_path, system, emulator, shape_class, rom_id, rom_relative_path, slot,
+               content_hash, size_bytes, file_mtime_utc, uploaded_content_hash, uploaded_at_utc,
+               unit_key, scanned_at_utc
+        FROM candidates AS s
+        WHERE priority = 1
+          AND (uploaded_content_hash IS NULL OR uploaded_content_hash <> content_hash COLLATE NOCASE)
+          AND NOT EXISTS (
+              SELECT 1 FROM save_conflict AS c
+              WHERE c.rom_id = s.rom_id AND c.slot = s.slot AND c.resolved_at_utc IS NULL
+          )
+        ORDER BY relative_path, unit_key;
+        """,
+        command => command);
+
+    internal bool WasNesSaveRemoved(int romId)
+    {
+        using var command = _connection
+            .Command("SELECT EXISTS (SELECT 1 FROM removed_nes_save WHERE rom_id = $romId);")
+            .With("$romId", romId);
+        return (long)command.ExecuteScalar()! != 0;
+    }
+
     /// <summary>Forgets saves whose files are gone, so a deleted save stops blocking eviction.</summary>
     /// <remarks>
     /// By unit, not by path. A class C container outlives every unit in it, so deleting by path

@@ -45,6 +45,14 @@ internal sealed partial class StubRomMServer
     public IDictionary<(int RomId, string Slot), string> NegotiateActions { get; } =
         new Dictionary<(int, string), string>();
 
+    public string? NegotiateReason { get; set; }
+
+    public HttpStatusCode? NegotiateRefusal { get; set; }
+
+    public HttpStatusCode? PlaySessionRefusal { get; set; }
+
+    public Action? BeforeNegotiate { get; set; }
+
     /// <summary>Slots that answer 409, the way a stale device record makes the real server.</summary>
     public HashSet<(int RomId, string Slot)> ConflictOnUpload { get; } = [];
 
@@ -102,6 +110,8 @@ internal sealed partial class StubRomMServer
     /// save stranded on the server forever.
     /// </remarks>
     public IList<int> Acknowledged { get; } = [];
+
+    public IList<(int SaveId, string? DeviceId, string Hash)> VerifiedAcknowledgements { get; } = [];
 
     /// <summary>When set, every acknowledgment answers this status and is not recorded.</summary>
     public HttpStatusCode? FailAcknowledge { get; set; }
@@ -166,6 +176,8 @@ internal sealed partial class StubRomMServer
     /// <summary>Cut a save download off after this many bytes, which is a link dropping.</summary>
     public int? TruncateSaveDownloadAfter { get; set; }
 
+    public Action? BeforeSaveContent { get; set; }
+
     /// <summary>
     /// Report this content hash on negotiate instead of the real one.
     /// </summary>
@@ -212,7 +224,9 @@ internal sealed partial class StubRomMServer
     {
         if (path.EndsWith("/api/sync/negotiate", StringComparison.Ordinal))
         {
-            return await NegotiateAsync(request, cancellationToken).ConfigureAwait(false);
+            BeforeNegotiate?.Invoke();
+            return NegotiateRefusal is { } failure ? Detail(failure, "negotiation refused")
+                : await NegotiateAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
         if (path.Contains("/api/sync/sessions/", StringComparison.Ordinal))
@@ -249,12 +263,37 @@ internal sealed partial class StubRomMServer
 
         if (path.EndsWith("/downloaded", StringComparison.Ordinal))
         {
+            var id = SaveIdFrom(path, "downloaded");
+            using var document = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken)
+                .ConfigureAwait(false));
+            var body = document.RootElement;
+            var hash = body.TryGetProperty("content_hash", out var submitted) ? submitted.GetString() : null;
+            if (hash is not null)
+            {
+                VerifiedAcknowledgements.Add((id, body.GetProperty("device_id").GetString(), hash));
+            }
+
             if (FailAcknowledge is { } refused)
             {
                 return Json(refused, new { detail = "refused by the test" });
             }
 
-            Acknowledged.Add(SaveIdFrom(path, "downloaded"));
+            if (hash is not null)
+            {
+                if (!Saves.TryGetValue(id, out var save))
+                {
+                    return Detail(HttpStatusCode.NotFound, "no such save");
+                }
+
+                if (string.Equals(hash, save.ContentHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    Acknowledged.Add(id);
+                }
+
+                return Json(HttpStatusCode.OK, Describe(save));
+            }
+
+            Acknowledged.Add(id);
             return Json(HttpStatusCode.OK, new { ok = true });
         }
 
@@ -298,7 +337,7 @@ internal sealed partial class StubRomMServer
                 file_name = existing?.FileName,
                 slot,
                 emulator = save.GetProperty("emulator").GetString(),
-                reason = action == "conflict" ? "Both changed since the last sync" : "stub",
+                reason = NegotiateReason ?? (action == "conflict" ? "Both changed since the last sync" : "stub"),
                 server_updated_at = NaiveOrNull(existing?.UpdatedAt),
                 server_content_hash = OmitHash ? null : HashLie ?? existing?.ContentHash,
             });
@@ -499,6 +538,7 @@ internal sealed partial class StubRomMServer
             OptimisticDownloads.Add(saveId);
         }
 
+        BeforeSaveContent?.Invoke();
         Stream body = TruncateSaveDownloadAfter is { } cut && cut < save.Bytes.Length
             ? new TruncatingStream(save.Bytes, cut)
             : new MemoryStream(save.Bytes);
@@ -560,6 +600,11 @@ internal sealed partial class StubRomMServer
         {
             // Freegosy's bare array lands here, and the real server answers 422 for it.
             return Detail(HttpStatusCode.UnprocessableEntity, "Input should be a valid dictionary or object");
+        }
+
+        if (PlaySessionRefusal is { } refusal)
+        {
+            return Detail(refusal, "play-session POST refused");
         }
 
         var sessions = document.RootElement.GetProperty("sessions");

@@ -9,8 +9,8 @@ changes asks whether to discard them.
 | Always leave free | RomMBat stops downloading before the drive gets this empty. Always on, 2 GB unless you change it |
 | Limit RomMBat to  | The most RomMBat's own downloads may take up together. No limit unless you set one               |
 
-The limit counts games and their artwork together, across every sync set. Games you put in
-RetroBat yourself are never counted, and never removed.
+The limit counts downloaded games, their playlists, artwork, and downloaded firmware across
+all sync sets. Games you put in RetroBat yourself are never counted or removed.
 
 When a sync reaches either limit, it skips the games that do not fit, names them, and finishes
 with Stopped by the disk budget. The games that did fit are all there.

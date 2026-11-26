@@ -43,6 +43,11 @@ public static class LogicalContentHash
         // path: a save restored under a different name is the same save, and the name is
         // carried separately.
         using var stream = File.OpenRead(path);
+        return OfStream(stream);
+    }
+
+    internal static string OfStream(Stream stream)
+    {
 #pragma warning disable CA5351 // MD5, deliberately: RomM's content_hash is 32 characters.
         return Convert.ToHexStringLower(MD5.HashData(stream));
 #pragma warning restore CA5351
